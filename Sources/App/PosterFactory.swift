@@ -19,11 +19,18 @@ enum PosterFactory {
 
     @MainActor
     static func makeBluesky(_ store: AccountStore) async throws -> BlueskyPoster {
+        let clients = try await makeBlueskyClients(store)
+        return BlueskyPoster(bluesky: clients.bluesky, handle: store.blueskyHandle)
+    }
+
+    /// Authenticate Bluesky and return both the kit (for reads) and the Bluesky client (for writes).
+    @MainActor
+    static func makeBlueskyClients(_ store: AccountStore) async throws -> (kit: ATProtoKit, bluesky: ATProtoBluesky) {
         let config = ATProtocolConfiguration()
         try await config.authenticate(with: store.blueskyHandle, password: store.blueskyAppPassword)
         let kit = await ATProtoKit(sessionConfiguration: config)
         let bluesky = ATProtoBluesky(atProtoKitInstance: kit)
-        return BlueskyPoster(bluesky: bluesky, handle: store.blueskyHandle)
+        return (kit, bluesky)
     }
 
     /// Build posters for the selected, configured targets.

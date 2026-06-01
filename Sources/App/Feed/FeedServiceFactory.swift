@@ -1,0 +1,21 @@
+import Foundation
+import TootSDK
+import ATProtoKit
+
+enum FeedServiceFactory {
+    @MainActor
+    static func make(for target: PostTarget, store: AccountStore) async throws -> FeedService {
+        switch target {
+        case .mastodon:
+            guard let url = URL(string: store.mastodonInstanceURL) else {
+                throw PosterFactory.ConfigError.message("Invalid Mastodon instance URL")
+            }
+            let client = TootClient(instanceURL: url, accessToken: store.mastodonToken)
+            try await client.connect()
+            return MastodonFeedService(client: client)
+        case .bluesky:
+            let clients = try await PosterFactory.makeBlueskyClients(store)
+            return BlueskyFeedService(kit: clients.kit, bluesky: clients.bluesky, handle: store.blueskyHandle)
+        }
+    }
+}
