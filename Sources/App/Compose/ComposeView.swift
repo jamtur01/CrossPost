@@ -44,12 +44,6 @@ struct ComposeView: View {
         }
         .frame(minWidth: 600, minHeight: 480)
         .background(Color(nsColor: .windowBackgroundColor))
-        .sheet(isPresented: Binding(get: { model.results != nil },
-                                    set: { if !$0 { model.results = nil } })) {
-            if let results = model.results {
-                ResultsSheet(results: results) { model.results = nil }
-            }
-        }
     }
 
     private func actionBar(_ model: ComposeModel) -> some View {

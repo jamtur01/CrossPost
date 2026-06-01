@@ -64,12 +64,5 @@ struct ComposeColumnView: View {
             }
             .frame(minWidth: 600, minHeight: 520)
         }
-        .sheet(isPresented: Binding(
-            get: { model.results != nil },
-            set: { if !$0 { model.results = nil } })) {
-            if let results = model.results {
-                ResultsSheet(results: results) { model.results = nil }
-            }
-        }
     }
 }

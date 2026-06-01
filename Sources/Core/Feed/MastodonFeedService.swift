@@ -59,27 +59,34 @@ public struct MastodonFeedService: FeedService {
     }
 
     static func feedPost(from post: Post) -> FeedPost {
-        let images = post.mediaAttachments
+        // A boost carries its real content in `displayPost` (the reblogged status);
+        // render that, and attribute it to the booster.
+        let display = post.displayPost
+        let boostedBy = post.displayingRepost
+            ? (post.account.displayName?.isEmpty == false ? post.account.displayName! : post.account.acct)
+            : nil
+        let images = display.mediaAttachments
             .filter { $0.type.value == .image }
             .compactMap { att -> FeedImage? in
                 guard let url = URL(string: att.url) else { return nil }
                 return FeedImage(url: url, altText: att.description ?? "")
             }
         return FeedPost(
-            id: "mastodon:\(post.id)",
+            id: "mastodon:\(display.id)",
             target: .mastodon,
-            authorName: post.account.displayName?.isEmpty == false
-                ? post.account.displayName!
-                : post.account.acct,
-            authorHandle: "@\(post.account.acct)",
-            avatarURL: URL(string: post.account.avatar),
-            date: post.createdAt,
-            text: AttributedString(HTMLRenderer.render(post.content ?? "")),
+            authorName: display.account.displayName?.isEmpty == false
+                ? display.account.displayName!
+                : display.account.acct,
+            authorHandle: "@\(display.account.acct)",
+            avatarURL: URL(string: display.account.avatar),
+            date: display.createdAt,
+            text: AttributedString(HTMLRenderer.render(display.content ?? "")),
             images: images,
-            webURL: post.url.flatMap(URL.init(string:)),
-            isLiked: post.favourited ?? false,
-            isReposted: post.reposted ?? false,
-            nativeRef: .mastodon(statusID: post.id))
+            webURL: display.url.flatMap(URL.init(string:)),
+            isLiked: display.favourited ?? false,
+            isReposted: display.reposted ?? false,
+            boostedBy: boostedBy,
+            nativeRef: .mastodon(statusID: display.id))
     }
 }
 

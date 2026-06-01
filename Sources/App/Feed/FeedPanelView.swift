@@ -35,6 +35,13 @@ struct FeedPanelView: View {
         // Pick up credentials saved in Settings after launch (the URL/handle change republishes).
         .onChange(of: store.mastodonInstanceURL) { if model.target == .mastodon { model.start() } }
         .onChange(of: store.blueskyHandle) { if model.target == .bluesky { model.start() } }
+        // Refresh after a cross-post lands on this panel's platform.
+        .onReceive(NotificationCenter.default.publisher(for: .crosspostDidPost)) { note in
+            if let targets = note.userInfo?[crosspostTargetsKey] as? Set<PostTarget>,
+               targets.contains(model.target) {
+                model.refresh()
+            }
+        }
     }
 
     @ViewBuilder

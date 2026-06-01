@@ -9,6 +9,10 @@ struct FeedPostView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
+            if let boostedBy = post.boostedBy {
+                Label("\(boostedBy) boosted", systemImage: "arrow.2.squarepath")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             HStack(alignment: .top, spacing: 8) {
                 AsyncImage(url: post.avatarURL) { image in
                     image.resizable().scaledToFill()

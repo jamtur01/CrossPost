@@ -7,7 +7,6 @@ final class ComposeModel {
     var thread: [DraftPost] = [DraftPost()]
     var selectedTargets: Set<PostTarget> = [.mastodon, .bluesky]
     var isPosting = false
-    var results: [PostResult]?
     var blockedIssues: [ValidationIssue]?
     var errorMessage: String?
 
@@ -34,7 +33,7 @@ final class ComposeModel {
 
     func submit() async {
         isPosting = true
-        results = nil; blockedIssues = nil; errorMessage = nil
+        blockedIssues = nil; errorMessage = nil
         defer { isPosting = false }
 
         let targets = PostTarget.allCases.filter { selectedTargets.contains($0) }
@@ -49,10 +48,40 @@ final class ComposeModel {
                                                     using: posters, limits: store.limits)
             switch outcome {
             case .blocked(let issues): blockedIssues = issues
-            case .completed(let results): self.results = results
+            case .completed(let results): handleCompletion(results)
             }
         } catch {
             errorMessage = String(describing: error)
         }
     }
+
+    /// On success, clear the box and tell the feed panels to refresh the posted-to
+    /// platforms; surface any per-target failures inline (no results popup).
+    private func handleCompletion(_ results: [PostResult]) {
+        let succeeded = results.compactMap { result -> PostTarget? in
+            if case .success = result.outcome { return result.target } else { return nil }
+        }
+        if !succeeded.isEmpty {
+            NotificationCenter.default.post(name: .crosspostDidPost, object: nil,
+                                            userInfo: [crosspostTargetsKey: Set(succeeded)])
+            thread = [DraftPost()]   // clear the posting box
+        }
+        let failures = results.compactMap { result -> String? in
+            switch result.outcome {
+            case .success: return nil
+            case .failure(let message): return "\(result.target.displayName): \(message)"
+            case .partial(_, let failedIndex, let message):
+                return "\(result.target.displayName): post \(failedIndex + 1) failed — \(message)"
+            }
+        }
+        errorMessage = failures.isEmpty ? nil : failures.joined(separator: "\n")
+    }
 }
+
+/// Posted to the listed targets after a successful cross-post, so feed panels refresh.
+extension Notification.Name {
+    static let crosspostDidPost = Notification.Name("crosspostDidPost")
+}
+
+/// userInfo key carrying a `Set<PostTarget>` of successfully-posted platforms.
+let crosspostTargetsKey = "targets"
