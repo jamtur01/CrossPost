@@ -105,13 +105,15 @@ xcodebuild test -project Crosspost.xcodeproj -scheme Crosspost -destination 'pla
 - **CI** (`.github/workflows/ci.yml`) builds and runs the tests on every push to
   `main` and on pull requests.
 - **Releases** (`.github/workflows/release.yml`) trigger on `v*` tags: they build a
-  Release bundle, zip it, and publish a GitHub Release with the archive attached.
-  Cut one with:
+  universal (Apple Silicon + Intel) Release bundle, **code-sign it with a Developer
+  ID and notarize it with Apple**, then publish a GitHub Release with the zipped app
+  attached. Cut one with:
 
   ```bash
   git tag v0.1.0
   git push origin v0.1.0
   ```
 
-  The release build is unsigned and not notarized; on first launch right-click the
-  app and choose **Open**, or run `xattr -dr com.apple.quarantine Crosspost.app`.
+  Signing/notarization requires these repository secrets: `MACOS_CERTIFICATE_P12`,
+  `MACOS_CERTIFICATE_PASSWORD`, `MACOS_CODESIGN_IDENTITY`, `APPLE_ID`,
+  `MACOS_API_ISSUER_ID` (your Developer Team ID), and `APPLE_APP_SPECIFIC_PASSWORD`.

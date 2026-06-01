@@ -1,50 +1,117 @@
-name: Release
+name: Create Release
 
 on:
   push:
-    tags: ['v*']
+    tags:
+      - "v*"
 
-permissions:
-  contents: write
+# Required repository secrets (Developer ID signing + notarization):
+#   MACOS_CERTIFICATE_P12         base64 of a "Developer ID Application" .p12
+#   MACOS_CERTIFICATE_PASSWORD    password for that .p12
+#   MACOS_CODESIGN_IDENTITY       e.g. "Developer ID Application: Your Name (TEAMID)"
+#   APPLE_ID                      Apple ID email used for notarization
+#   MACOS_API_ISSUER_ID           Apple Developer Team ID (name kept for parity)
+#   APPLE_APP_SPECIFIC_PASSWORD   app-specific password for that Apple ID
 
 jobs:
-  release:
+  build-and-test:
     runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate Xcode project
+        run: xcodegen generate
+      - name: Resolve Swift package dependencies
+        run: xcodebuild -resolvePackageDependencies -project Crosspost.xcodeproj -scheme Crosspost
+      - name: Build and test
+        run: |
+          xcodebuild test \
+            -project Crosspost.xcodeproj \
+            -scheme Crosspost \
+            -destination 'platform=macOS' \
+            CODE_SIGN_IDENTITY="-" CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM=""
+
+  create-release:
+    needs: build-and-test
+    runs-on: macos-15
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v5
 
       - name: Install XcodeGen
         run: brew install xcodegen
 
-      - name: Generate Xcode project
-        run: xcodegen generate
-
-      - name: Resolve Swift package dependencies
-        run: xcodebuild -resolvePackageDependencies -project Crosspost.xcodeproj -scheme Crosspost
-
-      - name: Build Release
-        run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          xcodebuild build \
-            -project Crosspost.xcodeproj \
-            -scheme Crosspost \
-            -configuration Release \
-            -destination 'platform=macOS' \
-            -derivedDataPath build/DerivedData \
-            MARKETING_VERSION="$VERSION" \
-            CODE_SIGN_IDENTITY="-" CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM=""
-
-      - name: Package app
-        run: |
-          APP="build/DerivedData/Build/Products/Release/Crosspost.app"
-          ditto -c -k --keepParent "$APP" "Crosspost-${GITHUB_REF_NAME}.zip"
-
-      - name: Create GitHub release
+      - name: Set up signing certificate
         env:
-          GH_TOKEN: ${{ github.token }}
+          MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
         run: |
-          gh release create "$GITHUB_REF_NAME" \
-            "Crosspost-${GITHUB_REF_NAME}.zip" \
-            --title "Crosspost $GITHUB_REF_NAME" \
-            --generate-notes \
-            --notes "Unsigned macOS build (not notarized). On first launch, right-click the app and choose **Open**, or strip the quarantine flag: \`xattr -dr com.apple.quarantine Crosspost.app\`."
+          echo "$MACOS_CERTIFICATE_P12" | base64 --decode > certificate.p12
+          security create-keychain -p "temporary-password" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "temporary-password" build.keychain
+          security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "temporary-password" build.keychain
+
+      - name: Build Release app bundle (universal)
+        run: |
+          chmod +x ./build.sh
+          ./build.sh --release
+
+      - name: Code sign the app
+        env:
+          MACOS_CODESIGN_IDENTITY: ${{ secrets.MACOS_CODESIGN_IDENTITY }}
+        run: |
+          /usr/bin/codesign --force --options runtime --timestamp \
+            --sign "$MACOS_CODESIGN_IDENTITY" --deep \
+            build/Crosspost.app
+          /usr/bin/codesign --verify --strict --verbose=2 build/Crosspost.app
+
+      - name: Notarize the app
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          MACOS_API_ISSUER_ID: ${{ secrets.MACOS_API_ISSUER_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+        run: |
+          xcrun notarytool store-credentials "notarytool-profile" \
+            --apple-id "$APPLE_ID" \
+            --team-id "$MACOS_API_ISSUER_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD"
+
+          ditto -c -k --keepParent build/Crosspost.app notarization.zip
+
+          xcrun notarytool submit notarization.zip --keychain-profile "notarytool-profile" --wait
+          xcrun stapler staple build/Crosspost.app || echo "Stapling failed, but continuing..."
+
+      - name: Create final ZIP archive
+        run: |
+          ditto -c -k --keepParent build/Crosspost.app "Crosspost-${GITHUB_REF_NAME}.zip"
+
+      - name: Extract version from tag
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Crosspost ${{ steps.get_version.outputs.VERSION }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            Crosspost-${{ github.ref_name }}.zip
+          body: |
+            # Crosspost ${{ steps.get_version.outputs.VERSION }}
+
+            A native macOS app for reading and posting to Mastodon and Bluesky side by side.
+
+            ## Installation
+
+            1. Download `Crosspost-${{ github.ref_name }}.zip`
+            2. Unzip it
+            3. Move `Crosspost.app` to your Applications folder
+            4. Open it
+
+            This build is signed with a Developer ID and notarized by Apple.

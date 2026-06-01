@@ -34,6 +34,12 @@ dest="$PWD/build/Crosspost.app"
 echo "==> Generating Xcode project"
 xcodegen generate
 
+# Release builds are universal (Apple Silicon + Intel) for distribution.
+arch_args=()
+if [ "$configuration" = "Release" ]; then
+  arch_args=(ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO)
+fi
+
 echo "==> Building Crosspost ($configuration)"
 xcodebuild build \
   -project Crosspost.xcodeproj \
@@ -41,6 +47,7 @@ xcodebuild build \
   -configuration "$configuration" \
   -destination 'platform=macOS' \
   -derivedDataPath "$derived_data" \
+  "${arch_args[@]}" \
   -quiet
 
 src="$derived_data/Build/Products/$configuration/Crosspost.app"
