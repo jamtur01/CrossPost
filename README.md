@@ -13,6 +13,14 @@ xcodegen generate
 open Crosspost.xcodeproj   # then ⌘R
 ```
 
+Or build a standalone app bundle into `build/Crosspost.app`:
+
+```bash
+./build.sh          # build only
+./build.sh --run    # build, then launch
+./build.sh --release
+```
+
 The `Crosspost.xcodeproj` is generated from `project.yml` and is gitignored —
 run `xcodegen generate` after cloning or pulling.
 
