@@ -39,10 +39,15 @@ final class FeedPanelModel {
         Task { await load(reset: true) }
     }
 
-    func refresh() { Task { await load(reset: false) } }
+    func refresh() {
+        guard hasCredentials else { needsCredentials = true; return }
+        if pollTask == nil { startPolling() }   // start polling if credentials arrived after launch
+        Task { await load(reset: false) }
+    }
 
     private func load(reset: Bool) async {
         guard hasCredentials else { needsCredentials = true; return }
+        needsCredentials = false   // credentials present now — clear the connect prompt
         if isLoading { return }
         isLoading = true
         errorMessage = nil

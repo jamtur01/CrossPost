@@ -32,6 +32,9 @@ struct FeedPanelView: View {
         }
         .onAppear { model.start() }
         .onDisappear { model.stop() }
+        // Pick up credentials saved in Settings after launch (the URL/handle change republishes).
+        .onChange(of: store.mastodonInstanceURL) { if model.target == .mastodon { model.start() } }
+        .onChange(of: store.blueskyHandle) { if model.target == .bluesky { model.start() } }
     }
 
     @ViewBuilder
