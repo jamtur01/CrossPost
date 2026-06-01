@@ -1,14 +1,10 @@
 import SwiftUI
 
 struct ComposeView: View {
-    @EnvironmentObject var store: AccountStore
-    @State private var model: ComposeModel?
+    @Bindable var model: ComposeModel
 
     var body: some View {
-        Group {
-            if let model { content(model) } else { ProgressView() }
-        }
-        .onAppear { if model == nil { model = ComposeModel(store: store) } }
+        content(model)
     }
 
     @ViewBuilder
