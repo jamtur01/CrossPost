@@ -1,0 +1,54 @@
+name: Crosspost
+options:
+  bundleIdPrefix: net.lovedthanlost
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    PRODUCT_BUNDLE_IDENTIFIER: net.lovedthanlost.crosspost
+    GENERATE_INFOPLIST_FILE: YES
+    INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.social-networking
+    CODE_SIGN_STYLE: Automatic
+packages:
+  TootSDK:
+    url: https://github.com/TootSDK/TootSDK
+    exactVersion: 21.8.0
+  ATProtoKit:
+    url: https://github.com/MasterJ93/ATProtoKit
+    exactVersion: 0.32.5
+targets:
+  Crosspost:
+    type: application
+    platform: macOS
+    sources:
+      - Sources
+    dependencies:
+      - package: TootSDK
+      - package: ATProtoKit
+    settings:
+      base:
+        ENABLE_HARDENED_RUNTIME: YES
+  CoreTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - Tests
+    dependencies:
+      - target: Crosspost
+    settings:
+      base:
+        BUNDLE_LOADER: "$(TEST_HOST)"
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Crosspost.app/Contents/MacOS/Crosspost"
+schemes:
+  Crosspost:
+    build:
+      targets:
+        Crosspost: all
+        CoreTests: [test]
+    test:
+      targets:
+        - CoreTests
