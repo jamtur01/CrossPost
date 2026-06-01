@@ -33,11 +33,9 @@ struct PostCardView: View {
                     .help("Remove this post")
                 }
             }
-            TextEditor(text: $post.text)
-                .font(.body)
-                .scrollContentBackground(.hidden)
+            PlainTextEditor(text: $post.text)
+                .frame(minHeight: 88, maxHeight: 220)
                 .padding(6)
-                .frame(minHeight: 88)
                 .background(RoundedRectangle(cornerRadius: 6).fill(Color(nsColor: .textBackgroundColor)))
                 .overlay(RoundedRectangle(cornerRadius: 6).stroke(.quaternary))
 

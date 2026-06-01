@@ -3,7 +3,6 @@ import SwiftUI
 struct ComposeColumnView: View {
     @EnvironmentObject var store: AccountStore
     @State private var model: ComposeModel?
-    @State private var showThread = false
 
     var body: some View {
         Group {
@@ -15,31 +14,23 @@ struct ComposeColumnView: View {
     @ViewBuilder
     private func content(_ model: ComposeModel) -> some View {
         @Bindable var model = model
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
             Text("New Post").font(.headline)
 
-            TextEditor(text: Binding(
-                get: { model.thread.first?.text ?? "" },
-                set: { if !model.thread.isEmpty { model.thread[0].text = $0 } }))
-                .font(.body).frame(minHeight: 120)
-                .overlay(RoundedRectangle(cornerRadius: 6).stroke(.quaternary))
-
-            HStack {
-                ForEach(PostTarget.allCases) { target in
-                    Toggle(target.displayName, isOn: Binding(
-                        get: { model.selectedTargets.contains(target) },
-                        set: { _ in model.toggle(target) }))
-                    .toggleStyle(.button).controlSize(.small)
-                }
-            }
-
-            HStack {
-                Button("Expand to thread…") { showThread = true }
+            ScrollView {
+                VStack(spacing: 8) {
+                    ForEach($model.thread) { $post in
+                        let index = model.thread.firstIndex(where: { $0.id == post.id }) ?? 0
+                        PostCardView(post: $post, index: index,
+                                     canRemove: model.thread.count > 1,
+                                     onRemove: { model.removePost(at: index) })
+                    }
+                    Button { model.addPost() } label: {
+                        Label("Add post to thread", systemImage: "plus")
+                    }
                     .buttonStyle(.borderless).font(.caption)
-                Spacer()
-                Button(model.isPosting ? "Posting…" : "Post") { Task { await model.submit() } }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(!model.canPost)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
 
             if let issues = model.blockedIssues, !issues.isEmpty {
@@ -48,21 +39,21 @@ struct ComposeColumnView: View {
             if let error = model.errorMessage {
                 Text(error).font(.caption).foregroundStyle(.red).lineLimit(3)
             }
-            Spacer()
+
+            Divider()
+            HStack(spacing: 6) {
+                ForEach(PostTarget.allCases) { target in
+                    Toggle(target.displayName, isOn: Binding(
+                        get: { model.selectedTargets.contains(target) },
+                        set: { _ in model.toggle(target) }))
+                    .toggleStyle(.button).controlSize(.small)
+                }
+                Spacer()
+                Button(model.isPosting ? "Posting…" : "Post") { Task { await model.submit() } }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(!model.canPost)
+            }
         }
         .padding(12)
-        .sheet(isPresented: $showThread) {
-            VStack(spacing: 0) {
-                HStack {
-                    Text("Thread").font(.headline)
-                    Spacer()
-                    Button("Done") { showThread = false }
-                }
-                .padding(12)
-                Divider()
-                ComposeView(model: model)
-            }
-            .frame(minWidth: 600, minHeight: 520)
-        }
     }
 }
