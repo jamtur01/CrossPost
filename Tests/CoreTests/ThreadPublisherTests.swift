@@ -32,7 +32,7 @@ final class ThreadPublisherTests: XCTestCase {
         XCTAssertEqual(calls, [.init(root: nil, parent: nil)])
     }
 
-    func testThreerPostThreadLinksRootAndParent() async throws {
+    func testThreePostThreadLinksRootAndParent() async throws {
         let pub = FakePublisher()
         let drafts = [DraftPost(text: "a"), DraftPost(text: "b"), DraftPost(text: "c")]
         let posted = try await runThread(drafts, using: pub)

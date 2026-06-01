@@ -6,11 +6,14 @@ struct PostCardView: View {
     let canRemove: Bool
     let onRemove: () -> Void
 
+    /// Warn (orange) once within this many graphemes of the Bluesky limit.
+    private static let warnWithin = 20
+
     private var count: Int { PostValidator.graphemeCount(post.text) }
 
     private var counterColor: Color {
         if count > TargetLimits.blueskyMax { return .red }
-        if count >= 280 { return .orange }
+        if count >= TargetLimits.blueskyMax - Self.warnWithin { return .orange }
         return .secondary
     }
 
