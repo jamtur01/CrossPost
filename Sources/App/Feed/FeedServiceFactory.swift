@@ -7,7 +7,7 @@ enum FeedServiceFactory {
     static func make(for target: PostTarget, store: AccountStore) async throws -> FeedService {
         switch target {
         case .mastodon:
-            guard let url = URL(string: store.mastodonInstanceURL) else {
+            guard let url = store.mastodonBaseURL else {
                 throw PosterFactory.ConfigError.message("Invalid Mastodon instance URL")
             }
             let client = TootClient(instanceURL: url, accessToken: store.mastodonToken)

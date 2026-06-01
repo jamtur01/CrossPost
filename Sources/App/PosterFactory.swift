@@ -6,7 +6,7 @@ enum PosterFactory {
     /// Build a connected Mastodon poster and refresh the stored max-character limit.
     @MainActor
     static func makeMastodon(_ store: AccountStore) async throws -> MastodonPoster {
-        guard let url = URL(string: store.mastodonInstanceURL) else {
+        guard let url = store.mastodonBaseURL else {
             throw ConfigError.message("Invalid Mastodon instance URL")
         }
         let client = TootClient(instanceURL: url, accessToken: store.mastodonToken)

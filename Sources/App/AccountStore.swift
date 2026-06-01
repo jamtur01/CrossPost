@@ -35,5 +35,16 @@ final class AccountStore: ObservableObject {
     var hasMastodon: Bool { !mastodonInstanceURL.isEmpty && !mastodonToken.isEmpty }
     var hasBluesky: Bool { !blueskyHandle.isEmpty && !blueskyAppPassword.isEmpty }
 
+    /// The instance URL normalized for networking: a bare host like `hachyderm.io`
+    /// gets an `https://` scheme, surrounding whitespace and trailing slashes are dropped.
+    var mastodonBaseURL: URL? {
+        var text = mastodonInstanceURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return nil }
+        if !text.contains("://") { text = "https://" + text }
+        while text.hasSuffix("/") { text.removeLast() }
+        guard let url = URL(string: text), url.host?.isEmpty == false else { return nil }
+        return url
+    }
+
     var limits: TargetLimits { TargetLimits(mastodonMax: mastodonMaxChars) }
 }
