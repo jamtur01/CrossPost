@@ -6,10 +6,9 @@ struct CrosspostApp: App {
 
     var body: some Scene {
         WindowGroup("Crosspost") {
-            ComposeView(model: ComposeModel(store: store))
-                .environmentObject(store)
+            MainView().environmentObject(store)
         }
-        .defaultSize(width: 640, height: 560)
+        .defaultSize(width: 1180, height: 720)
 
         Settings {
             SettingsView().environmentObject(store)
