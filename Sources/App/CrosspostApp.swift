@@ -8,7 +8,7 @@ struct CrosspostApp: App {
         WindowGroup("Crosspost") {
             ComposeView().environmentObject(store)
         }
-        .defaultSize(width: 560, height: 540)
+        .defaultSize(width: 640, height: 560)
 
         Settings {
             SettingsView().environmentObject(store)

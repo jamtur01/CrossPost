@@ -38,6 +38,11 @@ final class ComposeModel {
         defer { isPosting = false }
 
         let targets = PostTarget.allCases.filter { selectedTargets.contains($0) }
+
+        // Validate up front so length/empty errors abort before any network connection.
+        let issues = PostValidator.validate(thread: thread, targets: targets, limits: store.limits)
+        guard issues.isEmpty else { blockedIssues = issues; return }
+
         do {
             let posters = try await PosterFactory.makePosters(for: targets, store: store)
             let outcome = await coordinator.publish(thread: thread, to: targets,

@@ -46,7 +46,8 @@ struct ComposeView: View {
             Divider()
             actionBar(model)
         }
-        .frame(minWidth: 540, minHeight: 480)
+        .frame(minWidth: 600, minHeight: 480)
+        .background(Color(nsColor: .windowBackgroundColor))
         .sheet(isPresented: Binding(get: { model.results != nil },
                                     set: { if !$0 { model.results = nil } })) {
             if let results = model.results {
