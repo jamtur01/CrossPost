@@ -1,0 +1,90 @@
+import SwiftUI
+
+struct PostCardView: View {
+    @Binding var post: DraftPost
+    let index: Int
+    let canRemove: Bool
+    let onRemove: () -> Void
+
+    private var count: Int { PostValidator.graphemeCount(post.text) }
+
+    private var counterColor: Color {
+        if count > TargetLimits.blueskyMax { return .red }
+        if count >= 280 { return .orange }
+        return .secondary
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Post \(index + 1)").font(.headline)
+                Spacer()
+                Text("\(count)/\(TargetLimits.blueskyMax)")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(counterColor)
+                if canRemove {
+                    Button(role: .destructive, action: onRemove) {
+                        Image(systemName: "trash")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Remove this post")
+                }
+            }
+            TextEditor(text: $post.text)
+                .font(.body)
+                .scrollContentBackground(.hidden)
+                .padding(6)
+                .frame(minHeight: 88)
+                .background(RoundedRectangle(cornerRadius: 6).fill(Color(nsColor: .textBackgroundColor)))
+                .overlay(RoundedRectangle(cornerRadius: 6).stroke(.quaternary))
+
+            if !post.attachments.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(alignment: .top, spacing: 12) {
+                        ForEach($post.attachments) { $attachment in
+                            VStack(spacing: 6) {
+                                if let img = NSImage(data: attachment.imageData) {
+                                    Image(nsImage: img)
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: 80, height: 80)
+                                        .clipped()
+                                        .cornerRadius(6)
+                                }
+                                TextField("Alt text", text: $attachment.altText)
+                                    .textFieldStyle(.roundedBorder)
+                                    .frame(width: 120)
+                                    .font(.caption)
+                            }
+                        }
+                    }
+                    .padding(.vertical, 2)
+                }
+            }
+
+            Button(action: addImage) {
+                Label("Add Image…", systemImage: "photo.badge.plus")
+            }
+            .buttonStyle(.borderless)
+            .font(.caption)
+        }
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color(nsColor: .controlBackgroundColor))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(.quaternary, lineWidth: 1)
+        )
+    }
+
+    private func addImage() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.png, .jpeg, .heic, .gif, .tiff]
+        panel.allowsMultipleSelection = false
+        if panel.runModal() == .OK, let url = panel.url, let data = try? Data(contentsOf: url) {
+            post.attachments.append(Attachment(imageData: data))
+        }
+    }
+}
