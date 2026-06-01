@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Resolve Swift package dependencies
+        run: xcodebuild -resolvePackageDependencies -project Crosspost.xcodeproj -scheme Crosspost
+
+      - name: Build and test
+        run: |
+          xcodebuild test \
+            -project Crosspost.xcodeproj \
+            -scheme Crosspost \
+            -destination 'platform=macOS' \
+            CODE_SIGN_IDENTITY="-" CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM=""

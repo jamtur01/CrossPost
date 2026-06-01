@@ -16,7 +16,7 @@ public struct CredentialStore: Sendable {
 
     private let service: String
 
-    public init(service: String = "net.lovedthanlost.crosspost") {
+    public init(service: String = "net.kartar.crosspost") {
         self.service = service
     }
 

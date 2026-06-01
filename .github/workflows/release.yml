@@ -1,0 +1,50 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Resolve Swift package dependencies
+        run: xcodebuild -resolvePackageDependencies -project Crosspost.xcodeproj -scheme Crosspost
+
+      - name: Build Release
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          xcodebuild build \
+            -project Crosspost.xcodeproj \
+            -scheme Crosspost \
+            -configuration Release \
+            -destination 'platform=macOS' \
+            -derivedDataPath build/DerivedData \
+            MARKETING_VERSION="$VERSION" \
+            CODE_SIGN_IDENTITY="-" CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM=""
+
+      - name: Package app
+        run: |
+          APP="build/DerivedData/Build/Products/Release/Crosspost.app"
+          ditto -c -k --keepParent "$APP" "Crosspost-${GITHUB_REF_NAME}.zip"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            "Crosspost-${GITHUB_REF_NAME}.zip" \
+            --title "Crosspost $GITHUB_REF_NAME" \
+            --generate-notes \
+            --notes "Unsigned macOS build (not notarized). On first launch, right-click the app and choose **Open**, or strip the quarantine flag: \`xattr -dr com.apple.quarantine Crosspost.app\`."

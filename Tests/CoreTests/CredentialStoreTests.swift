@@ -4,7 +4,7 @@ import XCTest
 final class CredentialStoreTests: XCTestCase {
     // Unique service per run so tests are isolated and self-cleaning.
     private func makeStore() -> CredentialStore {
-        CredentialStore(service: "net.lovedthanlost.crosspost.tests.\(UUID().uuidString)")
+        CredentialStore(service: "net.kartar.crosspost.tests.\(UUID().uuidString)")
     }
 
     func testSaveThenLoadRoundTrips() throws {
