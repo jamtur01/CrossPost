@@ -47,6 +47,21 @@ app preferences.
 - Images are re-encoded to JPEG under Bluesky's 1 MB per-image limit (max 4 per
   post); each image carries its alt text to both platforms.
 
+## Feeds
+
+The app opens into three columns — Compose | Mastodon | Bluesky. Each feed column
+has Home and Mentions tabs and auto-refreshes (~60s) plus a manual refresh button.
+For any post you can:
+
+- **Reply** — opens a composer scoped to that one platform (cross-post disabled).
+- **Like / Repost** — toggles favourite/boost (Mastodon) or like/repost (Bluesky),
+  updating optimistically.
+- **Open in browser** — opens the original post.
+
+The Compose column cross-posts a single post to both platforms (length-validated,
+abort-on-fail); "Expand to thread…" opens the full thread composer. A platform
+without saved credentials shows a "Connect in Settings" prompt instead of a feed.
+
 ## Architecture
 
 - `Sources/Core` — UI-independent logic, unit-tested: models, `PostValidator`,
@@ -54,5 +69,9 @@ app preferences.
   (Keychain), `ImageProcessor`, and the `MastodonPoster`/`BlueskyPoster` adapters
   over [TootSDK](https://github.com/TootSDK/TootSDK) and
   [ATProtoKit](https://github.com/MasterJ93/ATProtoKit).
-- `Sources/App` — SwiftUI: the compose window, settings, results sheet, and the
-  `AccountStore`/`PosterFactory` glue.
+- `Sources/Core/Feed` — feed logic: the SDK-free `FeedPost` model, the
+  `FeedService` adapters over both SDKs, and the unit-tested `HTMLRenderer`,
+  `FeedMerge`, and `BlueskyThreadRef` helpers.
+- `Sources/App` — SwiftUI: the three-column `MainView`, feed panels, post cards,
+  reply sheet, compose column/window, settings, results sheet, and the
+  `AccountStore`/`PosterFactory`/`FeedServiceFactory` glue.
