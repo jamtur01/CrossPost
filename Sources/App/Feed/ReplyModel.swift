@@ -16,6 +16,9 @@ final class ReplyModel {
     init(post: FeedPost, store: AccountStore) {
         self.post = post
         self.store = store
+        // Replies start by mentioning the author (Mastodon needs it in the text;
+        // Bluesky turns "@handle" into a mention facet automatically).
+        self.text = post.authorHandle + " "
     }
 
     var canSend: Bool { !isSending && !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
