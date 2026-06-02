@@ -31,6 +31,15 @@ public enum HTMLRenderer {
                 s.replaceSubrange(range, with: "")
             }
         }
+        // Numeric hex entities like &#x1F600;
+        while let range = s.range(of: "&#[xX][0-9A-Fa-f]+;", options: .regularExpression) {
+            let hex = s[range].dropFirst(3).dropLast()
+            if let code = UInt32(hex, radix: 16), let scalar = Unicode.Scalar(code) {
+                s.replaceSubrange(range, with: String(scalar))
+            } else {
+                s.replaceSubrange(range, with: "")
+            }
+        }
         return s
     }
 }

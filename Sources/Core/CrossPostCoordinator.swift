@@ -24,9 +24,9 @@ public struct CrossPostCoordinator: Sendable {
                 results.append(PostResult(target: target,
                                           outcome: .partial(posted: e.posted,
                                                             failedIndex: e.failedIndex,
-                                                            message: String(describing: e.underlying))))
+                                                            message: e.underlying.userMessage)))
             } catch {
-                results.append(PostResult(target: target, outcome: .failure(message: String(describing: error))))
+                results.append(PostResult(target: target, outcome: .failure(message: error.userMessage)))
             }
         }
         return .completed(results: results)

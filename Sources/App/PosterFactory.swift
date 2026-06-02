@@ -42,8 +42,9 @@ enum PosterFactory {
         return posters
     }
 
-    enum ConfigError: Error, CustomStringConvertible {
+    enum ConfigError: Error, CustomStringConvertible, LocalizedError {
         case message(String)
         var description: String { switch self { case .message(let m): return m } }
+        var errorDescription: String? { description }
     }
 }

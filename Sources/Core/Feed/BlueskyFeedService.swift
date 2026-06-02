@@ -82,51 +82,36 @@ public struct BlueskyFeedService: FeedService {
         return PostedItem(url: "https://bsky.app/profile/\(handle)/post/\(rkey)")
     }
 
+    public func parent(of post: FeedPost) async throws -> FeedPost? {
+        guard post.isReply, case .bluesky(let uri, _, _, _) = post.nativeRef else { return nil }
+        let output = try await kit.getPostThread(from: uri)
+        guard case .threadViewPost(let thread) = output.thread,
+              case .threadViewPost(let parent)? = thread.parent else { return nil }
+        return Self.feedPost(fromPostView: parent.post)
+    }
+
     static func feedPost(
         from item: AppBskyLexicon.Feed.FeedViewPostDefinition,
         handle: String
     ) -> FeedPost? {
-        let p = item.post
-        let text = p.record.getRecord(ofType: AppBskyLexicon.Feed.PostRecord.self)?.text ?? ""
-
-        var images: [FeedImage] = []
-        if case .embedImagesView(let view)? = p.embed {
-            images = view.images.map { FeedImage(url: $0.fullSizeImageURL, altText: $0.altText) }
-        }
-
         let replyRoot: (uri: String, cid: String)?
         if case .postView(let rootPost)? = item.reply?.root {
             replyRoot = (rootPost.uri, rootPost.cid)
         } else {
             replyRoot = nil
         }
-        let root = BlueskyThreadRef.root(postURI: p.uri, postCID: p.cid, replyRoot: replyRoot)
-
-        let rkey = p.uri.split(separator: "/").last.map(String.init) ?? ""
-        return FeedPost(
-            id: "bluesky:\(p.uri)",
-            target: .bluesky,
-            authorName: p.author.displayName?.isEmpty == false
-                ? p.author.displayName!
-                : p.author.actorHandle,
-            authorHandle: "@\(p.author.actorHandle)",
-            avatarURL: p.author.avatarImageURL,
-            date: p.indexedAt,
-            text: AttributedString(text),
-            images: images,
-            webURL: URL(string: "https://bsky.app/profile/\(p.author.actorHandle)/post/\(rkey)"),
-            isLiked: p.viewer?.likeURI != nil,
-            isReposted: p.viewer?.repostURI != nil,
-            likeRecordURI: p.viewer?.likeURI,
-            repostRecordURI: p.viewer?.repostURI,
-            nativeRef: .bluesky(uri: p.uri, cid: p.cid, rootURI: root.uri, rootCID: root.cid))
+        return feedPost(fromPostView: item.post, replyRoot: replyRoot, isReply: item.reply != nil)
     }
 
     static func feedPost(
         fromNotification n: AppBskyLexicon.Notification.Notification,
         handle: String
     ) -> FeedPost? {
-        let text = n.record.getRecord(ofType: AppBskyLexicon.Feed.PostRecord.self)?.text ?? ""
+        let record = n.record.getRecord(ofType: AppBskyLexicon.Feed.PostRecord.self)
+        // Thread the reply to the real root from the notification's record, not the
+        // notification post itself (which is the immediate parent).
+        let replyRoot = record?.reply.map { ($0.root.recordURI, $0.root.recordCID) }
+        let root = BlueskyThreadRef.root(postURI: n.uri, postCID: n.cid, replyRoot: replyRoot)
         let rkey = n.uri.split(separator: "/").last.map(String.init) ?? ""
         return FeedPost(
             id: "bluesky:\(n.uri)",
@@ -137,11 +122,48 @@ public struct BlueskyFeedService: FeedService {
             authorHandle: "@\(n.author.actorHandle)",
             avatarURL: n.author.avatarImageURL,
             date: n.indexedAt,
-            text: AttributedString(text),
+            text: AttributedString(record?.text ?? ""),
             images: [],
             webURL: URL(string: "https://bsky.app/profile/\(n.author.actorHandle)/post/\(rkey)"),
             isLiked: false,
             isReposted: false,
-            nativeRef: .bluesky(uri: n.uri, cid: n.cid, rootURI: n.uri, rootCID: n.cid))
+            isReply: record?.reply != nil,
+            nativeRef: .bluesky(uri: n.uri, cid: n.cid, rootURI: root.uri, rootCID: root.cid))
+    }
+
+    /// Map a bare post view (timeline item, reply parent, etc.) to a FeedPost.
+    static func feedPost(
+        fromPostView p: AppBskyLexicon.Feed.PostViewDefinition,
+        replyRoot: (uri: String, cid: String)? = nil,
+        isReply: Bool? = nil
+    ) -> FeedPost {
+        let record = p.record.getRecord(ofType: AppBskyLexicon.Feed.PostRecord.self)
+        var images: [FeedImage] = []
+        if case .embedImagesView(let view)? = p.embed {
+            images = view.images.map { FeedImage(url: $0.fullSizeImageURL, altText: $0.altText) }
+        }
+        // If no explicit replyRoot was supplied, derive it from the post's own record.
+        let resolvedReplyRoot = replyRoot
+            ?? record?.reply.map { ($0.root.recordURI, $0.root.recordCID) }
+        let root = BlueskyThreadRef.root(postURI: p.uri, postCID: p.cid, replyRoot: resolvedReplyRoot)
+        let rkey = p.uri.split(separator: "/").last.map(String.init) ?? ""
+        return FeedPost(
+            id: "bluesky:\(p.uri)",
+            target: .bluesky,
+            authorName: p.author.displayName?.isEmpty == false
+                ? p.author.displayName!
+                : p.author.actorHandle,
+            authorHandle: "@\(p.author.actorHandle)",
+            avatarURL: p.author.avatarImageURL,
+            date: p.indexedAt,
+            text: AttributedString(record?.text ?? ""),
+            images: images,
+            webURL: URL(string: "https://bsky.app/profile/\(p.author.actorHandle)/post/\(rkey)"),
+            isLiked: p.viewer?.likeURI != nil,
+            isReposted: p.viewer?.repostURI != nil,
+            likeRecordURI: p.viewer?.likeURI,
+            repostRecordURI: p.viewer?.repostURI,
+            isReply: isReply ?? (record?.reply != nil),
+            nativeRef: .bluesky(uri: p.uri, cid: p.cid, rootURI: root.uri, rootCID: root.cid))
     }
 }

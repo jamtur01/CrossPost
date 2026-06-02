@@ -51,7 +51,7 @@ final class ComposeModel {
             case .completed(let results): handleCompletion(results)
             }
         } catch {
-            errorMessage = String(describing: error)
+            errorMessage = error.userMessage
         }
     }
 
@@ -64,7 +64,6 @@ final class ComposeModel {
         if !succeeded.isEmpty {
             NotificationCenter.default.post(name: .crossPostDidPost, object: nil,
                                             userInfo: [crossPostTargetsKey: Set(succeeded)])
-            thread = [DraftPost()]   // clear the posting box
         }
         let failures = results.compactMap { result -> String? in
             switch result.outcome {
@@ -75,13 +74,20 @@ final class ComposeModel {
             }
         }
         errorMessage = failures.isEmpty ? nil : failures.joined(separator: "\n")
+        // Only clear the box on a clean run; keep the draft if any target failed so
+        // it can be retried.
+        if !succeeded.isEmpty, failures.isEmpty {
+            thread = [DraftPost()]
+        }
     }
 }
 
-/// Posted to the listed targets after a successful cross-post, so feed panels refresh.
+/// Posted to the listed targets after a successful cross-post or reply, so feed panels refresh.
 extension Notification.Name {
     static let crossPostDidPost = Notification.Name("crossPostDidPost")
+    /// Posted when credentials for the listed targets are saved in Settings.
+    static let crossPostCredentialsChanged = Notification.Name("crossPostCredentialsChanged")
 }
 
-/// userInfo key carrying a `Set<PostTarget>` of successfully-posted platforms.
+/// userInfo key carrying a `Set<PostTarget>` of affected platforms.
 let crossPostTargetsKey = "targets"

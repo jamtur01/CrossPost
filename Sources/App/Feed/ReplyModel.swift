@@ -47,8 +47,11 @@ final class ReplyModel {
             let service = try await FeedServiceFactory.make(for: post.target, store: store)
             let item = try await service.reply(to: post, text: text, images: attachments)
             postedURL = item.url ?? "Sent."
+            // Refresh the panel for this platform so the reply shows up.
+            NotificationCenter.default.post(name: .crossPostDidPost, object: nil,
+                                            userInfo: [crossPostTargetsKey: Set([post.target])])
         } catch {
-            errorMessage = String(describing: error)
+            errorMessage = error.userMessage
         }
     }
 }

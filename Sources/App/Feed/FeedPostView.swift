@@ -2,17 +2,29 @@ import SwiftUI
 
 struct FeedPostView: View {
     let post: FeedPost
-    let onReply: () -> Void
-    let onLike: () -> Void
-    let onRepost: () -> Void
-    let onOpen: () -> Void
+    var onReply: () -> Void = {}
+    var onLike: () -> Void = {}
+    var onRepost: () -> Void = {}
+    var onOpen: () -> Void = {}
+    var onShowParent: (() -> Void)?
+    var showActions: Bool = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
+            if post.isReply, let onShowParent {
+                Button(action: onShowParent) {
+                    Label("In reply to — view", systemImage: "arrowshape.turn.up.left")
+                        .font(.caption)
+                }
+                .buttonStyle(.borderless)
+                .foregroundStyle(.secondary)
+            }
+
             if let boostedBy = post.boostedBy {
                 Label("\(boostedBy) boosted", systemImage: "arrow.2.squarepath")
                     .font(.caption).foregroundStyle(.secondary)
             }
+
             HStack(alignment: .top, spacing: 8) {
                 AsyncImage(url: post.avatarURL) { image in
                     image.resizable().scaledToFill()
@@ -51,23 +63,25 @@ struct FeedPostView: View {
                 }
             }
 
-            HStack(spacing: 18) {
-                Button(action: onReply) { Image(systemName: "arrowshape.turn.up.left") }
-                    .help("Reply")
-                Button(action: onLike) {
-                    Image(systemName: post.isLiked ? "heart.fill" : "heart")
-                        .foregroundStyle(post.isLiked ? .red : .secondary)
-                }.help("Like")
-                Button(action: onRepost) {
-                    Image(systemName: "arrow.2.squarepath")
-                        .foregroundStyle(post.isReposted ? .green : .secondary)
-                }.help("Repost")
-                Spacer()
-                Button(action: onOpen) { Image(systemName: "safari") }.help("Open in browser")
+            if showActions {
+                HStack(spacing: 18) {
+                    Button(action: onReply) { Image(systemName: "arrowshape.turn.up.left") }
+                        .help("Reply")
+                    Button(action: onLike) {
+                        Image(systemName: post.isLiked ? "heart.fill" : "heart")
+                            .foregroundStyle(post.isLiked ? .red : .secondary)
+                    }.help("Like")
+                    Button(action: onRepost) {
+                        Image(systemName: "arrow.2.squarepath")
+                            .foregroundStyle(post.isReposted ? .green : .secondary)
+                    }.help("Repost")
+                    Spacer()
+                    Button(action: onOpen) { Image(systemName: "safari") }.help("Open in browser")
+                }
+                .buttonStyle(.borderless)
+                .font(.callout)
+                .foregroundStyle(.secondary)
             }
-            .buttonStyle(.borderless)
-            .font(.callout)
-            .foregroundStyle(.secondary)
         }
         .padding(12)
         .background(RoundedRectangle(cornerRadius: 10).fill(Color(nsColor: .controlBackgroundColor)))

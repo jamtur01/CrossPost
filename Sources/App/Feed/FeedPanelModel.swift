@@ -9,13 +9,16 @@ final class FeedPanelModel {
     var kind: FeedKind = .home
     var posts: [FeedPost] = []
     var isLoading = false
-    var errorMessage: String?
+    var errorMessage: String?      // shown only when the feed is empty
+    var actionError: String?       // transient banner for failed likes/reposts
     var needsCredentials = false
 
     private let store: AccountStore
     private var service: FeedService?
+    private var loadTask: Task<Void, Never>?
     private var pollTask: Task<Void, Never>?
-    private let pollInterval: UInt64 = 60_000_000_000 // 60s in nanoseconds
+    private var mutating: Set<String> = []   // post ids with an in-flight like/repost
+    private let pollInterval: UInt64 = 60_000_000_000
 
     init(target: PostTarget, store: AccountStore) {
         self.target = target
@@ -26,9 +29,12 @@ final class FeedPanelModel {
         target == .mastodon ? store.hasMastodon : store.hasBluesky
     }
 
+    /// (Re)start the panel. Drops any cached service so credential changes take effect.
     func start() {
+        service = nil
         guard hasCredentials else { needsCredentials = true; return }
-        Task { await load(reset: true) }
+        needsCredentials = false
+        enqueueLoad(reset: true)
         startPolling()
     }
 
@@ -36,28 +42,38 @@ final class FeedPanelModel {
         guard newKind != kind else { return }
         kind = newKind
         posts = []
-        Task { await load(reset: true) }
+        enqueueLoad(reset: true)
     }
 
     func refresh() {
         guard hasCredentials else { needsCredentials = true; return }
-        if pollTask == nil { startPolling() }   // start polling if credentials arrived after launch
-        Task { await load(reset: false) }
+        if pollTask == nil { startPolling() }
+        enqueueLoad(reset: false)
+    }
+
+    /// Start a load, superseding any in-flight one (so a user action isn't dropped
+    /// by a slow background poll).
+    private func enqueueLoad(reset: Bool) {
+        loadTask?.cancel()
+        loadTask = Task { await load(reset: reset) }
     }
 
     private func load(reset: Bool) async {
         guard hasCredentials else { needsCredentials = true; return }
-        needsCredentials = false   // credentials present now — clear the connect prompt
-        if isLoading { return }
+        if Task.isCancelled { return }
+        needsCredentials = false
         isLoading = true
-        errorMessage = nil
-        defer { isLoading = false }
+        // A superseded load must not clear the spinner the live load owns.
+        defer { if !Task.isCancelled { isLoading = false } }
         do {
             let svc = try await resolveService()
             let fetched = try await svc.loadFeed(kind)
+            if Task.isCancelled { return }   // a newer load superseded this one
+            errorMessage = nil
             posts = reset ? fetched : FeedMerge.merge(existing: posts, fetched: fetched)
         } catch {
-            errorMessage = String(describing: error)
+            if Task.isCancelled { return }
+            errorMessage = error.userMessage
         }
     }
 
@@ -85,25 +101,47 @@ final class FeedPanelModel {
         NSWorkspace.shared.open(url)
     }
 
-    /// Flip the UI immediately (optimistic), call the service with the new desired
-    /// state, then reconcile with the returned post — or revert to the original on failure.
+    /// Fetch the post this one is replying to (for the reply-context sheet).
+    func parent(of post: FeedPost) async -> FeedPost? {
+        do {
+            let svc = try await resolveService()
+            return try await svc.parent(of: post)
+        } catch {
+            showActionError(error.userMessage)
+            return nil
+        }
+    }
+
+    /// Flip the UI immediately, call the service, reconcile or revert on failure.
+    /// Ignores a second toggle for the same post while one is already in flight.
     private func mutate(_ post: FeedPost,
                         optimistic: (inout FeedPost) -> Void,
                         action: @escaping (FeedService, FeedPost) async throws -> FeedPost) {
-        guard let index = posts.firstIndex(where: { $0.id == post.id }) else { return }
+        guard !mutating.contains(post.id),
+              let index = posts.firstIndex(where: { $0.id == post.id }) else { return }
+        mutating.insert(post.id)
         let original = posts[index]
         var optimisticPost = original
         optimistic(&optimisticPost)
         posts[index] = optimisticPost
         Task {
+            defer { mutating.remove(post.id) }
             do {
                 let svc = try await resolveService()
                 let updated = try await action(svc, optimisticPost)
                 if let i = posts.firstIndex(where: { $0.id == post.id }) { posts[i] = updated }
             } catch {
                 if let i = posts.firstIndex(where: { $0.id == post.id }) { posts[i] = original }
-                errorMessage = String(describing: error)
+                showActionError(error.userMessage)
             }
+        }
+    }
+
+    private func showActionError(_ message: String) {
+        actionError = message
+        Task {
+            try? await Task.sleep(nanoseconds: 4_000_000_000)
+            if actionError == message { actionError = nil }
         }
     }
 
@@ -113,10 +151,14 @@ final class FeedPanelModel {
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: self?.pollInterval ?? 60_000_000_000)
                 if Task.isCancelled { break }
-                await self?.load(reset: false)
+                // Only poll while the app is active, to avoid background churn.
+                if NSApplication.shared.isActive { self?.enqueueLoad(reset: false) }
             }
         }
     }
 
-    func stop() { pollTask?.cancel(); pollTask = nil }
+    func stop() {
+        pollTask?.cancel(); pollTask = nil
+        loadTask?.cancel(); loadTask = nil
+    }
 }

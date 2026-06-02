@@ -3,7 +3,7 @@ import Security
 
 /// Stores secrets as generic-password items in the login Keychain, keyed by (service, account).
 public struct CredentialStore: Sendable {
-    public enum KeychainError: Error, CustomStringConvertible {
+    public enum KeychainError: Error, CustomStringConvertible, LocalizedError {
         case unexpectedStatus(OSStatus)
         case dataEncoding
         public var description: String {
@@ -12,6 +12,7 @@ public struct CredentialStore: Sendable {
             case .dataEncoding: return "Could not encode/decode Keychain value"
             }
         }
+        public var errorDescription: String? { description }
     }
 
     private let service: String

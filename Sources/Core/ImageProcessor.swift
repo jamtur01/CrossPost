@@ -3,7 +3,7 @@ import AppKit
 import UniformTypeIdentifiers
 
 public enum ImageProcessor {
-    public enum ProcessingError: Error, CustomStringConvertible {
+    public enum ProcessingError: Error, CustomStringConvertible, LocalizedError {
         case decodeFailed
         case cannotFitBudget(bytes: Int, budget: Int)
         public var description: String {
@@ -13,6 +13,7 @@ public enum ImageProcessor {
                 return "Image is \(b) bytes; could not compress under \(budget) bytes"
             }
         }
+        public var errorDescription: String? { description }
     }
 
     /// Re-encode `data` as JPEG no larger than `maxBytes`, scaling down if needed.

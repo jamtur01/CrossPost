@@ -18,6 +18,14 @@ final class FeedMergeTests: XCTestCase {
         XCTAssertEqual(merged.map(\.id), ["1", "2", "3"]) // only "1" is new, prepended
     }
 
+    func testCapsAtMaxCount() {
+        let existing = (0..<5).map { post("e\($0)") }
+        let fetched = (0..<5).map { post("f\($0)") }
+        let merged = FeedMerge.merge(existing: existing, fetched: fetched, maxCount: 6)
+        XCTAssertEqual(merged.count, 6)
+        XCTAssertEqual(merged.first?.id, "f0")   // newest fetched kept at the front
+    }
+
     func testFullOverlapIsUnchanged() {
         let merged = FeedMerge.merge(existing: [post("1"), post("2")], fetched: [post("1"), post("2")])
         XCTAssertEqual(merged.map(\.id), ["1", "2"])

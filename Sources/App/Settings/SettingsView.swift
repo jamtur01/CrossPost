@@ -73,9 +73,10 @@ struct SettingsView: View {
             _ = try await PosterFactory.makeMastodon(store)
             statusIsError = false
             status = "Mastodon verified. Max characters: \(store.mastodonMaxChars)."
+            credentialsChanged(.mastodon)
         } catch {
             statusIsError = true
-            status = "Mastodon error: \(error)"
+            status = "Mastodon error: \(error.userMessage)"
         }
     }
 
@@ -85,9 +86,15 @@ struct SettingsView: View {
             _ = try await PosterFactory.makeBluesky(store)
             statusIsError = false
             status = "Bluesky verified for @\(store.blueskyHandle)."
+            credentialsChanged(.bluesky)
         } catch {
             statusIsError = true
-            status = "Bluesky error: \(error)"
+            status = "Bluesky error: \(error.userMessage)"
         }
+    }
+
+    private func credentialsChanged(_ target: PostTarget) {
+        NotificationCenter.default.post(name: .crossPostCredentialsChanged, object: nil,
+                                        userInfo: [crossPostTargetsKey: Set([target])])
     }
 }

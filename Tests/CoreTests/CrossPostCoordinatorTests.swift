@@ -18,7 +18,7 @@ private struct StubPoster: Poster {
     }
 }
 
-private struct Boom: Error, CustomStringConvertible { let description = "boom" }
+private struct Boom: Error, LocalizedError { var errorDescription: String? { "boom" } }
 
 final class CrossPostCoordinatorTests: XCTestCase {
     private let limits = TargetLimits(mastodonMax: 500)

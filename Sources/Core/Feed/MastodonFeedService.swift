@@ -51,11 +51,22 @@ public struct MastodonFeedService: FeedService {
                 focus: nil)
             mediaIds.append(try await client.uploadMedia(params, mimeType: "image/jpeg").id)
         }
-        var params = PostParams(post: text, visibility: .public)
+        // Inherit the parent's visibility (a public reply to a private post would
+        // leak it) and its content warning. Default to unlisted if unknown.
+        let visibility = post.visibility.flatMap(Post.Visibility.init(rawValue:)) ?? .unlisted
+        let spoiler = (post.spoilerText?.isEmpty == false) ? post.spoilerText : nil
+        var params = PostParams(post: text, visibility: visibility, spoilerText: spoiler)
         if !mediaIds.isEmpty { params.mediaIds = mediaIds }
         params.inReplyToId = id
+        params.sensitive = post.isSensitive
         let posted = try await client.publishPost(params)
         return PostedItem(url: posted.url)
+    }
+
+    public func parent(of post: FeedPost) async throws -> FeedPost? {
+        guard post.isReply, case .mastodon(let id) = post.nativeRef else { return nil }
+        let context = try await client.getContext(id: id)
+        return context.ancestors.last.map { Self.feedPost(from: $0) }
     }
 
     static func feedPost(from post: Post) -> FeedPost {
@@ -87,11 +98,15 @@ public struct MastodonFeedService: FeedService {
             isReposted: display.reposted ?? false,
             boostedBy: boostedBy,
             mentionHandles: display.mentions.map { "@\($0.acct)" },
+            visibility: display.visibility.value?.rawValue,
+            spoilerText: display.spoilerText.isEmpty ? nil : display.spoilerText,
+            isSensitive: display.sensitive,
+            isReply: display.inReplyToId != nil,
             nativeRef: .mastodon(statusID: display.id))
     }
 }
 
-public enum FeedError: Error, CustomStringConvertible {
+public enum FeedError: Error, CustomStringConvertible, LocalizedError {
     case wrongPlatform
     case notSupported(String)
 
@@ -101,4 +116,6 @@ public enum FeedError: Error, CustomStringConvertible {
         case .notSupported(let what): return what
         }
     }
+
+    public var errorDescription: String? { description }
 }

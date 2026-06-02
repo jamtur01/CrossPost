@@ -23,6 +23,10 @@ final class HTMLRendererTests: XCTestCase {
         XCTAssertEqual(HTMLRenderer.render("caf&#233;"), "café")
     }
 
+    func testDecodesHexEntity() {
+        XCTAssertEqual(HTMLRenderer.render("smile &#x1F600; and caf&#xE9;"), "smile 😀 and café")
+    }
+
     func testLinkRendersAsItsText() {
         XCTAssertEqual(HTMLRenderer.render(#"see <a href="https://x.com">x.com</a>"#), "see x.com")
     }

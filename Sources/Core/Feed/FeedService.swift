@@ -8,4 +8,6 @@ public protocol FeedService: Sendable {
     func setLiked(_ liked: Bool, on post: FeedPost) async throws -> FeedPost
     func setReposted(_ reposted: Bool, on post: FeedPost) async throws -> FeedPost
     func reply(to post: FeedPost, text: String, images: [Attachment]) async throws -> PostedItem
+    /// The post this one is replying to, if any (for showing reply context).
+    func parent(of post: FeedPost) async throws -> FeedPost?
 }
