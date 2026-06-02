@@ -1,12 +1,12 @@
 import Foundation
 
-public struct CrosspostCoordinator: Sendable {
+public struct CrossPostCoordinator: Sendable {
     public init() {}
 
     public func publish(thread: [DraftPost],
                         to targets: [PostTarget],
                         using posters: [Poster],
-                        limits: TargetLimits) async -> CrosspostOutcome {
+                        limits: TargetLimits) async -> CrossPostOutcome {
         let issues = PostValidator.validate(thread: thread, targets: targets, limits: limits)
         guard issues.isEmpty else { return .blocked(issues: issues) }
 

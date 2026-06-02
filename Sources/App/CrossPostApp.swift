@@ -1,11 +1,11 @@
 import SwiftUI
 
 @main
-struct CrosspostApp: App {
+struct CrossPostApp: App {
     @StateObject private var store = AccountStore()
 
     var body: some Scene {
-        WindowGroup("Crosspost") {
+        WindowGroup("CrossPost") {
             MainView().environmentObject(store)
         }
         .defaultSize(width: 1180, height: 720)

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Build Crosspost.app into ./build/ for local testing.
+# Build CrossPost.app into ./build/ for local testing.
 #
 # Usage:
 #   ./build.sh           Build the app bundle.
@@ -29,7 +29,7 @@ if ! command -v xcodegen >/dev/null 2>&1; then
 fi
 
 derived_data="$PWD/build/DerivedData"
-dest="$PWD/build/Crosspost.app"
+dest="$PWD/build/CrossPost.app"
 
 echo "==> Generating Xcode project"
 xcodegen generate
@@ -47,19 +47,19 @@ if [ -n "${CI:-}" ]; then
   quiet_args=()
 fi
 
-echo "==> Building Crosspost ($configuration)"
+echo "==> Building CrossPost ($configuration)"
 # Use the ${arr[@]+"${arr[@]}"} form so expanding an empty array doesn't trip
 # `set -u` on macOS's bash 3.2 (used by GitHub runners).
 xcodebuild build \
-  -project Crosspost.xcodeproj \
-  -scheme Crosspost \
+  -project CrossPost.xcodeproj \
+  -scheme CrossPost \
   -configuration "$configuration" \
   -destination 'platform=macOS' \
   -derivedDataPath "$derived_data" \
   ${arch_args[@]+"${arch_args[@]}"} \
   ${quiet_args[@]+"${quiet_args[@]}"}
 
-src="$derived_data/Build/Products/$configuration/Crosspost.app"
+src="$derived_data/Build/Products/$configuration/CrossPost.app"
 if [ ! -d "$src" ]; then
   echo "error: build did not produce $src" >&2
   exit 1

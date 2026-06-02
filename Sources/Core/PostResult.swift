@@ -15,7 +15,7 @@ public struct PostResult: Sendable {
     }
 }
 
-public enum CrosspostOutcome: Sendable {
+public enum CrossPostOutcome: Sendable {
     case blocked(issues: [ValidationIssue])
     case completed(results: [PostResult])
 }

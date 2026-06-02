@@ -1,5 +1,5 @@
 import XCTest
-@testable import Crosspost
+@testable import CrossPost
 
 final class PostValidatorTests: XCTestCase {
     private let limits = TargetLimits(mastodonMax: 500)

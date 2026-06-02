@@ -54,9 +54,9 @@ Sources/App/Feed/                          (SwiftUI; boundary, screenshot-verifi
 └── ReplyModel.swift        @Observable @MainActor: target post + text + images → FeedService.reply
 ```
 
-The existing cross-post Core (`CrosspostCoordinator`, `PosterFactory`,
+The existing cross-post Core (`CrossPostCoordinator`, `PosterFactory`,
 `MastodonPoster`, `BlueskyPoster`, `CredentialStore`, `PostValidator`,
-`ComposeModel`, `ComposeView`) is reused unchanged. `CrosspostApp` changes its
+`ComposeModel`, `ComposeView`) is reused unchanged. `CrossPostApp` changes its
 root scene from `ComposeView` to `MainView`; `ComposeView` becomes the
 "Expand to thread…" sheet.
 
@@ -129,7 +129,7 @@ extended `PosterFactory` (or a sibling `FeedServiceFactory`) from `AccountStore`
    failure revert and show a transient message.
 6. **Open in browser:** `NSWorkspace.shared.open(webURL)`.
 7. **Compose column:** a single `DraftPost` cross-posted via the unchanged
-   `CrosspostCoordinator` (both targets default, length-validated, abort-on-fail).
+   `CrossPostCoordinator` (both targets default, length-validated, abort-on-fail).
    "Expand to thread…" opens the existing `ComposeView` thread composer in a sheet.
 
 ## Error Handling

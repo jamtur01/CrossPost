@@ -10,7 +10,7 @@ final class ComposeModel {
     var blockedIssues: [ValidationIssue]?
     var errorMessage: String?
 
-    private let coordinator = CrosspostCoordinator()
+    private let coordinator = CrossPostCoordinator()
     private let store: AccountStore
 
     init(store: AccountStore) { self.store = store }
@@ -62,8 +62,8 @@ final class ComposeModel {
             if case .success = result.outcome { return result.target } else { return nil }
         }
         if !succeeded.isEmpty {
-            NotificationCenter.default.post(name: .crosspostDidPost, object: nil,
-                                            userInfo: [crosspostTargetsKey: Set(succeeded)])
+            NotificationCenter.default.post(name: .crossPostDidPost, object: nil,
+                                            userInfo: [crossPostTargetsKey: Set(succeeded)])
             thread = [DraftPost()]   // clear the posting box
         }
         let failures = results.compactMap { result -> String? in
@@ -80,8 +80,8 @@ final class ComposeModel {
 
 /// Posted to the listed targets after a successful cross-post, so feed panels refresh.
 extension Notification.Name {
-    static let crosspostDidPost = Notification.Name("crosspostDidPost")
+    static let crossPostDidPost = Notification.Name("crossPostDidPost")
 }
 
 /// userInfo key carrying a `Set<PostTarget>` of successfully-posted platforms.
-let crosspostTargetsKey = "targets"
+let crossPostTargetsKey = "targets"

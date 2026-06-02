@@ -1,5 +1,5 @@
 import XCTest
-@testable import Crosspost
+@testable import CrossPost
 
 private struct StubPoster: Poster {
     let target: PostTarget
@@ -20,9 +20,9 @@ private struct StubPoster: Poster {
 
 private struct Boom: Error, CustomStringConvertible { let description = "boom" }
 
-final class CrosspostCoordinatorTests: XCTestCase {
+final class CrossPostCoordinatorTests: XCTestCase {
     private let limits = TargetLimits(mastodonMax: 500)
-    private let coordinator = CrosspostCoordinator()
+    private let coordinator = CrossPostCoordinator()
 
     func testBlockedWhenValidationFails() async {
         let thread = [DraftPost(text: String(repeating: "a", count: 400))] // > bluesky 300

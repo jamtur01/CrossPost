@@ -1,5 +1,5 @@
 import XCTest
-@testable import Crosspost
+@testable import CrossPost
 
 final class HTMLRendererTests: XCTestCase {
     func testStripsTags() {

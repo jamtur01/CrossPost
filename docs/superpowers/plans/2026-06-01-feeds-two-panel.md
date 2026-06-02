@@ -4,7 +4,7 @@
 
 **Goal:** Turn crosspost into a three-column window (Compose | Mastodon | Bluesky) where each platform column shows a live Home/Mentions feed whose posts can be replied to (scoped to that feed), liked, reposted, and opened in the browser — while keeping the existing cross-post composer.
 
-**Architecture:** A new `Sources/Core/Feed` layer defines a platform-agnostic `FeedPost` plus a `FeedService` protocol, with `MastodonFeedService` (TootSDK) and `BlueskyFeedService` (ATProtoKit) adapters. Pure pieces (`HTMLRenderer`, `FeedMerge`, `BlueskyThreadRef`) are unit-tested; adapters and SwiftUI are boundary code verified by build + live screenshots. The existing cross-post Core is reused unchanged; `CrosspostApp`'s root scene becomes `MainView`.
+**Architecture:** A new `Sources/Core/Feed` layer defines a platform-agnostic `FeedPost` plus a `FeedService` protocol, with `MastodonFeedService` (TootSDK) and `BlueskyFeedService` (ATProtoKit) adapters. Pure pieces (`HTMLRenderer`, `FeedMerge`, `BlueskyThreadRef`) are unit-tested; adapters and SwiftUI are boundary code verified by build + live screenshots. The existing cross-post Core is reused unchanged; `CrossPostApp`'s root scene becomes `MainView`.
 
 **Tech Stack:** Swift 5.9, SwiftUI, macOS 14+. TootSDK 21.8.0, ATProtoKit 0.32.5. XcodeGen project. Tests via `xcodebuild test`.
 
@@ -60,7 +60,7 @@ Tests/CoreTests/
 └── BlueskyThreadRefTests.swift
 ```
 
-Modified: `Sources/App/CrosspostApp.swift` (root → `MainView`), `Sources/App/Compose/ComposeView.swift` (accept an injected `ComposeModel`), and `Sources/App/PosterFactory.swift` (expose the `ATProtoKit` instance for Bluesky).
+Modified: `Sources/App/CrossPostApp.swift` (root → `MainView`), `Sources/App/Compose/ComposeView.swift` (accept an injected `ComposeModel`), and `Sources/App/PosterFactory.swift` (expose the `ATProtoKit` instance for Bluesky).
 
 ---
 
@@ -146,7 +146,7 @@ public struct FeedPost: Identifiable, Equatable, Sendable {
 
 - [ ] **Step 3: Build**
 
-Run: `xcodegen generate && xcodebuild build -project Crosspost.xcodeproj -scheme Crosspost -destination 'platform=macOS'`
+Run: `xcodegen generate && xcodebuild build -project CrossPost.xcodeproj -scheme CrossPost -destination 'platform=macOS'`
 Expected: `** BUILD SUCCEEDED **`
 
 - [ ] **Step 4: Commit**
@@ -170,7 +170,7 @@ Mastodon post content is limited HTML (`<p>`, `<br>`, `<a>`, `<span>`, entities)
 
 ```swift
 import XCTest
-@testable import Crosspost
+@testable import CrossPost
 
 final class HTMLRendererTests: XCTestCase {
     func testStripsTags() {
@@ -211,7 +211,7 @@ final class HTMLRendererTests: XCTestCase {
 
 - [ ] **Step 2: Run tests; expect FAIL**
 
-Run: `xcodebuild test -project Crosspost.xcodeproj -scheme Crosspost -destination 'platform=macOS' -only-testing:CoreTests/HTMLRendererTests`
+Run: `xcodebuild test -project CrossPost.xcodeproj -scheme CrossPost -destination 'platform=macOS' -only-testing:CoreTests/HTMLRendererTests`
 Expected: FAIL — `HTMLRenderer` not found.
 
 - [ ] **Step 3: Write `HTMLRenderer.swift`**
@@ -257,7 +257,7 @@ public enum HTMLRenderer {
 
 - [ ] **Step 4: Run tests; expect PASS (8 tests)**
 
-Run: `xcodebuild test -project Crosspost.xcodeproj -scheme Crosspost -destination 'platform=macOS' -only-testing:CoreTests/HTMLRendererTests`
+Run: `xcodebuild test -project CrossPost.xcodeproj -scheme CrossPost -destination 'platform=macOS' -only-testing:CoreTests/HTMLRendererTests`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -279,7 +279,7 @@ git commit -m "Add HTMLRenderer for Mastodon post content"
 
 ```swift
 import XCTest
-@testable import Crosspost
+@testable import CrossPost
 
 final class FeedMergeTests: XCTestCase {
     private func post(_ id: String, liked: Bool = false) -> FeedPost {
@@ -313,7 +313,7 @@ final class FeedMergeTests: XCTestCase {
 
 - [ ] **Step 2: Run tests; expect FAIL**
 
-Run: `xcodebuild test -project Crosspost.xcodeproj -scheme Crosspost -destination 'platform=macOS' -only-testing:CoreTests/FeedMergeTests`
+Run: `xcodebuild test -project CrossPost.xcodeproj -scheme CrossPost -destination 'platform=macOS' -only-testing:CoreTests/FeedMergeTests`
 Expected: FAIL — `FeedMerge` not found.
 
 - [ ] **Step 3: Write `FeedMerge.swift`**
@@ -335,7 +335,7 @@ public enum FeedMerge {
 
 - [ ] **Step 4: Run tests; expect PASS (4 tests)**
 
-Run: `xcodebuild test -project Crosspost.xcodeproj -scheme Crosspost -destination 'platform=macOS' -only-testing:CoreTests/FeedMergeTests`
+Run: `xcodebuild test -project CrossPost.xcodeproj -scheme CrossPost -destination 'platform=macOS' -only-testing:CoreTests/FeedMergeTests`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -359,7 +359,7 @@ Captures the one piece of Bluesky reply logic worth isolating: which (uri,cid) i
 
 ```swift
 import XCTest
-@testable import Crosspost
+@testable import CrossPost
 
 final class BlueskyThreadRefTests: XCTestCase {
     func testTopLevelPostIsItsOwnRoot() {
@@ -379,7 +379,7 @@ final class BlueskyThreadRefTests: XCTestCase {
 
 - [ ] **Step 2: Run tests; expect FAIL**
 
-Run: `xcodebuild test -project Crosspost.xcodeproj -scheme Crosspost -destination 'platform=macOS' -only-testing:CoreTests/BlueskyThreadRefTests`
+Run: `xcodebuild test -project CrossPost.xcodeproj -scheme CrossPost -destination 'platform=macOS' -only-testing:CoreTests/BlueskyThreadRefTests`
 Expected: FAIL — `BlueskyThreadRef` not found.
 
 - [ ] **Step 3: Write `BlueskyThreadRef.swift`**
@@ -399,7 +399,7 @@ public enum BlueskyThreadRef {
 
 - [ ] **Step 4: Run tests; expect PASS (2 tests)**
 
-Run: `xcodebuild test -project Crosspost.xcodeproj -scheme Crosspost -destination 'platform=macOS' -only-testing:CoreTests/BlueskyThreadRefTests`
+Run: `xcodebuild test -project CrossPost.xcodeproj -scheme CrossPost -destination 'platform=macOS' -only-testing:CoreTests/BlueskyThreadRefTests`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -434,7 +434,7 @@ public protocol FeedService: Sendable {
 
 - [ ] **Step 2: Build**
 
-Run: `xcodegen generate && xcodebuild build -project Crosspost.xcodeproj -scheme Crosspost -destination 'platform=macOS'`
+Run: `xcodegen generate && xcodebuild build -project CrossPost.xcodeproj -scheme CrossPost -destination 'platform=macOS'`
 Expected: `** BUILD SUCCEEDED **`
 
 - [ ] **Step 3: Commit**
@@ -549,7 +549,7 @@ public enum FeedError: Error, CustomStringConvertible {
 
 - [ ] **Step 2: Build**
 
-Run: `xcodegen generate && xcodebuild build -project Crosspost.xcodeproj -scheme Crosspost -destination 'platform=macOS'`
+Run: `xcodegen generate && xcodebuild build -project CrossPost.xcodeproj -scheme CrossPost -destination 'platform=macOS'`
 Expected: `** BUILD SUCCEEDED **`
 
 - [ ] **Step 3: Commit**
@@ -717,7 +717,7 @@ public struct BlueskyFeedService: FeedService {
 
 - [ ] **Step 2: Build**
 
-Run: `xcodegen generate && xcodebuild build -project Crosspost.xcodeproj -scheme Crosspost -destination 'platform=macOS'`
+Run: `xcodegen generate && xcodebuild build -project CrossPost.xcodeproj -scheme CrossPost -destination 'platform=macOS'`
 Expected: `** BUILD SUCCEEDED **` (fix union case spellings per the notes until it builds).
 
 - [ ] **Step 3: Commit**
@@ -781,7 +781,7 @@ enum FeedServiceFactory {
 
 - [ ] **Step 3: Build**
 
-Run: `xcodegen generate && xcodebuild build -project Crosspost.xcodeproj -scheme Crosspost -destination 'platform=macOS'`
+Run: `xcodegen generate && xcodebuild build -project CrossPost.xcodeproj -scheme CrossPost -destination 'platform=macOS'`
 Expected: `** BUILD SUCCEEDED **`
 
 - [ ] **Step 4: Commit**
@@ -912,7 +912,7 @@ final class FeedPanelModel {
 
 - [ ] **Step 2: Build**
 
-Run: `xcodegen generate && xcodebuild build -project Crosspost.xcodeproj -scheme Crosspost -destination 'platform=macOS'`
+Run: `xcodegen generate && xcodebuild build -project CrossPost.xcodeproj -scheme CrossPost -destination 'platform=macOS'`
 Expected: `** BUILD SUCCEEDED **`
 
 - [ ] **Step 3: Commit**
@@ -971,7 +971,7 @@ final class ReplyModel {
 
 - [ ] **Step 2: Build**
 
-Run: `xcodegen generate && xcodebuild build -project Crosspost.xcodeproj -scheme Crosspost -destination 'platform=macOS'`
+Run: `xcodegen generate && xcodebuild build -project CrossPost.xcodeproj -scheme CrossPost -destination 'platform=macOS'`
 Expected: `** BUILD SUCCEEDED **`
 
 - [ ] **Step 3: Commit**
@@ -1030,23 +1030,23 @@ Leave the rest of the file (the `content` body, `actionBar`, `blockedBanner`, `d
 
 - [ ] **Step 2: Build (expect an error at the old call site)**
 
-Run: `xcodegen generate && xcodebuild build -project Crosspost.xcodeproj -scheme Crosspost -destination 'platform=macOS'`
-Expected: FAIL — `CrosspostApp.swift` still constructs `ComposeView()` with no model. That call site is replaced in Task 14; for now, temporarily update `CrosspostApp.swift`'s `WindowGroup` body to `ComposeView(model: ComposeModel(store: store))` so the build is green. (Task 14 replaces this with `MainView`.)
+Run: `xcodegen generate && xcodebuild build -project CrossPost.xcodeproj -scheme CrossPost -destination 'platform=macOS'`
+Expected: FAIL — `CrossPostApp.swift` still constructs `ComposeView()` with no model. That call site is replaced in Task 14; for now, temporarily update `CrossPostApp.swift`'s `WindowGroup` body to `ComposeView(model: ComposeModel(store: store))` so the build is green. (Task 14 replaces this with `MainView`.)
 
 - [ ] **Step 3: Build green**
 
-Run: `xcodebuild build -project Crosspost.xcodeproj -scheme Crosspost -destination 'platform=macOS'`
+Run: `xcodebuild build -project CrossPost.xcodeproj -scheme CrossPost -destination 'platform=macOS'`
 Expected: `** BUILD SUCCEEDED **`
 
 - [ ] **Step 4: Run full tests (regression)**
 
-Run: `xcodebuild test -project Crosspost.xcodeproj -scheme Crosspost -destination 'platform=macOS'`
+Run: `xcodebuild test -project CrossPost.xcodeproj -scheme CrossPost -destination 'platform=macOS'`
 Expected: `** TEST SUCCEEDED **`
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add Sources/App/Compose/ComposeView.swift Sources/App/CrosspostApp.swift
+git add Sources/App/Compose/ComposeView.swift Sources/App/CrossPostApp.swift
 git commit -m "Make ComposeView take an injected ComposeModel"
 ```
 
@@ -1181,7 +1181,7 @@ struct ReplySheet: View {
 
 - [ ] **Step 3: Build**
 
-Run: `xcodegen generate && xcodebuild build -project Crosspost.xcodeproj -scheme Crosspost -destination 'platform=macOS'`
+Run: `xcodegen generate && xcodebuild build -project CrossPost.xcodeproj -scheme CrossPost -destination 'platform=macOS'`
 Expected: `** BUILD SUCCEEDED **`
 
 - [ ] **Step 4: Commit**
@@ -1351,7 +1351,7 @@ struct ComposeColumnView: View {
 
 - [ ] **Step 3: Build**
 
-Run: `xcodegen generate && xcodebuild build -project Crosspost.xcodeproj -scheme Crosspost -destination 'platform=macOS'`
+Run: `xcodegen generate && xcodebuild build -project CrossPost.xcodeproj -scheme CrossPost -destination 'platform=macOS'`
 Expected: `** BUILD SUCCEEDED **`
 
 - [ ] **Step 4: Commit**
@@ -1367,7 +1367,7 @@ git commit -m "Add FeedPanelView and ComposeColumnView"
 
 **Files:**
 - Create: `Sources/App/Feed/MainView.swift`
-- Modify: `Sources/App/CrosspostApp.swift`
+- Modify: `Sources/App/CrossPostApp.swift`
 
 - [ ] **Step 1: Write `MainView.swift`**
 
@@ -1396,7 +1396,7 @@ struct MainView: View {
 }
 ```
 
-- [ ] **Step 2: Update `CrosspostApp.swift` root scene**
+- [ ] **Step 2: Update `CrossPostApp.swift` root scene**
 
 Replace the `WindowGroup` body so the app launches into `MainView` (keep the `Settings` scene and `@StateObject store`):
 
@@ -1404,11 +1404,11 @@ Replace the `WindowGroup` body so the app launches into `MainView` (keep the `Se
 import SwiftUI
 
 @main
-struct CrosspostApp: App {
+struct CrossPostApp: App {
     @StateObject private var store = AccountStore()
 
     var body: some Scene {
-        WindowGroup("Crosspost") {
+        WindowGroup("CrossPost") {
             MainView().environmentObject(store)
         }
         .defaultSize(width: 1180, height: 720)
@@ -1422,15 +1422,15 @@ struct CrosspostApp: App {
 
 - [ ] **Step 3: Build + full test regression**
 
-Run: `xcodegen generate && xcodebuild build -project Crosspost.xcodeproj -scheme Crosspost -destination 'platform=macOS'`
+Run: `xcodegen generate && xcodebuild build -project CrossPost.xcodeproj -scheme CrossPost -destination 'platform=macOS'`
 Expected: `** BUILD SUCCEEDED **`
-Run: `xcodebuild test -project Crosspost.xcodeproj -scheme Crosspost -destination 'platform=macOS'`
+Run: `xcodebuild test -project CrossPost.xcodeproj -scheme CrossPost -destination 'platform=macOS'`
 Expected: `** TEST SUCCEEDED **` (all unit tests green: existing 20 + HTMLRenderer 8 + FeedMerge 4 + BlueskyThreadRef 2 = 34).
 
 - [ ] **Step 4: Live visual verification (the controller does this, per the standing preference)**
 
 Build the `.app`, launch it, and screenshot — do NOT rely on the build alone:
-1. Find the product: `xcodebuild -project Crosspost.xcodeproj -scheme Crosspost -destination 'platform=macOS' -showBuildSettings | awk -F'= ' '/ BUILT_PRODUCTS_DIR /{print $2; exit}'` then `open "<dir>/Crosspost.app"`.
+1. Find the product: `xcodebuild -project CrossPost.xcodeproj -scheme CrossPost -destination 'platform=macOS' -showBuildSettings | awk -F'= ' '/ BUILT_PRODUCTS_DIR /{print $2; exit}'` then `open "<dir>/CrossPost.app"`.
 2. Capture the window via its bounds (`osascript ... get {position, size} of front window`, then `screencapture -x -R x,y,w,h out.png`), all activate+capture in a single shell invocation so the window stays frontmost.
 3. Verify and iterate until each looks right:
    - Three columns: Compose | Mastodon | Bluesky, with sensible widths and dividers.
@@ -1444,7 +1444,7 @@ Build the `.app`, launch it, and screenshot — do NOT rely on the build alone:
 - [ ] **Step 5: Commit**
 
 ```bash
-git add Sources/App/Feed/MainView.swift Sources/App/CrosspostApp.swift
+git add Sources/App/Feed/MainView.swift Sources/App/CrossPostApp.swift
 git commit -m "Add MainView three-column layout and launch into it"
 ```
 

@@ -4,4 +4,4 @@ DerivedData/
 *.xcuserstate
 xcuserdata/
 .swiftpm/
-Crosspost.xcodeproj/
+CrossPost.xcodeproj/

@@ -1,5 +1,5 @@
 import XCTest
-@testable import Crosspost
+@testable import CrossPost
 
 /// Records the (root, parent) refs passed for each post and hands back an incrementing Int ref.
 private actor FakePublisher: ThreadPublisher {

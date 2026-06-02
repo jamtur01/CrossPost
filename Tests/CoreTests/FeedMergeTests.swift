@@ -1,5 +1,5 @@
 import XCTest
-@testable import Crosspost
+@testable import CrossPost
 
 final class FeedMergeTests: XCTestCase {
     private func post(_ id: String, liked: Bool = false) -> FeedPost {

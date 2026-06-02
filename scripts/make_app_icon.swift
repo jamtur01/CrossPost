@@ -1,4 +1,4 @@
-// Generates the macOS AppIcon image set for Crosspost: a purple→blue gradient
+// Generates the macOS AppIcon image set for CrossPost: a purple→blue gradient
 // squircle (blending the Mastodon and Bluesky brand colors) with a white
 // double-speech-bubble glyph.
 //

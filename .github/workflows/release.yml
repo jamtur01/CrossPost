@@ -35,12 +35,12 @@ jobs:
       - name: Generate Xcode project
         run: xcodegen generate
       - name: Resolve Swift package dependencies
-        run: xcodebuild -resolvePackageDependencies -project Crosspost.xcodeproj -scheme Crosspost
+        run: xcodebuild -resolvePackageDependencies -project CrossPost.xcodeproj -scheme CrossPost
       - name: Build and test
         run: |
           xcodebuild test \
-            -project Crosspost.xcodeproj \
-            -scheme Crosspost \
+            -project CrossPost.xcodeproj \
+            -scheme CrossPost \
             -destination 'platform=macOS' \
             CODE_SIGN_IDENTITY="-" CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM=""
 
@@ -96,7 +96,7 @@ jobs:
           # doesn't wedge the job for hours.
           sign_with_timeout() {
             /usr/bin/codesign --force --options runtime --timestamp \
-              --sign "$MACOS_CODESIGN_IDENTITY" --deep build/Crosspost.app &
+              --sign "$MACOS_CODESIGN_IDENTITY" --deep build/CrossPost.app &
             local pid=$! waited=0
             while kill -0 "$pid" 2>/dev/null; do
               if [ "$waited" -ge 120 ]; then
@@ -116,7 +116,7 @@ jobs:
             echo "retrying codesign (attempt $((attempt + 1)))..."
             sleep 10
           done
-          /usr/bin/codesign --verify --strict --verbose=2 build/Crosspost.app
+          /usr/bin/codesign --verify --strict --verbose=2 build/CrossPost.app
 
       - name: Notarize the app
         env:
@@ -129,14 +129,14 @@ jobs:
             --team-id "$MACOS_API_ISSUER_ID" \
             --password "$APPLE_APP_SPECIFIC_PASSWORD"
 
-          ditto -c -k --keepParent build/Crosspost.app notarization.zip
+          ditto -c -k --keepParent build/CrossPost.app notarization.zip
 
           xcrun notarytool submit notarization.zip --keychain-profile "notarytool-profile" --wait
-          xcrun stapler staple build/Crosspost.app || echo "Stapling failed, but continuing..."
+          xcrun stapler staple build/CrossPost.app || echo "Stapling failed, but continuing..."
 
       - name: Create final ZIP archive
         run: |
-          ditto -c -k --keepParent build/Crosspost.app "Crosspost-${GITHUB_REF_NAME}.zip"
+          ditto -c -k --keepParent build/CrossPost.app "CrossPost-${GITHUB_REF_NAME}.zip"
 
       - name: Extract version from tag
         id: get_version
@@ -145,22 +145,22 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v3
         with:
-          name: Crosspost ${{ steps.get_version.outputs.VERSION }}
+          name: CrossPost ${{ steps.get_version.outputs.VERSION }}
           draft: false
           prerelease: false
           generate_release_notes: true
           files: |
-            Crosspost-${{ github.ref_name }}.zip
+            CrossPost-${{ github.ref_name }}.zip
           body: |
-            # Crosspost ${{ steps.get_version.outputs.VERSION }}
+            # CrossPost ${{ steps.get_version.outputs.VERSION }}
 
             A native macOS app for reading and posting to Mastodon and Bluesky side by side.
 
             ## Installation
 
-            1. Download `Crosspost-${{ github.ref_name }}.zip`
+            1. Download `CrossPost-${{ github.ref_name }}.zip`
             2. Unzip it
-            3. Move `Crosspost.app` to your Applications folder
+            3. Move `CrossPost.app` to your Applications folder
             4. Open it
 
             This build is signed with a Developer ID and notarized by Apple.

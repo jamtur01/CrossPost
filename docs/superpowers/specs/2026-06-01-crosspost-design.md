@@ -27,7 +27,7 @@ window (account credentials).
 ## Architecture
 
 ```
-CrosspostApp (SwiftUI @main)
+CrossPostApp (SwiftUI @main)
 ├── Compose window
 │   ├── ThreadComposerView      ── list of PostCardView (text + images + alt text)
 │   ├── TargetToggles           ── Mastodon ✓  Bluesky ✓ (both on by default)
@@ -42,7 +42,7 @@ Core (UI-independent, unit-tested)
 ├── Poster (protocol): post(thread:) async throws -> [PostResult]
 │     ├── MastodonPoster  (wraps TootSDK)
 │     └── BlueskyPoster   (wraps ATProtoKit)
-├── CrosspostCoordinator   ── validate → fan out to selected Posters → aggregate
+├── CrossPostCoordinator   ── validate → fan out to selected Posters → aggregate
 ├── PostValidator          ── pure: grapheme counts vs per-target limits
 └── CredentialStore        ── Keychain (secrets) + UserDefaults (instance URL, handle)
 ```
@@ -99,7 +99,7 @@ that Mastodon would have accepted. Documented in code; refine later if needed.
   (exactly at limit, empty post), multi-target.
 - Thread-linking — Mastodon reply chains and Bluesky `root/parent` refs, with
   `Poster` SDK calls mocked behind protocols.
-- `CrosspostCoordinator` — target selection, partial-failure aggregation,
+- `CrossPostCoordinator` — target selection, partial-failure aggregation,
   abort-on-validation.
 - `CredentialStore` — round-trip save/load/delete against Keychain.
 - UI kept thin; logic lives in the tested Core layer.

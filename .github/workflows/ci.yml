@@ -37,12 +37,12 @@ jobs:
         run: xcodegen generate
 
       - name: Resolve Swift package dependencies
-        run: xcodebuild -resolvePackageDependencies -project Crosspost.xcodeproj -scheme Crosspost
+        run: xcodebuild -resolvePackageDependencies -project CrossPost.xcodeproj -scheme CrossPost
 
       - name: Build and test
         run: |
           xcodebuild test \
-            -project Crosspost.xcodeproj \
-            -scheme Crosspost \
+            -project CrossPost.xcodeproj \
+            -scheme CrossPost \
             -destination 'platform=macOS' \
             CODE_SIGN_IDENTITY="-" CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM=""

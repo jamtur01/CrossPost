@@ -1,4 +1,4 @@
-name: Crosspost
+name: CrossPost
 options:
   bundleIdPrefix: net.kartar
   deploymentTarget:
@@ -21,7 +21,7 @@ packages:
     url: https://github.com/MasterJ93/ATProtoKit
     exactVersion: 0.32.5
 targets:
-  Crosspost:
+  CrossPost:
     type: application
     platform: macOS
     sources:
@@ -39,16 +39,16 @@ targets:
     sources:
       - Tests
     dependencies:
-      - target: Crosspost
+      - target: CrossPost
     settings:
       base:
         BUNDLE_LOADER: "$(TEST_HOST)"
-        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Crosspost.app/Contents/MacOS/Crosspost"
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/CrossPost.app/Contents/MacOS/CrossPost"
 schemes:
-  Crosspost:
+  CrossPost:
     build:
       targets:
-        Crosspost: all
+        CrossPost: all
         CoreTests: [test]
     test:
       targets:

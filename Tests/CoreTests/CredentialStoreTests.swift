@@ -1,5 +1,5 @@
 import XCTest
-@testable import Crosspost
+@testable import CrossPost
 
 final class CredentialStoreTests: XCTestCase {
     // Unique service per run so tests are isolated and self-cleaning.
