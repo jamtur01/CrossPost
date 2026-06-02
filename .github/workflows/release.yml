@@ -18,6 +18,18 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v5
+      - name: Cache SwiftPM
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/org.swift.swiftpm
+          key: spm-${{ runner.os }}-${{ hashFiles('project.yml') }}
+          restore-keys: spm-${{ runner.os }}-
+      - name: Cache DerivedData
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Developer/Xcode/DerivedData
+          key: dd-test-${{ runner.os }}-${{ hashFiles('project.yml') }}
+          restore-keys: dd-test-${{ runner.os }}-
       - name: Install XcodeGen
         run: brew install xcodegen
       - name: Generate Xcode project
@@ -40,6 +52,20 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Cache SwiftPM
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/org.swift.swiftpm
+          key: spm-${{ runner.os }}-${{ hashFiles('project.yml') }}
+          restore-keys: spm-${{ runner.os }}-
+
+      - name: Cache DerivedData
+        uses: actions/cache@v4
+        with:
+          path: build/DerivedData
+          key: dd-release-${{ runner.os }}-${{ hashFiles('project.yml') }}
+          restore-keys: dd-release-${{ runner.os }}-
+
       - name: Install XcodeGen
         run: brew install xcodegen
 
@@ -55,7 +81,7 @@ jobs:
           security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "temporary-password" build.keychain
 
-      - name: Build Release app bundle (universal)
+      - name: Build Release app bundle
         run: |
           chmod +x ./build.sh
           ./build.sh --release

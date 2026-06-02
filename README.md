@@ -105,9 +105,9 @@ xcodebuild test -project Crosspost.xcodeproj -scheme Crosspost -destination 'pla
 - **CI** (`.github/workflows/ci.yml`) builds and runs the tests on every push to
   `main` and on pull requests.
 - **Releases** (`.github/workflows/release.yml`) trigger on `v*` tags: they build a
-  universal (Apple Silicon + Intel) Release bundle, **code-sign it with a Developer
-  ID and notarize it with Apple**, then publish a GitHub Release with the zipped app
-  attached. Cut one with:
+  Apple Silicon Release bundle, **code-sign it with a Developer ID and notarize it
+  with Apple**, then publish a GitHub Release with the zipped app attached. Cut one
+  with:
 
   ```bash
   git tag v0.1.0

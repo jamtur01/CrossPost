@@ -34,10 +34,17 @@ dest="$PWD/build/Crosspost.app"
 echo "==> Generating Xcode project"
 xcodegen generate
 
-# Release builds are universal (Apple Silicon + Intel) for distribution.
+# Release defaults to a universal build; restrict to the host arch (arm64 on
+# Apple Silicon) so release builds compile in roughly half the time.
 arch_args=()
 if [ "$configuration" = "Release" ]; then
-  arch_args=(ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO)
+  arch_args=(ONLY_ACTIVE_ARCH=YES)
+fi
+
+# Show full build output in CI (so progress is visible); stay quiet locally.
+quiet_args=(-quiet)
+if [ -n "${CI:-}" ]; then
+  quiet_args=()
 fi
 
 echo "==> Building Crosspost ($configuration)"
@@ -48,7 +55,7 @@ xcodebuild build \
   -destination 'platform=macOS' \
   -derivedDataPath "$derived_data" \
   "${arch_args[@]}" \
-  -quiet
+  "${quiet_args[@]}"
 
 src="$derived_data/Build/Products/$configuration/Crosspost.app"
 if [ ! -d "$src" ]; then

@@ -16,6 +16,20 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Cache SwiftPM
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/org.swift.swiftpm
+          key: spm-${{ runner.os }}-${{ hashFiles('project.yml') }}
+          restore-keys: spm-${{ runner.os }}-
+
+      - name: Cache DerivedData
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Developer/Xcode/DerivedData
+          key: dd-test-${{ runner.os }}-${{ hashFiles('project.yml') }}
+          restore-keys: dd-test-${{ runner.os }}-
+
       - name: Install XcodeGen
         run: brew install xcodegen
 
