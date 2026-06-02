@@ -12,7 +12,8 @@ enum FeedServiceFactory {
             }
             let client = TootClient(instanceURL: url, accessToken: store.mastodonToken)
             try await client.connect()
-            if let account = try? await client.verifyCredentials() {
+            if let account = try? await client.verifyCredentials(),
+               store.mastodonUsername != account.acct {
                 store.mastodonUsername = account.acct   // remember self to skip self-mentions in replies
             }
             return MastodonFeedService(client: client)

@@ -42,11 +42,14 @@ final class FeedPanelModel {
         guard newKind != kind else { return }
         kind = newKind
         posts = []
+        errorMessage = nil
         enqueueLoad(reset: true)
     }
 
     func refresh() {
-        guard hasCredentials else { needsCredentials = true; return }
+        // A refresh must not repurpose the first-run `needsCredentials` flag or it
+        // could blank an already-populated panel.
+        guard hasCredentials else { return }
         if pollTask == nil { startPolling() }
         enqueueLoad(reset: false)
     }
@@ -107,8 +110,7 @@ final class FeedPanelModel {
             let svc = try await resolveService()
             return try await svc.parent(of: post)
         } catch {
-            showActionError(error.userMessage)
-            return nil
+            return nil   // ParentSheet shows its own "couldn't be loaded" state
         }
     }
 
@@ -129,9 +131,14 @@ final class FeedPanelModel {
             do {
                 let svc = try await resolveService()
                 let updated = try await action(svc, optimisticPost)
-                if let i = posts.firstIndex(where: { $0.id == post.id }) { posts[i] = updated }
+                // Only reconcile if a reset-load hasn't replaced this post meanwhile.
+                if let i = posts.firstIndex(where: { $0.id == post.id }), posts[i] == optimisticPost {
+                    posts[i] = updated
+                }
             } catch {
-                if let i = posts.firstIndex(where: { $0.id == post.id }) { posts[i] = original }
+                if let i = posts.firstIndex(where: { $0.id == post.id }), posts[i] == optimisticPost {
+                    posts[i] = original
+                }
                 showActionError(error.userMessage)
             }
         }
@@ -160,5 +167,6 @@ final class FeedPanelModel {
     func stop() {
         pollTask?.cancel(); pollTask = nil
         loadTask?.cancel(); loadTask = nil
+        isLoading = false
     }
 }

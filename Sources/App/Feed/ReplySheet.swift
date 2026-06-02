@@ -33,7 +33,7 @@ struct ReplySheet: View {
                         .font(.callout).foregroundStyle(.green)
                 }
                 Spacer()
-                Button("Cancel", action: onClose).disabled(justSent)
+                Button("Cancel", action: onClose).disabled(justSent || model.isSending)
                 Button(model.isSending ? "Sending…" : "Reply") {
                     Task {
                         await model.send()

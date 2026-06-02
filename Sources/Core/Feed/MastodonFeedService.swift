@@ -98,7 +98,7 @@ public struct MastodonFeedService: FeedService {
             isReposted: display.reposted ?? false,
             boostedBy: boostedBy,
             mentionHandles: display.mentions.map { "@\($0.acct)" },
-            visibility: display.visibility.value?.rawValue,
+            visibility: display.visibility.rawValue,
             spoilerText: display.spoilerText.isEmpty ? nil : display.spoilerText,
             isSensitive: display.sensitive,
             isReply: display.inReplyToId != nil,
