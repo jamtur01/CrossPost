@@ -47,6 +47,7 @@ jobs:
   create-release:
     needs: build-and-test
     runs-on: macos-15
+    timeout-minutes: 30
     permissions:
       contents: write
     steps:
@@ -90,9 +91,31 @@ jobs:
         env:
           MACOS_CODESIGN_IDENTITY: ${{ secrets.MACOS_CODESIGN_IDENTITY }}
         run: |
-          /usr/bin/codesign --force --options runtime --timestamp \
-            --sign "$MACOS_CODESIGN_IDENTITY" --deep \
-            build/Crosspost.app
+          # codesign secure-timestamps against Apple's server, which can hang
+          # transiently. Run with a 120s watchdog and retry so a stuck request
+          # doesn't wedge the job for hours.
+          sign_with_timeout() {
+            /usr/bin/codesign --force --options runtime --timestamp \
+              --sign "$MACOS_CODESIGN_IDENTITY" --deep build/Crosspost.app &
+            local pid=$! waited=0
+            while kill -0 "$pid" 2>/dev/null; do
+              if [ "$waited" -ge 120 ]; then
+                echo "codesign exceeded 120s; killing and retrying"
+                kill -9 "$pid" 2>/dev/null || true
+                wait "$pid" 2>/dev/null || true
+                return 124
+              fi
+              sleep 5
+              waited=$((waited + 5))
+            done
+            wait "$pid"
+          }
+          for attempt in 1 2 3; do
+            if sign_with_timeout; then break; fi
+            if [ "$attempt" -eq 3 ]; then echo "codesign failed after 3 attempts"; exit 1; fi
+            echo "retrying codesign (attempt $((attempt + 1)))..."
+            sleep 10
+          done
           /usr/bin/codesign --verify --strict --verbose=2 build/Crosspost.app
 
       - name: Notarize the app
