@@ -55,16 +55,27 @@ final class ComposeModel {
         }
     }
 
-    /// On success, clear the box and tell the feed panels to refresh the posted-to
-    /// platforms; surface any per-target failures inline (no results popup).
+    /// Refresh the feed panels for platforms that received content, surface any
+    /// failures inline, and make retries safe: clear the box on a clean run, and on
+    /// a partial run keep the draft but de-select every target that already received
+    /// content so pressing Post again can't duplicate what already landed.
     private func handleCompletion(_ results: [PostResult]) {
-        let succeeded = results.compactMap { result -> PostTarget? in
-            if case .success = result.outcome { return result.target } else { return nil }
-        }
-        if !succeeded.isEmpty {
+        // Targets that received any content — fully (.success) or partly (.partial
+        // with at least one landed post). A single-post failure reports `.partial`
+        // with no landed posts, so it correctly stays eligible for retry.
+        let landed = results.filter { result in
+            switch result.outcome {
+            case .success: return true
+            case .partial(let posted, _, _): return !posted.isEmpty
+            case .failure: return false
+            }
+        }.map(\.target)
+
+        if !landed.isEmpty {
             NotificationCenter.default.post(name: .crossPostDidPost, object: nil,
-                                            userInfo: [crossPostTargetsKey: Set(succeeded)])
+                                            userInfo: [crossPostTargetsKey: Set(landed)])
         }
+
         let failures = results.compactMap { result -> String? in
             switch result.outcome {
             case .success: return nil
@@ -74,10 +85,11 @@ final class ComposeModel {
             }
         }
         errorMessage = failures.isEmpty ? nil : failures.joined(separator: "\n")
-        // Only clear the box on a clean run; keep the draft if any target failed so
-        // it can be retried.
-        if !succeeded.isEmpty, failures.isEmpty {
-            thread = [DraftPost()]
+
+        if failures.isEmpty {
+            thread = [DraftPost()]                 // clean run — clear the box
+        } else {
+            selectedTargets.subtract(Set(landed))  // partial — don't re-post what landed
         }
     }
 }
