@@ -86,6 +86,7 @@ public struct MastodonFeedService: FeedService {
             isLiked: display.favourited ?? false,
             isReposted: display.reposted ?? false,
             boostedBy: boostedBy,
+            mentionHandles: display.mentions.map { "@\($0.acct)" },
             nativeRef: .mastodon(statusID: display.id))
     }
 }

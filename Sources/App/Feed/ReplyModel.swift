@@ -16,9 +16,25 @@ final class ReplyModel {
     init(post: FeedPost, store: AccountStore) {
         self.post = post
         self.store = store
-        // Replies start by mentioning the author (Mastodon needs it in the text;
-        // Bluesky turns "@handle" into a mention facet automatically).
-        self.text = post.authorHandle + " "
+
+        // Prefill the reply with everyone it should mention: the author plus anyone
+        // the parent post mentioned, de-duplicated and excluding your own handle.
+        // Mastodon needs these in the text to mention/notify; Bluesky turns each
+        // "@handle" into a mention facet.
+        let ownHandle: String
+        switch post.target {
+        case .mastodon: ownHandle = store.mastodonUsername.isEmpty ? "" : "@\(store.mastodonUsername)"
+        case .bluesky: ownHandle = store.blueskyHandle.isEmpty ? "" : "@\(store.blueskyHandle)"
+        }
+        var seen: Set<String> = []
+        var mentions: [String] = []
+        for handle in [post.authorHandle] + post.mentionHandles {
+            let trimmed = handle.trimmingCharacters(in: .whitespaces)
+            let key = trimmed.lowercased()
+            guard !trimmed.isEmpty, key != ownHandle.lowercased(), seen.insert(key).inserted else { continue }
+            mentions.append(trimmed)
+        }
+        self.text = mentions.isEmpty ? "" : mentions.joined(separator: " ") + " "
     }
 
     var canSend: Bool { !isSending && !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }

@@ -34,20 +34,21 @@ public struct FeedPost: Identifiable, Equatable, Sendable {
     public var likeRecordURI: String?      // Bluesky: like record uri (for undo); nil for Mastodon
     public var repostRecordURI: String?    // Bluesky: repost record uri (for undo); nil for Mastodon
     public let boostedBy: String?          // display name of the booster/reposter, if this is a boost
+    public let mentionHandles: [String]    // "@handle"s the parent post mentions (for reply prefill)
     public let nativeRef: NativeRef
 
     public init(id: String, target: PostTarget, authorName: String, authorHandle: String,
                 avatarURL: URL?, date: Date, text: AttributedString, images: [FeedImage],
                 webURL: URL?, isLiked: Bool, isReposted: Bool,
                 likeRecordURI: String? = nil, repostRecordURI: String? = nil,
-                boostedBy: String? = nil,
+                boostedBy: String? = nil, mentionHandles: [String] = [],
                 nativeRef: NativeRef) {
         self.id = id; self.target = target; self.authorName = authorName
         self.authorHandle = authorHandle; self.avatarURL = avatarURL; self.date = date
         self.text = text; self.images = images; self.webURL = webURL
         self.isLiked = isLiked; self.isReposted = isReposted
         self.likeRecordURI = likeRecordURI; self.repostRecordURI = repostRecordURI
-        self.boostedBy = boostedBy
+        self.boostedBy = boostedBy; self.mentionHandles = mentionHandles
         self.nativeRef = nativeRef
     }
 }

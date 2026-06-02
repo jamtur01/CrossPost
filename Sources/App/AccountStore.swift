@@ -6,6 +6,7 @@ import SwiftUI
 final class AccountStore: ObservableObject {
     @AppStorage("mastodonInstanceURL") var mastodonInstanceURL: String = ""
     @AppStorage("mastodonMaxChars") var mastodonMaxChars: Int = TargetLimits.mastodonFallback
+    @AppStorage("mastodonUsername") var mastodonUsername: String = ""   // your own acct, to avoid self-mentions
     @AppStorage("blueskyHandle") var blueskyHandle: String = ""
 
     private let credentials: CredentialStore
