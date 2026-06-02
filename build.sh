@@ -48,14 +48,16 @@ if [ -n "${CI:-}" ]; then
 fi
 
 echo "==> Building Crosspost ($configuration)"
+# Use the ${arr[@]+"${arr[@]}"} form so expanding an empty array doesn't trip
+# `set -u` on macOS's bash 3.2 (used by GitHub runners).
 xcodebuild build \
   -project Crosspost.xcodeproj \
   -scheme Crosspost \
   -configuration "$configuration" \
   -destination 'platform=macOS' \
   -derivedDataPath "$derived_data" \
-  "${arch_args[@]}" \
-  "${quiet_args[@]}"
+  ${arch_args[@]+"${arch_args[@]}"} \
+  ${quiet_args[@]+"${quiet_args[@]}"}
 
 src="$derived_data/Build/Products/$configuration/Crosspost.app"
 if [ ! -d "$src" ]; then
