@@ -37,6 +37,11 @@ struct SettingsView: View {
                     }
                 }
             }
+
+            Section {
+                LabeledContent("Version", value: Self.appVersion)
+                    .foregroundStyle(.secondary)
+            }
         }
         .formStyle(.grouped)
         .padding(.vertical, 12)
@@ -45,6 +50,14 @@ struct SettingsView: View {
             mastodonToken = store.mastodonToken
             blueskyPassword = store.blueskyAppPassword
         }
+    }
+
+    /// Marketing version and build number from the bundle, e.g. "0.2.1 (1)".
+    private static var appVersion: String {
+        let info = Bundle.main.infoDictionary
+        let short = info?["CFBundleShortVersionString"] as? String ?? "—"
+        let build = info?["CFBundleVersion"] as? String ?? "—"
+        return build == short ? short : "\(short) (\(build))"
     }
 
     @ViewBuilder
