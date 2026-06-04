@@ -20,7 +20,11 @@ struct ParentSheet: View {
             if loading {
                 ProgressView().frame(maxWidth: .infinity, minHeight: 90)
             } else if let parent {
-                FeedPostView(post: parent, showActions: false)
+                FeedPostView(post: parent, accent: parent.target.accent,
+                             showActions: false, inTimeline: false)
+                    .padding(12)
+                    .background(RoundedRectangle(cornerRadius: 10)
+                        .fill(Color(nsColor: .controlBackgroundColor)))
                 HStack {
                     Spacer()
                     Button { onOpen(parent) } label: {

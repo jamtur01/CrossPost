@@ -14,11 +14,19 @@ struct ComposeColumnView: View {
     @ViewBuilder
     private func content(_ model: ComposeModel) -> some View {
         @Bindable var model = model
-        VStack(alignment: .leading, spacing: 8) {
-            Text("New Post").font(.headline)
+        VStack(spacing: 0) {
+            HStack(spacing: 8) {
+                Image(systemName: "square.and.pencil").font(.system(size: 13, weight: .medium))
+                Text("New Post").font(.headline)
+                Spacer()
+            }
+            .padding(.horizontal, 14).padding(.top, 10).padding(.bottom, 10)
+            .background(.bar)
+
+            Divider()
 
             ScrollView {
-                VStack(spacing: 8) {
+                VStack(spacing: 10) {
                     ForEach($model.thread) { $post in
                         let index = model.thread.firstIndex(where: { $0.id == post.id }) ?? 0
                         PostCardView(post: $post, index: index,
@@ -26,13 +34,23 @@ struct ComposeColumnView: View {
                                      onRemove: { model.removePost(at: index) })
                     }
                     Button { model.addPost() } label: {
-                        Label("Add post to thread", systemImage: "plus")
+                        Label("Add post to thread", systemImage: "plus.circle")
                     }
-                    .buttonStyle(.borderless).font(.caption)
+                    .buttonStyle(.borderless).font(.callout)
+                    .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
+                .padding(14)
             }
 
+            footer(model)
+        }
+    }
+
+    @ViewBuilder
+    private func footer(_ model: ComposeModel) -> some View {
+        @Bindable var model = model
+        VStack(alignment: .leading, spacing: 10) {
             if let issues = model.blockedIssues, !issues.isEmpty {
                 Text("Too long or empty — fix before posting.").font(.caption).foregroundStyle(.red)
             }
@@ -40,20 +58,36 @@ struct ComposeColumnView: View {
                 Text(error).font(.caption).foregroundStyle(.red).lineLimit(3)
             }
 
-            Divider()
-            HStack(spacing: 6) {
+            HStack(spacing: 8) {
                 ForEach(PostTarget.allCases) { target in
-                    Toggle(target.displayName, isOn: Binding(
-                        get: { model.selectedTargets.contains(target) },
-                        set: { _ in model.toggle(target) }))
-                    .toggleStyle(.button).controlSize(.small)
+                    targetPill(target, selected: model.selectedTargets.contains(target)) {
+                        model.toggle(target)
+                    }
                 }
                 Spacer()
                 Button(model.isPosting ? "Posting…" : "Post") { Task { await model.submit() } }
                     .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
                     .disabled(!model.canPost)
             }
         }
-        .padding(12)
+        .padding(.horizontal, 14).padding(.vertical, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.bar)
+        .overlay(alignment: .top) { Divider() }
+    }
+
+    private func targetPill(_ target: PostTarget, selected: Bool,
+                            action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(target.displayName)
+                .font(.callout.weight(.medium))
+                .padding(.horizontal, 12).padding(.vertical, 6)
+                .background(
+                    Capsule().fill(selected ? target.accent : Color.secondary.opacity(0.14)))
+                .foregroundStyle(selected ? .white : .secondary)
+        }
+        .buttonStyle(.plain)
+        .help(selected ? "Posting to \(target.displayName)" : "Not posting to \(target.displayName)")
     }
 }

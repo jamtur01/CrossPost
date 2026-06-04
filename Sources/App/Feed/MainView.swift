@@ -7,16 +7,16 @@ struct MainView: View {
         HSplitView {
             ComposeColumnView()
                 .environmentObject(store)
-                .frame(minWidth: 260, idealWidth: 300, maxWidth: 360)
+                .frame(minWidth: 280, idealWidth: 320, maxWidth: 380)
 
             FeedPanelView(model: FeedPanelModel(target: .mastodon, store: store))
                 .environmentObject(store)
-                .frame(minWidth: 320)
+                .frame(minWidth: 340)
 
             FeedPanelView(model: FeedPanelModel(target: .bluesky, store: store))
                 .environmentObject(store)
-                .frame(minWidth: 320)
+                .frame(minWidth: 340)
         }
-        .frame(minWidth: 980, minHeight: 560)
+        .frame(minWidth: 1000, minHeight: 580)
     }
 }

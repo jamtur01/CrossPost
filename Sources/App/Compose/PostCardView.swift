@@ -20,24 +20,34 @@ struct PostCardView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("Post \(index + 1)").font(.headline)
+                Text("Post \(index + 1)")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
                 Spacer()
                 Text("\(count)/\(TargetLimits.blueskyMax)")
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(counterColor)
                 if canRemove {
                     Button(role: .destructive, action: onRemove) {
-                        Image(systemName: "trash")
+                        Image(systemName: "trash").font(.system(size: 12))
                     }
                     .buttonStyle(.borderless)
                     .help("Remove this post")
                 }
             }
             PlainTextEditor(text: $post.text)
-                .frame(minHeight: 88, maxHeight: 220)
-                .padding(6)
-                .background(RoundedRectangle(cornerRadius: 6).fill(Color(nsColor: .textBackgroundColor)))
-                .overlay(RoundedRectangle(cornerRadius: 6).stroke(.quaternary))
+                .frame(minHeight: 96, maxHeight: 220)
+                .padding(8)
+                .background(RoundedRectangle(cornerRadius: 8).fill(Color(nsColor: .textBackgroundColor)))
+                .overlay(alignment: .topLeading) {
+                    if post.text.isEmpty {
+                        Text("What's on your mind?")
+                            .font(.body).foregroundStyle(.tertiary)
+                            .padding(.horizontal, 13).padding(.vertical, 15)
+                            .allowsHitTesting(false)
+                    }
+                }
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(.quaternary))
 
             if !post.attachments.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -68,14 +78,15 @@ struct PostCardView: View {
             }
             .buttonStyle(.borderless)
             .font(.caption)
+            .foregroundStyle(.secondary)
         }
         .padding(14)
         .background(
-            RoundedRectangle(cornerRadius: 8)
+            RoundedRectangle(cornerRadius: 12)
                 .fill(Color(nsColor: .controlBackgroundColor))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 8)
+            RoundedRectangle(cornerRadius: 12)
                 .stroke(.quaternary, lineWidth: 1)
         )
     }

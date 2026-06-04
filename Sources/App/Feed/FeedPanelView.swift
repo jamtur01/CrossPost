@@ -6,22 +6,31 @@ struct FeedPanelView: View {
     @State private var replyTarget: FeedPost?
     @State private var parentOf: FeedPost?
 
+    private var accent: Color { model.target.accent }
+
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                Text(model.target.displayName).font(.headline)
-                Spacer()
-                if model.isLoading { ProgressView().controlSize(.small) }
-                Button { model.refresh() } label: { Image(systemName: "arrow.clockwise") }
+            VStack(spacing: 8) {
+                HStack(spacing: 8) {
+                    Circle().fill(accent).frame(width: 9, height: 9)
+                    Text(model.target.displayName)
+                        .font(.headline)
+                    Spacer()
+                    if model.isLoading { ProgressView().controlSize(.small) }
+                    Button { model.refresh() } label: {
+                        Image(systemName: "arrow.clockwise").font(.system(size: 13, weight: .medium))
+                    }
                     .buttonStyle(.borderless).help("Refresh")
-            }
-            .padding(.horizontal, 12).padding(.vertical, 8)
+                }
 
-            Picker("Feed", selection: Binding(get: { model.kind }, set: { model.switchTo($0) })) {
-                ForEach(FeedKind.allCases) { kind in Text(kind.title).tag(kind) }
+                Picker("Feed", selection: Binding(get: { model.kind }, set: { model.switchTo($0) })) {
+                    ForEach(FeedKind.allCases) { kind in Text(kind.title).tag(kind) }
+                }
+                .pickerStyle(.segmented).labelsHidden()
+                .tint(accent)
             }
-            .pickerStyle(.segmented).labelsHidden()
-            .padding(.horizontal, 12).padding(.bottom, 8)
+            .padding(.horizontal, 14).padding(.top, 10).padding(.bottom, 10)
+            .background(.bar)
 
             Divider()
 
@@ -29,13 +38,13 @@ struct FeedPanelView: View {
                 Text(actionError)
                     .font(.caption).foregroundStyle(.red)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 12).padding(.vertical, 6)
+                    .padding(.horizontal, 14).padding(.vertical, 6)
                     .background(Color.red.opacity(0.08))
             }
 
             content
         }
-        .background(Color(nsColor: .windowBackgroundColor))
+        .background(Color(nsColor: .textBackgroundColor))
         .sheet(item: $replyTarget) { post in
             ReplySheet(model: ReplyModel(post: post, store: store)) { replyTarget = nil }
         }
@@ -75,10 +84,11 @@ struct FeedPanelView: View {
             Spacer(); ProgressView(); Spacer()
         } else {
             ScrollView {
-                LazyVStack(spacing: 8) {
+                LazyVStack(spacing: 0) {
                     ForEach(model.posts) { post in
                         FeedPostView(
                             post: post,
+                            accent: accent,
                             onReply: { replyTarget = post },
                             onLike: { model.toggleLike(post) },
                             onRepost: { model.toggleRepost(post) },
@@ -86,8 +96,8 @@ struct FeedPanelView: View {
                             onShowParent: post.isReply ? { parentOf = post } : nil)
                     }
                 }
-                .padding(10)
             }
+            .scrollContentBackground(.hidden)
         }
     }
 
