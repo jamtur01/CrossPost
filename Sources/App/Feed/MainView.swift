@@ -9,13 +9,18 @@ struct MainView: View {
                 .environmentObject(store)
                 .frame(minWidth: 280, idealWidth: 320, maxWidth: 380)
 
-            FeedPanelView(model: FeedPanelModel(target: .mastodon, store: store))
-                .environmentObject(store)
-                .frame(minWidth: 340)
-
-            FeedPanelView(model: FeedPanelModel(target: .bluesky, store: store))
-                .environmentObject(store)
-                .frame(minWidth: 340)
+            // The two feeds share the remaining space equally (each maxWidth:
+            // .infinity), so they are always exactly the same size.
+            HStack(spacing: 0) {
+                FeedPanelView(model: FeedPanelModel(target: .mastodon, store: store))
+                    .environmentObject(store)
+                    .frame(maxWidth: .infinity)
+                Divider()
+                FeedPanelView(model: FeedPanelModel(target: .bluesky, store: store))
+                    .environmentObject(store)
+                    .frame(maxWidth: .infinity)
+            }
+            .frame(minWidth: 680)
         }
         .frame(minWidth: 1000, minHeight: 580)
         .toolbar {
