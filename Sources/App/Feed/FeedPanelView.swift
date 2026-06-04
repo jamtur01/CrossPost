@@ -4,7 +4,6 @@ struct FeedPanelView: View {
     @State var model: FeedPanelModel
     @EnvironmentObject var store: AccountStore
     @State private var replyTarget: FeedPost?
-    @State private var parentOf: FeedPost?
     @State private var detailPost: FeedPost?
 
     private var accent: Color { model.target.accent }
@@ -13,7 +12,9 @@ struct FeedPanelView: View {
         VStack(spacing: 0) {
             VStack(spacing: 8) {
                 HStack(spacing: 8) {
-                    Circle().fill(accent).frame(width: 9, height: 9)
+                    Image(systemName: model.target.glyph)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(accent)
                     Text(model.target.displayName)
                         .font(.headline)
                     Spacer()
@@ -22,6 +23,7 @@ struct FeedPanelView: View {
                         Image(systemName: "arrow.clockwise").font(.system(size: 13, weight: .medium))
                     }
                     .buttonStyle(.borderless).help("Refresh")
+                    .foregroundStyle(accent)
                 }
 
                 Picker("Feed", selection: Binding(get: { model.kind }, set: { model.switchTo($0) })) {
@@ -31,9 +33,15 @@ struct FeedPanelView: View {
                 .tint(accent)
             }
             .padding(.horizontal, 16).padding(.top, 10).padding(.bottom, 10)
-            .background(.bar)
-
-            Divider()
+            .background {
+                ZStack {
+                    Rectangle().fill(.bar)
+                    accent.opacity(0.12)
+                }
+            }
+            .overlay(alignment: .bottom) {
+                Rectangle().fill(accent.opacity(0.35)).frame(height: 1)
+            }
 
             if let actionError = model.actionError {
                 Text(actionError)
@@ -48,12 +56,6 @@ struct FeedPanelView: View {
         .background(Color(nsColor: .textBackgroundColor))
         .sheet(item: $replyTarget) { post in
             ReplySheet(model: ReplyModel(post: post, store: store)) { replyTarget = nil }
-        }
-        .sheet(item: $parentOf) { post in
-            ParentSheet(
-                fetch: { await model.parent(of: post) },
-                onOpen: { model.openInBrowser($0) },
-                onClose: { parentOf = nil })
         }
         .sheet(item: $detailPost) { post in
             PostDetailSheet(model: model, store: store, postID: post.id) { detailPost = nil }
@@ -101,7 +103,9 @@ struct FeedPanelView: View {
                             onLike: { model.toggleLike(post) },
                             onRepost: { model.toggleRepost(post) },
                             onOpen: { model.openInBrowser(post) },
-                            onShowParent: post.isReply ? { parentOf = post } : nil,
+                            onOpenProfile: { model.openProfile(post) },
+                            onOpenURL: { model.open($0) },
+                            onShowParent: post.isReply ? { detailPost = post } : nil,
                             onOpenDetail: { detailPost = post })
                     }
                 }

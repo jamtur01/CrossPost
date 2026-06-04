@@ -14,37 +14,54 @@ struct ComposeColumnView: View {
     @ViewBuilder
     private func content(_ model: ComposeModel) -> some View {
         @Bindable var model = model
+        let limit = model.selectedTargets.contains(.bluesky)
+            ? TargetLimits.blueskyMax : TargetLimits.mastodonFallback
         VStack(spacing: 0) {
             HStack(spacing: 8) {
                 Image(systemName: "square.and.pencil").font(.system(size: 13, weight: .medium))
                 Text("New Post").font(.headline)
                 Spacer()
             }
-            .padding(.horizontal, 14).padding(.top, 10).padding(.bottom, 10)
+            .padding(.horizontal, 16).padding(.top, 10).padding(.bottom, 10)
             .background(.bar)
 
             Divider()
 
-            ScrollView {
-                VStack(spacing: 10) {
-                    ForEach($model.thread) { $post in
-                        let index = model.thread.firstIndex(where: { $0.id == post.id }) ?? 0
-                        PostCardView(post: $post, index: index,
-                                     canRemove: model.thread.count > 1,
-                                     onRemove: { model.removePost(at: index) })
-                    }
-                    Button { model.addPost() } label: {
-                        Label("Add post to thread", systemImage: "plus.circle")
-                    }
-                    .buttonStyle(.borderless).font(.callout)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+            if model.thread.count == 1 {
+                VStack(spacing: 12) {
+                    PostCardView(post: $model.thread[0], index: 0, limit: limit,
+                                 showLabel: false, fills: true,
+                                 canRemove: false, onRemove: {})
+                        .frame(maxHeight: .infinity)
+                    addThreadButton(model)
                 }
                 .padding(14)
+            } else {
+                ScrollView {
+                    VStack(spacing: 12) {
+                        ForEach($model.thread) { $post in
+                            let index = model.thread.firstIndex(where: { $0.id == post.id }) ?? 0
+                            PostCardView(post: $post, index: index, limit: limit,
+                                         canRemove: true,
+                                         onRemove: { model.removePost(at: index) })
+                        }
+                        addThreadButton(model)
+                    }
+                    .padding(14)
+                }
             }
 
             footer(model)
         }
+    }
+
+    private func addThreadButton(_ model: ComposeModel) -> some View {
+        Button { model.addPost() } label: {
+            Label("Add post to thread", systemImage: "plus.circle")
+        }
+        .buttonStyle(.borderless).font(.callout)
+        .foregroundStyle(.secondary)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder

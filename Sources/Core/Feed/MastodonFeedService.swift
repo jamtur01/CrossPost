@@ -63,10 +63,35 @@ public struct MastodonFeedService: FeedService {
         return PostedItem(url: posted.url)
     }
 
-    public func parent(of post: FeedPost) async throws -> FeedPost? {
-        guard post.isReply, case .mastodon(let id) = post.nativeRef else { return nil }
+    public func thread(of post: FeedPost) async throws -> PostThread {
+        guard case .mastodon(let id) = post.nativeRef else {
+            return PostThread(ancestors: [], descendants: [])
+        }
         let context = try await client.getContext(id: id)
-        return context.ancestors.last.map { Self.feedPost(from: $0) }
+        return PostThread(
+            ancestors: context.ancestors.map { Self.feedPost(from: $0) },
+            descendants: context.descendants.map { Self.feedPost(from: $0) })
+    }
+
+    static func linkCard(from card: Card?) -> LinkCard? {
+        guard let card, let url = URL(string: card.url) else { return nil }
+        let provider = card.providerName?.isEmpty == false ? card.providerName! : (url.host ?? "")
+        return LinkCard(url: url, title: card.title, description: card.description,
+                        imageURL: card.image.flatMap(URL.init(string:)), providerName: provider)
+    }
+
+    static func quotedPost(from quote: Quote?) -> QuotedPost? {
+        guard let quote, case .post(let quoted)? = quote.quotedPost else { return nil }
+        let q = quoted.displayPost
+        let image = q.mediaAttachments.first { $0.type.value == .image }
+        return QuotedPost(
+            id: "mastodon:\(q.id)",
+            authorName: q.account.displayName?.isEmpty == false ? q.account.displayName! : q.account.acct,
+            authorHandle: "@\(q.account.acct)",
+            avatarURL: URL(string: q.account.avatar),
+            text: AttributedString(HTMLRenderer.render(q.content ?? "")),
+            imageURL: image.flatMap { URL(string: $0.url) },
+            webURL: q.url.flatMap(URL.init(string:)))
     }
 
     static func feedPost(from post: Post) -> FeedPost {
@@ -90,9 +115,12 @@ public struct MastodonFeedService: FeedService {
                 : display.account.acct,
             authorHandle: "@\(display.account.acct)",
             avatarURL: URL(string: display.account.avatar),
+            authorURL: URL(string: display.account.url),
             date: display.createdAt,
             text: AttributedString(HTMLRenderer.render(display.content ?? "")),
             images: images,
+            card: linkCard(from: display.card),
+            quoted: quotedPost(from: display.quote),
             webURL: display.url.flatMap(URL.init(string:)),
             isLiked: display.favourited ?? false,
             isReposted: display.reposted ?? false,

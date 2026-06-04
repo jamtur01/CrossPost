@@ -7,6 +7,8 @@ struct FeedPostView: View {
     var onLike: () -> Void = {}
     var onRepost: () -> Void = {}
     var onOpen: () -> Void = {}
+    var onOpenProfile: () -> Void = {}
+    var onOpenURL: (URL) -> Void = { _ in }
     var onShowParent: (() -> Void)?
     var onOpenDetail: (() -> Void)?
     var showActions: Bool = true
@@ -21,14 +23,14 @@ struct FeedPostView: View {
         VStack(alignment: .leading, spacing: Theme.componentSpacing) {
             contextLine
             header
-            Text(styledText)
-                .font(expanded ? Theme.contentLarge : Theme.content)
-                .tint(accent)
-                .textSelection(.enabled)
-                .lineSpacing(1.5)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .fixedSize(horizontal: false, vertical: true)
+            bodyText
             images
+            if let card = post.card {
+                LinkCardView(card: card, accent: accent, onOpen: onOpenURL)
+            }
+            if let quoted = post.quoted {
+                QuoteCardView(quote: quoted, accent: accent, onOpen: onOpenURL)
+            }
             if showActions { actionBar }
         }
         .padding(.horizontal, inTimeline ? Theme.rowPaddingH : 0)
@@ -44,6 +46,23 @@ struct FeedPostView: View {
 
     private var styledText: AttributedString {
         RichText.styled(String(post.text.characters), accent: accent)
+    }
+
+    /// Body text. Selectable only in the expanded detail; in timeline rows the
+    /// text stays click-through so the whole row opens the thread.
+    @ViewBuilder
+    private var bodyText: some View {
+        let base = Text(styledText)
+            .font(expanded ? Theme.contentLarge : Theme.content)
+            .tint(accent)
+            .lineSpacing(1.5)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .fixedSize(horizontal: false, vertical: true)
+        if expanded {
+            base.textSelection(.enabled)
+        } else {
+            base
+        }
     }
 
     @ViewBuilder
@@ -65,25 +84,33 @@ struct FeedPostView: View {
 
     private var header: some View {
         HStack(alignment: .top, spacing: 10) {
-            AsyncImage(url: post.avatarURL) { image in
-                image.resizable().scaledToFill()
-            } placeholder: {
-                Circle().fill(.quaternary)
-            }
-            .frame(width: expanded ? Theme.avatarLarge : Theme.avatar,
-                   height: expanded ? Theme.avatarLarge : Theme.avatar)
-            .clipShape(Circle())
-            .overlay(Circle().strokeBorder(Color.primary.opacity(0.08)))
+            Button(action: onOpenProfile) {
+                HStack(alignment: .top, spacing: 10) {
+                    AsyncImage(url: post.avatarURL) { image in
+                        image.resizable().scaledToFill()
+                    } placeholder: {
+                        Circle().fill(.quaternary)
+                    }
+                    .frame(width: expanded ? Theme.avatarLarge : Theme.avatar,
+                           height: expanded ? Theme.avatarLarge : Theme.avatar)
+                    .clipShape(Circle())
+                    .overlay(Circle().strokeBorder(accent.opacity(0.30), lineWidth: 1.5))
 
-            VStack(alignment: .leading, spacing: 1) {
-                Text(post.authorName)
-                    .font(expanded ? Theme.nameLarge : Theme.name)
-                    .lineLimit(1)
-                Text(post.authorHandle)
-                    .font(Theme.meta)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(post.authorName)
+                            .font(expanded ? Theme.nameLarge : Theme.name)
+                            .lineLimit(1)
+                        Text(post.authorHandle)
+                            .font(Theme.meta)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    .contentShape(Rectangle())
+                }
             }
+            .buttonStyle(.plain)
+            .help("Open profile")
+
             Spacer(minLength: 6)
             Text(post.date, format: .relative(presentation: .numeric))
                 .font(Theme.meta)
@@ -181,7 +208,7 @@ struct FeedPostView: View {
 
     private var rowBackground: some View {
         Rectangle()
-            .fill(hovering && inTimeline ? Color.primary.opacity(0.045) : .clear)
+            .fill(hovering && inTimeline ? accent.opacity(0.06) : .clear)
             .animation(.easeOut(duration: 0.12), value: hovering)
     }
 }

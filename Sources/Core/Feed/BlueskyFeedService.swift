@@ -82,12 +82,53 @@ public struct BlueskyFeedService: FeedService {
         return PostedItem(url: "https://bsky.app/profile/\(handle)/post/\(rkey)")
     }
 
-    public func parent(of post: FeedPost) async throws -> FeedPost? {
-        guard post.isReply, case .bluesky(let uri, _, _, _) = post.nativeRef else { return nil }
+    public func thread(of post: FeedPost) async throws -> PostThread {
+        guard case .bluesky(let uri, _, _, _) = post.nativeRef else {
+            return PostThread(ancestors: [], descendants: [])
+        }
         let output = try await kit.getPostThread(from: uri)
-        guard case .threadViewPost(let thread) = output.thread,
-              case .threadViewPost(let parent)? = thread.parent else { return nil }
-        return Self.feedPost(fromPostView: parent.post)
+        guard case .threadViewPost(let thread) = output.thread else {
+            return PostThread(ancestors: [], descendants: [])
+        }
+        var ancestors: [FeedPost] = []
+        var node = thread.parent
+        while case .threadViewPost(let parent)? = node {
+            ancestors.append(Self.feedPost(fromPostView: parent.post))
+            node = parent.parent
+        }
+        ancestors.reverse()
+
+        var descendants: [FeedPost] = []
+        for reply in thread.replies ?? [] {
+            guard case .threadViewPost(let r) = reply else { continue }
+            descendants.append(Self.feedPost(fromPostView: r.post))
+            for sub in r.replies ?? [] {
+                if case .threadViewPost(let s) = sub {
+                    descendants.append(Self.feedPost(fromPostView: s.post))
+                }
+            }
+        }
+        return PostThread(ancestors: ancestors, descendants: descendants)
+    }
+
+    static func linkCard(from external: AppBskyLexicon.Embed.ExternalDefinition.ViewExternal) -> LinkCard? {
+        guard let url = URL(string: external.uri) else { return nil }
+        return LinkCard(url: url, title: external.title, description: external.description,
+                        imageURL: external.thumbnailImageURL, providerName: url.host ?? "")
+    }
+
+    static func quotedPost(fromRecordView view: AppBskyLexicon.Embed.RecordDefinition.View) -> QuotedPost? {
+        guard case .viewRecord(let vr) = view.record else { return nil }
+        let record = vr.value.getRecord(ofType: AppBskyLexicon.Feed.PostRecord.self)
+        let rkey = vr.uri.split(separator: "/").last.map(String.init) ?? ""
+        return QuotedPost(
+            id: "bluesky:\(vr.uri)",
+            authorName: vr.author.displayName?.isEmpty == false ? vr.author.displayName! : vr.author.actorHandle,
+            authorHandle: "@\(vr.author.actorHandle)",
+            avatarURL: vr.author.avatarImageURL,
+            text: AttributedString(record?.text ?? ""),
+            imageURL: nil,
+            webURL: URL(string: "https://bsky.app/profile/\(vr.author.actorHandle)/post/\(rkey)"))
     }
 
     static func feedPost(
@@ -121,6 +162,7 @@ public struct BlueskyFeedService: FeedService {
                 : n.author.actorHandle,
             authorHandle: "@\(n.author.actorHandle)",
             avatarURL: n.author.avatarImageURL,
+            authorURL: URL(string: "https://bsky.app/profile/\(n.author.actorHandle)"),
             date: n.indexedAt,
             text: AttributedString(record?.text ?? ""),
             images: [],
@@ -139,8 +181,29 @@ public struct BlueskyFeedService: FeedService {
     ) -> FeedPost {
         let record = p.record.getRecord(ofType: AppBskyLexicon.Feed.PostRecord.self)
         var images: [FeedImage] = []
-        if case .embedImagesView(let view)? = p.embed {
-            images = view.images.map { FeedImage(url: $0.fullSizeImageURL, altText: $0.altText) }
+        var card: LinkCard?
+        var quoted: QuotedPost?
+        if let embed = p.embed {
+            switch embed {
+            case .embedImagesView(let view):
+                images = view.images.map { FeedImage(url: $0.fullSizeImageURL, altText: $0.altText) }
+            case .embedExternalView(let view):
+                card = linkCard(from: view.external)
+            case .embedRecordView(let view):
+                quoted = quotedPost(fromRecordView: view)
+            case .embedRecordWithMediaView(let view):
+                quoted = quotedPost(fromRecordView: view.record)
+                switch view.media {
+                case .embedImagesView(let v):
+                    images = v.images.map { FeedImage(url: $0.fullSizeImageURL, altText: $0.altText) }
+                case .embedExternalView(let v):
+                    card = linkCard(from: v.external)
+                default:
+                    break
+                }
+            default:
+                break
+            }
         }
         // If no explicit replyRoot was supplied, derive it from the post's own record.
         let resolvedReplyRoot = replyRoot
@@ -155,9 +218,12 @@ public struct BlueskyFeedService: FeedService {
                 : p.author.actorHandle,
             authorHandle: "@\(p.author.actorHandle)",
             avatarURL: p.author.avatarImageURL,
+            authorURL: URL(string: "https://bsky.app/profile/\(p.author.actorHandle)"),
             date: p.indexedAt,
             text: AttributedString(record?.text ?? ""),
             images: images,
+            card: card,
+            quoted: quoted,
             webURL: URL(string: "https://bsky.app/profile/\(p.author.actorHandle)/post/\(rkey)"),
             isLiked: p.viewer?.likeURI != nil,
             isReposted: p.viewer?.repostURI != nil,

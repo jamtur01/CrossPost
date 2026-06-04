@@ -25,9 +25,12 @@ public struct FeedPost: Identifiable, Equatable, Sendable {
     public let authorName: String
     public let authorHandle: String
     public let avatarURL: URL?
+    public let authorURL: URL?      // profile page
     public let date: Date
     public let text: AttributedString
     public let images: [FeedImage]
+    public let card: LinkCard?      // link preview, if any
+    public let quoted: QuotedPost?  // quoted post, if any
     public let webURL: URL?
     public var isLiked: Bool
     public var isReposted: Bool
@@ -45,7 +48,9 @@ public struct FeedPost: Identifiable, Equatable, Sendable {
     public let nativeRef: NativeRef
 
     public init(id: String, target: PostTarget, authorName: String, authorHandle: String,
-                avatarURL: URL?, date: Date, text: AttributedString, images: [FeedImage],
+                avatarURL: URL?, authorURL: URL? = nil, date: Date,
+                text: AttributedString, images: [FeedImage],
+                card: LinkCard? = nil, quoted: QuotedPost? = nil,
                 webURL: URL?, isLiked: Bool, isReposted: Bool,
                 replyCount: Int = 0, repostCount: Int = 0, likeCount: Int = 0,
                 likeRecordURI: String? = nil, repostRecordURI: String? = nil,
@@ -54,8 +59,10 @@ public struct FeedPost: Identifiable, Equatable, Sendable {
                 isSensitive: Bool = false, isReply: Bool = false,
                 nativeRef: NativeRef) {
         self.id = id; self.target = target; self.authorName = authorName
-        self.authorHandle = authorHandle; self.avatarURL = avatarURL; self.date = date
-        self.text = text; self.images = images; self.webURL = webURL
+        self.authorHandle = authorHandle; self.avatarURL = avatarURL
+        self.authorURL = authorURL; self.date = date
+        self.text = text; self.images = images
+        self.card = card; self.quoted = quoted; self.webURL = webURL
         self.isLiked = isLiked; self.isReposted = isReposted
         self.replyCount = replyCount; self.repostCount = repostCount; self.likeCount = likeCount
         self.likeRecordURI = likeRecordURI; self.repostRecordURI = repostRecordURI

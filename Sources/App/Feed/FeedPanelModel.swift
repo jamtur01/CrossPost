@@ -104,13 +104,22 @@ final class FeedPanelModel {
         NSWorkspace.shared.open(url)
     }
 
-    /// Fetch the post this one is replying to (for the reply-context sheet).
-    func parent(of post: FeedPost) async -> FeedPost? {
+    func openProfile(_ post: FeedPost) {
+        guard let url = post.authorURL else { return }
+        NSWorkspace.shared.open(url)
+    }
+
+    func open(_ url: URL) {
+        NSWorkspace.shared.open(url)
+    }
+
+    /// Fetch the surrounding thread (ancestors + replies) for the detail view.
+    func thread(of post: FeedPost) async -> PostThread {
         do {
             let svc = try await resolveService()
-            return try await svc.parent(of: post)
+            return try await svc.thread(of: post)
         } catch {
-            return nil   // ParentSheet shows its own "couldn't be loaded" state
+            return PostThread(ancestors: [], descendants: [])
         }
     }
 

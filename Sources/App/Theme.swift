@@ -8,6 +8,14 @@ extension PostTarget {
         case .bluesky: return Color(red: 0.039, green: 0.478, blue: 1.0)
         }
     }
+
+    /// A small letter-mark badge for the column header.
+    var glyph: String {
+        switch self {
+        case .mastodon: return "m.circle.fill"
+        case .bluesky: return "b.circle.fill"
+        }
+    }
 }
 
 /// Central design tokens. Sizes follow the macOS type scale (slightly larger

@@ -3,85 +3,105 @@ import SwiftUI
 struct PostCardView: View {
     @Binding var post: DraftPost
     let index: Int
+    let limit: Int
+    var showLabel: Bool = true   // "Post N" + remove (thread mode)
+    var fills: Bool = false      // editor expands to fill available height
     let canRemove: Bool
     let onRemove: () -> Void
 
-    /// Warn (orange) once within this many graphemes of the Bluesky limit.
+    /// Warn (orange) once within this many graphemes of the limit.
     private static let warnWithin = 20
 
     private var count: Int { PostValidator.graphemeCount(post.text) }
 
     private var counterColor: Color {
-        if count > TargetLimits.blueskyMax { return .red }
-        if count >= TargetLimits.blueskyMax - Self.warnWithin { return .orange }
+        if count > limit { return .red }
+        if count >= limit - Self.warnWithin { return .orange }
         return .secondary
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("Post \(index + 1)")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 10) {
+            if showLabel {
+                HStack {
+                    Text("Post \(index + 1)")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    if canRemove {
+                        Button(role: .destructive, action: onRemove) {
+                            Image(systemName: "trash").font(.system(size: 12))
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Remove this post")
+                    }
+                }
+            }
+
+            editor
+
+            if !post.attachments.isEmpty { attachments }
+
+            HStack(spacing: 12) {
+                Button(action: addImage) {
+                    Image(systemName: "photo.badge.plus").font(.system(size: 15))
+                }
+                .buttonStyle(.borderless)
+                .foregroundStyle(.secondary)
+                .help("Add image")
+
                 Spacer()
-                Text("\(count)/\(TargetLimits.blueskyMax)")
+
+                Text("\(count)/\(limit)")
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(counterColor)
-                if canRemove {
-                    Button(role: .destructive, action: onRemove) {
-                        Image(systemName: "trash").font(.system(size: 12))
-                    }
-                    .buttonStyle(.borderless)
-                    .help("Remove this post")
-                }
             }
-            PlainTextEditor(text: $post.text)
-                .frame(minHeight: 100, maxHeight: 220)
-                .padding(8)
-                .background(RoundedRectangle(cornerRadius: 8).fill(Color(nsColor: .textBackgroundColor)))
-                .overlay(alignment: .topLeading) {
-                    if post.text.isEmpty {
-                        Text("What's on your mind?")
-                            .font(Theme.content).foregroundStyle(.tertiary)
-                            .padding(.horizontal, 13).padding(.vertical, 15)
-                            .allowsHitTesting(false)
-                    }
-                }
-                .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.primary.opacity(0.08)))
-
-            if !post.attachments.isEmpty {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(alignment: .top, spacing: 12) {
-                        ForEach($post.attachments) { $attachment in
-                            VStack(spacing: 6) {
-                                if let img = NSImage(data: attachment.imageData) {
-                                    Image(nsImage: img)
-                                        .resizable()
-                                        .scaledToFill()
-                                        .frame(width: 80, height: 80)
-                                        .clipped()
-                                        .cornerRadius(6)
-                                }
-                                TextField("Alt text", text: $attachment.altText)
-                                    .textFieldStyle(.roundedBorder)
-                                    .frame(width: 120)
-                                    .font(.caption)
-                            }
-                        }
-                    }
-                    .padding(.vertical, 2)
-                }
-            }
-
-            Button(action: addImage) {
-                Label("Add Image…", systemImage: "photo.badge.plus")
-            }
-            .buttonStyle(.borderless)
-            .font(.caption)
-            .foregroundStyle(.secondary)
         }
         .padding(14)
-        .cardSurface()
+        .frame(maxHeight: fills ? .infinity : nil)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color(nsColor: .textBackgroundColor)))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.10)))
+    }
+
+    private var editor: some View {
+        PlainTextEditor(text: $post.text)
+            .frame(minHeight: fills ? 160 : 90, maxHeight: fills ? .infinity : 200)
+            .overlay(alignment: .topLeading) {
+                if post.text.isEmpty {
+                    Text("What's on your mind?")
+                        .font(Theme.content).foregroundStyle(.tertiary)
+                        .padding(.leading, 5).padding(.top, 6)
+                        .allowsHitTesting(false)
+                }
+            }
+    }
+
+    private var attachments: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(alignment: .top, spacing: 12) {
+                ForEach($post.attachments) { $attachment in
+                    VStack(spacing: 6) {
+                        if let img = NSImage(data: attachment.imageData) {
+                            Image(nsImage: img)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 80, height: 80)
+                                .clipped()
+                                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        }
+                        TextField("Alt text", text: $attachment.altText)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 120)
+                            .font(.caption)
+                    }
+                }
+            }
+            .padding(.vertical, 2)
+        }
     }
 
     private func addImage() {
