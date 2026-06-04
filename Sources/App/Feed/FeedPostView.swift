@@ -18,23 +18,24 @@ struct FeedPostView: View {
     @State private var hovering = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 7) {
+        VStack(alignment: .leading, spacing: Theme.componentSpacing) {
             contextLine
             header
             Text(styledText)
-                .font(expanded ? .title3 : .body)
+                .font(expanded ? Theme.contentLarge : Theme.content)
                 .tint(accent)
                 .textSelection(.enabled)
+                .lineSpacing(1.5)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .fixedSize(horizontal: false, vertical: true)
             images
             if showActions { actionBar }
         }
-        .padding(.horizontal, inTimeline ? 16 : 0)
-        .padding(.vertical, inTimeline ? 12 : 0)
+        .padding(.horizontal, inTimeline ? Theme.rowPaddingH : 0)
+        .padding(.vertical, inTimeline ? Theme.rowPaddingV : 0)
         .background(rowBackground)
         .overlay(alignment: .bottom) {
-            if inTimeline { Divider().opacity(0.6) }
+            if inTimeline { Divider().opacity(0.5) }
         }
         .contentShape(Rectangle())
         .onHover { hovering = $0 }
@@ -50,14 +51,14 @@ struct FeedPostView: View {
         if post.isReply, let onShowParent {
             Button(action: onShowParent) {
                 Label("In reply to a post", systemImage: "arrowshape.turn.up.left.fill")
-                    .font(.caption)
+                    .font(Theme.context)
                     .foregroundStyle(accent)
             }
             .buttonStyle(.plain)
         }
         if let boostedBy = post.boostedBy {
             Label("\(boostedBy) boosted", systemImage: "arrow.2.squarepath")
-                .font(.caption.weight(.medium))
+                .font(Theme.context)
                 .foregroundStyle(.secondary)
         }
     }
@@ -69,23 +70,24 @@ struct FeedPostView: View {
             } placeholder: {
                 Circle().fill(.quaternary)
             }
-            .frame(width: expanded ? 52 : 42, height: expanded ? 52 : 42)
+            .frame(width: expanded ? Theme.avatarLarge : Theme.avatar,
+                   height: expanded ? Theme.avatarLarge : Theme.avatar)
             .clipShape(Circle())
-            .overlay(Circle().strokeBorder(.black.opacity(0.06)))
+            .overlay(Circle().strokeBorder(Color.primary.opacity(0.08)))
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(post.authorName)
-                    .font(.system(size: expanded ? 16 : 14, weight: .semibold))
+                    .font(expanded ? Theme.nameLarge : Theme.name)
                     .lineLimit(1)
                 Text(post.authorHandle)
-                    .font(.system(size: expanded ? 13 : 12))
+                    .font(Theme.meta)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
             Spacer(minLength: 6)
             Text(post.date, format: .relative(presentation: .numeric))
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
+                .font(Theme.meta)
+                .foregroundStyle(.tertiary)
                 .fixedSize()
         }
     }
@@ -96,28 +98,18 @@ struct FeedPostView: View {
             if expanded {
                 VStack(spacing: 8) {
                     ForEach(post.images) { image in
-                        AsyncImage(url: image.url) { img in
-                            img.resizable().scaledToFit()
-                        } placeholder: {
-                            RoundedRectangle(cornerRadius: 12).fill(.quaternary).frame(height: 200)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .accessibilityLabel(image.altText)
+                        mediaImage(image, contentMode: .fit)
+                            .frame(maxWidth: .infinity)
+                            .clipShape(RoundedRectangle(cornerRadius: Theme.mediaCorner, style: .continuous))
                     }
                 }
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 6) {
                         ForEach(post.images) { image in
-                            AsyncImage(url: image.url) { img in
-                                img.resizable().scaledToFill()
-                            } placeholder: {
-                                Rectangle().fill(.quaternary)
-                            }
-                            .frame(width: 150, height: 110)
-                            .clipShape(RoundedRectangle(cornerRadius: 10))
-                            .accessibilityLabel(image.altText)
+                            mediaImage(image, contentMode: .fill)
+                                .frame(width: 156, height: 116)
+                                .clipShape(RoundedRectangle(cornerRadius: Theme.mediaCorner, style: .continuous))
                         }
                     }
                 }
@@ -125,48 +117,71 @@ struct FeedPostView: View {
         }
     }
 
+    private func mediaImage(_ image: FeedImage, contentMode: ContentMode) -> some View {
+        AsyncImage(url: image.url) { img in
+            img.resizable().aspectRatio(contentMode: contentMode)
+        } placeholder: {
+            RoundedRectangle(cornerRadius: Theme.mediaCorner).fill(.quaternary).frame(height: 120)
+        }
+        .accessibilityLabel(image.altText)
+    }
+
     private var actionBar: some View {
         HStack(spacing: 0) {
             countAction("bubble.left", count: post.replyCount, active: false,
                         tint: accent, help: "Reply", action: onReply)
+            Spacer()
             countAction("arrow.2.squarepath", count: post.repostCount, active: post.isReposted,
                         tint: .green, help: "Repost", action: onRepost)
+            Spacer()
             countAction(post.isLiked ? "heart.fill" : "heart", count: post.likeCount,
                         active: post.isLiked, tint: .pink, help: "Like", action: onLike)
             Spacer()
-            Button(action: onOpen) {
-                Image(systemName: "safari")
-                    .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 30, height: 24)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .help("Open in browser")
+            iconAction("square.and.arrow.up", help: "Open in browser", action: onOpen)
         }
-        .padding(.top, 2)
+        .padding(.top, 3)
+        .padding(.trailing, 2)
     }
 
     private func countAction(_ symbol: String, count: Int, active: Bool, tint: Color,
                              help: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 5) {
-                Image(systemName: symbol).font(.system(size: 13))
+                Image(systemName: symbol)
+                    .font(Theme.action)
+                    .contentTransition(.symbolEffect(.replace))
+                    .foregroundStyle(active ? tint : Color.secondary)
                 if count > 0 {
                     Text(count.formatted(.number.notation(.compactName)))
                         .font(.system(size: 12).monospacedDigit())
+                        .foregroundStyle(active ? tint : Color.secondary)
                 }
             }
-            .foregroundStyle(active ? tint : Color.secondary)
             .padding(.vertical, 4)
-            .padding(.trailing, 16)
+            .padding(.horizontal, 5)
             .contentShape(Rectangle())
+            .animation(.snappy, value: active)
+        }
+        .buttonStyle(.plain)
+        .help(help)
+    }
+
+    private func iconAction(_ symbol: String, help: String,
+                            action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(Theme.action)
+                .foregroundStyle(.secondary)
+                .padding(.vertical, 4).padding(.horizontal, 5)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .help(help)
     }
 
     private var rowBackground: some View {
-        Rectangle().fill(hovering && inTimeline ? Color.primary.opacity(0.04) : .clear)
+        Rectangle()
+            .fill(hovering && inTimeline ? Color.primary.opacity(0.045) : .clear)
+            .animation(.easeOut(duration: 0.12), value: hovering)
     }
 }

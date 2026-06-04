@@ -30,7 +30,7 @@ struct FeedPanelView: View {
                 .pickerStyle(.segmented).labelsHidden()
                 .tint(accent)
             }
-            .padding(.horizontal, 14).padding(.top, 10).padding(.bottom, 10)
+            .padding(.horizontal, 16).padding(.top, 10).padding(.bottom, 10)
             .background(.bar)
 
             Divider()
@@ -73,6 +73,10 @@ struct FeedPanelView: View {
                targets.contains(model.target) {
                 model.refresh()
             }
+        }
+        // Toolbar "Refresh All".
+        .onReceive(NotificationCenter.default.publisher(for: .refreshAllFeeds)) { _ in
+            model.refresh()
         }
     }
 

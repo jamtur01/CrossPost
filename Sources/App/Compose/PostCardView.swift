@@ -36,18 +36,18 @@ struct PostCardView: View {
                 }
             }
             PlainTextEditor(text: $post.text)
-                .frame(minHeight: 96, maxHeight: 220)
+                .frame(minHeight: 100, maxHeight: 220)
                 .padding(8)
                 .background(RoundedRectangle(cornerRadius: 8).fill(Color(nsColor: .textBackgroundColor)))
                 .overlay(alignment: .topLeading) {
                     if post.text.isEmpty {
                         Text("What's on your mind?")
-                            .font(.body).foregroundStyle(.tertiary)
+                            .font(Theme.content).foregroundStyle(.tertiary)
                             .padding(.horizontal, 13).padding(.vertical, 15)
                             .allowsHitTesting(false)
                     }
                 }
-                .overlay(RoundedRectangle(cornerRadius: 8).stroke(.quaternary))
+                .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.primary.opacity(0.08)))
 
             if !post.attachments.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -81,14 +81,7 @@ struct PostCardView: View {
             .foregroundStyle(.secondary)
         }
         .padding(14)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(nsColor: .controlBackgroundColor))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(.quaternary, lineWidth: 1)
-        )
+        .cardSurface()
     }
 
     private func addImage() {

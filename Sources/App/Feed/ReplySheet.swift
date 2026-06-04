@@ -33,7 +33,7 @@ struct ReplySheet: View {
                 .overlay(alignment: .topLeading) {
                     if model.text.isEmpty {
                         Text("Write your reply…")
-                            .font(.body).foregroundStyle(.tertiary)
+                            .font(Theme.content).foregroundStyle(.tertiary)
                             .padding(.horizontal, 13).padding(.vertical, 15)
                             .allowsHitTesting(false)
                     }

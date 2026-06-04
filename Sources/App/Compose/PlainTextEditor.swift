@@ -17,7 +17,7 @@ struct PlainTextEditor: NSViewRepresentable {
         if let textView = scrollView.documentView as? NSTextView {
             textView.delegate = context.coordinator
             textView.drawsBackground = false
-            textView.font = .preferredFont(forTextStyle: .body)
+            textView.font = .systemFont(ofSize: 15)
             textView.textContainerInset = NSSize(width: 2, height: 6)
             textView.isRichText = false
             textView.allowsUndo = true

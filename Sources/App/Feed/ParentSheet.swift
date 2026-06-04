@@ -22,9 +22,8 @@ struct ParentSheet: View {
             } else if let parent {
                 FeedPostView(post: parent, accent: parent.target.accent,
                              showActions: false, inTimeline: false)
-                    .padding(12)
-                    .background(RoundedRectangle(cornerRadius: 10)
-                        .fill(Color(nsColor: .controlBackgroundColor)))
+                    .padding(14)
+                    .cardSurface()
                 HStack {
                     Spacer()
                     Button { onOpen(parent) } label: {
