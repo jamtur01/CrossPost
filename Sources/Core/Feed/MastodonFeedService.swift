@@ -73,6 +73,33 @@ public struct MastodonFeedService: FeedService {
             descendants: context.descendants.map { Self.feedPost(from: $0) })
     }
 
+    public func profile(id: String) async throws -> Profile {
+        Self.profile(from: try await client.getAccount(by: id))
+    }
+
+    public func myProfile() async throws -> Profile {
+        Self.profile(from: try await client.verifyCredentials())
+    }
+
+    public func authorPosts(id: String) async throws -> [FeedPost] {
+        try await client.getTimeline(.user(userID: id)).result.map { Self.feedPost(from: $0) }
+    }
+
+    static func profile(from account: Account) -> Profile {
+        Profile(
+            id: account.id,
+            target: .mastodon,
+            name: account.displayName?.isEmpty == false ? account.displayName! : account.acct,
+            handle: "@\(account.acct)",
+            avatarURL: URL(string: account.avatar),
+            bannerURL: URL(string: account.header),
+            bio: AttributedString(HTMLRenderer.render(account.note)),
+            followers: account.followersCount,
+            following: account.followingCount,
+            posts: account.postsCount,
+            webURL: URL(string: account.url))
+    }
+
     static func linkCard(from card: Card?) -> LinkCard? {
         guard let card, let url = URL(string: card.url) else { return nil }
         let provider = card.providerName?.isEmpty == false ? card.providerName! : (url.host ?? "")
@@ -114,6 +141,7 @@ public struct MastodonFeedService: FeedService {
                 ? display.account.displayName!
                 : display.account.acct,
             authorHandle: "@\(display.account.acct)",
+            authorID: display.account.id,
             avatarURL: URL(string: display.account.avatar),
             authorURL: URL(string: display.account.url),
             date: display.createdAt,

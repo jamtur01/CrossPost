@@ -123,6 +123,28 @@ final class FeedPanelModel {
         }
     }
 
+    func profile(id: String) async -> Profile? {
+        try? await resolveService().profile(id: id)
+    }
+
+    func myProfile() async -> Profile? {
+        try? await resolveService().myProfile()
+    }
+
+    func authorPosts(id: String) async -> [FeedPost] {
+        (try? await resolveService().authorPosts(id: id)) ?? []
+    }
+
+    /// Service-backed like/repost for posts not held in this panel's timeline
+    /// (used by thread and profile lists).
+    func serviceSetLiked(_ liked: Bool, on post: FeedPost) async throws -> FeedPost {
+        try await resolveService().setLiked(liked, on: post)
+    }
+
+    func serviceSetReposted(_ reposted: Bool, on post: FeedPost) async throws -> FeedPost {
+        try await resolveService().setReposted(reposted, on: post)
+    }
+
     /// Flip the UI immediately, call the service, reconcile or revert on failure.
     /// Ignores a second toggle for the same post while one is already in flight.
     private func mutate(_ post: FeedPost,

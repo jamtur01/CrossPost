@@ -24,6 +24,7 @@ public struct FeedPost: Identifiable, Equatable, Sendable {
     public let target: PostTarget
     public let authorName: String
     public let authorHandle: String
+    public let authorID: String     // Mastodon account.id / Bluesky handle (for profile + author feed)
     public let avatarURL: URL?
     public let authorURL: URL?      // profile page
     public let date: Date
@@ -48,6 +49,7 @@ public struct FeedPost: Identifiable, Equatable, Sendable {
     public let nativeRef: NativeRef
 
     public init(id: String, target: PostTarget, authorName: String, authorHandle: String,
+                authorID: String = "",
                 avatarURL: URL?, authorURL: URL? = nil, date: Date,
                 text: AttributedString, images: [FeedImage],
                 card: LinkCard? = nil, quoted: QuotedPost? = nil,
@@ -59,7 +61,8 @@ public struct FeedPost: Identifiable, Equatable, Sendable {
                 isSensitive: Bool = false, isReply: Bool = false,
                 nativeRef: NativeRef) {
         self.id = id; self.target = target; self.authorName = authorName
-        self.authorHandle = authorHandle; self.avatarURL = avatarURL
+        self.authorHandle = authorHandle; self.authorID = authorID
+        self.avatarURL = avatarURL
         self.authorURL = authorURL; self.date = date
         self.text = text; self.images = images
         self.card = card; self.quoted = quoted; self.webURL = webURL

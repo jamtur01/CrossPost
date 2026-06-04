@@ -98,17 +98,24 @@ public struct BlueskyFeedService: FeedService {
         }
         ancestors.reverse()
 
+        // Walk the full reply tree (depth-first, parents before their children).
         var descendants: [FeedPost] = []
-        for reply in thread.replies ?? [] {
-            guard case .threadViewPost(let r) = reply else { continue }
-            descendants.append(Self.feedPost(fromPostView: r.post))
-            for sub in r.replies ?? [] {
-                if case .threadViewPost(let s) = sub {
-                    descendants.append(Self.feedPost(fromPostView: s.post))
-                }
-            }
+        var stack: [AppBskyLexicon.Feed.ThreadViewPostDefinition] = Self.childThreads(of: thread).reversed()
+        while let node = stack.popLast() {
+            descendants.append(Self.feedPost(fromPostView: node.post))
+            stack.append(contentsOf: Self.childThreads(of: node).reversed())
         }
         return PostThread(ancestors: ancestors, descendants: descendants)
+    }
+
+    /// The direct reply threads of a node, in order.
+    static func childThreads(
+        of node: AppBskyLexicon.Feed.ThreadViewPostDefinition
+    ) -> [AppBskyLexicon.Feed.ThreadViewPostDefinition] {
+        (node.replies ?? []).compactMap { reply in
+            if case .threadViewPost(let child) = reply { return child }
+            return nil
+        }
     }
 
     static func linkCard(from external: AppBskyLexicon.Embed.ExternalDefinition.ViewExternal) -> LinkCard? {
@@ -121,14 +128,49 @@ public struct BlueskyFeedService: FeedService {
         guard case .viewRecord(let vr) = view.record else { return nil }
         let record = vr.value.getRecord(ofType: AppBskyLexicon.Feed.PostRecord.self)
         let rkey = vr.uri.split(separator: "/").last.map(String.init) ?? ""
+        var imageURL: URL?
+        for embed in vr.embeds ?? [] {
+            if case .embedImagesView(let v) = embed, let first = v.images.first {
+                imageURL = first.fullSizeImageURL
+                break
+            }
+        }
         return QuotedPost(
             id: "bluesky:\(vr.uri)",
             authorName: vr.author.displayName?.isEmpty == false ? vr.author.displayName! : vr.author.actorHandle,
             authorHandle: "@\(vr.author.actorHandle)",
             avatarURL: vr.author.avatarImageURL,
             text: AttributedString(record?.text ?? ""),
-            imageURL: nil,
+            imageURL: imageURL,
             webURL: URL(string: "https://bsky.app/profile/\(vr.author.actorHandle)/post/\(rkey)"))
+    }
+
+    public func profile(id: String) async throws -> Profile {
+        Self.profile(from: try await kit.getProfile(for: id))
+    }
+
+    public func myProfile() async throws -> Profile {
+        Self.profile(from: try await kit.getProfile(for: handle))
+    }
+
+    public func authorPosts(id: String) async throws -> [FeedPost] {
+        let output = try await kit.getAuthorFeed(by: id)
+        return output.feed.compactMap { Self.feedPost(from: $0, handle: handle) }
+    }
+
+    static func profile(from p: AppBskyLexicon.Actor.ProfileViewDetailedDefinition) -> Profile {
+        Profile(
+            id: p.actorHandle,
+            target: .bluesky,
+            name: p.displayName?.isEmpty == false ? p.displayName! : p.actorHandle,
+            handle: "@\(p.actorHandle)",
+            avatarURL: p.avatarImageURL,
+            bannerURL: p.bannerImageURL,
+            bio: AttributedString(p.description ?? ""),
+            followers: p.followerCount ?? 0,
+            following: p.followCount ?? 0,
+            posts: p.postCount ?? 0,
+            webURL: URL(string: "https://bsky.app/profile/\(p.actorHandle)"))
     }
 
     static func feedPost(
@@ -161,6 +203,7 @@ public struct BlueskyFeedService: FeedService {
                 ? n.author.displayName!
                 : n.author.actorHandle,
             authorHandle: "@\(n.author.actorHandle)",
+            authorID: n.author.actorHandle,
             avatarURL: n.author.avatarImageURL,
             authorURL: URL(string: "https://bsky.app/profile/\(n.author.actorHandle)"),
             date: n.indexedAt,
@@ -217,6 +260,7 @@ public struct BlueskyFeedService: FeedService {
                 ? p.author.displayName!
                 : p.author.actorHandle,
             authorHandle: "@\(p.author.actorHandle)",
+            authorID: p.author.actorHandle,
             avatarURL: p.author.avatarImageURL,
             authorURL: URL(string: "https://bsky.app/profile/\(p.author.actorHandle)"),
             date: p.indexedAt,

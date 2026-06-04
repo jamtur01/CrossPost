@@ -10,4 +10,10 @@ public protocol FeedService: Sendable {
     func reply(to post: FeedPost, text: String, images: [Attachment]) async throws -> PostedItem
     /// The surrounding thread (ancestors + replies) for the post's detail view.
     func thread(of post: FeedPost) async throws -> PostThread
+    /// Profile details for a user (`id` = Mastodon account id / Bluesky handle).
+    func profile(id: String) async throws -> Profile
+    /// The signed-in user's own profile.
+    func myProfile() async throws -> Profile
+    /// Recent posts authored by a user.
+    func authorPosts(id: String) async throws -> [FeedPost]
 }
