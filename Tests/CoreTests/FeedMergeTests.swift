@@ -32,8 +32,16 @@ final class FeedMergeTests: XCTestCase {
     }
 
     func testExistingActionStateIsPreserved() {
+        let merged = FeedMerge.merge(existing: [post("1", liked: true)],
+                                     fetched: [post("1", liked: false)],
+                                     preservingIDs: ["1"])
+        XCTAssertEqual(merged.count, 1)
+        XCTAssertTrue(merged[0].isLiked) // in-flight optimistic state kept, not clobbered by fetched
+    }
+
+    func testOverlappingPostsUseFetchedStateWhenNotPreserved() {
         let merged = FeedMerge.merge(existing: [post("1", liked: true)], fetched: [post("1", liked: false)])
         XCTAssertEqual(merged.count, 1)
-        XCTAssertTrue(merged[0].isLiked) // existing optimistic state kept, not clobbered by fetched
+        XCTAssertFalse(merged[0].isLiked)
     }
 }

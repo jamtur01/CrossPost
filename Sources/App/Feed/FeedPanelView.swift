@@ -13,11 +13,10 @@ struct FeedPanelView: View {
             if routes.isEmpty {
                 platformHeader
                 if let actionError = model.actionError {
-                    Text(actionError)
-                        .font(.caption).foregroundStyle(.red)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 16).padding(.vertical, 6)
-                        .background(Color.red.opacity(0.08))
+                    errorBanner(actionError)
+                }
+                if let refreshError = model.errorMessage, !model.posts.isEmpty {
+                    errorBanner(refreshError)
                 }
                 timeline
             } else {
@@ -136,9 +135,7 @@ struct FeedPanelView: View {
     @ViewBuilder
     private var timeline: some View {
         if model.needsCredentials {
-            emptyState(
-                "Connect \(model.target.displayName) in Settings (⌘,)",
-                systemImage: "person.crop.circle.badge.plus")
+            connectState
         } else if let error = model.errorMessage, model.posts.isEmpty {
             emptyState(error, systemImage: "exclamationmark.triangle")
         } else if model.posts.isEmpty && model.isLoading {
@@ -163,6 +160,36 @@ struct FeedPanelView: View {
             }
             .scrollContentBackground(.hidden)
         }
+    }
+
+    private func errorBanner(_ text: String) -> some View {
+        Text(text)
+            .font(.caption)
+            .foregroundStyle(.red)
+            .lineLimit(2)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 6)
+            .background(Color.red.opacity(0.08))
+    }
+
+    private var connectState: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "person.crop.circle.badge.plus")
+                .font(.largeTitle)
+                .foregroundStyle(.secondary)
+            Text("Connect \(model.target.displayName) in Settings")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+            SettingsLink {
+                Label("Open Settings", systemImage: "gearshape")
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(accent)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding()
     }
 
     private func emptyState(_ text: String, systemImage: String) -> some View {

@@ -30,7 +30,12 @@ public struct BlueskyPoster: Poster, ThreadPublisher {
 
         var embed: ATProtoBluesky.EmbedIdentifier?
         if !draft.attachments.isEmpty {
-            let images = try draft.attachments.prefix(4).map { attachment in
+            guard draft.attachments.count <= TargetLimits.imageMax else {
+                throw MediaValidationError.tooManyImages(target: .bluesky,
+                                                         count: draft.attachments.count,
+                                                         limit: TargetLimits.imageMax)
+            }
+            let images = try draft.attachments.map { attachment in
                 let jpeg = try ImageProcessor.jpegUnderBudget(attachment.imageData)
                 return ATProtoTools.ImageQuery(
                     imageData: jpeg,

@@ -41,6 +41,13 @@ final class PostValidatorTests: XCTestCase {
         XCTAssertTrue(issues.isEmpty)
     }
 
+    func testTooManyImagesIsAnIssuePerTarget() {
+        let attachments = (0..<5).map { _ in Attachment(imageData: Data([0x1])) }
+        let post = DraftPost(text: "images", attachments: attachments)
+        let issues = PostValidator.validate(thread: [post], targets: [.bluesky], limits: limits)
+        XCTAssertEqual(issues, [.tooManyImages(postIndex: 0, target: .bluesky, count: 5, limit: 4)])
+    }
+
     func testReportsPerPostAndPerTarget() {
         let long = String(repeating: "a", count: 600) // > both limits
         let thread = [DraftPost(text: "ok"), DraftPost(text: long)]

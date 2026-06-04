@@ -150,7 +150,7 @@ struct FeedPostView: View {
         } placeholder: {
             RoundedRectangle(cornerRadius: Theme.mediaCorner).fill(.quaternary).frame(height: 120)
         }
-        .accessibilityLabel(image.altText)
+        .accessibilityLabel(image.altText.isEmpty ? "Image" : image.altText)
     }
 
     private var actionBar: some View {

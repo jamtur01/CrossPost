@@ -5,6 +5,7 @@ public enum HTMLRenderer {
     /// `</p>` → blank line, `<br>` → newline, other tags stripped, entities decoded.
     public static func render(_ html: String) -> String {
         var s = html
+        s = replaceAnchors(s)
         // Block/line breaks first, before stripping tags.
         s = s.replacingOccurrences(of: "</p>", with: "\n\n", options: .caseInsensitive)
         s = s.replacingOccurrences(of: "<br>", with: "\n", options: .caseInsensitive)
@@ -14,6 +15,41 @@ public enum HTMLRenderer {
         s = s.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
         s = decodeEntities(s)
         return s.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func replaceAnchors(_ input: String) -> String {
+        let pattern = #"<a\b[^>]*\bhref\s*=\s*(['"])(.*?)\1[^>]*>(.*?)</a>"#
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive, .dotMatchesLineSeparators]) else {
+            return input
+        }
+
+        var output = input
+        let nsInput = input as NSString
+        let matches = regex.matches(in: input, range: NSRange(location: 0, length: nsInput.length))
+        for match in matches.reversed() {
+            guard match.numberOfRanges == 4,
+                  let hrefRange = Range(match.range(at: 2), in: input),
+                  let labelRange = Range(match.range(at: 3), in: input),
+                  let fullRange = Range(match.range(at: 0), in: output)
+            else { continue }
+
+            let href = decodeEntities(String(input[hrefRange]))
+            let label = renderAnchorLabel(String(input[labelRange]))
+            let replacement: String
+            if label.isEmpty || label == href {
+                replacement = href
+            } else {
+                replacement = "\(label) (\(href))"
+            }
+            output.replaceSubrange(fullRange, with: replacement)
+        }
+        return output
+    }
+
+    private static func renderAnchorLabel(_ html: String) -> String {
+        decodeEntities(
+            html.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+        ).trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private static func decodeEntities(_ input: String) -> String {

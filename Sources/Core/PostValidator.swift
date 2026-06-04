@@ -3,6 +3,18 @@ import Foundation
 public enum ValidationIssue: Equatable, Sendable {
     case empty(postIndex: Int)
     case tooLong(postIndex: Int, target: PostTarget, count: Int, limit: Int)
+    case tooManyImages(postIndex: Int, target: PostTarget, count: Int, limit: Int)
+}
+
+public enum MediaValidationError: Error, LocalizedError, Sendable {
+    case tooManyImages(target: PostTarget, count: Int, limit: Int)
+
+    public var errorDescription: String? {
+        switch self {
+        case .tooManyImages(let target, let count, let limit):
+            return "\(target.displayName) supports at most \(limit) images per post; \(count) were attached."
+        }
+    }
 }
 
 public enum PostValidator {
@@ -26,6 +38,13 @@ public enum PostValidator {
                 guard let limit = limits.maxGraphemes[target] else { continue }
                 if count > limit {
                     issues.append(.tooLong(postIndex: index, target: target, count: count, limit: limit))
+                }
+                if let imageLimit = limits.maxImages[target],
+                   post.attachments.count > imageLimit {
+                    issues.append(.tooManyImages(postIndex: index,
+                                                 target: target,
+                                                 count: post.attachments.count,
+                                                 limit: imageLimit))
                 }
             }
         }

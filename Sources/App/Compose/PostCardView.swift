@@ -13,6 +13,7 @@ struct PostCardView: View {
     private static let warnWithin = 20
 
     private var count: Int { PostValidator.graphemeCount(post.text) }
+    private var canAddImages: Bool { post.attachments.count < TargetLimits.imageMax }
 
     private var counterColor: Color {
         if count > limit { return .red }
@@ -48,7 +49,8 @@ struct PostCardView: View {
                 }
                 .buttonStyle(.borderless)
                 .foregroundStyle(.secondary)
-                .help("Add image")
+                .disabled(!canAddImages)
+                .help(canAddImages ? "Add image" : "Maximum \(TargetLimits.imageMax) images")
 
                 Spacer()
 
@@ -85,13 +87,24 @@ struct PostCardView: View {
             HStack(alignment: .top, spacing: 12) {
                 ForEach($post.attachments) { $attachment in
                     VStack(spacing: 6) {
-                        if let img = NSImage(data: attachment.imageData) {
-                            Image(nsImage: img)
-                                .resizable()
-                                .scaledToFill()
-                                .frame(width: 80, height: 80)
-                                .clipped()
-                                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        ZStack(alignment: .topTrailing) {
+                            if let img = NSImage(data: attachment.imageData) {
+                                Image(nsImage: img)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 80, height: 80)
+                                    .clipped()
+                                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                            }
+                            Button(role: .destructive) {
+                                removeAttachment(id: attachment.id)
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: 14))
+                                    .symbolRenderingMode(.hierarchical)
+                            }
+                            .buttonStyle(.plain)
+                            .help("Remove image")
                         }
                         TextField("Alt text", text: $attachment.altText)
                             .textFieldStyle(.roundedBorder)
@@ -105,11 +118,21 @@ struct PostCardView: View {
     }
 
     private func addImage() {
+        guard canAddImages else { return }
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [.png, .jpeg, .heic, .gif, .tiff]
-        panel.allowsMultipleSelection = false
-        if panel.runModal() == .OK, let url = panel.url, let data = try? Data(contentsOf: url) {
-            post.attachments.append(Attachment(imageData: data))
+        panel.allowsMultipleSelection = true
+        if panel.runModal() == .OK {
+            let remaining = TargetLimits.imageMax - post.attachments.count
+            for url in panel.urls.prefix(remaining) {
+                if let data = try? Data(contentsOf: url) {
+                    post.attachments.append(Attachment(imageData: data))
+                }
+            }
         }
+    }
+
+    private func removeAttachment(id: UUID) {
+        post.attachments.removeAll { $0.id == id }
     }
 }

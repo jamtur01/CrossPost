@@ -8,6 +8,7 @@ final class ReplyModel {
     var text: String = ""
     var attachments: [Attachment] = []
     var isSending = false
+    var blockedIssues: [ValidationIssue]?
     var errorMessage: String?
     var postedURL: String?
 
@@ -37,12 +38,27 @@ final class ReplyModel {
         self.text = mentions.isEmpty ? "" : mentions.joined(separator: " ") + " "
     }
 
-    var canSend: Bool { !isSending && !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    var limit: Int {
+        post.target == .bluesky ? TargetLimits.blueskyMax : store.mastodonMaxChars
+    }
+
+    var count: Int { PostValidator.graphemeCount(text) }
+
+    var canSend: Bool {
+        !isSending && !DraftPost(text: text, attachments: attachments).isEmpty
+    }
 
     func send() async {
         isSending = true
+        blockedIssues = nil
         errorMessage = nil
         defer { isSending = false }
+        let draft = DraftPost(text: text, attachments: attachments)
+        let issues = PostValidator.validate(thread: [draft], targets: [post.target], limits: store.limits)
+        guard issues.isEmpty else {
+            blockedIssues = issues
+            return
+        }
         do {
             let service = try await FeedServiceFactory.make(for: post.target, store: store)
             let item = try await service.reply(to: post, text: text, images: attachments)

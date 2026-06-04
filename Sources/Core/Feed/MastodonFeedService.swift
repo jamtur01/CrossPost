@@ -42,9 +42,14 @@ public struct MastodonFeedService: FeedService {
         guard case .mastodon(let id) = post.nativeRef else {
             throw FeedError.wrongPlatform
         }
+        guard images.count <= TargetLimits.imageMax else {
+            throw MediaValidationError.tooManyImages(target: .mastodon,
+                                                     count: images.count,
+                                                     limit: TargetLimits.imageMax)
+        }
         var mediaIds: [String] = []
         for image in images {
-            let jpeg = try ImageProcessor.jpegUnderBudget(image.imageData)
+            let jpeg = try ImageProcessor.jpegData(image.imageData)
             let params = UploadMediaAttachmentParams(
                 file: jpeg,
                 thumbnail: nil,

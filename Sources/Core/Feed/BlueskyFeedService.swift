@@ -85,7 +85,12 @@ public struct BlueskyFeedService: FeedService {
 
         var embed: ATProtoBluesky.EmbedIdentifier?
         if !images.isEmpty {
-            let queries = try images.prefix(4).map { image in
+            guard images.count <= TargetLimits.imageMax else {
+                throw MediaValidationError.tooManyImages(target: .bluesky,
+                                                         count: images.count,
+                                                         limit: TargetLimits.imageMax)
+            }
+            let queries = try images.map { image in
                 let jpeg = try ImageProcessor.jpegUnderBudget(image.imageData)
                 return ATProtoTools.ImageQuery(
                     imageData: jpeg,

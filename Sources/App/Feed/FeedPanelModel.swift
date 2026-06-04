@@ -73,7 +73,9 @@ final class FeedPanelModel {
             let fetched = try await svc.loadFeed(kind)
             if Task.isCancelled { return }   // a newer load superseded this one
             errorMessage = nil
-            posts = reset ? fetched : FeedMerge.merge(existing: posts, fetched: fetched)
+            posts = reset
+                ? fetched
+                : FeedMerge.merge(existing: posts, fetched: fetched, preservingIDs: mutating)
         } catch {
             if Task.isCancelled { return }
             errorMessage = error.userMessage

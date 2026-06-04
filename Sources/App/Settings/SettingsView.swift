@@ -2,7 +2,9 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject var store: AccountStore
+    @State private var mastodonInstanceURL: String = ""
     @State private var mastodonToken: String = ""
+    @State private var blueskyHandle: String = ""
     @State private var blueskyPassword: String = ""
     @State private var status: String = ""
     @State private var statusIsError: Bool = false
@@ -10,7 +12,7 @@ struct SettingsView: View {
     var body: some View {
         Form {
             Section("Mastodon") {
-                TextField("Instance URL", text: $store.mastodonInstanceURL)
+                TextField("Instance URL", text: $mastodonInstanceURL)
                     .textContentType(.URL)
                 SecureField("Access token", text: $mastodonToken)
                 verifyButton(title: "Verify & Save Mastodon", ready: mastodonReady) {
@@ -19,7 +21,7 @@ struct SettingsView: View {
             }
 
             Section("Bluesky") {
-                TextField("Handle (e.g. you.bsky.social)", text: $store.blueskyHandle)
+                TextField("Handle (e.g. you.bsky.social)", text: $blueskyHandle)
                 SecureField("App password", text: $blueskyPassword)
                 verifyButton(title: "Verify & Save Bluesky", ready: blueskyReady) {
                     await verifyBluesky()
@@ -47,7 +49,9 @@ struct SettingsView: View {
         .padding(.vertical, 12)
         .frame(width: 480)
         .onAppear {
+            mastodonInstanceURL = store.mastodonInstanceURL
             mastodonToken = store.mastodonToken
+            blueskyHandle = store.blueskyHandle
             blueskyPassword = store.blueskyAppPassword
         }
     }
@@ -73,19 +77,27 @@ struct SettingsView: View {
     }
 
     private var mastodonReady: Bool {
-        !store.mastodonInstanceURL.isEmpty && !mastodonToken.isEmpty
+        !mastodonInstanceURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !mastodonToken.isEmpty
     }
 
     private var blueskyReady: Bool {
-        !store.blueskyHandle.isEmpty && !blueskyPassword.isEmpty
+        !blueskyHandle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !blueskyPassword.isEmpty
     }
 
     private func verifyMastodon() async {
-        store.mastodonToken = mastodonToken
         do {
-            _ = try await PosterFactory.makeMastodon(store)
+            let verified = try await PosterFactory.makeMastodon(
+                instanceURL: mastodonInstanceURL,
+                token: mastodonToken)
+            try store.saveMastodon(
+                instanceURL: mastodonInstanceURL,
+                token: mastodonToken,
+                maxChars: verified.maxCharacters,
+                username: verified.username)
             statusIsError = false
-            status = "Mastodon verified. Max characters: \(store.mastodonMaxChars)."
+            status = "Mastodon verified. Max characters: \(verified.maxCharacters)."
             credentialsChanged(.mastodon)
         } catch {
             statusIsError = true
@@ -94,11 +106,11 @@ struct SettingsView: View {
     }
 
     private func verifyBluesky() async {
-        store.blueskyAppPassword = blueskyPassword
         do {
-            _ = try await PosterFactory.makeBluesky(store)
+            _ = try await PosterFactory.makeBluesky(handle: blueskyHandle, appPassword: blueskyPassword)
+            try store.saveBluesky(handle: blueskyHandle, appPassword: blueskyPassword)
             statusIsError = false
-            status = "Bluesky verified for @\(store.blueskyHandle)."
+            status = "Bluesky verified for @\(blueskyHandle.trimmingCharacters(in: .whitespacesAndNewlines))."
             credentialsChanged(.bluesky)
         } catch {
             statusIsError = true

@@ -71,10 +71,16 @@ struct ComposeColumnView: View {
         @Bindable var model = model
         VStack(alignment: .leading, spacing: 10) {
             if let issues = model.blockedIssues, !issues.isEmpty {
-                Text("Too long or empty — fix before posting.").font(.caption).foregroundStyle(.red)
+                VStack(alignment: .leading, spacing: 3) {
+                    ForEach(Array(issues.enumerated()), id: \.offset) { _, issue in
+                        Text(validationMessage(issue))
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                    }
+                }
             }
             if let error = model.errorMessage {
-                Text(error).font(.caption).foregroundStyle(.red).lineLimit(3)
+                Text(error).font(.caption).foregroundStyle(.red)
             }
 
             HStack(spacing: 8) {
@@ -87,6 +93,7 @@ struct ComposeColumnView: View {
                 Button(model.isPosting ? "Posting…" : "Post") { Task { await model.submit() } }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
+                    .keyboardShortcut(.return, modifiers: .command)
                     .disabled(!model.canPost)
             }
         }
@@ -108,5 +115,16 @@ struct ComposeColumnView: View {
         }
         .buttonStyle(.plain)
         .help(selected ? "Posting to \(target.displayName)" : "Not posting to \(target.displayName)")
+    }
+
+    private func validationMessage(_ issue: ValidationIssue) -> String {
+        switch issue {
+        case .empty(let postIndex):
+            return "Post \(postIndex + 1) is empty."
+        case .tooLong(let postIndex, let target, let count, let limit):
+            return "Post \(postIndex + 1) is too long for \(target.displayName): \(count)/\(limit)."
+        case .tooManyImages(let postIndex, let target, let count, let limit):
+            return "Post \(postIndex + 1) has too many images for \(target.displayName): \(count)/\(limit)."
+        }
     }
 }

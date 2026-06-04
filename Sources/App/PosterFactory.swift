@@ -3,31 +3,57 @@ import TootSDK
 import ATProtoKit
 
 enum PosterFactory {
+    struct MastodonVerification {
+        let poster: MastodonPoster
+        let maxCharacters: Int
+        let username: String
+    }
+
     /// Build a connected Mastodon poster and refresh the stored max-character limit.
     @MainActor
     static func makeMastodon(_ store: AccountStore) async throws -> MastodonPoster {
-        guard let url = store.mastodonBaseURL else {
+        let verified = try await makeMastodon(instanceURL: store.mastodonInstanceURL, token: store.mastodonToken)
+        store.mastodonMaxChars = verified.maxCharacters
+        store.mastodonUsername = verified.username
+        return verified.poster
+    }
+
+    static func makeMastodon(instanceURL: String, token: String) async throws -> MastodonVerification {
+        guard let url = AccountStore.normalizedMastodonBaseURL(from: instanceURL) else {
             throw ConfigError.message("Invalid Mastodon instance URL")
         }
-        let client = TootClient(instanceURL: url, accessToken: store.mastodonToken)
+        let client = TootClient(instanceURL: url, accessToken: token)
         try await client.connect()
-        if let max = try await client.getInstanceInfoV2().configuration?.posts?.maxCharacters {
-            store.mastodonMaxChars = max
-        }
-        return MastodonPoster(client: client)
+        let account = try await client.verifyCredentials()
+        let max = try await client.getInstanceInfoV2().configuration?.posts?.maxCharacters
+            ?? TargetLimits.mastodonFallback
+        return MastodonVerification(
+            poster: MastodonPoster(client: client),
+            maxCharacters: max,
+            username: account.acct)
     }
 
     @MainActor
     static func makeBluesky(_ store: AccountStore) async throws -> BlueskyPoster {
-        let clients = try await makeBlueskyClients(store)
-        return BlueskyPoster(bluesky: clients.bluesky, handle: store.blueskyHandle)
+        try await makeBluesky(handle: store.blueskyHandle, appPassword: store.blueskyAppPassword)
+    }
+
+    static func makeBluesky(handle: String, appPassword: String) async throws -> BlueskyPoster {
+        let clients = try await makeBlueskyClients(handle: handle, appPassword: appPassword)
+        return BlueskyPoster(bluesky: clients.bluesky, handle: handle.trimmingCharacters(in: .whitespacesAndNewlines))
     }
 
     /// Authenticate Bluesky and return both the kit (for reads) and the Bluesky client (for writes).
     @MainActor
     static func makeBlueskyClients(_ store: AccountStore) async throws -> (kit: ATProtoKit, bluesky: ATProtoBluesky) {
+        try await makeBlueskyClients(handle: store.blueskyHandle, appPassword: store.blueskyAppPassword)
+    }
+
+    static func makeBlueskyClients(handle: String, appPassword: String) async throws -> (kit: ATProtoKit, bluesky: ATProtoBluesky) {
         let config = ATProtocolConfiguration()
-        try await config.authenticate(with: store.blueskyHandle, password: store.blueskyAppPassword)
+        try await config.authenticate(
+            with: handle.trimmingCharacters(in: .whitespacesAndNewlines),
+            password: appPassword)
         let kit = await ATProtoKit(sessionConfiguration: config)
         let bluesky = ATProtoBluesky(atProtoKitInstance: kit)
         return (kit, bluesky)
@@ -39,20 +65,24 @@ enum PosterFactory {
     @MainActor
     static func makePosters(for targets: [PostTarget], store: AccountStore) async throws -> [Poster] {
         var posters: [Poster] = []
-        var errors: [String] = []
         if targets.contains(.mastodon) {
             do { posters.append(try await makeMastodon(store)) }
-            catch { errors.append("Mastodon: \(error.userMessage)") }
+            catch { posters.append(FailedPoster(target: .mastodon, message: error.userMessage)) }
         }
         if targets.contains(.bluesky) {
             do { posters.append(try await makeBluesky(store)) }
-            catch { errors.append("Bluesky: \(error.userMessage)") }
-        }
-        // Only abort entirely if every selected target failed to connect.
-        if posters.isEmpty {
-            throw ConfigError.message(errors.joined(separator: "\n"))
+            catch { posters.append(FailedPoster(target: .bluesky, message: error.userMessage)) }
         }
         return posters
+    }
+
+    private struct FailedPoster: Poster {
+        let target: PostTarget
+        let message: String
+
+        func post(thread: [DraftPost]) async throws -> [PostedItem] {
+            throw ConfigError.message(message)
+        }
     }
 
     enum ConfigError: Error, CustomStringConvertible, LocalizedError {

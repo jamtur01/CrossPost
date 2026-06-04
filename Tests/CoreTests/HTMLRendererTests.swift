@@ -27,8 +27,19 @@ final class HTMLRendererTests: XCTestCase {
         XCTAssertEqual(HTMLRenderer.render("smile &#x1F600; and caf&#xE9;"), "smile 😀 and café")
     }
 
-    func testLinkRendersAsItsText() {
-        XCTAssertEqual(HTMLRenderer.render(#"see <a href="https://x.com">x.com</a>"#), "see x.com")
+    func testLinkDestinationIsPreservedWhenLabelHidesURL() {
+        XCTAssertEqual(HTMLRenderer.render(#"see <a href="https://x.com">x.com</a>"#),
+                       "see x.com (https://x.com)")
+    }
+
+    func testLinkDestinationIsNotDuplicatedWhenLabelIsURL() {
+        XCTAssertEqual(HTMLRenderer.render(#"see <a href="https://x.com">https://x.com</a>"#),
+                       "see https://x.com")
+    }
+
+    func testLinkLabelCanContainNestedTags() {
+        XCTAssertEqual(HTMLRenderer.render(#"<a class="u-url" href="https://example.com"><span>Example</span></a>"#),
+                       "Example (https://example.com)")
     }
 
     func testTrimsTrailingWhitespace() {

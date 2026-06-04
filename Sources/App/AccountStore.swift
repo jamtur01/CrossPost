@@ -33,13 +33,29 @@ final class AccountStore: ObservableObject {
         }
     }
 
+    func saveMastodon(instanceURL: String, token: String, maxChars: Int, username: String?) throws {
+        try persist(token, account: "mastodon-token")
+        mastodonInstanceURL = instanceURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        mastodonMaxChars = maxChars
+        if let username { mastodonUsername = username }
+    }
+
+    func saveBluesky(handle: String, appPassword: String) throws {
+        try persist(appPassword, account: "bluesky-app-password")
+        blueskyHandle = handle.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     var hasMastodon: Bool { !mastodonInstanceURL.isEmpty && !mastodonToken.isEmpty }
     var hasBluesky: Bool { !blueskyHandle.isEmpty && !blueskyAppPassword.isEmpty }
 
     /// The instance URL normalized for networking: a bare host like `hachyderm.io`
     /// gets an `https://` scheme, surrounding whitespace and trailing slashes are dropped.
     var mastodonBaseURL: URL? {
-        var text = mastodonInstanceURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        Self.normalizedMastodonBaseURL(from: mastodonInstanceURL)
+    }
+
+    nonisolated static func normalizedMastodonBaseURL(from rawValue: String) -> URL? {
+        var text = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return nil }
         if !text.contains("://") { text = "https://" + text }
         while text.hasSuffix("/") { text.removeLast() }

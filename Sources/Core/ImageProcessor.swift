@@ -5,15 +5,26 @@ import UniformTypeIdentifiers
 public enum ImageProcessor {
     public enum ProcessingError: Error, CustomStringConvertible, LocalizedError {
         case decodeFailed
+        case encodeFailed
         case cannotFitBudget(bytes: Int, budget: Int)
         public var description: String {
             switch self {
             case .decodeFailed: return "Could not read image data"
+            case .encodeFailed: return "Could not encode image data"
             case .cannotFitBudget(let b, let budget):
                 return "Image is \(b) bytes; could not compress under \(budget) bytes"
             }
         }
         public var errorDescription: String? { description }
+    }
+
+    /// Re-encode `data` as JPEG without applying a small platform-specific byte budget.
+    public static func jpegData(_ data: Data) throws -> Data {
+        guard let image = NSImage(data: data) else { throw ProcessingError.decodeFailed }
+        guard let encoded = encodeJPEG(image, scale: 1.0, quality: 0.9) else {
+            throw ProcessingError.encodeFailed
+        }
+        return encoded
     }
 
     /// Re-encode `data` as JPEG no larger than `maxBytes`, scaling down if needed.

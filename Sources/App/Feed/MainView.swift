@@ -7,7 +7,7 @@ struct MainView: View {
         HSplitView {
             ComposeColumnView()
                 .environmentObject(store)
-                .frame(minWidth: 280, idealWidth: 320, maxWidth: 380)
+                .frame(minWidth: 240, idealWidth: 320, maxWidth: 380)
 
             // The two feeds share the remaining space equally (each maxWidth:
             // .infinity), so they are always exactly the same size.
@@ -20,9 +20,9 @@ struct MainView: View {
                     .environmentObject(store)
                     .frame(maxWidth: .infinity)
             }
-            .frame(minWidth: 680)
+            .frame(minWidth: 480)
         }
-        .frame(minWidth: 1000, minHeight: 580)
+        .frame(minWidth: 760, minHeight: 540)
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
                 Button {
