@@ -5,6 +5,7 @@ struct FeedPanelView: View {
     @EnvironmentObject var store: AccountStore
     @State private var replyTarget: FeedPost?
     @State private var parentOf: FeedPost?
+    @State private var detailPost: FeedPost?
 
     private var accent: Color { model.target.accent }
 
@@ -54,6 +55,9 @@ struct FeedPanelView: View {
                 onOpen: { model.openInBrowser($0) },
                 onClose: { parentOf = nil })
         }
+        .sheet(item: $detailPost) { post in
+            PostDetailSheet(model: model, store: store, postID: post.id) { detailPost = nil }
+        }
         .onAppear { model.start() }
         .onDisappear { model.stop() }
         // Reload when this platform's credentials are (re)saved in Settings.
@@ -93,7 +97,8 @@ struct FeedPanelView: View {
                             onLike: { model.toggleLike(post) },
                             onRepost: { model.toggleRepost(post) },
                             onOpen: { model.openInBrowser(post) },
-                            onShowParent: post.isReply ? { parentOf = post } : nil)
+                            onShowParent: post.isReply ? { parentOf = post } : nil,
+                            onOpenDetail: { detailPost = post })
                     }
                 }
             }

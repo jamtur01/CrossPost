@@ -8,18 +8,22 @@ struct FeedPostView: View {
     var onRepost: () -> Void = {}
     var onOpen: () -> Void = {}
     var onShowParent: (() -> Void)?
+    var onOpenDetail: (() -> Void)?
     var showActions: Bool = true
-    /// Timeline rows get hover highlight + a separator; sheet previews don't.
+    /// Timeline rows get hover highlight + a separator; sheet/detail views don't.
     var inTimeline: Bool = true
+    /// Detail (pop-out) view shows a bigger avatar and full-width media.
+    var expanded: Bool = false
 
     @State private var hovering = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 7) {
             contextLine
             header
-            Text(post.text)
-                .font(.body)
+            Text(styledText)
+                .font(expanded ? .title3 : .body)
+                .tint(accent)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .fixedSize(horizontal: false, vertical: true)
@@ -34,6 +38,11 @@ struct FeedPostView: View {
         }
         .contentShape(Rectangle())
         .onHover { hovering = $0 }
+        .onTapGesture { onOpenDetail?() }
+    }
+
+    private var styledText: AttributedString {
+        RichText.styled(String(post.text.characters), accent: accent)
     }
 
     @ViewBuilder
@@ -60,16 +69,16 @@ struct FeedPostView: View {
             } placeholder: {
                 Circle().fill(.quaternary)
             }
-            .frame(width: 42, height: 42)
+            .frame(width: expanded ? 52 : 42, height: expanded ? 52 : 42)
             .clipShape(Circle())
             .overlay(Circle().strokeBorder(.black.opacity(0.06)))
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(post.authorName)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.system(size: expanded ? 16 : 14, weight: .semibold))
                     .lineLimit(1)
                 Text(post.authorHandle)
-                    .font(.system(size: 12))
+                    .font(.system(size: expanded ? 13 : 12))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
@@ -84,17 +93,32 @@ struct FeedPostView: View {
     @ViewBuilder
     private var images: some View {
         if !post.images.isEmpty {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 6) {
+            if expanded {
+                VStack(spacing: 8) {
                     ForEach(post.images) { image in
                         AsyncImage(url: image.url) { img in
-                            img.resizable().scaledToFill()
+                            img.resizable().scaledToFit()
                         } placeholder: {
-                            Rectangle().fill(.quaternary)
+                            RoundedRectangle(cornerRadius: 12).fill(.quaternary).frame(height: 200)
                         }
-                        .frame(width: 140, height: 105)
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .frame(maxWidth: .infinity)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
                         .accessibilityLabel(image.altText)
+                    }
+                }
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(post.images) { image in
+                            AsyncImage(url: image.url) { img in
+                                img.resizable().scaledToFill()
+                            } placeholder: {
+                                Rectangle().fill(.quaternary)
+                            }
+                            .frame(width: 150, height: 110)
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                            .accessibilityLabel(image.altText)
+                        }
                     }
                 }
             }
@@ -102,30 +126,41 @@ struct FeedPostView: View {
     }
 
     private var actionBar: some View {
-        HStack(spacing: 2) {
-            actionButton("arrowshape.turn.up.left", active: false, tint: accent,
-                         help: "Reply", action: onReply)
-            actionButton(post.isReposted ? "arrow.2.squarepath" : "arrow.2.squarepath",
-                         active: post.isReposted, tint: .green,
-                         help: "Repost", action: onRepost)
-            actionButton(post.isLiked ? "heart.fill" : "heart",
-                         active: post.isLiked, tint: .pink,
-                         help: "Like", action: onLike)
+        HStack(spacing: 0) {
+            countAction("bubble.left", count: post.replyCount, active: false,
+                        tint: accent, help: "Reply", action: onReply)
+            countAction("arrow.2.squarepath", count: post.repostCount, active: post.isReposted,
+                        tint: .green, help: "Repost", action: onRepost)
+            countAction(post.isLiked ? "heart.fill" : "heart", count: post.likeCount,
+                        active: post.isLiked, tint: .pink, help: "Like", action: onLike)
             Spacer()
-            actionButton("safari", active: false, tint: accent,
-                         help: "Open in browser", action: onOpen)
+            Button(action: onOpen) {
+                Image(systemName: "safari")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 30, height: 24)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help("Open in browser")
         }
         .padding(.top, 2)
     }
 
-    private func actionButton(_ symbol: String, active: Bool, tint: Color,
-                              help: String, action: @escaping () -> Void) -> some View {
+    private func countAction(_ symbol: String, count: Int, active: Bool, tint: Color,
+                             help: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Image(systemName: symbol)
-                .font(.system(size: 13))
-                .foregroundStyle(active ? tint : Color.secondary)
-                .frame(width: 30, height: 26)
-                .contentShape(Rectangle())
+            HStack(spacing: 5) {
+                Image(systemName: symbol).font(.system(size: 13))
+                if count > 0 {
+                    Text(count.formatted(.number.notation(.compactName)))
+                        .font(.system(size: 12).monospacedDigit())
+                }
+            }
+            .foregroundStyle(active ? tint : Color.secondary)
+            .padding(.vertical, 4)
+            .padding(.trailing, 16)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .help(help)

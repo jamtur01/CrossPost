@@ -31,6 +31,9 @@ public struct FeedPost: Identifiable, Equatable, Sendable {
     public let webURL: URL?
     public var isLiked: Bool
     public var isReposted: Bool
+    public var replyCount: Int
+    public var repostCount: Int
+    public var likeCount: Int
     public var likeRecordURI: String?      // Bluesky: like record uri (for undo); nil for Mastodon
     public var repostRecordURI: String?    // Bluesky: repost record uri (for undo); nil for Mastodon
     public let boostedBy: String?          // display name of the booster/reposter, if this is a boost
@@ -44,6 +47,7 @@ public struct FeedPost: Identifiable, Equatable, Sendable {
     public init(id: String, target: PostTarget, authorName: String, authorHandle: String,
                 avatarURL: URL?, date: Date, text: AttributedString, images: [FeedImage],
                 webURL: URL?, isLiked: Bool, isReposted: Bool,
+                replyCount: Int = 0, repostCount: Int = 0, likeCount: Int = 0,
                 likeRecordURI: String? = nil, repostRecordURI: String? = nil,
                 boostedBy: String? = nil, mentionHandles: [String] = [],
                 visibility: String? = nil, spoilerText: String? = nil,
@@ -53,6 +57,7 @@ public struct FeedPost: Identifiable, Equatable, Sendable {
         self.authorHandle = authorHandle; self.avatarURL = avatarURL; self.date = date
         self.text = text; self.images = images; self.webURL = webURL
         self.isLiked = isLiked; self.isReposted = isReposted
+        self.replyCount = replyCount; self.repostCount = repostCount; self.likeCount = likeCount
         self.likeRecordURI = likeRecordURI; self.repostRecordURI = repostRecordURI
         self.boostedBy = boostedBy; self.mentionHandles = mentionHandles
         self.visibility = visibility; self.spoilerText = spoilerText
