@@ -33,12 +33,25 @@ enum PosterFactory {
         return (kit, bluesky)
     }
 
-    /// Build posters for the selected, configured targets.
+    /// Build posters for the selected, configured targets. Each target is built
+    /// independently so a failure for one (e.g. a stale token) still lets the other
+    /// post; the coordinator reports the missing target as a per-target failure.
     @MainActor
     static func makePosters(for targets: [PostTarget], store: AccountStore) async throws -> [Poster] {
         var posters: [Poster] = []
-        if targets.contains(.mastodon) { posters.append(try await makeMastodon(store)) }
-        if targets.contains(.bluesky) { posters.append(try await makeBluesky(store)) }
+        var errors: [String] = []
+        if targets.contains(.mastodon) {
+            do { posters.append(try await makeMastodon(store)) }
+            catch { errors.append("Mastodon: \(error.userMessage)") }
+        }
+        if targets.contains(.bluesky) {
+            do { posters.append(try await makeBluesky(store)) }
+            catch { errors.append("Bluesky: \(error.userMessage)") }
+        }
+        // Only abort entirely if every selected target failed to connect.
+        if posters.isEmpty {
+            throw ConfigError.message(errors.joined(separator: "\n"))
+        }
         return posters
     }
 

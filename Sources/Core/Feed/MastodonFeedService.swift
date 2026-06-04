@@ -44,8 +44,9 @@ public struct MastodonFeedService: FeedService {
         }
         var mediaIds: [String] = []
         for image in images {
+            let jpeg = try ImageProcessor.jpegUnderBudget(image.imageData)
             let params = UploadMediaAttachmentParams(
-                file: image.imageData,
+                file: jpeg,
                 thumbnail: nil,
                 description: image.altText.isEmpty ? nil : image.altText,
                 focus: nil)
@@ -135,7 +136,10 @@ public struct MastodonFeedService: FeedService {
                 return FeedImage(url: url, altText: att.description ?? "")
             }
         return FeedPost(
-            id: "mastodon:\(display.id)",
+            // Identify by the outer timeline entry, not `display.id`: the same status
+            // boosted by several people must stay distinct (else ForEach IDs collide
+            // and FeedMerge drops boosts). `nativeRef` still targets `display.id`.
+            id: "mastodon:\(post.id)",
             target: .mastodon,
             authorName: display.account.displayName?.isEmpty == false
                 ? display.account.displayName!

@@ -21,8 +21,11 @@ public struct MastodonPoster: Poster, ThreadPublisher {
     public func publishOne(_ draft: DraftPost, root: String?, parent: String?) async throws -> (ref: String, item: PostedItem) {
         var mediaIds: [String] = []
         for attachment in draft.attachments {
+            // Transcode to JPEG so the bytes match the declared MIME type — the
+            // picker accepts PNG/HEIC/GIF/TIFF, which Mastodon would otherwise reject.
+            let jpeg = try ImageProcessor.jpegUnderBudget(attachment.imageData)
             let params = UploadMediaAttachmentParams(
-                file: attachment.imageData,
+                file: jpeg,
                 thumbnail: nil,
                 description: attachment.altText.isEmpty ? nil : attachment.altText,
                 focus: nil)

@@ -52,8 +52,10 @@ struct ThreadView: View {
         .scrollContentBackground(.hidden)
         .background(Color(nsColor: .textBackgroundColor))
         .task {
-            let live = panel.posts.first { $0.id == focusedPost.id } ?? focusedPost
             let thread = await panel.thread(of: focusedPost)
+            // Read the focused post after the fetch so a poll during loading can't
+            // leave it showing stale counts.
+            let live = panel.posts.first { $0.id == focusedPost.id } ?? focusedPost
             list.posts = thread.ancestors + [live] + thread.descendants
             loading = false
         }

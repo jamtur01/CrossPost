@@ -14,8 +14,10 @@ struct ComposeColumnView: View {
     @ViewBuilder
     private func content(_ model: ComposeModel) -> some View {
         @Bindable var model = model
+        // Effective limit = the strictest selected target. Bluesky's 300 is always
+        // the floor when selected; otherwise use the connected instance's limit.
         let limit = model.selectedTargets.contains(.bluesky)
-            ? TargetLimits.blueskyMax : TargetLimits.mastodonFallback
+            ? TargetLimits.blueskyMax : store.mastodonMaxChars
         VStack(spacing: 0) {
             HStack(spacing: 8) {
                 Image(systemName: "square.and.pencil").font(.system(size: 13, weight: .medium))
