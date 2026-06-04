@@ -19,10 +19,28 @@ public struct BlueskyFeedService: FeedService {
             let output = try await kit.getTimeline()
             return output.feed.compactMap { Self.feedPost(from: $0, handle: handle) }
         case .mentions:
-            let output = try await kit.listNotifications(
-                with: [.mention, .reply])
-            return output.notifications.compactMap { Self.feedPost(fromNotification: $0, handle: handle) }
+            let output = try await kit.listNotifications(with: [.mention, .reply])
+            // Notifications aren't hydrated (no embeds/counts), so fetch the full
+            // post views and render them exactly like the home feed.
+            var seen = Set<String>()
+            let uris = output.notifications.map(\.uri).filter { seen.insert($0).inserted }
+            let hydrated = try await hydratePosts(uris)
+            return uris.compactMap { hydrated[$0].map { Self.feedPost(fromPostView: $0) } }
         }
+    }
+
+    /// Hydrate posts by AT-URI (getPosts accepts up to 25 at a time).
+    private func hydratePosts(_ uris: [String]) async throws
+        -> [String: AppBskyLexicon.Feed.PostViewDefinition] {
+        var result: [String: AppBskyLexicon.Feed.PostViewDefinition] = [:]
+        var index = 0
+        while index < uris.count {
+            let chunk = Array(uris[index..<min(index + 25, uris.count)])
+            let output = try await kit.getPosts(chunk)
+            for post in output.posts { result[post.uri] = post }
+            index += 25
+        }
+        return result
     }
 
     public func setLiked(_ liked: Bool, on post: FeedPost) async throws -> FeedPost {
@@ -184,36 +202,6 @@ public struct BlueskyFeedService: FeedService {
             replyRoot = nil
         }
         return feedPost(fromPostView: item.post, replyRoot: replyRoot, isReply: item.reply != nil)
-    }
-
-    static func feedPost(
-        fromNotification n: AppBskyLexicon.Notification.Notification,
-        handle: String
-    ) -> FeedPost? {
-        let record = n.record.getRecord(ofType: AppBskyLexicon.Feed.PostRecord.self)
-        // Thread the reply to the real root from the notification's record, not the
-        // notification post itself (which is the immediate parent).
-        let replyRoot = record?.reply.map { ($0.root.recordURI, $0.root.recordCID) }
-        let root = BlueskyThreadRef.root(postURI: n.uri, postCID: n.cid, replyRoot: replyRoot)
-        let rkey = n.uri.split(separator: "/").last.map(String.init) ?? ""
-        return FeedPost(
-            id: "bluesky:\(n.uri)",
-            target: .bluesky,
-            authorName: n.author.displayName?.isEmpty == false
-                ? n.author.displayName!
-                : n.author.actorHandle,
-            authorHandle: "@\(n.author.actorHandle)",
-            authorID: n.author.actorHandle,
-            avatarURL: n.author.avatarImageURL,
-            authorURL: URL(string: "https://bsky.app/profile/\(n.author.actorHandle)"),
-            date: n.indexedAt,
-            text: AttributedString(record?.text ?? ""),
-            images: [],
-            webURL: URL(string: "https://bsky.app/profile/\(n.author.actorHandle)/post/\(rkey)"),
-            isLiked: false,
-            isReposted: false,
-            isReply: record?.reply != nil,
-            nativeRef: .bluesky(uri: n.uri, cid: n.cid, rootURI: root.uri, rootCID: root.cid))
     }
 
     /// Map a bare post view (timeline item, reply parent, etc.) to a FeedPost.
