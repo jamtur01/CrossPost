@@ -147,6 +147,30 @@ public struct BlueskyFeedService: FeedService {
                         imageURL: external.thumbnailImageURL, providerName: url.host ?? "")
     }
 
+    /// Render a post record's text with its richtext facets resolved to links:
+    /// mentions → the author's profile, links → their full URL, tags → the tag page.
+    static func attributedText(_ record: AppBskyLexicon.Feed.PostRecord?) -> AttributedString {
+        guard let record else { return AttributedString("") }
+        let spans = (record.facets ?? []).compactMap { facet -> RichTextLinks.Span? in
+            guard let url = facetURL(facet.features) else { return nil }
+            return RichTextLinks.Span(byteStart: facet.index.byteStart,
+                                      byteEnd: facet.index.byteEnd, url: url)
+        }
+        return RichTextLinks.attributed(record.text, spans: spans)
+    }
+
+    private static func facetURL(_ features: [AppBskyLexicon.RichText.Facet.FeaturesUnion]) -> URL? {
+        for feature in features {
+            switch feature {
+            case .mention(let mention): return URL(string: "https://bsky.app/profile/\(mention.did)")
+            case .link(let link): return URL(string: link.uri)
+            case .tag(let tag): return URL(string: "https://bsky.app/hashtag/\(tag.tag)")
+            case .unknown: continue
+            }
+        }
+        return nil
+    }
+
     static func quotedPost(fromRecordView view: AppBskyLexicon.Embed.RecordDefinition.View) -> QuotedPost? {
         guard case .viewRecord(let vr) = view.record else { return nil }
         let record = vr.value.getRecord(ofType: AppBskyLexicon.Feed.PostRecord.self)
@@ -163,7 +187,7 @@ public struct BlueskyFeedService: FeedService {
             authorName: vr.author.displayName?.isEmpty == false ? vr.author.displayName! : vr.author.actorHandle,
             authorHandle: "@\(vr.author.actorHandle)",
             avatarURL: vr.author.avatarImageURL,
-            text: AttributedString(record?.text ?? ""),
+            text: Self.attributedText(record),
             imageURL: imageURL,
             webURL: URL(string: "https://bsky.app/profile/\(vr.author.actorHandle)/post/\(rkey)"))
     }
@@ -262,7 +286,7 @@ public struct BlueskyFeedService: FeedService {
             avatarURL: p.author.avatarImageURL,
             authorURL: URL(string: "https://bsky.app/profile/\(p.author.actorHandle)"),
             date: p.indexedAt,
-            text: AttributedString(record?.text ?? ""),
+            text: Self.attributedText(record),
             images: images,
             card: card,
             quoted: quoted,
