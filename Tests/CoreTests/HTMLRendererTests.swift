@@ -2,52 +2,67 @@ import XCTest
 @testable import CrossPost
 
 final class HTMLRendererTests: XCTestCase {
+    private func plain(_ html: String) -> String {
+        String(HTMLRenderer.renderAttributed(html).characters)
+    }
+
+    private func links(_ html: String) -> [URL] {
+        HTMLRenderer.renderAttributed(html).runs.compactMap(\.link)
+    }
+
     func testStripsTags() {
-        XCTAssertEqual(HTMLRenderer.render("<p>hello <span>world</span></p>"), "hello world")
+        XCTAssertEqual(plain("<p>hello <span>world</span></p>"), "hello world")
     }
 
     func testParagraphsBecomeBlankLineSeparated() {
-        XCTAssertEqual(HTMLRenderer.render("<p>one</p><p>two</p>"), "one\n\ntwo")
+        XCTAssertEqual(plain("<p>one</p><p>two</p>"), "one\n\ntwo")
     }
 
     func testBrBecomesNewline() {
-        XCTAssertEqual(HTMLRenderer.render("a<br>b<br/>c"), "a\nb\nc")
+        XCTAssertEqual(plain("a<br>b<br/>c"), "a\nb\nc")
     }
 
     func testDecodesEntities() {
-        XCTAssertEqual(HTMLRenderer.render("Ben &amp; Jerry &lt;3 &#39;x&#39; &quot;y&quot;"),
+        XCTAssertEqual(plain("Ben &amp; Jerry &lt;3 &#39;x&#39; &quot;y&quot;"),
                        "Ben & Jerry <3 'x' \"y\"")
     }
 
     func testDecodesNumericEntity() {
-        XCTAssertEqual(HTMLRenderer.render("caf&#233;"), "café")
+        XCTAssertEqual(plain("caf&#233;"), "café")
     }
 
     func testDecodesHexEntity() {
-        XCTAssertEqual(HTMLRenderer.render("smile &#x1F600; and caf&#xE9;"), "smile 😀 and café")
+        XCTAssertEqual(plain("smile &#x1F600; and caf&#xE9;"), "smile 😀 and café")
     }
 
-    func testLinkDestinationIsPreservedWhenLabelHidesURL() {
-        XCTAssertEqual(HTMLRenderer.render(#"see <a href="https://x.com">x.com</a>"#),
-                       "see x.com (https://x.com)")
+    func testAnchorBecomesClickableLinkWithoutShowingURL() {
+        let html = #"see <a href="https://x.com">x.com</a>"#
+        XCTAssertEqual(plain(html), "see x.com")
+        XCTAssertEqual(links(html), [URL(string: "https://x.com")!])
     }
 
-    func testLinkDestinationIsNotDuplicatedWhenLabelIsURL() {
-        XCTAssertEqual(HTMLRenderer.render(#"see <a href="https://x.com">https://x.com</a>"#),
-                       "see https://x.com")
+    func testMentionAnchorLabelIsTheLink() {
+        let html = #"<a href="https://hachyderm.io/@kartar" class="u-url mention">@<span>kartar</span></a>"#
+        XCTAssertEqual(plain(html), "@kartar")
+        XCTAssertEqual(links(html), [URL(string: "https://hachyderm.io/@kartar")!])
     }
 
-    func testLinkLabelCanContainNestedTags() {
-        XCTAssertEqual(HTMLRenderer.render(#"<a class="u-url" href="https://example.com"><span>Example</span></a>"#),
-                       "Example (https://example.com)")
+    func testAnchorLabelCanContainNestedTags() {
+        let html = #"<a class="u-url" href="https://example.com"><span>Example</span></a>"#
+        XCTAssertEqual(plain(html), "Example")
+        XCTAssertEqual(links(html), [URL(string: "https://example.com")!])
+    }
+
+    func testPlainTextHasNoLinks() {
+        XCTAssertTrue(links("just words").isEmpty)
     }
 
     func testTrimsTrailingWhitespace() {
-        XCTAssertEqual(HTMLRenderer.render("<p>hi</p>"), "hi")
+        XCTAssertEqual(plain("<p>hi</p>"), "hi")
     }
 
     func testEmptyAndPlain() {
-        XCTAssertEqual(HTMLRenderer.render(""), "")
-        XCTAssertEqual(HTMLRenderer.render("plain text"), "plain text")
+        XCTAssertEqual(plain(""), "")
+        XCTAssertEqual(plain("plain text"), "plain text")
     }
 }

@@ -99,7 +99,7 @@ public struct MastodonFeedService: FeedService {
             handle: "@\(account.acct)",
             avatarURL: URL(string: account.avatar),
             bannerURL: URL(string: account.header),
-            bio: AttributedString(HTMLRenderer.render(account.note)),
+            bio: HTMLRenderer.renderAttributed(account.note),
             followers: account.followersCount,
             following: account.followingCount,
             posts: account.postsCount,
@@ -122,7 +122,7 @@ public struct MastodonFeedService: FeedService {
             authorName: q.account.displayName?.isEmpty == false ? q.account.displayName! : q.account.acct,
             authorHandle: "@\(q.account.acct)",
             avatarURL: URL(string: q.account.avatar),
-            text: AttributedString(HTMLRenderer.render(q.content ?? "")),
+            text: HTMLRenderer.renderAttributed(q.content ?? ""),
             imageURL: image.flatMap { URL(string: $0.url) },
             webURL: q.url.flatMap(URL.init(string:)))
     }
@@ -154,7 +154,7 @@ public struct MastodonFeedService: FeedService {
             avatarURL: URL(string: display.account.avatar),
             authorURL: URL(string: display.account.url),
             date: display.createdAt,
-            text: AttributedString(HTMLRenderer.render(display.content ?? "")),
+            text: HTMLRenderer.renderAttributed(display.content ?? ""),
             images: images,
             card: linkCard(from: display.card),
             quoted: quotedPost(from: display.quote),

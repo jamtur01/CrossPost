@@ -107,7 +107,7 @@ struct ProfileView: View {
                     .foregroundStyle(.secondary)
 
                 if let bio = profile?.bio, !bio.characters.isEmpty {
-                    Text(RichText.styled(String(bio.characters), accent: accent))
+                    Text(RichText.styled(bio, accent: accent))
                         .font(Theme.content)
                         .tint(accent)
                         .frame(maxWidth: .infinity, alignment: .leading)

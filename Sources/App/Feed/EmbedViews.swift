@@ -79,7 +79,7 @@ struct QuoteCardView: View {
                             .lineLimit(1)
                     }
                     if hasText {
-                        Text(RichText.styled(String(quote.text.characters), accent: accent))
+                        Text(RichText.styled(quote.text, accent: accent))
                             .font(.system(size: 13))
                             .tint(accent)
                             .lineLimit(6)

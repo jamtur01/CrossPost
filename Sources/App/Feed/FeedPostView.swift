@@ -45,7 +45,7 @@ struct FeedPostView: View {
     }
 
     private var styledText: AttributedString {
-        RichText.styled(String(post.text.characters), accent: accent)
+        RichText.styled(post.text, accent: accent)
     }
 
     /// Body text. Selectable only in the expanded detail; in timeline rows the
