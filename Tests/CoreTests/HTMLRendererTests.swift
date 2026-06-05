@@ -27,6 +27,13 @@ final class HTMLRendererTests: XCTestCase {
                        "Ben & Jerry <3 'x' \"y\"")
     }
 
+    func testDoubleEscapedAmpersandDecodesToLiteralEntity() {
+        // "&amp;lt;" is the escaping of the literal text "&lt;", not of "<".
+        XCTAssertEqual(plain("&amp;lt;"), "&lt;")
+        XCTAssertEqual(plain("&amp;amp;"), "&amp;")
+        XCTAssertEqual(plain("a &amp; b &lt; c"), "a & b < c")
+    }
+
     func testDecodesNumericEntity() {
         XCTAssertEqual(plain("caf&#233;"), "café")
     }

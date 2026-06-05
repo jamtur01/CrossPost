@@ -155,7 +155,7 @@ struct FeedPanelView: View {
                                 onRepost: { model.toggleRepost(post) },
                                 onOpen: { model.openInBrowser(post) },
                                 onOpenProfile: { routes.append(.profile(post.profileRef())) },
-                                onOpenURL: { model.open($0) },
+                                onOpenURL: { model.openLink($0) { routes.append($0) } },
                                 onShowParent: post.isReply ? { routes.append(.thread(post)) } : nil,
                                 onOpenDetail: { routes.append(.thread(post)) })
                         }

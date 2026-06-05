@@ -74,7 +74,12 @@ public enum HTMLRenderer {
 
     private static func decodeEntities(_ input: String) -> String {
         var s = input
-        let named = ["&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": "\"", "&#39;": "'", "&apos;": "'", "&nbsp;": " "]
+        // `&amp;` is decoded last so "&amp;lt;" yields the literal "&lt;", not "<".
+        // (Dictionary order is unspecified, so use an ordered array.)
+        let named: [(String, String)] = [
+            ("&lt;", "<"), ("&gt;", ">"), ("&quot;", "\""),
+            ("&#39;", "'"), ("&apos;", "'"), ("&nbsp;", " "), ("&amp;", "&"),
+        ]
         for (entity, value) in named {
             s = s.replacingOccurrences(of: entity, with: value)
         }

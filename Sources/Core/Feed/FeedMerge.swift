@@ -19,6 +19,13 @@ public enum FeedMerge {
             return post
         }
         let retainedExisting = existing.filter { !fetchedIDs.contains($0.id) }
-        return Array((reconciled + retainedExisting).prefix(maxCount))
+        // Keep-first dedupe so a feed that returns the same id twice (e.g. a status in
+        // two mention notifications) can't produce colliding ForEach ids downstream.
+        var seen: Set<String> = []
+        var unique: [FeedPost] = []
+        for post in reconciled + retainedExisting where seen.insert(post.id).inserted {
+            unique.append(post)
+        }
+        return Array(unique.prefix(maxCount))
     }
 }

@@ -14,7 +14,13 @@ public struct MastodonFeedService: FeedService {
             return posts.map { Self.feedPost(from: $0) }
         case .mentions:
             let notifications = try await client.getNotifications(params: .init(types: [.mention])).result
-            return notifications.compactMap { $0.post.map { Self.feedPost(from: $0) } }
+            // The same status can surface in multiple mention notifications; dedupe
+            // by status id so FeedPost ids stay unique (else ForEach/FeedMerge collide).
+            var seen: Set<String> = []
+            return notifications.compactMap { notification in
+                guard let post = notification.post, seen.insert(post.id).inserted else { return nil }
+                return Self.feedPost(from: post)
+            }
         }
     }
 
@@ -48,8 +54,9 @@ public struct MastodonFeedService: FeedService {
                                                      limit: TargetLimits.imageMax)
         }
         var mediaIds: [String] = []
+        let maxBytes = images.isEmpty ? 0 : await client.mastodonImageByteLimit()
         for image in images {
-            let jpeg = try ImageProcessor.jpegData(image.imageData)
+            let jpeg = try ImageProcessor.jpegUnderBudget(image.imageData, maxBytes: maxBytes)
             let params = UploadMediaAttachmentParams(
                 file: jpeg,
                 thumbnail: nil,
@@ -89,6 +96,17 @@ public struct MastodonFeedService: FeedService {
 
     public func authorPosts(id: String) async throws -> [FeedPost] {
         try await client.getTimeline(.user(userID: id)).result.map { Self.feedPost(from: $0) }
+    }
+
+    public func profile(forURL url: URL) async throws -> Profile? {
+        guard ProfileLink.isMastodonProfileURL(url) else { return nil }
+        // Search with WebFinger resolution turns a profile URL — including a remote
+        // account the instance hasn't cached — into a local account record.
+        let params = SearchAccountsParams(query: url.absoluteString, resolve: true)
+        guard let account = try await client.searchAccounts(params: params, limit: 1).first else {
+            return nil
+        }
+        return Self.profile(from: account)
     }
 
     static func profile(from account: Account) -> Profile {

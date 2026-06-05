@@ -172,6 +172,11 @@ public struct BlueskyFeedService: FeedService {
         Self.profile(from: try await kit.getProfile(for: id))
     }
 
+    public func profile(forURL url: URL) async throws -> Profile? {
+        guard let id = ProfileLink.blueskyID(from: url) else { return nil }
+        return try await profile(id: id)
+    }
+
     public func myProfile() async throws -> Profile {
         Self.profile(from: try await kit.getProfile(for: handle))
     }

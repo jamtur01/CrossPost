@@ -18,18 +18,10 @@ public enum ImageProcessor {
         public var errorDescription: String? { description }
     }
 
-    /// Re-encode `data` as JPEG without applying a small platform-specific byte budget.
-    public static func jpegData(_ data: Data) throws -> Data {
-        guard let image = NSImage(data: data) else { throw ProcessingError.decodeFailed }
-        guard let encoded = encodeJPEG(image, scale: 1.0, quality: 0.9) else {
-            throw ProcessingError.encodeFailed
-        }
-        return encoded
-    }
-
     /// Re-encode `data` as JPEG no larger than `maxBytes`, scaling down if needed.
-    /// Used for Bluesky's 1 MB per-image limit.
-    public static func jpegUnderBudget(_ data: Data, maxBytes: Int = 1_000_000) throws -> Data {
+    /// `maxBytes` defaults to Bluesky's per-image limit; Mastodon passes its own.
+    public static func jpegUnderBudget(_ data: Data,
+                                       maxBytes: Int = TargetLimits.blueskyImageBytes) throws -> Data {
         guard let image = NSImage(data: data) else { throw ProcessingError.decodeFailed }
 
         var scale = 1.0

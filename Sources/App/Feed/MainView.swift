@@ -2,6 +2,10 @@ import SwiftUI
 
 struct MainView: View {
     @EnvironmentObject var store: AccountStore
+    // Built once in onAppear (they need `store`, unavailable at init) and held here
+    // so re-rendering MainView never allocates a fresh model or drops feed state.
+    @State private var mastodon: FeedPanelModel?
+    @State private var bluesky: FeedPanelModel?
 
     var body: some View {
         HSplitView {
@@ -12,17 +16,17 @@ struct MainView: View {
             // The two feeds share the remaining space equally (each maxWidth:
             // .infinity), so they are always exactly the same size.
             HStack(spacing: 0) {
-                FeedPanelView(model: FeedPanelModel(target: .mastodon, store: store))
-                    .environmentObject(store)
-                    .frame(maxWidth: .infinity)
+                feedColumn(mastodon)
                 Divider()
-                FeedPanelView(model: FeedPanelModel(target: .bluesky, store: store))
-                    .environmentObject(store)
-                    .frame(maxWidth: .infinity)
+                feedColumn(bluesky)
             }
             .frame(minWidth: 480)
         }
         .frame(minWidth: 760, minHeight: 540)
+        .onAppear {
+            if mastodon == nil { mastodon = FeedPanelModel(target: .mastodon, store: store) }
+            if bluesky == nil { bluesky = FeedPanelModel(target: .bluesky, store: store) }
+        }
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
                 Button {
@@ -37,6 +41,17 @@ struct MainView: View {
                 }
                 .help("Settings (⌘,)")
             }
+        }
+    }
+
+    @ViewBuilder
+    private func feedColumn(_ model: FeedPanelModel?) -> some View {
+        if let model {
+            FeedPanelView(model: model)
+                .environmentObject(store)
+                .frame(maxWidth: .infinity)
+        } else {
+            Color.clear.frame(maxWidth: .infinity)
         }
     }
 }

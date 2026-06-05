@@ -117,6 +117,28 @@ final class FeedPanelModel {
         NSWorkspace.shared.open(url)
     }
 
+    /// Open a tapped body link: profile/mention links push an in-app profile route;
+    /// everything else (articles, hashtags, unresolvable profiles) opens in the browser.
+    func openLink(_ url: URL, push: @escaping (FeedRoute) -> Void) {
+        guard isProfileLink(url) else { open(url); return }
+        Task {
+            if let ref = await profileRef(forURL: url) { push(.profile(ref)) } else { open(url) }
+        }
+    }
+
+    /// Cheap, sync check so non-profile links open in the browser without a network round-trip.
+    private func isProfileLink(_ url: URL) -> Bool {
+        switch target {
+        case .mastodon: return ProfileLink.isMastodonProfileURL(url)
+        case .bluesky: return ProfileLink.blueskyID(from: url) != nil
+        }
+    }
+
+    private func profileRef(forURL url: URL) async -> ProfileRef? {
+        guard let profile = try? await resolveService().profile(forURL: url) else { return nil }
+        return ProfileRef(id: profile.id, handle: profile.handle, name: profile.name, avatar: profile.avatarURL)
+    }
+
     /// Fetch the surrounding thread (ancestors + replies) for the detail view.
     func thread(of post: FeedPost) async -> PostThread {
         do {

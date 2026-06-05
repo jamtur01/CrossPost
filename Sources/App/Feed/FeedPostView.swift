@@ -58,6 +58,9 @@ struct FeedPostView: View {
             .lineSpacing(1.5)
             .frame(maxWidth: .infinity, alignment: .leading)
             .fixedSize(horizontal: false, vertical: true)
+            // Route link taps (mentions, URLs) through the app so profile links can
+            // open in-app instead of always deferring to the system browser.
+            .environment(\.openURL, OpenURLAction { url in onOpenURL(url); return .handled })
         if expanded {
             base.textSelection(.enabled)
         } else {

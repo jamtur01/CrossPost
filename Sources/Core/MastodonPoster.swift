@@ -25,10 +25,12 @@ public struct MastodonPoster: Poster, ThreadPublisher {
                                                      count: draft.attachments.count,
                                                      limit: TargetLimits.imageMax)
         }
+        let maxBytes = draft.attachments.isEmpty ? 0 : await client.mastodonImageByteLimit()
         for attachment in draft.attachments {
-            // Transcode to JPEG so the bytes match the declared MIME type — the
-            // picker accepts PNG/HEIC/GIF/TIFF, which Mastodon would otherwise reject.
-            let jpeg = try ImageProcessor.jpegData(attachment.imageData)
+            // Transcode to JPEG so the bytes match the declared MIME type (the picker
+            // accepts PNG/HEIC/GIF/TIFF), scaling down only if it exceeds the
+            // instance's image size limit so a large photo can't fail mid-thread.
+            let jpeg = try ImageProcessor.jpegUnderBudget(attachment.imageData, maxBytes: maxBytes)
             let params = UploadMediaAttachmentParams(
                 file: jpeg,
                 thumbnail: nil,
@@ -44,5 +46,14 @@ public struct MastodonPoster: Poster, ThreadPublisher {
 
         let post = try await client.publishPost(params)
         return (ref: post.id, item: PostedItem(url: post.url))
+    }
+}
+
+extension TootClient {
+    /// The instance's maximum image upload size in bytes, falling back to Mastodon's
+    /// documented 10 MB default when the instance doesn't report one.
+    func mastodonImageByteLimit() async -> Int {
+        let reported = try? await getInstanceInfoV2().configuration?.mediaAttachments?.imageSizeLimit
+        return (reported ?? nil) ?? TargetLimits.mastodonImageBytes
     }
 }

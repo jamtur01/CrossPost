@@ -36,7 +36,7 @@ struct ThreadView: View {
                         onRepost: { list.toggleRepost(row) },
                         onOpen: { panel.openInBrowser(row) },
                         onOpenProfile: { push(.profile(row.profileRef())) },
-                        onOpenURL: { panel.open($0) },
+                        onOpenURL: { panel.openLink($0, push: push) },
                         onOpenDetail: isFocused ? nil : { push(.thread(row)) },
                         inTimeline: !isFocused,
                         expanded: isFocused)

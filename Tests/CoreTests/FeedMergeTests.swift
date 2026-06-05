@@ -44,4 +44,9 @@ final class FeedMergeTests: XCTestCase {
         XCTAssertEqual(merged.count, 1)
         XCTAssertFalse(merged[0].isLiked)
     }
+
+    func testDuplicateIDsInFetchedAreDeduplicatedKeepingFirst() {
+        let merged = FeedMerge.merge(existing: [], fetched: [post("1"), post("2"), post("1")])
+        XCTAssertEqual(merged.map(\.id), ["1", "2"])
+    }
 }

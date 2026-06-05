@@ -12,6 +12,9 @@ public protocol FeedService: Sendable {
     func thread(of post: FeedPost) async throws -> PostThread
     /// Profile details for a user (`id` = Mastodon account id / Bluesky handle).
     func profile(id: String) async throws -> Profile
+    /// Resolve a profile/mention web link to its profile, or nil if the URL is not
+    /// a profile on this platform. Lets mention links open in-app, not the browser.
+    func profile(forURL url: URL) async throws -> Profile?
     /// The signed-in user's own profile.
     func myProfile() async throws -> Profile
     /// Recent posts authored by a user.

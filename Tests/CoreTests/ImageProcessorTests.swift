@@ -17,12 +17,8 @@ final class ImageProcessorTests: XCTestCase {
         return try XCTUnwrap(rep.representation(using: .png, properties: [:]))
     }
 
-    func testJpegDataRejectsUndecodableInput() {
-        XCTAssertThrowsError(try ImageProcessor.jpegData(Data([0x00, 0x01, 0x02, 0x03])))
-    }
-
-    func testJpegDataProducesJPEGMagicBytes() throws {
-        let output = try ImageProcessor.jpegData(solidPNG(side: 64))
+    func testJpegUnderBudgetProducesJPEGMagicBytes() throws {
+        let output = try ImageProcessor.jpegUnderBudget(solidPNG(side: 64), maxBytes: 10_000_000)
         XCTAssertFalse(output.isEmpty)
         XCTAssertEqual(Array(output.prefix(2)), [0xFF, 0xD8])   // JPEG SOI marker
     }
