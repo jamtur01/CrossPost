@@ -112,6 +112,9 @@ struct ProfileView: View {
                         .tint(accent)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.top, 2)
+                        .environment(\.openURL, OpenURLAction { url in
+                            panel.openLink(url, push: push); return .handled
+                        })
                 }
 
                 if let profile {
