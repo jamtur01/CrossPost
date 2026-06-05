@@ -1,8 +1,38 @@
 import Foundation
 import Security
 
+/// Reads and writes named secrets. Lets callers (and tests) substitute storage
+/// for the real Keychain, which is an external boundary we don't exercise in unit tests.
+public protocol SecretStoring: Sendable {
+    func save(_ value: String, account: String) throws
+    func load(account: String) throws -> String?
+    func delete(account: String) throws
+}
+
+/// Non-persistent secret storage. Used when the app runs as a unit-test host, where
+/// touching the real Keychain triggers a SecurityAgent password prompt on every
+/// rebuild (the re-signed binary is no longer in the item's ACL).
+public final class EphemeralSecretStore: SecretStoring, @unchecked Sendable {
+    private let lock = NSLock()
+    private var items: [String: String] = [:]
+
+    public init() {}
+
+    public func save(_ value: String, account: String) throws {
+        lock.withLock { items[account] = value }
+    }
+
+    public func load(account: String) throws -> String? {
+        lock.withLock { items[account] }
+    }
+
+    public func delete(account: String) throws {
+        lock.withLock { items[account] = nil }
+    }
+}
+
 /// Stores secrets as generic-password items in the login Keychain, keyed by (service, account).
-public struct CredentialStore: Sendable {
+public struct CredentialStore: SecretStoring, Sendable {
     public enum KeychainError: Error, CustomStringConvertible, LocalizedError {
         case unexpectedStatus(OSStatus)
         case dataEncoding

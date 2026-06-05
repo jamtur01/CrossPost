@@ -9,10 +9,17 @@ final class AccountStore: ObservableObject {
     @AppStorage("mastodonUsername") var mastodonUsername: String = ""   // your own acct, to avoid self-mentions
     @AppStorage("blueskyHandle") var blueskyHandle: String = ""
 
-    private let credentials: CredentialStore
+    private let credentials: SecretStoring
 
-    init(credentials: CredentialStore = CredentialStore()) {
-        self.credentials = credentials
+    init(credentials: SecretStoring? = nil) {
+        self.credentials = credentials ?? Self.defaultCredentialStore()
+    }
+
+    /// Real Keychain in normal runs; ephemeral storage when hosted by the unit-test
+    /// runner, so launching the test host doesn't trigger a Keychain password prompt.
+    private static func defaultCredentialStore() -> SecretStoring {
+        let underTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+        return underTests ? EphemeralSecretStore() : CredentialStore()
     }
 
     var mastodonToken: String {
