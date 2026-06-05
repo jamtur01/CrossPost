@@ -33,7 +33,7 @@ targets:
       base:
         ENABLE_HARDENED_RUNTIME: YES
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-  CoreTests:
+  CrossPostTests:
     type: bundle.unit-test
     platform: macOS
     sources:
@@ -49,7 +49,7 @@ schemes:
     build:
       targets:
         CrossPost: all
-        CoreTests: [test]
+        CrossPostTests: [test]
     test:
       targets:
-        - CoreTests
+        - CrossPostTests
