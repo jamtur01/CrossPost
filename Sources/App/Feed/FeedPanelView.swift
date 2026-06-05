@@ -7,6 +7,7 @@ struct FeedPanelView: View {
     @State private var routes: [FeedRoute] = []
 
     private var accent: Color { model.target.accent }
+    private static let topAnchor = "feed-top"
 
     var body: some View {
         VStack(spacing: 0) {
@@ -141,24 +142,32 @@ struct FeedPanelView: View {
         } else if model.posts.isEmpty && model.isLoading {
             Spacer(); ProgressView(); Spacer()
         } else {
-            ScrollView {
-                LazyVStack(spacing: 0) {
-                    ForEach(model.posts) { post in
-                        FeedPostView(
-                            post: post,
-                            accent: accent,
-                            onReply: { replyTarget = post },
-                            onLike: { model.toggleLike(post) },
-                            onRepost: { model.toggleRepost(post) },
-                            onOpen: { model.openInBrowser(post) },
-                            onOpenProfile: { routes.append(.profile(post.profileRef())) },
-                            onOpenURL: { model.open($0) },
-                            onShowParent: post.isReply ? { routes.append(.thread(post)) } : nil,
-                            onOpenDetail: { routes.append(.thread(post)) })
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        Color.clear.frame(height: 0).id(Self.topAnchor)
+                        ForEach(model.posts) { post in
+                            FeedPostView(
+                                post: post,
+                                accent: accent,
+                                onReply: { replyTarget = post },
+                                onLike: { model.toggleLike(post) },
+                                onRepost: { model.toggleRepost(post) },
+                                onOpen: { model.openInBrowser(post) },
+                                onOpenProfile: { routes.append(.profile(post.profileRef())) },
+                                onOpenURL: { model.open($0) },
+                                onShowParent: post.isReply ? { routes.append(.thread(post)) } : nil,
+                                onOpenDetail: { routes.append(.thread(post)) })
+                        }
+                    }
+                }
+                .scrollContentBackground(.hidden)
+                .onChange(of: model.scrollToTopToken) {
+                    withAnimation(.easeOut(duration: 0.25)) {
+                        proxy.scrollTo(Self.topAnchor, anchor: .top)
                     }
                 }
             }
-            .scrollContentBackground(.hidden)
         }
     }
 

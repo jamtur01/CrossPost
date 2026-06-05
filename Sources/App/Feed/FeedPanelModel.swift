@@ -12,6 +12,7 @@ final class FeedPanelModel {
     var errorMessage: String?      // shown only when the feed is empty
     var actionError: String?       // transient banner for failed likes/reposts
     var needsCredentials = false
+    private(set) var scrollToTopToken = 0   // bumped on each user-initiated refresh
 
     private let store: AccountStore
     private var service: FeedService?
@@ -51,6 +52,7 @@ final class FeedPanelModel {
         // could blank an already-populated panel.
         guard hasCredentials else { return }
         if pollTask == nil { startPolling() }
+        scrollToTopToken += 1
         enqueueLoad(reset: false)
     }
 

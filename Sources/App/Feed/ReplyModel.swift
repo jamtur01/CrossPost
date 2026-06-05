@@ -17,25 +17,26 @@ final class ReplyModel {
     init(post: FeedPost, store: AccountStore) {
         self.post = post
         self.store = store
+        self.text = Self.prefill(for: post, store: store)
+    }
 
-        // Prefill the reply with everyone it should mention: the author plus anyone
-        // the parent post mentioned, de-duplicated and excluding your own handle.
-        // Mastodon needs these in the text to mention/notify; Bluesky turns each
-        // "@handle" into a mention facet.
-        let ownHandle: String
-        switch post.target {
-        case .mastodon: ownHandle = store.mastodonUsername.isEmpty ? "" : "@\(store.mastodonUsername)"
-        case .bluesky: ownHandle = store.blueskyHandle.isEmpty ? "" : "@\(store.blueskyHandle)"
-        }
+    /// Mastodon needs the people a reply addresses named in the body to mention and
+    /// notify them, so we seed the author plus anyone the parent mentioned
+    /// (de-duplicated, excluding your own handle). Bluesky threads replies through
+    /// the parent reference and notifies the author on its own, so it starts empty.
+    private static func prefill(for post: FeedPost, store: AccountStore) -> String {
+        guard post.target == .mastodon else { return "" }
+        let ownHandle = store.mastodonUsername.isEmpty ? "" : "@\(store.mastodonUsername)"
         var seen: Set<String> = []
         var mentions: [String] = []
         for handle in [post.authorHandle] + post.mentionHandles {
             let trimmed = handle.trimmingCharacters(in: .whitespaces)
             let key = trimmed.lowercased()
-            guard !trimmed.isEmpty, key != ownHandle.lowercased(), seen.insert(key).inserted else { continue }
+            guard !trimmed.isEmpty, key != ownHandle.lowercased(),
+                  seen.insert(key).inserted else { continue }
             mentions.append(trimmed)
         }
-        self.text = mentions.isEmpty ? "" : mentions.joined(separator: " ") + " "
+        return mentions.isEmpty ? "" : mentions.joined(separator: " ") + " "
     }
 
     var limit: Int {
