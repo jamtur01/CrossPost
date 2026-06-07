@@ -12,13 +12,22 @@ posts without leaving the window.
   images (and alt text). Posts are validated first: if anything is empty or over a
   network's limit (Bluesky 300, Mastodon from your instance), nothing is sent and
   the offending post/network is named.
-- **Live feeds** per network with **Home** and **Mentions** tabs that auto-refresh
-  (~60s) plus a manual refresh.
-- **Per-post actions** — reply (scoped to that one network, cross-post disabled),
-  like/favourite, repost/boost, and open the original in your browser.
-- **Boosts/reposts** render the original post with a "boosted by" attribution.
-- Credentials are stored in the **macOS Keychain**; instance URL and handle live in
-  app preferences.
+- **Feeds** per network with **Home**, **Notifications**, and (Bluesky) **Messages**
+  tabs. Mastodon refreshes live over its streaming socket; both poll (~60s) and
+  refresh manually. The notification tab carries an unread badge.
+- **Per-post actions** — reply (scoped to that one network), like/favourite,
+  repost/boost, bookmark, delete and pin your own posts, see who liked or reposted,
+  and open the original in your browser.
+- **Rich rendering** — inline images, animated GIFs and video, link preview cards,
+  quoted posts, and clickable links and mentions. Boosts/reposts show a "boosted by"
+  attribution.
+- **In-app profiles & threads** — tap an avatar, mention, or profile link to open a
+  profile or expand a thread in place, with followers/following lists.
+- **Social graph** — follow/unfollow, mute, and block from a profile.
+- **Direct messages** — read and send Bluesky DMs in the Messages tab.
+- **Sandboxed**, Developer ID-signed and notarized. Credentials are stored in the
+  **macOS Keychain** (this-device-only); instance URL and handle live in app
+  preferences.
 
 ## Requirements
 
@@ -65,10 +74,14 @@ a feed.
 - **Compose** (left column): type a post; **Add post to thread** stacks more posts
   inline; attach images with alt text. Toggle **Mastodon** / **Bluesky** (both on by
   default) and press **Post** (⌘↩). On success the box clears and the feed columns
-  you posted to refresh — no popup. Per-network failures show inline.
-- **Feeds** (middle/right): switch **Home** / **Mentions**, refresh, and on any post
-  use **reply**, **like**, **repost**, or **open in browser**. Replies open a sheet
-  scoped to that network only.
+  you posted to refresh — no popup. Per-network failures show inline; a target that
+  already received the current post is locked until you edit it, so a partial
+  cross-post can't be sent twice.
+- **Feeds** (middle/right): switch **Home** / **Notifications** / **Messages**,
+  refresh, and on any post use **reply**, **like**, **repost**, **bookmark**, or the
+  overflow menu (**delete**/**pin** your own, **open in browser**, who liked or
+  reposted). Replies open a sheet scoped to that network only. Tap an avatar,
+  mention, or profile link to open a profile or thread in place.
 
 ### Behavior notes
 
@@ -76,21 +89,30 @@ a feed.
   modeled, so the check is slightly stricter than Mastodon requires.
 - Threads link automatically (each post replies to the previous).
 - Networks are independent — if a post fails on one, the other still goes through.
-- Bluesky images are re-encoded to JPEG under the 1 MB per-image limit (max 4).
+- Bluesky images are re-encoded to JPEG under the 1 MB per-image limit (max 4);
+  Mastodon allows up to 10 MB.
+- Feeds, profiles, and notifications are fetched several pages deep at each
+  platform's maximum page size.
+- Only `http`/`https` links are tappable; other schemes from remote content are
+  rendered as plain text.
 
 ## Architecture
 
 - `Sources/Core` — UI-independent, unit-tested logic: models, `PostValidator`,
   `runThread` (thread linking), `CrossPostCoordinator`, `CredentialStore` (Keychain),
   `ImageProcessor`, and the `MastodonPoster`/`BlueskyPoster` adapters.
-- `Sources/Core/Feed` — feed logic: the SDK-free `FeedPost` model, the `FeedService`
-  adapters over both SDKs, and the unit-tested `HTMLRenderer`, `FeedMerge`, and
-  `BlueskyThreadRef` helpers.
-- `Sources/App` — SwiftUI: the three-column `MainView`, feed panels and post cards,
+- `Sources/Core/Feed` — feed logic: the SDK-free `FeedPost`/`FeedNotification`/
+  `Conversation` models, the `FeedService` adapters over both SDKs (feeds,
+  notifications, DMs, social graph, post management), and the unit-tested
+  `HTMLRenderer`, `RichTextLinks`, `WebLink`, `FeedMerge`, and `BlueskyThreadRef`
+  helpers.
+- `Sources/App` — SwiftUI: the three-column `MainView`, feed panels with in-place
+  navigation (post cards, threads, profiles, notifications, messages, media players),
   reply sheet, the compose column, settings, and the
   `AccountStore`/`PosterFactory`/`FeedServiceFactory` glue.
 
-Built on [TootSDK](https://github.com/TootSDK/TootSDK) (Mastodon) and
+The app runs in the App Sandbox (`CrossPost.entitlements`). Built on
+[TootSDK](https://github.com/TootSDK/TootSDK) (Mastodon) and
 [ATProtoKit](https://github.com/MasterJ93/ATProtoKit) (Bluesky). The app icon is
 generated by `scripts/make_app_icon.swift`.
 
@@ -102,21 +124,39 @@ xcodebuild test -project CrossPost.xcodeproj -scheme CrossPost -destination 'pla
 
 ## Continuous integration & releases
 
-- **CI** (`.github/workflows/ci.yml`) builds and runs the tests on every push to
-  `main` and on pull requests.
-- **Releases** (`.github/workflows/release.yml`) trigger on `v*` tags: they build a
-  Apple Silicon Release bundle, **code-sign it with a Developer ID and notarize it
-  with Apple**, then publish a GitHub Release with the zipped app attached. Cut one
-  with:
+**CI** (`.github/workflows/ci.yml`) builds and runs the tests on every push to
+`main` and on pull requests.
 
-  ```bash
-  git tag v0.1.0
-  git push origin v0.1.0
-  ```
+**Releases** (`.github/workflows/release.yml`) trigger on `v*` tags: they build an
+Apple Silicon Release bundle, stamp its version from the tag, **code-sign it with a
+Developer ID and notarize it with Apple**, then publish a GitHub Release whose notes
+are taken from the matching `CHANGELOG.md` section, with the zipped app attached.
 
-  Signing/notarization requires these repository secrets: `MACOS_CERTIFICATE_P12`,
-  `MACOS_CERTIFICATE_PASSWORD`, `MACOS_CODESIGN_IDENTITY`, `APPLE_ID`,
-  `MACOS_API_ISSUER_ID` (your Developer Team ID), and `APPLE_APP_SPECIFIC_PASSWORD`.
+### Cutting a release
+
+1. **Add a `CHANGELOG.md` entry** for the new version, e.g. `## [0.4.3] - 2026-06-08`,
+   following [Keep a Changelog](https://keepachangelog.com/) (Added / Changed / Fixed),
+   and add its link reference at the bottom of the file. This is **required**: the
+   release workflow fails fast if the tag has no matching changelog section.
+2. Commit and push to `main`.
+3. Tag and push (the tag must be `v` + the changelog version):
+
+   ```bash
+   git tag v0.4.3
+   git push origin v0.4.3
+   ```
+
+The workflow builds, signs, notarizes, and publishes the release with notes from the
+changelog. The bundle's `MARKETING_VERSION` is set from the tag, so it reports the
+version it shipped as — no manual `project.yml` bump needed for releases.
+
+To rewrite **existing** releases' notes after editing `CHANGELOG.md`, run the
+**Sync Release Notes** workflow (`.github/workflows/sync-release-notes.yml`) from the
+Actions tab.
+
+Signing/notarization requires these repository secrets: `MACOS_CERTIFICATE_P12`,
+`MACOS_CERTIFICATE_PASSWORD`, `MACOS_CODESIGN_IDENTITY`, `APPLE_ID`,
+`MACOS_API_ISSUER_ID` (your Developer Team ID), and `APPLE_APP_SPECIFIC_PASSWORD`.
 
 ## License
 

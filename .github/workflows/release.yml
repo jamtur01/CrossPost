@@ -18,6 +18,14 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v5
+      - name: Require a CHANGELOG entry for this tag
+        run: |
+          version="${GITHUB_REF#refs/tags/v}"
+          if ! grep -qE "^## \[${version//./\\.}\]" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md has no '## [$version]' section. Add one before tagging v$version."
+            exit 1
+          fi
+          echo "Found CHANGELOG entry for $version."
       - name: Cache SwiftPM
         uses: actions/cache@v5
         with:
