@@ -124,6 +124,22 @@ public struct MastodonFeedService: FeedService {
             webURL: URL(string: account.url))
     }
 
+    /// Map a Mastodon attachment to feed media. Animated GIFs arrive as `gifv`
+    /// (a looping MP4) and video as `video`; both play inline. Audio is skipped.
+    static func media(from att: MediaAttachment) -> FeedImage? {
+        guard let url = URL(string: att.url) else { return nil }
+        let type = att.type.value
+        if type == .image {
+            return FeedImage(url: url, altText: att.description ?? "")
+        }
+        if type == .gifv || type == .video {
+            return FeedImage(url: url, altText: att.description ?? "", kind: .video,
+                             previewURL: att.previewUrl.flatMap(URL.init(string:)),
+                             aspectRatio: att.aspectRatio)
+        }
+        return nil
+    }
+
     static func linkCard(from card: Card?) -> LinkCard? {
         guard let card, let url = URL(string: card.url) else { return nil }
         let provider = card.providerName?.isEmpty == false ? card.providerName! : (url.host ?? "")
@@ -152,12 +168,7 @@ public struct MastodonFeedService: FeedService {
         let boostedBy = post.displayingRepost
             ? (post.account.displayName?.isEmpty == false ? post.account.displayName! : post.account.acct)
             : nil
-        let images = display.mediaAttachments
-            .filter { $0.type.value == .image }
-            .compactMap { att -> FeedImage? in
-                guard let url = URL(string: att.url) else { return nil }
-                return FeedImage(url: url, altText: att.description ?? "")
-            }
+        let images = display.mediaAttachments.compactMap { Self.media(from: $0) }
         return FeedPost(
             // Identify by the outer timeline entry, not `display.id`: the same status
             // boosted by several people must stay distinct (else ForEach IDs collide

@@ -61,12 +61,7 @@ struct PostCardView: View {
         }
         .padding(14)
         .frame(maxHeight: fills ? .infinity : nil)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color(nsColor: .textBackgroundColor)))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.10)))
+        .cardSurface()
     }
 
     private var editor: some View {

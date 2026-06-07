@@ -55,7 +55,7 @@ struct FeedPostView: View {
         let base = Text(styledText)
             .font(expanded ? Theme.contentLarge : Theme.content)
             .tint(accent)
-            .lineSpacing(1.5)
+            .lineSpacing(Theme.bodyLineSpacing)
             .frame(maxWidth: .infinity, alignment: .leading)
             .fixedSize(horizontal: false, vertical: true)
             // Route link taps (mentions, URLs) through the app so profile links can
@@ -97,14 +97,14 @@ struct FeedPostView: View {
                     .frame(width: expanded ? Theme.avatarLarge : Theme.avatar,
                            height: expanded ? Theme.avatarLarge : Theme.avatar)
                     .clipShape(Circle())
-                    .overlay(Circle().strokeBorder(accent.opacity(0.30), lineWidth: 1.5))
+                    .overlay(Circle().strokeBorder(Theme.avatarRing, lineWidth: 0.5))
 
-                    VStack(alignment: .leading, spacing: 1) {
+                    VStack(alignment: .leading, spacing: 2) {
                         Text(post.authorName)
                             .font(expanded ? Theme.nameLarge : Theme.name)
                             .lineLimit(1)
                         Text(post.authorHandle)
-                            .font(Theme.meta)
+                            .font(Theme.handle)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                     }
@@ -127,8 +127,8 @@ struct FeedPostView: View {
         if !post.images.isEmpty {
             if expanded {
                 VStack(spacing: 8) {
-                    ForEach(post.images) { image in
-                        mediaImage(image, contentMode: .fit)
+                    ForEach(post.images) { media in
+                        mediaView(media, fit: true)
                             .frame(maxWidth: .infinity)
                             .clipShape(RoundedRectangle(cornerRadius: Theme.mediaCorner, style: .continuous))
                     }
@@ -136,8 +136,8 @@ struct FeedPostView: View {
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 6) {
-                        ForEach(post.images) { image in
-                            mediaImage(image, contentMode: .fill)
+                        ForEach(post.images) { media in
+                            mediaView(media, fit: false)
                                 .frame(width: 156, height: 116)
                                 .clipShape(RoundedRectangle(cornerRadius: Theme.mediaCorner, style: .continuous))
                         }
@@ -147,30 +147,64 @@ struct FeedPostView: View {
         }
     }
 
-    private func mediaImage(_ image: FeedImage, contentMode: ContentMode) -> some View {
-        AsyncImage(url: image.url) { img in
-            img.resizable().aspectRatio(contentMode: contentMode)
+    @ViewBuilder
+    private func mediaView(_ media: FeedImage, fit: Bool) -> some View {
+        switch media.kind {
+        case .image:
+            staticImage(media.url, fit: fit)
+                .accessibilityLabel(media.altText.isEmpty ? "Image" : media.altText)
+        case .gif:
+            motion(AnimatedGIFView(url: media.url), media: media, fit: fit, badge: "GIF")
+        case .video:
+            motion(LoopingVideoView(url: media.url, gravity: fit ? .resizeAspect : .resizeAspectFill),
+                   media: media, fit: fit, badge: nil)
+        }
+    }
+
+    private func staticImage(_ url: URL, fit: Bool) -> some View {
+        AsyncImage(url: url) { img in
+            img.resizable().aspectRatio(contentMode: fit ? .fit : .fill)
         } placeholder: {
             RoundedRectangle(cornerRadius: Theme.mediaCorner).fill(.quaternary).frame(height: 120)
         }
-        .accessibilityLabel(image.altText.isEmpty ? "Image" : image.altText)
+    }
+
+    @ViewBuilder
+    private func motion(_ content: some View, media: FeedImage, fit: Bool, badge: String?) -> some View {
+        Group {
+            if fit {
+                content.aspectRatio(media.aspectRatio ?? 1.5, contentMode: .fit)
+            } else {
+                content
+            }
+        }
+        .overlay(alignment: .bottomTrailing) {
+            if let badge { mediaBadge(badge) }
+        }
+        .accessibilityLabel(media.altText.isEmpty ? "Animated media" : media.altText)
+    }
+
+    private func mediaBadge(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 9, weight: .bold))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 5).padding(.vertical, 2)
+            .background(.black.opacity(0.55), in: Capsule())
+            .padding(6)
     }
 
     private var actionBar: some View {
-        HStack(spacing: 0) {
-            countAction("bubble.left", count: post.replyCount, active: false,
+        HStack(spacing: Theme.actionGap) {
+            countAction("bubble", count: post.replyCount, active: false,
                         tint: accent, help: "Reply", action: onReply)
-            Spacer()
             countAction("arrow.2.squarepath", count: post.repostCount, active: post.isReposted,
                         tint: .green, help: "Repost", action: onRepost)
-            Spacer()
             countAction(post.isLiked ? "heart.fill" : "heart", count: post.likeCount,
                         active: post.isLiked, tint: .pink, help: "Like", action: onLike)
-            Spacer()
+            Spacer(minLength: 0)
             iconAction("square.and.arrow.up", help: "Open in browser", action: onOpen)
         }
-        .padding(.top, 3)
-        .padding(.trailing, 2)
+        .padding(.top, 4)
     }
 
     private func countAction(_ symbol: String, count: Int, active: Bool, tint: Color,
@@ -183,12 +217,12 @@ struct FeedPostView: View {
                     .foregroundStyle(active ? tint : Color.secondary)
                 if count > 0 {
                     Text(count.formatted(.number.notation(.compactName)))
-                        .font(.system(size: 12).monospacedDigit())
+                        .font(Theme.count)
                         .foregroundStyle(active ? tint : Color.secondary)
                 }
             }
-            .padding(.vertical, 4)
-            .padding(.horizontal, 5)
+            .padding(.vertical, 5)
+            .padding(.horizontal, 3)
             .contentShape(Rectangle())
             .animation(.snappy, value: active)
         }
@@ -211,7 +245,7 @@ struct FeedPostView: View {
 
     private var rowBackground: some View {
         Rectangle()
-            .fill(hovering && inTimeline ? accent.opacity(0.06) : .clear)
+            .fill(hovering && inTimeline ? Theme.hoverFill : .clear)
             .animation(.easeOut(duration: 0.12), value: hovering)
     }
 }

@@ -141,6 +141,27 @@ public struct BlueskyFeedService: FeedService {
         }
     }
 
+    static func videoMedia(from view: AppBskyLexicon.Embed.VideoDefinition.View) -> FeedImage? {
+        guard let url = URL(string: view.playlistURI) else { return nil }
+        return FeedImage(url: url, altText: view.altText ?? "", kind: .video,
+                         previewURL: view.thumbnailImageURL.flatMap(URL.init(string:)),
+                         aspectRatio: Self.aspect(view.aspectRatio))
+    }
+
+    static func aspect(_ ratio: AppBskyLexicon.Embed.AspectRatioDefinition?) -> Double? {
+        guard let ratio, ratio.height > 0 else { return nil }
+        return Double(ratio.width) / Double(ratio.height)
+    }
+
+    /// Bluesky GIFs (Tenor/Giphy) arrive as external embeds; play them inline when
+    /// the link is a direct `.gif`, otherwise they fall back to a link card.
+    static func gifMedia(from external: AppBskyLexicon.Embed.ExternalDefinition.ViewExternal) -> FeedImage? {
+        guard let url = URL(string: external.uri),
+              url.absoluteString.split(separator: "?").first?.lowercased().hasSuffix(".gif") == true
+        else { return nil }
+        return FeedImage(url: url, altText: external.title, kind: .gif, previewURL: external.thumbnailImageURL)
+    }
+
     static func linkCard(from external: AppBskyLexicon.Embed.ExternalDefinition.ViewExternal) -> LinkCard? {
         guard let url = URL(string: external.uri) else { return nil }
         return LinkCard(url: url, title: external.title, description: external.description,
@@ -252,8 +273,11 @@ public struct BlueskyFeedService: FeedService {
             switch embed {
             case .embedImagesView(let view):
                 images = view.images.map { FeedImage(url: $0.fullSizeImageURL, altText: $0.altText) }
+            case .embedVideoView(let view):
+                if let media = Self.videoMedia(from: view) { images = [media] }
             case .embedExternalView(let view):
-                card = linkCard(from: view.external)
+                if let gif = Self.gifMedia(from: view.external) { images = [gif] }
+                else { card = linkCard(from: view.external) }
             case .embedRecordView(let view):
                 quoted = quotedPost(fromRecordView: view)
             case .embedRecordWithMediaView(let view):
@@ -261,8 +285,11 @@ public struct BlueskyFeedService: FeedService {
                 switch view.media {
                 case .embedImagesView(let v):
                     images = v.images.map { FeedImage(url: $0.fullSizeImageURL, altText: $0.altText) }
+                case .embedVideoView(let v):
+                    if let media = Self.videoMedia(from: v) { images = [media] }
                 case .embedExternalView(let v):
-                    card = linkCard(from: v.external)
+                    if let gif = Self.gifMedia(from: v.external) { images = [gif] }
+                    else { card = linkCard(from: v.external) }
                 default:
                     break
                 }

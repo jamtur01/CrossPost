@@ -1,14 +1,23 @@
 import Foundation
 
 public struct FeedImage: Identifiable, Equatable, Sendable {
-    public let id: String
-    public let url: URL
-    public let altText: String
+    public enum Kind: Sendable, Equatable { case image, gif, video }
 
-    public init(url: URL, altText: String) {
+    public let id: String
+    public let url: URL             // image URL, or the looping MP4 for a gif/video
+    public let previewURL: URL?     // static poster for a gif/video
+    public let altText: String
+    public let kind: Kind
+    public let aspectRatio: Double?
+
+    public init(url: URL, altText: String, kind: Kind = .image,
+                previewURL: URL? = nil, aspectRatio: Double? = nil) {
         self.id = url.absoluteString
         self.url = url
+        self.previewURL = previewURL
         self.altText = altText
+        self.kind = kind
+        self.aspectRatio = aspectRatio
     }
 }
 

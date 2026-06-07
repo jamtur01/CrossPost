@@ -52,22 +52,16 @@ struct FeedPanelView: View {
     // MARK: Headers
 
     private var platformHeader: some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: 9) {
+            HStack(spacing: 7) {
                 Image(systemName: model.target.glyph)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: 15))
                     .foregroundStyle(accent)
-                Text(model.target.displayName).font(.headline)
+                Text(model.target.displayName).font(Theme.columnTitle)
                 Spacer()
-                if model.isLoading { ProgressView().controlSize(.small) }
-                Button { routes.append(.profile(myRef)) } label: {
-                    Image(systemName: "person.crop.circle").font(.system(size: 14, weight: .medium))
-                }
-                .buttonStyle(.borderless).foregroundStyle(accent).help("My profile")
-                Button { model.refresh() } label: {
-                    Image(systemName: "arrow.clockwise").font(.system(size: 13, weight: .medium))
-                }
-                .buttonStyle(.borderless).foregroundStyle(accent).help("Refresh")
+                if model.isLoading { ProgressView().controlSize(.small).scaleEffect(0.8) }
+                headerIcon("person.crop.circle", help: "My profile") { routes.append(.profile(myRef)) }
+                headerIcon("arrow.clockwise", help: "Refresh") { model.refresh() }
             }
 
             Picker("Feed", selection: Binding(get: { model.kind }, set: { model.switchTo($0) })) {
@@ -75,35 +69,35 @@ struct FeedPanelView: View {
             }
             .pickerStyle(.segmented).labelsHidden()
             .tint(accent)
+            .fixedSize()
         }
-        .padding(.horizontal, 16).padding(.top, 10).padding(.bottom, 10)
-        .background(headerBackground)
-        .overlay(alignment: .bottom) { accentRule }
+        .padding(.horizontal, Theme.headerPaddingH).padding(.top, 10).padding(.bottom, 9)
+        .background(.bar)
+        .overlay(alignment: .bottom) { Divider() }
+    }
+
+    private func headerIcon(_ symbol: String, help: String,
+                            action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol).font(.system(size: 13, weight: .medium))
+        }
+        .buttonStyle(.borderless)
+        .foregroundStyle(.secondary)
+        .help(help)
     }
 
     private var navHeader: some View {
         HStack(spacing: 8) {
             Button { _ = routes.popLast() } label: {
-                Image(systemName: "chevron.left").font(.system(size: 13, weight: .semibold))
+                Image(systemName: "chevron.left").font(.system(size: 14, weight: .semibold))
             }
             .buttonStyle(.borderless).foregroundStyle(accent).help("Back")
-            Text(navTitle).font(.headline).lineLimit(1)
+            Text(navTitle).font(Theme.columnTitle).lineLimit(1)
             Spacer()
         }
-        .padding(.horizontal, 16).padding(.top, 11).padding(.bottom, 11)
-        .background(headerBackground)
-        .overlay(alignment: .bottom) { accentRule }
-    }
-
-    private var headerBackground: some View {
-        ZStack {
-            Rectangle().fill(.bar)
-            accent.opacity(0.12)
-        }
-    }
-
-    private var accentRule: some View {
-        Rectangle().fill(accent.opacity(0.35)).frame(height: 1)
+        .padding(.horizontal, Theme.headerPaddingH).padding(.vertical, 11)
+        .background(.bar)
+        .overlay(alignment: .bottom) { Divider() }
     }
 
     private var navTitle: String {

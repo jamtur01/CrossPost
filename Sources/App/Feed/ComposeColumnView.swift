@@ -19,12 +19,14 @@ struct ComposeColumnView: View {
         let limit = model.selectedTargets.contains(.bluesky)
             ? TargetLimits.blueskyMax : store.mastodonMaxChars
         VStack(spacing: 0) {
-            HStack(spacing: 8) {
-                Image(systemName: "square.and.pencil").font(.system(size: 13, weight: .medium))
-                Text("New Post").font(.headline)
+            HStack(spacing: 7) {
+                Image(systemName: "square.and.pencil")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(.secondary)
+                Text("New Post").font(Theme.columnTitle)
                 Spacer()
             }
-            .padding(.horizontal, 16).padding(.top, 10).padding(.bottom, 10)
+            .padding(.horizontal, Theme.headerPaddingH).padding(.top, 10).padding(.bottom, 9)
             .background(.bar)
 
             Divider()
@@ -106,14 +108,24 @@ struct ComposeColumnView: View {
     private func targetPill(_ target: PostTarget, selected: Bool,
                             action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Text(target.displayName)
-                .font(.callout.weight(.medium))
-                .padding(.horizontal, 12).padding(.vertical, 6)
-                .background(
-                    Capsule().fill(selected ? target.accent : Color.secondary.opacity(0.14)))
-                .foregroundStyle(selected ? .white : .secondary)
+            HStack(spacing: 5) {
+                Image(systemName: target.glyph).font(.system(size: 12))
+                Text(target.displayName).font(.system(size: 12.5, weight: .medium))
+            }
+            .lineLimit(1)
+            .fixedSize()
+            .padding(.horizontal, 10).padding(.vertical, 5)
+            .foregroundStyle(selected ? target.accent : .secondary)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(selected ? target.accent.opacity(0.14) : Color.primary.opacity(0.05)))
+            .overlay(
+                Capsule(style: .continuous)
+                    .strokeBorder(selected ? target.accent.opacity(0.45) : Color.primary.opacity(0.08),
+                                  lineWidth: 1))
         }
         .buttonStyle(.plain)
+        .animation(.snappy(duration: 0.15), value: selected)
         .help(selected ? "Posting to \(target.displayName)" : "Not posting to \(target.displayName)")
     }
 
