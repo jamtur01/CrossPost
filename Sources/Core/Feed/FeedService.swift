@@ -55,4 +55,15 @@ public protocol FeedService: Sendable {
     /// Accounts that liked / reposted a post.
     func likedBy(_ post: FeedPost) async throws -> [Profile]
     func repostedBy(_ post: FeedPost) async throws -> [Profile]
+
+    // MARK: Direct messages
+
+    /// Whether this platform supports direct messages in the app.
+    var supportsDirectMessages: Bool { get }
+    /// The user's DM conversations.
+    func conversations() async throws -> [Conversation]
+    /// Messages in a conversation, oldest first.
+    func messages(in conversationID: String) async throws -> [DirectMessage]
+    /// Send a message to a conversation.
+    func sendMessage(_ text: String, to conversationID: String) async throws
 }

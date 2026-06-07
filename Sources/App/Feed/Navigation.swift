@@ -40,12 +40,14 @@ enum FeedRoute: Identifiable {
     case thread(FeedPost)
     case profile(ProfileRef)
     case profileList(ProfileListRef)
+    case conversation(Conversation)
 
     var id: String {
         switch self {
         case .thread(let post): return "thread:\(post.id)"
         case .profile(let ref): return "profile:\(ref.id):\(ref.isMe)"
         case .profileList(let ref): return "list:\(ref.id)"
+        case .conversation(let convo): return "convo:\(convo.id)"
         }
     }
 }

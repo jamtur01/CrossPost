@@ -5,11 +5,13 @@ public struct BlueskyFeedService: FeedService {
     public let target: PostTarget = .bluesky
     private let kit: ATProtoKit
     private let bluesky: ATProtoBluesky
+    private let chat: ATProtoBlueskyChat
     private let handle: String
 
     public init(kit: ATProtoKit, bluesky: ATProtoBluesky, handle: String) {
         self.kit = kit
         self.bluesky = bluesky
+        self.chat = ATProtoBlueskyChat(atProtoKitInstance: kit)
         self.handle = handle
     }
 
@@ -18,8 +20,8 @@ public struct BlueskyFeedService: FeedService {
         case .home:
             let output = try await kit.getTimeline()
             return output.feed.compactMap { Self.feedPost(from: $0, handle: handle) }
-        case .notifications:
-            return []   // notifications load through `notifications()`, not as posts
+        case .notifications, .messages:
+            return []   // these load through their own methods, not as posts
         }
     }
 
@@ -293,6 +295,46 @@ public struct BlueskyFeedService: FeedService {
     public func repostedBy(_ post: FeedPost) async throws -> [Profile] {
         guard case .bluesky(let uri, _, _, _) = post.nativeRef else { return [] }
         return try await kit.getRepostedBy(uri).repostedBy.map { Self.profile(fromBasic: $0) }
+    }
+
+    public var supportsDirectMessages: Bool { true }
+
+    public func conversations() async throws -> [Conversation] {
+        let myDID = try await kit.getProfile(for: handle).actorDID
+        let output = try await chat.listConversations()
+        return output.conversations.compactMap { convo in
+            guard let other = convo.members.first(where: { $0.actorDID != myDID }) else { return nil }
+            let last = Self.lastMessage(convo.lastMessage)
+            return Conversation(
+                id: convo.conversationID,
+                otherName: other.displayName?.isEmpty == false ? other.displayName! : other.actorHandle,
+                otherHandle: "@\(other.actorHandle)", otherID: other.actorDID,
+                otherAvatarURL: other.avatarImageURL,
+                lastMessage: last.text, lastDate: last.date, unreadCount: convo.unreadCount)
+        }
+    }
+
+    public func messages(in conversationID: String) async throws -> [DirectMessage] {
+        let myDID = try await kit.getProfile(for: handle).actorDID
+        let output = try await chat.getMessages(from: conversationID)
+        let messages = output.messages.compactMap { message -> DirectMessage? in
+            guard case .messageView(let m) = message else { return nil }
+            return DirectMessage(id: m.messageID, text: m.text, date: m.sentAt,
+                                 isFromMe: m.sender.authorDID == myDID)
+        }
+        return messages.reversed()   // getMessages returns newest-first; show oldest-first
+    }
+
+    public func sendMessage(_ text: String, to conversationID: String) async throws {
+        _ = try await chat.sendMessage(
+            to: conversationID,
+            message: ChatBskyLexicon.Conversation.MessageInputDefinition(text: text))
+    }
+
+    static func lastMessage(_ union: ChatBskyLexicon.Conversation.ConversationViewDefinition.LastMessageUnion?)
+        -> (text: String?, date: Date?) {
+        guard case .messageView(let m)? = union else { return (nil, nil) }
+        return (m.text, m.sentAt)
     }
 
     public func relationship(with id: String) async throws -> AccountRelationship {

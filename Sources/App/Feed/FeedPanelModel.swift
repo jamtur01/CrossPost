@@ -13,6 +13,7 @@ final class FeedPanelModel {
     var actionError: String?       // transient banner for failed likes/reposts
     var needsCredentials = false
     var notifications: [FeedNotification] = []
+    var conversations: [Conversation] = []
     var unreadCount = 0
     private(set) var scrollToTopToken = 0   // bumped on each user-initiated refresh
 
@@ -82,6 +83,11 @@ final class FeedPanelModel {
                 notifications = fetched
                 try? await svc.markNotificationsRead()
                 unreadCount = 0
+            } else if kind == .messages {
+                let fetched = try await svc.conversations()
+                if Task.isCancelled { return }
+                errorMessage = nil
+                conversations = fetched
             } else {
                 let fetched = try await svc.loadFeed(kind)
                 if Task.isCancelled { return }   // a newer load superseded this one
@@ -245,6 +251,14 @@ final class FeedPanelModel {
                 updatePost(post.id) { $0 = updated }
             } catch { showActionError(error.userMessage) }
         }
+    }
+
+    func messages(in conversationID: String) async -> [DirectMessage] {
+        (try? await resolveService().messages(in: conversationID)) ?? []
+    }
+
+    func sendMessage(_ text: String, to conversationID: String) async throws {
+        try await resolveService().sendMessage(text, to: conversationID)
     }
 
     func likedBy(_ post: FeedPost) async -> [Profile] {

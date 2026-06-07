@@ -12,8 +12,8 @@ public struct MastodonFeedService: FeedService {
         case .home:
             let posts = try await client.getTimeline(.home).result
             return posts.map { Self.feedPost(from: $0) }
-        case .notifications:
-            return []   // notifications load through `notifications()`, not as posts
+        case .notifications, .messages:
+            return []   // these load through their own methods, not as posts
         }
     }
 
@@ -155,6 +155,17 @@ public struct MastodonFeedService: FeedService {
     public func repostedBy(_ post: FeedPost) async throws -> [Profile] {
         guard case .mastodon(let id) = post.nativeRef else { return [] }
         return try await client.getAccountsBoosted(id: id).result.map { Self.profile(from: $0) }
+    }
+
+    public var supportsDirectMessages: Bool { false }
+    public func conversations() async throws -> [Conversation] {
+        throw FeedError.notSupported("Direct messages aren't supported for Mastodon yet.")
+    }
+    public func messages(in conversationID: String) async throws -> [DirectMessage] {
+        throw FeedError.notSupported("Direct messages aren't supported for Mastodon yet.")
+    }
+    public func sendMessage(_ text: String, to conversationID: String) async throws {
+        throw FeedError.notSupported("Direct messages aren't supported for Mastodon yet.")
     }
 
     public func relationship(with id: String) async throws -> AccountRelationship {

@@ -9,6 +9,11 @@ struct FeedPanelView: View {
     private var accent: Color { model.target.accent }
     private static let topAnchor = "feed-top"
 
+    // Messages is only available where the platform supports DMs (Bluesky for now).
+    private var availableKinds: [FeedKind] {
+        model.target == .bluesky ? FeedKind.allCases : [.home, .notifications]
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             if routes.isEmpty {
@@ -66,7 +71,7 @@ struct FeedPanelView: View {
 
             HStack(spacing: 8) {
                 Picker("Feed", selection: Binding(get: { model.kind }, set: { model.switchTo($0) })) {
-                    ForEach(FeedKind.allCases) { kind in Text(kind.title).tag(kind) }
+                    ForEach(availableKinds) { kind in Text(kind.title).tag(kind) }
                 }
                 .pickerStyle(.segmented).labelsHidden()
                 .tint(accent)
@@ -115,6 +120,7 @@ struct FeedPanelView: View {
         case .thread: return "Thread"
         case .profile(let ref): return ref.name
         case .profileList(let ref): return ref.title
+        case .conversation(let convo): return convo.otherName
         case .none: return ""
         }
     }
@@ -135,6 +141,8 @@ struct FeedPanelView: View {
             ProfileView(panel: model, store: store, ref: ref) { routes.append($0) }
         case .profileList(let ref):
             ProfileListView(panel: model, ref: ref) { routes.append($0) }
+        case .conversation(let convo):
+            ConversationView(panel: model, conversation: convo)
         case .none:
             EmptyView()
         }
@@ -146,6 +154,8 @@ struct FeedPanelView: View {
             connectState
         } else if model.kind == .notifications {
             NotificationsListView(model: model) { routes.append($0) }
+        } else if model.kind == .messages {
+            MessagesListView(model: model) { routes.append($0) }
         } else if let error = model.errorMessage, model.posts.isEmpty {
             emptyState(error, systemImage: "exclamationmark.triangle")
         } else if model.posts.isEmpty && model.isLoading {
