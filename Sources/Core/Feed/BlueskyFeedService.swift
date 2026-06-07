@@ -15,22 +15,43 @@ public struct BlueskyFeedService: FeedService {
         self.handle = handle
     }
 
+    /// Fetch up to ~`target` items by following the Bluesky cursor a few pages
+    /// deep (the per-page max is 100).
+    private func paged<T>(target: Int, maxPages: Int,
+                          _ fetch: (String?) async throws -> (items: [T], cursor: String?)) async throws -> [T] {
+        var collected: [T] = []
+        var cursor: String?
+        for _ in 0..<maxPages {
+            let (items, next) = try await fetch(cursor)
+            collected += items
+            guard collected.count < target, !items.isEmpty, let next else { break }
+            cursor = next
+        }
+        return collected
+    }
+
     public func loadFeed(_ kind: FeedKind) async throws -> [FeedPost] {
         switch kind {
         case .home:
-            let output = try await kit.getTimeline()
-            return output.feed.compactMap { Self.feedPost(from: $0, handle: handle) }
+            let feed = try await paged(target: 100, maxPages: 2) {
+                let output = try await kit.getTimeline(limit: 100, cursor: $0)
+                return (output.feed, output.cursor)
+            }
+            return feed.compactMap { Self.feedPost(from: $0, handle: handle) }
         case .notifications, .messages:
             return []   // these load through their own methods, not as posts
         }
     }
 
     public func notifications() async throws -> [FeedNotification] {
-        let output = try await kit.listNotifications()
+        let notes = try await paged(target: 100, maxPages: 2) {
+            let output = try await kit.listNotifications(limit: 100, cursor: $0)
+            return (output.notifications, output.cursor)
+        }
         // Hydrate the related posts: the mention/reply/quote itself, and the liked/
         // reposted subject. Fetching full post views gives us embeds and counts.
         var uris = Set<String>()
-        for n in output.notifications {
+        for n in notes {
             switch n.reason {
             case .mention, .reply, .quote: uris.insert(n.uri)
             case .like, .likeViaRepost, .repost:
@@ -39,7 +60,7 @@ public struct BlueskyFeedService: FeedService {
             }
         }
         let hydrated = try await hydratePosts(Array(uris))
-        return output.notifications.map { n in
+        return notes.map { n in
             let kind: FeedNotification.Kind
             switch n.reason {
             case .mention: kind = .mention
@@ -416,8 +437,11 @@ public struct BlueskyFeedService: FeedService {
     }
 
     public func authorPosts(id: String) async throws -> [FeedPost] {
-        let output = try await kit.getAuthorFeed(by: id)
-        return output.feed.compactMap { Self.feedPost(from: $0, handle: handle) }
+        let feed = try await paged(target: 100, maxPages: 2) {
+            let output = try await kit.getAuthorFeed(by: id, limit: 100, cursor: $0)
+            return (output.feed, output.cursor)
+        }
+        return feed.compactMap { Self.feedPost(from: $0, handle: handle) }
     }
 
     static func profile(from p: AppBskyLexicon.Actor.ProfileViewDetailedDefinition) -> Profile {

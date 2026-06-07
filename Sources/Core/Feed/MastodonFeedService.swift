@@ -7,10 +7,29 @@ public struct MastodonFeedService: FeedService {
 
     public init(client: TootClient) { self.client = client }
 
+    /// Fetch up to ~`target` items by following the older-results page cursor.
+    /// Mastodon's per-page maxima are small (40 for timelines, 30 for
+    /// notifications), so a single page is a thin feed.
+    private func paged<T>(target: Int, maxPages: Int,
+                          _ fetch: (PagedInfo?) async throws -> PagedResult<[T]>) async throws -> [T] {
+        var collected: [T] = []
+        var page: PagedInfo?
+        for _ in 0..<maxPages {
+            let result = try await fetch(page)
+            collected += result.result
+            guard collected.count < target, !result.result.isEmpty,
+                  let older = result.previousPage else { break }
+            page = older
+        }
+        return collected
+    }
+
     public func loadFeed(_ kind: FeedKind) async throws -> [FeedPost] {
         switch kind {
         case .home:
-            let posts = try await client.getTimeline(.home).result
+            let posts = try await paged(target: 80, maxPages: 2) {
+                try await client.getTimeline(.home, pageInfo: $0, limit: 40)
+            }
             return posts.map { Self.feedPost(from: $0) }
         case .notifications, .messages:
             return []   // these load through their own methods, not as posts
@@ -18,7 +37,11 @@ public struct MastodonFeedService: FeedService {
     }
 
     public func notifications() async throws -> [FeedNotification] {
-        try await client.getNotifications(limit: 40).result.map { Self.notification(from: $0) }
+        // 30 is Mastodon's documented per-page max for notifications.
+        let notes = try await paged(target: 80, maxPages: 3) {
+            try await client.getNotifications(params: .init(), $0, limit: 30)
+        }
+        return notes.map { Self.notification(from: $0) }
     }
 
     public func unreadNotificationCount() async throws -> Int {
@@ -120,7 +143,9 @@ public struct MastodonFeedService: FeedService {
     }
 
     public func authorPosts(id: String) async throws -> [FeedPost] {
-        try await client.getTimeline(.user(userID: id)).result.map { Self.feedPost(from: $0) }
+        try await paged(target: 80, maxPages: 2) {
+            try await client.getTimeline(.user(userID: id), pageInfo: $0, limit: 40)
+        }.map { Self.feedPost(from: $0) }
     }
 
     public func deletePost(_ post: FeedPost) async throws {
