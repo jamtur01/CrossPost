@@ -5,6 +5,33 @@ All notable changes to CrossPost are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.2] - 2026-06-07
+
+### Added
+
+- The App Sandbox is now enabled, containing the app with only the
+  network-client and user-selected-file entitlements it needs.
+
+### Changed
+
+- Release builds stamp their version from the git tag, so a build reports the
+  version it actually shipped as.
+- Links in posts, profile bios, and richtext only open `http`/`https` URLs;
+  other schemes (`file://`, custom app schemes) are no longer tappable.
+- Feeds, profiles, and the notification list fetch several pages deep at each
+  platform's maximum page size, instead of a single short page.
+- Credentials are stored in the Keychain as this-device-only.
+
+### Fixed
+
+- Like, repost, and delete failures in thread and profile views now surface an
+  error and roll back, instead of failing silently.
+- A target that already received the current post is locked until the post is
+  edited, so a partly-failed cross-post can't be duplicated by posting again.
+- Switching feed columns no longer briefly shows the previous column's
+  notifications or messages.
+- Animated GIFs are bounded in memory and oversized downloads are skipped.
+
 ## [0.4.1] - 2026-06-07
 
 ### Fixed
@@ -147,6 +174,7 @@ Initial release.
 - Keychain-backed credential storage.
 - Signed and notarized Developer ID release builds produced by CI.
 
+[0.4.2]: https://github.com/jamtur01/CrossPost/releases/tag/v0.4.2
 [0.4.1]: https://github.com/jamtur01/CrossPost/releases/tag/v0.4.1
 [0.4.0]: https://github.com/jamtur01/CrossPost/releases/tag/v0.4.0
 [0.3.5]: https://github.com/jamtur01/CrossPost/releases/tag/v0.3.5
