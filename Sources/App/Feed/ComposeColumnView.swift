@@ -86,18 +86,23 @@ struct ComposeColumnView: View {
             }
 
             HStack(spacing: 8) {
+                Spacer(minLength: 0)
                 ForEach(PostTarget.allCases) { target in
                     targetPill(target, selected: model.selectedTargets.contains(target)) {
                         model.toggle(target)
                     }
                 }
-                Spacer()
-                Button(model.isPosting ? "Posting…" : "Post") { Task { await model.submit() } }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-                    .keyboardShortcut(.return, modifiers: .command)
-                    .disabled(!model.canPost)
+                Spacer(minLength: 0)
             }
+
+            Button { Task { await model.submit() } } label: {
+                Text(model.isPosting ? "Posting…" : "Post")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .keyboardShortcut(.return, modifiers: .command)
+            .disabled(!model.canPost)
         }
         .padding(.horizontal, 14).padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
