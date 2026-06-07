@@ -85,6 +85,7 @@ jobs:
       - name: Build Release app bundle
         run: |
           chmod +x ./build.sh
+          export CROSSPOST_MARKETING_VERSION="${GITHUB_REF#refs/tags/v}"
           ./build.sh --release
 
       - name: Code sign the app
@@ -95,7 +96,10 @@ jobs:
           # transiently. Run with a 120s watchdog and retry so a stuck request
           # doesn't wedge the job for hours.
           sign_with_timeout() {
+            # --entitlements is required here: re-signing with --deep would
+            # otherwise strip the App Sandbox entitlement xcodebuild applied.
             /usr/bin/codesign --force --options runtime --timestamp \
+              --entitlements CrossPost.entitlements \
               --sign "$MACOS_CODESIGN_IDENTITY" --deep build/CrossPost.app &
             local pid=$! waited=0
             while kill -0 "$pid" 2>/dev/null; do

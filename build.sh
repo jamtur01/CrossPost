@@ -41,6 +41,13 @@ if [ "$configuration" = "Release" ]; then
   arch_args=(ONLY_ACTIVE_ARCH=YES)
 fi
 
+# Let CI stamp the release version from the git tag so the bundle's
+# CFBundleShortVersionString matches what's shipped (see the release workflow).
+version_args=()
+if [ -n "${CROSSPOST_MARKETING_VERSION:-}" ]; then
+  version_args=(MARKETING_VERSION="$CROSSPOST_MARKETING_VERSION")
+fi
+
 # Show full build output in CI (so progress is visible); stay quiet locally.
 quiet_args=(-quiet)
 if [ -n "${CI:-}" ]; then
@@ -57,6 +64,7 @@ xcodebuild build \
   -destination 'platform=macOS' \
   -derivedDataPath "$derived_data" \
   ${arch_args[@]+"${arch_args[@]}"} \
+  ${version_args[@]+"${version_args[@]}"} \
   ${quiet_args[@]+"${quiet_args[@]}"}
 
 src="$derived_data/Build/Products/$configuration/CrossPost.app"
