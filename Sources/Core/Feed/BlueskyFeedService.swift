@@ -18,15 +18,57 @@ public struct BlueskyFeedService: FeedService {
         case .home:
             let output = try await kit.getTimeline()
             return output.feed.compactMap { Self.feedPost(from: $0, handle: handle) }
-        case .mentions:
-            let output = try await kit.listNotifications(with: [.mention, .reply])
-            // Notifications aren't hydrated (no embeds/counts), so fetch the full
-            // post views and render them exactly like the home feed.
-            var seen = Set<String>()
-            let uris = output.notifications.map(\.uri).filter { seen.insert($0).inserted }
-            let hydrated = try await hydratePosts(uris)
-            return uris.compactMap { hydrated[$0].map { Self.feedPost(fromPostView: $0) } }
+        case .notifications:
+            return []   // notifications load through `notifications()`, not as posts
         }
+    }
+
+    public func notifications() async throws -> [FeedNotification] {
+        let output = try await kit.listNotifications()
+        // Hydrate the related posts: the mention/reply/quote itself, and the liked/
+        // reposted subject. Fetching full post views gives us embeds and counts.
+        var uris = Set<String>()
+        for n in output.notifications {
+            switch n.reason {
+            case .mention, .reply, .quote: uris.insert(n.uri)
+            case .like, .likeViaRepost, .repost:
+                if let subject = n.reasonSubjectURI { uris.insert(subject) }
+            default: break
+            }
+        }
+        let hydrated = try await hydratePosts(Array(uris))
+        return output.notifications.map { n in
+            let kind: FeedNotification.Kind
+            switch n.reason {
+            case .mention: kind = .mention
+            case .reply: kind = .reply
+            case .like, .likeViaRepost: kind = .like
+            case .repost: kind = .repost
+            case .follow: kind = .follow
+            case .quote: kind = .quote
+            default: kind = .other
+            }
+            let postURI: String?
+            switch kind {
+            case .mention, .reply, .quote: postURI = n.uri
+            case .like, .repost: postURI = n.reasonSubjectURI
+            default: postURI = nil
+            }
+            let post = postURI.flatMap { hydrated[$0] }.map { Self.feedPost(fromPostView: $0) }
+            return FeedNotification(
+                id: n.uri, kind: kind,
+                actorName: n.author.displayName?.isEmpty == false ? n.author.displayName! : n.author.actorHandle,
+                actorHandle: "@\(n.author.actorHandle)", actorID: n.author.actorDID,
+                avatarURL: n.author.avatarImageURL, post: post, date: n.indexedAt)
+        }
+    }
+
+    public func unreadNotificationCount() async throws -> Int {
+        try await kit.getUnreadCount(priority: nil).count
+    }
+
+    public func markNotificationsRead() async throws {
+        try await kit.updateSeen()
     }
 
     /// Hydrate posts by AT-URI (getPosts accepts up to 25 at a time).

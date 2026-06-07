@@ -64,12 +64,22 @@ struct FeedPanelView: View {
                 headerIcon("arrow.clockwise", help: "Refresh") { model.refresh() }
             }
 
-            Picker("Feed", selection: Binding(get: { model.kind }, set: { model.switchTo($0) })) {
-                ForEach(FeedKind.allCases) { kind in Text(kind.title).tag(kind) }
+            HStack(spacing: 8) {
+                Picker("Feed", selection: Binding(get: { model.kind }, set: { model.switchTo($0) })) {
+                    ForEach(FeedKind.allCases) { kind in Text(kind.title).tag(kind) }
+                }
+                .pickerStyle(.segmented).labelsHidden()
+                .tint(accent)
+                .fixedSize()
+                if model.unreadCount > 0 && model.kind != .notifications {
+                    Text("\(min(model.unreadCount, 99))")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 5).padding(.vertical, 1.5)
+                        .background(Capsule().fill(.red))
+                }
+                Spacer()
             }
-            .pickerStyle(.segmented).labelsHidden()
-            .tint(accent)
-            .fixedSize()
         }
         .padding(.horizontal, Theme.headerPaddingH).padding(.top, 10).padding(.bottom, 9)
         .background(.bar)
@@ -134,6 +144,8 @@ struct FeedPanelView: View {
     private var timeline: some View {
         if model.needsCredentials {
             connectState
+        } else if model.kind == .notifications {
+            NotificationsListView(model: model) { routes.append($0) }
         } else if let error = model.errorMessage, model.posts.isEmpty {
             emptyState(error, systemImage: "exclamationmark.triangle")
         } else if model.posts.isEmpty && model.isLoading {

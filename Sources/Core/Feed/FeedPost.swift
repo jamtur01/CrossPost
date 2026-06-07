@@ -21,6 +21,33 @@ public struct FeedImage: Identifiable, Equatable, Sendable {
     }
 }
 
+/// A notification event (like, repost, follow, mention, reply, quote) with the
+/// actor and, where relevant, the related post.
+public struct FeedNotification: Identifiable, Equatable, Sendable {
+    public enum Kind: String, Sendable { case mention, reply, like, repost, follow, quote, poll, other }
+
+    public let id: String
+    public let kind: Kind
+    public let actorName: String
+    public let actorHandle: String
+    public let actorID: String
+    public let avatarURL: URL?
+    public let post: FeedPost?     // the related post (the mention/reply, or the liked/reposted subject)
+    public let date: Date
+
+    public init(id: String, kind: Kind, actorName: String, actorHandle: String, actorID: String,
+                avatarURL: URL?, post: FeedPost?, date: Date) {
+        self.id = id
+        self.kind = kind
+        self.actorName = actorName
+        self.actorHandle = actorHandle
+        self.actorID = actorID
+        self.avatarURL = avatarURL
+        self.post = post
+        self.date = date
+    }
+}
+
 /// Platform-native handles needed to act on or reply to a post, as plain values
 /// so FeedPost never imports an SDK type.
 public enum NativeRef: Equatable, Sendable {

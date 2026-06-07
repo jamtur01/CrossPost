@@ -34,4 +34,13 @@ public protocol FeedService: Sendable {
     /// Accounts following / followed by a user.
     func followers(of id: String) async throws -> [Profile]
     func following(of id: String) async throws -> [Profile]
+
+    // MARK: Notifications
+
+    /// All notifications (mentions, replies, likes, reposts, follows, quotes).
+    func notifications() async throws -> [FeedNotification]
+    /// Count of unread notifications, for the tab badge.
+    func unreadNotificationCount() async throws -> Int
+    /// Mark notifications as read (clears the unread count).
+    func markNotificationsRead() async throws
 }

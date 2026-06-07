@@ -12,16 +12,42 @@ public struct MastodonFeedService: FeedService {
         case .home:
             let posts = try await client.getTimeline(.home).result
             return posts.map { Self.feedPost(from: $0) }
-        case .mentions:
-            let notifications = try await client.getNotifications(params: .init(types: [.mention])).result
-            // The same status can surface in multiple mention notifications; dedupe
-            // by status id so FeedPost ids stay unique (else ForEach/FeedMerge collide).
-            var seen: Set<String> = []
-            return notifications.compactMap { notification in
-                guard let post = notification.post, seen.insert(post.id).inserted else { return nil }
-                return Self.feedPost(from: post)
-            }
+        case .notifications:
+            return []   // notifications load through `notifications()`, not as posts
         }
+    }
+
+    public func notifications() async throws -> [FeedNotification] {
+        try await client.getNotifications(limit: 40).result.map { Self.notification(from: $0) }
+    }
+
+    public func unreadNotificationCount() async throws -> Int {
+        try await client.getNotificationsUnreadCount()
+    }
+
+    public func markNotificationsRead() async throws {
+        if let latest = try await client.getNotifications(limit: 1).result.first?.id {
+            _ = try await client.updateMarkers(notificationsLastReadId: latest)
+        }
+    }
+
+    static func notification(from n: TootNotification) -> FeedNotification {
+        let kind: FeedNotification.Kind
+        switch n.type {
+        case .mention: kind = .mention
+        case .favourite: kind = .like
+        case .repost: kind = .repost
+        case .follow, .followRequest: kind = .follow
+        case .poll: kind = .poll
+        case .quote, .quotedUpdate: kind = .quote
+        default: kind = .other
+        }
+        return FeedNotification(
+            id: n.id, kind: kind,
+            actorName: n.account.displayName?.isEmpty == false ? n.account.displayName! : n.account.acct,
+            actorHandle: "@\(n.account.acct)", actorID: n.account.id,
+            avatarURL: URL(string: n.account.avatar),
+            post: n.post.map { Self.feedPost(from: $0) }, date: n.createdAt)
     }
 
     public func setLiked(_ liked: Bool, on post: FeedPost) async throws -> FeedPost {

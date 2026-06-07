@@ -12,6 +12,8 @@ final class FeedPanelModel {
     var errorMessage: String?      // shown only when the feed is empty
     var actionError: String?       // transient banner for failed likes/reposts
     var needsCredentials = false
+    var notifications: [FeedNotification] = []
+    var unreadCount = 0
     private(set) var scrollToTopToken = 0   // bumped on each user-initiated refresh
 
     private let store: AccountStore
@@ -36,6 +38,7 @@ final class FeedPanelModel {
         guard hasCredentials else { needsCredentials = true; return }
         needsCredentials = false
         enqueueLoad(reset: true)
+        refreshUnreadCount()
         startPolling()
     }
 
@@ -72,15 +75,35 @@ final class FeedPanelModel {
         defer { if !Task.isCancelled { isLoading = false } }
         do {
             let svc = try await resolveService()
-            let fetched = try await svc.loadFeed(kind)
-            if Task.isCancelled { return }   // a newer load superseded this one
-            errorMessage = nil
-            posts = reset
-                ? fetched
-                : FeedMerge.merge(existing: posts, fetched: fetched, preservingIDs: mutating)
+            if kind == .notifications {
+                let fetched = try await svc.notifications()
+                if Task.isCancelled { return }
+                errorMessage = nil
+                notifications = fetched
+                try? await svc.markNotificationsRead()
+                unreadCount = 0
+            } else {
+                let fetched = try await svc.loadFeed(kind)
+                if Task.isCancelled { return }   // a newer load superseded this one
+                errorMessage = nil
+                posts = reset
+                    ? fetched
+                    : FeedMerge.merge(existing: posts, fetched: fetched, preservingIDs: mutating)
+            }
         } catch {
             if Task.isCancelled { return }
             errorMessage = error.userMessage
+        }
+    }
+
+    /// Refresh the unread-notification badge in the background (does not disturb the feed).
+    func refreshUnreadCount() {
+        guard hasCredentials, kind != .notifications else { return }
+        Task {
+            if let svc = try? await resolveService(),
+               let count = try? await svc.unreadNotificationCount() {
+                unreadCount = count
+            }
         }
     }
 
@@ -243,7 +266,10 @@ final class FeedPanelModel {
                 try? await Task.sleep(nanoseconds: self?.pollInterval ?? 60_000_000_000)
                 if Task.isCancelled { break }
                 // Only poll while the app is active, to avoid background churn.
-                if NSApplication.shared.isActive { self?.enqueueLoad(reset: false) }
+                if NSApplication.shared.isActive {
+                    self?.enqueueLoad(reset: false)
+                    self?.refreshUnreadCount()
+                }
             }
         }
     }
