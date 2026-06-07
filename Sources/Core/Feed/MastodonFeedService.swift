@@ -168,6 +168,25 @@ public struct MastodonFeedService: FeedService {
         throw FeedError.notSupported("Direct messages aren't supported for Mastodon yet.")
     }
 
+    public func liveUpdates() async -> AsyncStream<Void>? {
+        guard let socket = try? await client.beginStreaming() else { return nil }
+        try? await socket.sendQuery(StreamQuery(.subscribe, timeline: .user))
+        return AsyncStream { continuation in
+            let task = Task {
+                // Each streamed event (status, notification, delete) is a signal to
+                // refresh; we don't read the event content, just that it happened.
+                do {
+                    for try await _ in socket.stream { continuation.yield(()) }
+                } catch {}
+                continuation.finish()
+            }
+            continuation.onTermination = { _ in
+                task.cancel()
+                socket.close()
+            }
+        }
+    }
+
     public func relationship(with id: String) async throws -> AccountRelationship {
         Self.relationship(from: try await client.getRelationships(by: [id]).first)
     }

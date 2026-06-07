@@ -21,6 +21,7 @@ final class FeedPanelModel {
     private var service: FeedService?
     private var loadTask: Task<Void, Never>?
     private var pollTask: Task<Void, Never>?
+    private var liveTask: Task<Void, Never>?
     private var mutating: Set<String> = []   // post ids with an in-flight like/repost
     private let pollInterval: UInt64 = 60_000_000_000
 
@@ -41,6 +42,23 @@ final class FeedPanelModel {
         enqueueLoad(reset: true)
         refreshUnreadCount()
         startPolling()
+        startLiveUpdates()
+    }
+
+    /// Subscribe to the platform's live stream (Mastodon); each signal refreshes the
+    /// current feed. enqueueLoad supersedes in-flight loads, so bursts coalesce.
+    private func startLiveUpdates() {
+        liveTask?.cancel()
+        liveTask = Task { [weak self] in
+            guard let self, let service = try? await resolveService(),
+                  let stream = await service.liveUpdates() else { return }
+            for await _ in stream {
+                if NSApplication.shared.isActive {
+                    enqueueLoad(reset: false)
+                    refreshUnreadCount()
+                }
+            }
+        }
     }
 
     func switchTo(_ newKind: FeedKind) {
@@ -339,6 +357,7 @@ final class FeedPanelModel {
     func stop() {
         pollTask?.cancel(); pollTask = nil
         loadTask?.cancel(); loadTask = nil
+        liveTask?.cancel(); liveTask = nil
         isLoading = false
     }
 }

@@ -66,4 +66,10 @@ public protocol FeedService: Sendable {
     func messages(in conversationID: String) async throws -> [DirectMessage]
     /// Send a message to a conversation.
     func sendMessage(_ text: String, to conversationID: String) async throws
+
+    // MARK: Real-time
+
+    /// A stream that yields whenever the server signals a change, for live refresh.
+    /// Returns nil if the platform has no usable per-user stream (Bluesky uses polling).
+    func liveUpdates() async -> AsyncStream<Void>?
 }
