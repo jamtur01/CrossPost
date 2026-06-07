@@ -33,4 +33,15 @@ final class ImageProcessorTests: XCTestCase {
     func testJpegUnderBudgetRejectsUndecodableInput() {
         XCTAssertThrowsError(try ImageProcessor.jpegUnderBudget(Data([0x00, 0x01])))
     }
+
+    func testJpegUnderBudgetThrowsWhenItCannotFit() throws {
+        // No JPEG fits in 1 byte, so even the smallest scale/quality fails the budget.
+        let data = try solidPNG(side: 512)
+        XCTAssertThrowsError(try ImageProcessor.jpegUnderBudget(data, maxBytes: 1)) { error in
+            guard case ImageProcessor.ProcessingError.cannotFitBudget(_, let budget) = error else {
+                return XCTFail("expected cannotFitBudget, got \(error)")
+            }
+            XCTAssertEqual(budget, 1)
+        }
+    }
 }

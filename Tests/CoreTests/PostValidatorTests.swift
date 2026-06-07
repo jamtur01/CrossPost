@@ -48,6 +48,12 @@ final class PostValidatorTests: XCTestCase {
         XCTAssertEqual(issues, [.tooManyImages(postIndex: 0, target: .bluesky, count: 5, limit: 4)])
     }
 
+    func testMediaValidationErrorMessageNamesTargetAndCounts() {
+        let error = MediaValidationError.tooManyImages(target: .bluesky, count: 5, limit: 4)
+        XCTAssertEqual(error.errorDescription,
+                       "Bluesky supports at most 4 images per post; 5 were attached.")
+    }
+
     func testReportsPerPostAndPerTarget() {
         let long = String(repeating: "a", count: 600) // > both limits
         let thread = [DraftPost(text: "ok"), DraftPost(text: long)]

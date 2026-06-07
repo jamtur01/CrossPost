@@ -84,7 +84,8 @@ final class ComposeModel {
     /// failures inline, and make retries safe: clear the box on a clean run, and on
     /// a partial run keep the draft but de-select every target that already received
     /// content so pressing Post again can't duplicate what already landed.
-    private func handleCompletion(_ results: [PostResult]) {
+    /// Internal (not private) so the partial-failure reconciliation can be unit-tested.
+    func handleCompletion(_ results: [PostResult]) {
         // Targets that received any content — fully (.success) or partly (.partial
         // with at least one landed post). A single-post failure reports `.partial`
         // with no landed posts, so it correctly stays eligible for retry.
