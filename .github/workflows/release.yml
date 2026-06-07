@@ -155,8 +155,6 @@ jobs:
             grab { print }
           ' CHANGELOG.md)
           {
-            echo "# CrossPost $VERSION"
-            echo
             echo "A native macOS app for reading and posting to Mastodon and Bluesky side by side."
             if [ -n "$(printf '%s' "$section" | tr -d '[:space:]')" ]; then
               echo
