@@ -222,6 +222,74 @@ public struct BlueskyFeedService: FeedService {
         return try await profile(id: id)
     }
 
+    public func relationship(with id: String) async throws -> AccountRelationship {
+        Self.relationship(from: try await kit.getProfile(for: id).viewer)
+    }
+
+    static func relationship(from viewer: AppBskyLexicon.Actor.ViewerStateDefinition?) -> AccountRelationship {
+        AccountRelationship(
+            isFollowing: viewer?.followingURI != nil,
+            isFollowedBy: viewer?.followedByURI != nil,
+            isMuting: viewer?.isMuted ?? false,
+            isBlocking: viewer?.blockingURI != nil,
+            followRecordURI: viewer?.followingURI,
+            blockRecordURI: viewer?.blockingURI)
+    }
+
+    public func setFollowing(_ following: Bool, for id: String,
+                             current: AccountRelationship) async throws -> AccountRelationship {
+        var rel = current
+        if following {
+            let ref = try await bluesky.createFollowRecord(actorDID: id)
+            rel.isFollowing = true
+            rel.followRecordURI = ref.recordURI
+        } else if let uri = current.followRecordURI {
+            try await bluesky.deleteRecord(.recordURI(atURI: uri))
+            rel.isFollowing = false
+            rel.followRecordURI = nil
+        }
+        return rel
+    }
+
+    public func setMuted(_ muted: Bool, for id: String,
+                         current: AccountRelationship) async throws -> AccountRelationship {
+        if muted { try await kit.muteActor(id) } else { try await kit.unmuteActor(id) }
+        var rel = current
+        rel.isMuting = muted
+        return rel
+    }
+
+    public func setBlocked(_ blocked: Bool, for id: String,
+                           current: AccountRelationship) async throws -> AccountRelationship {
+        var rel = current
+        if blocked {
+            let ref = try await bluesky.createBlockRecord(ofType: .actorBlock(actorDID: id))
+            rel.isBlocking = true
+            rel.blockRecordURI = ref.recordURI
+        } else if let uri = current.blockRecordURI {
+            try await bluesky.deleteRecord(.recordURI(atURI: uri))
+            rel.isBlocking = false
+            rel.blockRecordURI = nil
+        }
+        return rel
+    }
+
+    public func followers(of id: String) async throws -> [Profile] {
+        try await kit.getFollowers(by: id).followers.map { Self.profile(fromBasic: $0) }
+    }
+
+    public func following(of id: String) async throws -> [Profile] {
+        try await kit.getFollows(from: id).follows.map { Self.profile(fromBasic: $0) }
+    }
+
+    static func profile(fromBasic p: AppBskyLexicon.Actor.ProfileViewDefinition) -> Profile {
+        Profile(id: p.actorDID, target: .bluesky,
+                name: p.displayName?.isEmpty == false ? p.displayName! : p.actorHandle,
+                handle: "@\(p.actorHandle)", avatarURL: p.avatarImageURL, bannerURL: nil,
+                bio: AttributedString(p.description ?? ""), followers: 0, following: 0, posts: 0,
+                webURL: URL(string: "https://bsky.app/profile/\(p.actorHandle)"))
+    }
+
     public func myProfile() async throws -> Profile {
         Self.profile(from: try await kit.getProfile(for: handle))
     }

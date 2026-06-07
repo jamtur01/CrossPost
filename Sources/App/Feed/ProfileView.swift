@@ -10,9 +10,11 @@ struct ProfileView: View {
     @State private var profile: Profile?
     @State private var list: PostList
     @State private var replyTarget: FeedPost?
+    @State private var relationship = AccountRelationship()
     @State private var loading = true
 
     private var accent: Color { panel.target.accent }
+    private var accountID: String { profile?.id ?? ref.id }
 
     init(panel: FeedPanelModel, store: AccountStore, ref: ProfileRef,
          push: @escaping (FeedRoute) -> Void) {
@@ -53,7 +55,9 @@ struct ProfileView: View {
         .background(Color(nsColor: .textBackgroundColor))
         .task {
             profile = ref.isMe ? await panel.myProfile() : await panel.profile(id: ref.id)
-            list.posts = await panel.authorPosts(id: profile?.id ?? ref.id)
+            let id = profile?.id ?? ref.id
+            if !ref.isMe { relationship = await panel.relationship(with: id) }
+            list.posts = await panel.authorPosts(id: id)
             loading = false
         }
         .sheet(item: $replyTarget) { target in
@@ -89,6 +93,7 @@ struct ProfileView: View {
 
                     Spacer()
 
+                    if !ref.isMe { relationshipControls }
                     if let url = profile?.webURL {
                         Button { panel.open(url) } label: {
                             Image(systemName: "safari").font(.system(size: 14))
@@ -102,9 +107,18 @@ struct ProfileView: View {
                 Text(profile?.name ?? ref.name)
                     .font(.title3.weight(.bold))
                     .lineLimit(1)
-                Text(profile?.handle ?? ref.handle)
-                    .font(Theme.meta)
-                    .foregroundStyle(.secondary)
+                HStack(spacing: 6) {
+                    Text(profile?.handle ?? ref.handle)
+                        .font(Theme.meta)
+                        .foregroundStyle(.secondary)
+                    if relationship.isFollowedBy {
+                        Text("Follows you")
+                            .font(.system(size: 10, weight: .medium))
+                            .padding(.horizontal, 6).padding(.vertical, 1.5)
+                            .background(Capsule().fill(Color.secondary.opacity(0.18)))
+                            .foregroundStyle(.secondary)
+                    }
+                }
 
                 if let bio = profile?.bio, !bio.characters.isEmpty {
                     Text(RichText.styled(bio, accent: accent))
@@ -120,8 +134,14 @@ struct ProfileView: View {
                 if let profile {
                     HStack(spacing: 18) {
                         stat(profile.posts, "Posts")
-                        stat(profile.following, "Following")
-                        stat(profile.followers, "Followers")
+                        Button {
+                            push(.profileList(ProfileListRef(accountID: profile.id, kind: .following)))
+                        } label: { stat(profile.following, "Following") }
+                        .buttonStyle(.plain)
+                        Button {
+                            push(.profileList(ProfileListRef(accountID: profile.id, kind: .followers)))
+                        } label: { stat(profile.followers, "Followers") }
+                        .buttonStyle(.plain)
                     }
                     .padding(.top, 2)
                 }
@@ -136,5 +156,57 @@ struct ProfileView: View {
                 .font(.system(size: 13, weight: .semibold).monospacedDigit())
             Text(label).font(.system(size: 13)).foregroundStyle(.secondary)
         }
+    }
+
+    @ViewBuilder
+    private var relationshipControls: some View {
+        HStack(spacing: 8) {
+            Group {
+                if relationship.isFollowing {
+                    Button("Following") { Task { await toggleFollow() } }
+                        .buttonStyle(.bordered)
+                } else {
+                    Button("Follow") { Task { await toggleFollow() } }
+                        .buttonStyle(.borderedProminent).tint(accent)
+                }
+            }
+            .font(.system(size: 13, weight: .semibold))
+
+            Menu {
+                Button(relationship.isMuting ? "Unmute" : "Mute") { Task { await toggleMute() } }
+                Button(relationship.isBlocking ? "Unblock" : "Block",
+                       role: .destructive) { Task { await toggleBlock() } }
+            } label: {
+                Image(systemName: "ellipsis").font(.system(size: 15, weight: .semibold))
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .foregroundStyle(.secondary)
+        }
+    }
+
+    private func toggleFollow() async {
+        let target = !relationship.isFollowing
+        let previous = relationship
+        relationship.isFollowing = target
+        do { relationship = try await panel.setFollowing(target, for: accountID, current: previous) }
+        catch { relationship = previous }
+    }
+
+    private func toggleMute() async {
+        let target = !relationship.isMuting
+        let previous = relationship
+        relationship.isMuting = target
+        do { relationship = try await panel.setMuted(target, for: accountID, current: previous) }
+        catch { relationship = previous }
+    }
+
+    private func toggleBlock() async {
+        let target = !relationship.isBlocking
+        let previous = relationship
+        relationship.isBlocking = target
+        do { relationship = try await panel.setBlocked(target, for: accountID, current: previous) }
+        catch { relationship = previous }
     }
 }

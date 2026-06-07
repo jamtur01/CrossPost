@@ -98,6 +98,44 @@ public struct MastodonFeedService: FeedService {
         try await client.getTimeline(.user(userID: id)).result.map { Self.feedPost(from: $0) }
     }
 
+    public func relationship(with id: String) async throws -> AccountRelationship {
+        Self.relationship(from: try await client.getRelationships(by: [id]).first)
+    }
+
+    static func relationship(from r: Relationship?) -> AccountRelationship {
+        AccountRelationship(isFollowing: r?.following ?? false, isFollowedBy: r?.followedBy ?? false,
+                            isMuting: r?.muting ?? false, isBlocking: r?.blocking ?? false)
+    }
+
+    public func setFollowing(_ following: Bool, for id: String,
+                             current: AccountRelationship) async throws -> AccountRelationship {
+        Self.relationship(from: following
+            ? try await client.followAccount(by: id)
+            : try await client.unfollowAccount(by: id))
+    }
+
+    public func setMuted(_ muted: Bool, for id: String,
+                         current: AccountRelationship) async throws -> AccountRelationship {
+        Self.relationship(from: muted
+            ? try await client.muteAccount(by: id)
+            : try await client.unmuteAccount(by: id))
+    }
+
+    public func setBlocked(_ blocked: Bool, for id: String,
+                           current: AccountRelationship) async throws -> AccountRelationship {
+        Self.relationship(from: blocked
+            ? try await client.blockAccount(by: id)
+            : try await client.unblockAccount(by: id))
+    }
+
+    public func followers(of id: String) async throws -> [Profile] {
+        try await client.getFollowers(for: id).result.map { Self.profile(from: $0) }
+    }
+
+    public func following(of id: String) async throws -> [Profile] {
+        try await client.getFollowing(for: id).result.map { Self.profile(from: $0) }
+    }
+
     public func profile(forURL url: URL) async throws -> Profile? {
         guard ProfileLink.isMastodonProfileURL(url) else { return nil }
         // Search with WebFinger resolution turns a profile URL — including a remote

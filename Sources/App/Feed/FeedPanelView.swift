@@ -104,6 +104,7 @@ struct FeedPanelView: View {
         switch routes.last {
         case .thread: return "Thread"
         case .profile(let ref): return ref.name
+        case .profileList(let ref): return ref.title
         case .none: return ""
         }
     }
@@ -122,6 +123,8 @@ struct FeedPanelView: View {
             ThreadView(panel: model, store: store, post: post) { routes.append($0) }
         case .profile(let ref):
             ProfileView(panel: model, store: store, ref: ref) { routes.append($0) }
+        case .profileList(let ref):
+            ProfileListView(panel: model, ref: ref) { routes.append($0) }
         case .none:
             EmptyView()
         }

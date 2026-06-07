@@ -19,4 +19,19 @@ public protocol FeedService: Sendable {
     func myProfile() async throws -> Profile
     /// Recent posts authored by a user.
     func authorPosts(id: String) async throws -> [FeedPost]
+
+    // MARK: Social graph
+
+    /// The viewer's relationship to an account (following, muting, blocking, …).
+    func relationship(with id: String) async throws -> AccountRelationship
+    /// Follow / unfollow. The current relationship carries any record URI needed to undo.
+    func setFollowing(_ following: Bool, for id: String,
+                      current: AccountRelationship) async throws -> AccountRelationship
+    func setMuted(_ muted: Bool, for id: String,
+                  current: AccountRelationship) async throws -> AccountRelationship
+    func setBlocked(_ blocked: Bool, for id: String,
+                    current: AccountRelationship) async throws -> AccountRelationship
+    /// Accounts following / followed by a user.
+    func followers(of id: String) async throws -> [Profile]
+    func following(of id: String) async throws -> [Profile]
 }

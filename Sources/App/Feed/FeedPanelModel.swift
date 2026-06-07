@@ -161,6 +161,33 @@ final class FeedPanelModel {
         (try? await resolveService().authorPosts(id: id)) ?? []
     }
 
+    func relationship(with id: String) async -> AccountRelationship {
+        (try? await resolveService().relationship(with: id)) ?? AccountRelationship()
+    }
+
+    func setFollowing(_ following: Bool, for id: String,
+                      current: AccountRelationship) async throws -> AccountRelationship {
+        try await resolveService().setFollowing(following, for: id, current: current)
+    }
+
+    func setMuted(_ muted: Bool, for id: String,
+                  current: AccountRelationship) async throws -> AccountRelationship {
+        try await resolveService().setMuted(muted, for: id, current: current)
+    }
+
+    func setBlocked(_ blocked: Bool, for id: String,
+                    current: AccountRelationship) async throws -> AccountRelationship {
+        try await resolveService().setBlocked(blocked, for: id, current: current)
+    }
+
+    func followers(of id: String) async -> [Profile] {
+        (try? await resolveService().followers(of: id)) ?? []
+    }
+
+    func following(of id: String) async -> [Profile] {
+        (try? await resolveService().following(of: id)) ?? []
+    }
+
     /// Service-backed like/repost for posts not held in this panel's timeline
     /// (used by thread and profile lists).
     func serviceSetLiked(_ liked: Bool, on post: FeedPost) async throws -> FeedPost {

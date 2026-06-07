@@ -72,6 +72,28 @@ public struct Profile: Sendable, Identifiable {
     }
 }
 
+/// The viewer's relationship to another account. Record URIs are carried so
+/// Bluesky can undo a follow/block (Mastodon acts by account id and leaves them nil).
+public struct AccountRelationship: Sendable, Equatable {
+    public var isFollowing: Bool
+    public var isFollowedBy: Bool
+    public var isMuting: Bool
+    public var isBlocking: Bool
+    public var followRecordURI: String?
+    public var blockRecordURI: String?
+
+    public init(isFollowing: Bool = false, isFollowedBy: Bool = false,
+                isMuting: Bool = false, isBlocking: Bool = false,
+                followRecordURI: String? = nil, blockRecordURI: String? = nil) {
+        self.isFollowing = isFollowing
+        self.isFollowedBy = isFollowedBy
+        self.isMuting = isMuting
+        self.isBlocking = isBlocking
+        self.followRecordURI = followRecordURI
+        self.blockRecordURI = blockRecordURI
+    }
+}
+
 /// A post's surrounding thread: posts above (ancestors, oldest first) and the
 /// replies below it (descendants).
 public struct PostThread: Sendable {

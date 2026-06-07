@@ -10,15 +10,27 @@ struct ProfileRef: Identifiable, Equatable {
     var isMe: Bool = false
 }
 
+/// A reference to a follower/following list to display.
+struct ProfileListRef: Identifiable, Equatable {
+    enum Kind: String { case followers, following }
+    let accountID: String
+    let kind: Kind
+
+    var id: String { "\(kind.rawValue):\(accountID)" }
+    var title: String { kind == .followers ? "Followers" : "Following" }
+}
+
 /// A destination within a feed column's in-place navigation stack.
 enum FeedRoute: Identifiable {
     case thread(FeedPost)
     case profile(ProfileRef)
+    case profileList(ProfileListRef)
 
     var id: String {
         switch self {
         case .thread(let post): return "thread:\(post.id)"
         case .profile(let ref): return "profile:\(ref.id):\(ref.isMe)"
+        case .profileList(let ref): return "list:\(ref.id)"
         }
     }
 }
