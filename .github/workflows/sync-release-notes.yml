@@ -1,0 +1,52 @@
+name: Sync Release Notes
+
+# Rewrites the GitHub release notes for every tag from CHANGELOG.md.
+# Run manually from the Actions tab (or with `gh workflow run sync-release-notes.yml`)
+# after editing CHANGELOG.md to bring existing releases back in sync.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Rewrite release notes from CHANGELOG
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for tag in $(gh release list --limit 100 --json tagName --jq '.[].tagName'); do
+            version="${tag#v}"
+            asset="CrossPost-$tag.zip"
+            section=$(awk -v ver="$version" '
+              $0 ~ "^## \\[" ver "\\]" { grab = 1; next }
+              grab && /^## \[/ { exit }
+              grab { print }
+            ' CHANGELOG.md)
+            {
+              echo "# CrossPost $version"
+              echo
+              echo "A native macOS app for reading and posting to Mastodon and Bluesky side by side."
+              if [ -n "$(printf '%s' "$section" | tr -d '[:space:]')" ]; then
+                echo
+                echo "## What's changed"
+                printf '%s\n' "$section"
+              fi
+              echo
+              echo "## Installation"
+              echo
+              echo "1. Download \`$asset\`"
+              echo "2. Unzip it"
+              echo "3. Move \`CrossPost.app\` to your Applications folder"
+              echo "4. Open it"
+              echo
+              echo "This build is signed with a Developer ID and notarized by Apple."
+            } > release-notes.md
+            gh release edit "$tag" --notes-file release-notes.md
+            echo "synced $tag"
+          done

@@ -142,25 +142,44 @@ jobs:
         id: get_version
         run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
 
+      - name: Build release notes from CHANGELOG
+        env:
+          VERSION: ${{ steps.get_version.outputs.VERSION }}
+          ASSET: CrossPost-${{ github.ref_name }}.zip
+        run: |
+          # Pull this version's section out of CHANGELOG.md (everything between
+          # its "## [x.y.z]" heading and the next version heading).
+          section=$(awk -v ver="$VERSION" '
+            $0 ~ "^## \\[" ver "\\]" { grab = 1; next }
+            grab && /^## \[/ { exit }
+            grab { print }
+          ' CHANGELOG.md)
+          {
+            echo "# CrossPost $VERSION"
+            echo
+            echo "A native macOS app for reading and posting to Mastodon and Bluesky side by side."
+            if [ -n "$(printf '%s' "$section" | tr -d '[:space:]')" ]; then
+              echo
+              echo "## What's changed"
+              printf '%s\n' "$section"
+            fi
+            echo
+            echo "## Installation"
+            echo
+            echo "1. Download \`$ASSET\`"
+            echo "2. Unzip it"
+            echo "3. Move \`CrossPost.app\` to your Applications folder"
+            echo "4. Open it"
+            echo
+            echo "This build is signed with a Developer ID and notarized by Apple."
+          } > release-notes.md
+
       - name: Create Release
         uses: softprops/action-gh-release@v3
         with:
           name: CrossPost ${{ steps.get_version.outputs.VERSION }}
           draft: false
           prerelease: false
-          generate_release_notes: true
+          body_path: release-notes.md
           files: |
             CrossPost-${{ github.ref_name }}.zip
-          body: |
-            # CrossPost ${{ steps.get_version.outputs.VERSION }}
-
-            A native macOS app for reading and posting to Mastodon and Bluesky side by side.
-
-            ## Installation
-
-            1. Download `CrossPost-${{ github.ref_name }}.zip`
-            2. Unzip it
-            3. Move `CrossPost.app` to your Applications folder
-            4. Open it
-
-            This build is signed with a Developer ID and notarized by Apple.
