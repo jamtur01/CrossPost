@@ -49,14 +49,25 @@ final class FeedPanelModel {
     /// current feed. enqueueLoad supersedes in-flight loads, so bursts coalesce.
     private func startLiveUpdates() {
         liveTask?.cancel()
+        guard target == .mastodon else { return }   // only Mastodon has a usable user stream
         liveTask = Task { [weak self] in
-            guard let self, let service = try? await resolveService(),
-                  let stream = await service.liveUpdates() else { return }
-            for await _ in stream {
-                if NSApplication.shared.isActive {
-                    enqueueLoad(reset: false)
-                    refreshUnreadCount()
+            var backoff: UInt64 = 2_000_000_000
+            while !Task.isCancelled {
+                guard let self else { break }
+                if let service = try? await self.resolveService(),
+                   let stream = await service.liveUpdates() {
+                    backoff = 2_000_000_000   // reset after a successful connection
+                    for await _ in stream {
+                        if NSApplication.shared.isActive {
+                            self.enqueueLoad(reset: false)
+                            self.refreshUnreadCount()
+                        }
+                    }
                 }
+                // Stream ended (socket dropped) or failed to open — back off and retry.
+                if Task.isCancelled { break }
+                try? await Task.sleep(nanoseconds: backoff)
+                backoff = min(backoff * 2, 60_000_000_000)
             }
         }
     }
@@ -67,6 +78,7 @@ final class FeedPanelModel {
         posts = []
         errorMessage = nil
         enqueueLoad(reset: true)
+        refreshUnreadCount()   // refresh the badge when leaving the notifications tab
     }
 
     func refresh() {
@@ -99,7 +111,7 @@ final class FeedPanelModel {
                 if Task.isCancelled { return }
                 errorMessage = nil
                 notifications = fetched
-                try? await svc.markNotificationsRead()
+                try? await svc.markNotificationsRead(upTo: fetched.first?.id)
                 unreadCount = 0
             } else if kind == .messages {
                 let fetched = try await svc.conversations()
@@ -125,7 +137,8 @@ final class FeedPanelModel {
         guard hasCredentials, kind != .notifications else { return }
         Task {
             if let svc = try? await resolveService(),
-               let count = try? await svc.unreadNotificationCount() {
+               let count = try? await svc.unreadNotificationCount(),
+               kind != .notifications {   // re-check: don't overwrite a just-cleared count
                 unreadCount = count
             }
         }
@@ -254,7 +267,7 @@ final class FeedPanelModel {
         Task {
             do {
                 let updated = try await resolveService().setBookmarked(bookmarked, on: post)
-                updatePost(post.id) { $0 = updated }
+                updatePost(post.id) { $0.isBookmarked = updated.isBookmarked }
             } catch {
                 updatePost(post.id) { $0.isBookmarked = !bookmarked }
                 showActionError(error.userMessage)
@@ -266,7 +279,7 @@ final class FeedPanelModel {
         Task {
             do {
                 let updated = try await resolveService().setPinned(pinned, on: post)
-                updatePost(post.id) { $0 = updated }
+                updatePost(post.id) { $0.isPinned = updated.isPinned }
             } catch { showActionError(error.userMessage) }
         }
     }
@@ -277,6 +290,18 @@ final class FeedPanelModel {
 
     func sendMessage(_ text: String, to conversationID: String) async throws {
         try await resolveService().sendMessage(text, to: conversationID)
+    }
+
+    /// Refresh the conversation list (last-message previews, ordering) after activity.
+    func reloadConversations() async {
+        if let fetched = try? await resolveService().conversations() { conversations = fetched }
+    }
+
+    /// Optimistically clear a conversation's unread dot when it's opened.
+    func markConversationRead(_ id: String) {
+        if let index = conversations.firstIndex(where: { $0.id == id }) {
+            conversations[index].unreadCount = 0
+        }
     }
 
     func likedBy(_ post: FeedPost) async -> [Profile] {

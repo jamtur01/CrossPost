@@ -41,8 +41,9 @@ public protocol FeedService: Sendable {
     func notifications() async throws -> [FeedNotification]
     /// Count of unread notifications, for the tab badge.
     func unreadNotificationCount() async throws -> Int
-    /// Mark notifications as read (clears the unread count).
-    func markNotificationsRead() async throws
+    /// Mark notifications read up to the given id (the newest one the user just
+    /// saw), so a notification that arrives after the list loaded isn't marked read.
+    func markNotificationsRead(upTo latestID: String?) async throws
 
     // MARK: Post management & engagement
 

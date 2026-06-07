@@ -69,7 +69,8 @@ public struct BlueskyFeedService: FeedService {
         try await kit.getUnreadCount(priority: nil).count
     }
 
-    public func markNotificationsRead() async throws {
+    public func markNotificationsRead(upTo latestID: String?) async throws {
+        // Bluesky marks read by timestamp, not id.
         try await kit.updateSeen()
     }
 
@@ -303,7 +304,9 @@ public struct BlueskyFeedService: FeedService {
         let myDID = try await kit.getProfile(for: handle).actorDID
         let output = try await chat.listConversations()
         return output.conversations.compactMap { convo in
-            guard let other = convo.members.first(where: { $0.actorDID != myDID }) else { return nil }
+            // Fall back to the first member for a self-conversation (DM to yourself).
+            guard let other = convo.members.first(where: { $0.actorDID != myDID }) ?? convo.members.first
+            else { return nil }
             let last = Self.lastMessage(convo.lastMessage)
             return Conversation(
                 id: convo.conversationID,

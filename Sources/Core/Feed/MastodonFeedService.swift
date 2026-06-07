@@ -25,10 +25,9 @@ public struct MastodonFeedService: FeedService {
         try await client.getNotificationsUnreadCount()
     }
 
-    public func markNotificationsRead() async throws {
-        if let latest = try await client.getNotifications(limit: 1).result.first?.id {
-            _ = try await client.updateMarkers(notificationsLastReadId: latest)
-        }
+    public func markNotificationsRead(upTo latestID: String?) async throws {
+        guard let latestID else { return }
+        _ = try await client.updateMarkers(notificationsLastReadId: latestID)
     }
 
     static func notification(from n: TootNotification) -> FeedNotification {

@@ -160,10 +160,14 @@ struct FeedPostView: View {
             staticImage(media.url, fit: fit)
                 .accessibilityLabel(media.altText.isEmpty ? "Image" : media.altText)
         case .gif:
-            motion(AnimatedGIFView(url: media.url), media: media, fit: fit, badge: "GIF")
+            MotionMedia(media: media, fit: fit, badge: "GIF") { active in
+                AnimatedGIFView(url: media.url, isActive: active)
+            }
         case .video:
-            motion(LoopingVideoView(url: media.url, gravity: fit ? .resizeAspect : .resizeAspectFill),
-                   media: media, fit: fit, badge: nil)
+            MotionMedia(media: media, fit: fit, badge: nil) { active in
+                LoopingVideoView(url: media.url,
+                                 gravity: fit ? .resizeAspect : .resizeAspectFill, isActive: active)
+            }
         }
     }
 
@@ -173,30 +177,6 @@ struct FeedPostView: View {
         } placeholder: {
             RoundedRectangle(cornerRadius: Theme.mediaCorner).fill(.quaternary).frame(height: 120)
         }
-    }
-
-    @ViewBuilder
-    private func motion(_ content: some View, media: FeedImage, fit: Bool, badge: String?) -> some View {
-        Group {
-            if fit {
-                content.aspectRatio(media.aspectRatio ?? 1.5, contentMode: .fit)
-            } else {
-                content
-            }
-        }
-        .overlay(alignment: .bottomTrailing) {
-            if let badge { mediaBadge(badge) }
-        }
-        .accessibilityLabel(media.altText.isEmpty ? "Animated media" : media.altText)
-    }
-
-    private func mediaBadge(_ text: String) -> some View {
-        Text(text)
-            .font(.system(size: 9, weight: .bold))
-            .foregroundStyle(.white)
-            .padding(.horizontal, 5).padding(.vertical, 2)
-            .background(.black.opacity(0.55), in: Capsule())
-            .padding(6)
     }
 
     private var actionBar: some View {

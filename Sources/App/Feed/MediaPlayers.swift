@@ -3,16 +3,20 @@ import AVKit
 import AppKit
 
 /// Autoplaying, muted, looping player for MP4/HLS clips — Mastodon `gifv` and
-/// video, and Bluesky video. Mirrors how native clients play motion media inline.
+/// video, and Bluesky video. Plays only while `isActive` (visible), to avoid
+/// decoding offscreen rows in a lazy feed.
 struct LoopingVideoView: NSViewRepresentable {
     let url: URL
     var gravity: AVLayerVideoGravity = .resizeAspectFill
+    var isActive: Bool = true
 
     func makeNSView(context: Context) -> LoopingPlayerNSView {
         LoopingPlayerNSView(url: url, gravity: gravity)
     }
 
-    func updateNSView(_ nsView: LoopingPlayerNSView, context: Context) {}
+    func updateNSView(_ nsView: LoopingPlayerNSView, context: Context) {
+        nsView.setActive(isActive)
+    }
 
     static func dismantleNSView(_ nsView: LoopingPlayerNSView, coordinator: ()) {
         nsView.stop()
@@ -43,10 +47,13 @@ final class LoopingPlayerNSView: NSView {
             player?.seek(to: .zero)
             player?.play()
         }
-        player.play()
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
+
+    func setActive(_ active: Bool) {
+        if active { player.play() } else { player.pause() }
+    }
 
     func stop() {
         player.pause()
@@ -63,32 +70,83 @@ final class LoopingPlayerNSView: NSView {
 }
 
 /// Plays an animated GIF file (Bluesky Tenor/Giphy external embeds) — AVPlayer
-/// can't decode GIFs, but NSImageView animates them natively.
+/// can't decode GIFs, but NSImageView animates them natively. Decoded GIFs are
+/// cached, in-flight downloads are cancelled on teardown, and animation pauses
+/// when offscreen.
 struct AnimatedGIFView: NSViewRepresentable {
     let url: URL
+    var isActive: Bool = true
 
     func makeNSView(context: Context) -> NSImageView {
         let view = NSImageView()
         view.imageScaling = .scaleProportionallyUpOrDown
-        view.animates = true
+        view.animates = isActive
         context.coordinator.load(url, into: view)
         return view
     }
 
-    func updateNSView(_ nsView: NSImageView, context: Context) {}
+    func updateNSView(_ nsView: NSImageView, context: Context) {
+        nsView.animates = isActive
+    }
+
+    static func dismantleNSView(_ nsView: NSImageView, coordinator: Coordinator) {
+        coordinator.cancel()
+    }
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
     final class Coordinator {
+        private static let cache = NSCache<NSURL, NSImage>()
         private var task: URLSessionDataTask?
 
         func load(_ url: URL, into view: NSImageView) {
+            if let cached = Self.cache.object(forKey: url as NSURL) {
+                view.image = cached
+                return
+            }
             task?.cancel()
             task = URLSession.shared.dataTask(with: url) { data, _, _ in
                 guard let data, let image = NSImage(data: data) else { return }
+                Self.cache.setObject(image, forKey: url as NSURL)
                 DispatchQueue.main.async { view.image = image }
             }
             task?.resume()
         }
+
+        func cancel() { task?.cancel() }
+    }
+}
+
+/// Wraps a motion-media player (gif/video) with visibility tracking so it only
+/// plays while onscreen, plus aspect-fit sizing and an optional corner badge.
+struct MotionMedia<Player: View>: View {
+    let media: FeedImage
+    let fit: Bool
+    let badge: String?
+    @ViewBuilder let player: (Bool) -> Player
+
+    @State private var visible = false
+
+    var body: some View {
+        Group {
+            if fit {
+                player(visible).aspectRatio(media.aspectRatio ?? 1.5, contentMode: .fit)
+            } else {
+                player(visible)
+            }
+        }
+        .overlay(alignment: .bottomTrailing) {
+            if let badge {
+                Text(badge)
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 5).padding(.vertical, 2)
+                    .background(.black.opacity(0.55), in: Capsule())
+                    .padding(6)
+            }
+        }
+        .accessibilityLabel(media.altText.isEmpty ? "Animated media" : media.altText)
+        .onAppear { visible = true }
+        .onDisappear { visible = false }
     }
 }

@@ -107,7 +107,10 @@ struct ConversationView: View {
             composer
         }
         .background(Color(nsColor: .textBackgroundColor))
-        .task { await reload() }
+        .task {
+            panel.markConversationRead(conversation.id)
+            await reload()
+        }
     }
 
     private func bubble(_ message: DirectMessage) -> some View {
@@ -157,6 +160,7 @@ struct ConversationView: View {
         do {
             try await panel.sendMessage(text, to: conversation.id)
             await reload()
+            await panel.reloadConversations()
         } catch {
             draft = text   // restore the text so it isn't lost
         }

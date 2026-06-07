@@ -9,7 +9,7 @@ public struct Conversation: Identifiable, Sendable, Equatable {
     public let otherAvatarURL: URL?
     public let lastMessage: String?
     public let lastDate: Date?
-    public let unreadCount: Int
+    public var unreadCount: Int
 
     public init(id: String, otherName: String, otherHandle: String, otherID: String,
                 otherAvatarURL: URL?, lastMessage: String?, lastDate: Date?, unreadCount: Int) {
