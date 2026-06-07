@@ -18,15 +18,16 @@ final class RichTextTests: XCTestCase {
         }
     }
 
-    func testColorsBareMention() {
+    func testPlainMentionIsNotColored() {
+        // A plain "@bob" with no link must not look tappable (e.g. "@cat" in a bio).
         let styled = RichText.styled(AttributedString("hi @bob there"), accent: accent)
-        XCTAssertEqual(colored(styled), ["@bob"])
+        XCTAssertTrue(colored(styled).isEmpty)
         XCTAssertTrue(links(styled).isEmpty)
     }
 
-    func testColorsHashtag() {
+    func testPlainHashtagIsNotColored() {
         let styled = RichText.styled(AttributedString("love #swift today"), accent: accent)
-        XCTAssertEqual(colored(styled), ["#swift"])
+        XCTAssertTrue(colored(styled).isEmpty)
     }
 
     func testDetectsBareURLAsColoredLink() {
