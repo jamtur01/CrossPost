@@ -27,7 +27,9 @@ struct FeedPanelView: View {
                 timeline
             } else {
                 navHeader
-                routeContent
+                // Identity per route so a profile→profile (or thread→thread) push
+                // re-creates the view and reloads, instead of reusing stale state.
+                routeContent.id(routes.last?.id)
             }
         }
         .background(Color(nsColor: .textBackgroundColor))
