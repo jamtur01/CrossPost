@@ -57,6 +57,7 @@ public enum ImageProcessor {
 
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: resized)
+        NSGraphicsContext.current?.imageInterpolation = .high
         bitmap.draw(in: NSRect(x: 0, y: 0, width: targetWidth, height: targetHeight))
         NSGraphicsContext.restoreGraphicsState()
 

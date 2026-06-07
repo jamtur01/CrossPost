@@ -13,10 +13,30 @@ final class ComposeModel {
     private let coordinator = CrossPostCoordinator()
     private let store: AccountStore
 
+    /// The content signature each target last received, so re-pressing Post can't
+    /// duplicate an already-published thread. Editing the thread changes the
+    /// signature, which releases the lock automatically.
+    private var postedSignatures: [PostTarget: Int] = [:]
+
     init(store: AccountStore) { self.store = store }
 
     var canPost: Bool {
         !isPosting && !selectedTargets.isEmpty && thread.contains { !$0.isEmpty }
+    }
+
+    /// True when this target already received the current thread content; selecting
+    /// it would duplicate that post.
+    func isLocked(_ target: PostTarget) -> Bool {
+        postedSignatures[target] == contentSignature
+    }
+
+    private var contentSignature: Int {
+        var hasher = Hasher()
+        for post in thread {
+            hasher.combine(post.text.trimmingCharacters(in: .whitespacesAndNewlines))
+            hasher.combine(post.attachments.map(\.id))
+        }
+        return hasher.finalize()
     }
 
     func addPost() { thread.append(DraftPost()) }
@@ -27,8 +47,13 @@ final class ComposeModel {
     }
 
     func toggle(_ target: PostTarget) {
-        if selectedTargets.contains(target) { selectedTargets.remove(target) }
-        else { selectedTargets.insert(target) }
+        if selectedTargets.contains(target) {
+            selectedTargets.remove(target)
+        } else if isLocked(target) {
+            errorMessage = "Already posted to \(target.displayName). Edit a post to send again."
+        } else {
+            selectedTargets.insert(target)
+        }
     }
 
     func submit() async {
@@ -72,6 +97,9 @@ final class ComposeModel {
         }.map(\.target)
 
         if !landed.isEmpty {
+            // Lock each landed target against re-posting this exact content.
+            let signature = contentSignature
+            for target in landed { postedSignatures[target] = signature }
             NotificationCenter.default.post(name: .crossPostDidPost, object: nil,
                                             userInfo: [crossPostTargetsKey: Set(landed)])
         }

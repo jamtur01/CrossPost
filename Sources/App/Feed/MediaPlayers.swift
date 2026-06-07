@@ -96,7 +96,16 @@ struct AnimatedGIFView: NSViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator() }
 
     final class Coordinator {
-        private static let cache = NSCache<NSURL, NSImage>()
+        // Animated GIFs keep every frame resident, so bound the cache and skip
+        // absurdly large downloads — otherwise a feed of big Tenor/Giphy GIFs
+        // (or a malicious external embed) can balloon memory unbounded.
+        private static let maxBytes = 32 * 1024 * 1024
+        private static let cache: NSCache<NSURL, NSImage> = {
+            let cache = NSCache<NSURL, NSImage>()
+            cache.countLimit = 40
+            cache.totalCostLimit = 128 * 1024 * 1024
+            return cache
+        }()
         private var task: URLSessionDataTask?
 
         func load(_ url: URL, into view: NSImageView) {
@@ -106,8 +115,9 @@ struct AnimatedGIFView: NSViewRepresentable {
             }
             task?.cancel()
             task = URLSession.shared.dataTask(with: url) { data, _, _ in
-                guard let data, let image = NSImage(data: data) else { return }
-                Self.cache.setObject(image, forKey: url as NSURL)
+                guard let data, data.count <= Self.maxBytes,
+                      let image = NSImage(data: data) else { return }
+                Self.cache.setObject(image, forKey: url as NSURL, cost: data.count)
                 DispatchQueue.main.async { view.image = image }
             }
             task?.resume()

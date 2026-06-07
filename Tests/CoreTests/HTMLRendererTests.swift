@@ -60,6 +60,13 @@ final class HTMLRendererTests: XCTestCase {
         XCTAssertEqual(links(html), [URL(string: "https://example.com")!])
     }
 
+    func testNonWebSchemeAnchorRendersLabelButNoLink() {
+        // A malicious post can't smuggle a file:// link past the renderer.
+        let html = #"<a href="file:///etc/passwd">click me</a>"#
+        XCTAssertEqual(plain(html), "click me")
+        XCTAssertTrue(links(html).isEmpty)
+    }
+
     func testPlainTextHasNoLinks() {
         XCTAssertTrue(links("just words").isEmpty)
     }

@@ -18,7 +18,8 @@ public enum RichTextLinks {
     public static func attributed(_ text: String, spans: [Span]) -> AttributedString {
         var result = AttributedString(text)
         for span in spans {
-            guard let range = range(of: span, in: text, of: result) else { continue }
+            guard WebLink.isOpenable(span.url),
+                  let range = range(of: span, in: text, of: result) else { continue }
             result[range].link = span.url
         }
         return result

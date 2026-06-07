@@ -100,7 +100,7 @@ struct ConversationView: View {
                     .padding(.horizontal, 12).padding(.vertical, 10)
                 }
                 .scrollContentBackground(.hidden)
-                .onChange(of: messages.count) {
+                .onChange(of: messages.last?.id) {
                     if let last = messages.last { withAnimation { proxy.scrollTo(last.id, anchor: .bottom) } }
                 }
             }

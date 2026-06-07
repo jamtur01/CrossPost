@@ -19,6 +19,7 @@ final class FeedPanelModel {
 
     private let store: AccountStore
     private var service: FeedService?
+    private var serviceTask: Task<FeedService, Error>?
     private var loadTask: Task<Void, Never>?
     private var pollTask: Task<Void, Never>?
     private var liveTask: Task<Void, Never>?
@@ -37,6 +38,8 @@ final class FeedPanelModel {
     /// (Re)start the panel. Drops any cached service so credential changes take effect.
     func start() {
         service = nil
+        serviceTask?.cancel()
+        serviceTask = nil
         guard hasCredentials else { needsCredentials = true; return }
         needsCredentials = false
         enqueueLoad(reset: true)
@@ -76,6 +79,8 @@ final class FeedPanelModel {
         guard newKind != kind else { return }
         kind = newKind
         posts = []
+        notifications = []
+        conversations = []
         errorMessage = nil
         enqueueLoad(reset: true)
         refreshUnreadCount()   // refresh the badge when leaving the notifications tab
@@ -146,7 +151,13 @@ final class FeedPanelModel {
 
     private func resolveService() async throws -> FeedService {
         if let service { return service }
-        let svc = try await FeedServiceFactory.make(for: target, store: store)
+        // Dedup concurrent callers (load + poll + live + badge all fire on start)
+        // so they share one client build instead of each authenticating separately.
+        if let serviceTask { return try await serviceTask.value }
+        let task = Task { try await FeedServiceFactory.make(for: target, store: store) }
+        serviceTask = task
+        defer { serviceTask = nil }
+        let svc = try await task.value
         service = svc
         return svc
     }
@@ -165,15 +176,18 @@ final class FeedPanelModel {
 
     func openInBrowser(_ post: FeedPost) {
         guard let url = post.webURL else { return }
-        NSWorkspace.shared.open(url)
+        open(url)
     }
 
     func openProfile(_ post: FeedPost) {
         guard let url = post.authorURL else { return }
-        NSWorkspace.shared.open(url)
+        open(url)
     }
 
+    /// The single sink for handing a URL to the system. Rejects any non-web scheme
+    /// so a malicious post can't open a `file://` or custom-scheme URL.
     func open(_ url: URL) {
+        guard WebLink.isOpenable(url) else { return }
         NSWorkspace.shared.open(url)
     }
 
@@ -255,11 +269,36 @@ final class FeedPanelModel {
     }
 
     func deletePost(_ post: FeedPost) {
-        posts.removeAll { $0.id == post.id }
-        Task {
-            do { try await resolveService().deletePost(post) }
-            catch { showActionError(error.userMessage) }
+        guard let index = posts.firstIndex(where: { $0.id == post.id }) else {
+            // Not in this timeline (thread/profile lists remove their own row and
+            // call serviceDeletePost); just perform the server-side delete.
+            Task {
+                do { try await serviceDeletePost(post) }
+                catch { showActionError(error.userMessage) }
+            }
+            return
         }
+        let removed = posts.remove(at: index)
+        Task {
+            do { try await serviceDeletePost(post) }
+            catch {
+                if !posts.contains(where: { $0.id == post.id }) {
+                    posts.insert(removed, at: min(index, posts.count))
+                }
+                showActionError(error.userMessage)
+            }
+        }
+    }
+
+    /// Server-side delete only — used by thread/profile lists that manage their
+    /// own optimistic row removal and rollback.
+    func serviceDeletePost(_ post: FeedPost) async throws {
+        try await resolveService().deletePost(post)
+    }
+
+    /// Surface a transient error banner from a list outside this panel's timeline.
+    func reportActionError(_ message: String) {
+        showActionError(message)
     }
 
     func setBookmarked(_ bookmarked: Bool, on post: FeedPost) {

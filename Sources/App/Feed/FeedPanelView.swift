@@ -79,7 +79,7 @@ struct FeedPanelView: View {
                 .tint(accent)
                 .fixedSize()
                 if model.unreadCount > 0 && model.kind != .notifications {
-                    Text("\(min(model.unreadCount, 99))")
+                    Text(model.unreadCount > 99 ? "99+" : "\(model.unreadCount)")
                         .font(.system(size: 10, weight: .bold))
                         .foregroundStyle(.white)
                         .padding(.horizontal, 5).padding(.vertical, 1.5)

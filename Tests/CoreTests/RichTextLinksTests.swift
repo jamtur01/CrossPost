@@ -51,4 +51,11 @@ final class RichTextLinksTests: XCTestCase {
         XCTAssertTrue(links(result).isEmpty)
         XCTAssertEqual(String(result.characters), "just words")
     }
+
+    func testNonWebSchemeSpanIsNotLinked() {
+        // A facet pointing at a non-http(s) scheme must not become tappable.
+        let result = RichTextLinks.attributed("hi @bob there", spans: [span(3, 7, "file:///etc/passwd")])
+        XCTAssertTrue(links(result).isEmpty)
+        XCTAssertEqual(String(result.characters), "hi @bob there")
+    }
 }

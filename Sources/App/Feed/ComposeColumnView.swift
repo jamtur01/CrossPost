@@ -88,7 +88,8 @@ struct ComposeColumnView: View {
             HStack(spacing: 8) {
                 Spacer(minLength: 0)
                 ForEach(PostTarget.allCases) { target in
-                    targetPill(target, selected: model.selectedTargets.contains(target)) {
+                    let selected = model.selectedTargets.contains(target)
+                    targetPill(target, selected: selected, posted: !selected && model.isLocked(target)) {
                         model.toggle(target)
                     }
                 }
@@ -110,15 +111,16 @@ struct ComposeColumnView: View {
         .overlay(alignment: .top) { Divider() }
     }
 
-    private func targetPill(_ target: PostTarget, selected: Bool,
+    private func targetPill(_ target: PostTarget, selected: Bool, posted: Bool = false,
                             action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 5) {
-                Image(systemName: target.glyph).font(.system(size: 12))
+                Image(systemName: posted ? "checkmark.circle.fill" : target.glyph).font(.system(size: 12))
                 Text(target.displayName).font(.system(size: 12.5, weight: .medium))
             }
             .lineLimit(1)
             .fixedSize()
+            .opacity(posted ? 0.55 : 1)
             .padding(.horizontal, 10).padding(.vertical, 5)
             .foregroundStyle(selected ? target.accent : .secondary)
             .background(

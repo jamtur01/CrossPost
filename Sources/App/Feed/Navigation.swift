@@ -81,6 +81,22 @@ final class PostList {
         }
     }
 
+    /// Optimistically remove a row, deleting it on the server and re-inserting it
+    /// at its original position (with an error banner) if the delete fails.
+    func delete(_ post: FeedPost) {
+        guard let index = posts.firstIndex(where: { $0.id == post.id }) else { return }
+        let removed = posts.remove(at: index)
+        Task { [panel] in
+            do { try await panel.serviceDeletePost(post) }
+            catch {
+                if !posts.contains(where: { $0.id == post.id }) {
+                    posts.insert(removed, at: min(index, posts.count))
+                }
+                panel.reportActionError(error.userMessage)
+            }
+        }
+    }
+
     private func mutate(_ post: FeedPost,
                         optimistic: (inout FeedPost) -> Void,
                         action: @escaping (FeedPost) async throws -> FeedPost) {
@@ -102,6 +118,7 @@ final class PostList {
                 if let i = posts.firstIndex(where: { $0.id == post.id }), posts[i] == optimisticPost {
                     posts[i] = original
                 }
+                panel.reportActionError(error.userMessage)
             }
         }
     }

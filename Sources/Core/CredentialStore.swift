@@ -61,6 +61,9 @@ public struct CredentialStore: SecretStoring, Sendable {
         SecItemDelete(base as CFDictionary) // ignore result; ensures overwrite
         var add = base
         add[kSecValueData as String] = data
+        // Keep tokens on this device only (never synced to iCloud Keychain or
+        // migrated via an encrypted backup) and unreadable while locked.
+        add[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
         let status = SecItemAdd(add as CFDictionary, nil)
         guard status == errSecSuccess else { throw KeychainError.unexpectedStatus(status) }
     }

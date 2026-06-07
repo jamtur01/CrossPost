@@ -43,7 +43,7 @@ struct ProfileView: View {
                             onOpenURL: { panel.openLink($0, push: push) },
                             isMine: panel.isMine(row),
                             onBookmark: { panel.setBookmarked(!row.isBookmarked, on: row) },
-                            onDelete: { list.posts.removeAll { $0.id == row.id }; panel.deletePost(row) },
+                            onDelete: { list.delete(row) },
                             onPin: { panel.setPinned(!row.isPinned, on: row) },
                             onLikedBy: { push(.profileList(ProfileListRef(kind: .likedBy, post: row))) },
                             onRepostedBy: { push(.profileList(ProfileListRef(kind: .repostedBy, post: row))) },

@@ -10,7 +10,24 @@ enum RichText {
     private static let linkDetector = try! NSDataDetector(
         types: NSTextCheckingResult.CheckingType.link.rawValue)
 
-    static func styled(_ input: AttributedString, accent: Color) -> AttributedString {
+    private final class Box { let value: AttributedString; init(_ value: AttributedString) { self.value = value } }
+    private static let cache: NSCache<NSString, Box> = {
+        let cache = NSCache<NSString, Box>()
+        cache.countLimit = 500
+        return cache
+    }()
+
+    /// `cacheKey` (e.g. the post id, which is platform-prefixed so it captures the
+    /// accent too) memoises the result so the NSDataDetector pass doesn't re-run on
+    /// every `body` evaluation while scrolling.
+    static func styled(_ input: AttributedString, accent: Color, cacheKey: String? = nil) -> AttributedString {
+        if let cacheKey, let hit = cache.object(forKey: cacheKey as NSString) { return hit.value }
+        let result = compute(input, accent: accent)
+        if let cacheKey { cache.setObject(Box(result), forKey: cacheKey as NSString) }
+        return result
+    }
+
+    private static func compute(_ input: AttributedString, accent: Color) -> AttributedString {
         var attributed = input
         let text = String(attributed.characters)
         let full = NSRange(text.startIndex..<text.endIndex, in: text)
@@ -21,7 +38,7 @@ enum RichText {
         }
         // Detect bare URLs in plain text and turn them into coloured links.
         linkDetector.enumerateMatches(in: text, range: full) { match, _, _ in
-            guard let match, let url = match.url,
+            guard let match, let url = match.url, WebLink.isOpenable(url),
                   let range = attributedRange(match.range, in: text, of: &attributed),
                   attributed[range].link == nil
             else { return }

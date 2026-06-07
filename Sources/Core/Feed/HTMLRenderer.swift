@@ -49,7 +49,7 @@ public enum HTMLRenderer {
         let href = decodeEntities(String(input[hrefRange]))
         let label = plainText(String(input[labelRange]))
         var piece = AttributedString(label.isEmpty ? href : label)
-        if let url = URL(string: href) { piece.link = url }
+        if let url = URL(string: href), WebLink.isOpenable(url) { piece.link = url }
         return piece
     }
 
