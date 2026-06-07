@@ -166,8 +166,10 @@ struct ProfileView: View {
                     Button("Following") { Task { await toggleFollow() } }
                         .buttonStyle(.bordered)
                 } else {
-                    Button("Follow") { Task { await toggleFollow() } }
-                        .buttonStyle(.borderedProminent).tint(accent)
+                    Button(relationship.isFollowedBy ? "Follow back" : "Follow") {
+                        Task { await toggleFollow() }
+                    }
+                    .buttonStyle(.borderedProminent).tint(accent)
                 }
             }
             .font(.system(size: 13, weight: .semibold))

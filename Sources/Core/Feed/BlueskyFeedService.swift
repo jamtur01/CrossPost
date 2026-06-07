@@ -343,7 +343,7 @@ public struct BlueskyFeedService: FeedService {
 
     static func profile(from p: AppBskyLexicon.Actor.ProfileViewDetailedDefinition) -> Profile {
         Profile(
-            id: p.actorHandle,
+            id: p.actorDID,   // the stable id; follow/block records require the DID, not the handle
             target: .bluesky,
             name: p.displayName?.isEmpty == false ? p.displayName! : p.actorHandle,
             handle: "@\(p.actorHandle)",

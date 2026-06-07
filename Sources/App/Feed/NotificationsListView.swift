@@ -38,55 +38,63 @@ private struct NotificationRow: View {
     @State private var hovering = false
 
     var body: some View {
-        Button(action: open) {
-            HStack(alignment: .top, spacing: 10) {
-                Image(systemName: icon)
-                    .font(.system(size: 14))
-                    .foregroundStyle(tint)
-                    .frame(width: 20)
-                    .padding(.top, 2)
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: icon)
+                .font(.system(size: 14))
+                .foregroundStyle(tint)
+                .frame(width: 20)
+                .padding(.top, 2)
 
-                VStack(alignment: .leading, spacing: 5) {
-                    HStack(spacing: 7) {
-                        AsyncImage(url: notification.avatarURL) { img in
-                            img.resizable().scaledToFill()
-                        } placeholder: {
-                            Circle().fill(.quaternary)
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(spacing: 7) {
+                    // Avatar + name open the actor's profile; the rest opens the post.
+                    Button(action: openProfile) {
+                        HStack(spacing: 7) {
+                            AsyncImage(url: notification.avatarURL) { img in
+                                img.resizable().scaledToFill()
+                            } placeholder: {
+                                Circle().fill(.quaternary)
+                            }
+                            .frame(width: 26, height: 26)
+                            .clipShape(Circle())
+
+                            Text(notification.actorName).font(Theme.name).lineLimit(1)
                         }
-                        .frame(width: 26, height: 26)
-                        .clipShape(Circle())
-
-                        Text(notification.actorName).font(Theme.name).lineLimit(1)
-                        Text(actionText).font(Theme.handle).foregroundStyle(.secondary).lineLimit(1)
-                        Spacer(minLength: 4)
-                        Text(notification.date, format: .relative(presentation: .numeric))
-                            .font(Theme.meta).foregroundStyle(.tertiary).fixedSize()
+                        .contentShape(Rectangle())
                     }
+                    .buttonStyle(.plain)
 
-                    if let post = notification.post, !post.text.characters.isEmpty {
-                        Text(post.text)
-                            .font(Theme.content)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(3)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
+                    Text(actionText).font(Theme.handle).foregroundStyle(.secondary).lineLimit(1)
+                    Spacer(minLength: 4)
+                    Text(notification.date, format: .relative(presentation: .numeric))
+                        .font(Theme.meta).foregroundStyle(.tertiary).fixedSize()
+                }
+
+                if let post = notification.post, !post.text.characters.isEmpty {
+                    Text(post.text)
+                        .font(Theme.content)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(3)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
-            .padding(.horizontal, Theme.rowPaddingH).padding(.vertical, 10)
-            .background(hovering ? Theme.hoverFill : .clear)
-            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .padding(.horizontal, Theme.rowPaddingH).padding(.vertical, 10)
+        .background(hovering ? Theme.hoverFill : .clear)
+        .contentShape(Rectangle())
+        .onTapGesture(perform: openPost)
         .onHover { hovering = $0 }
     }
 
-    private func open() {
-        if let post = notification.post {
-            push(.thread(post))
-        } else {
-            push(.profile(ProfileRef(id: notification.actorID, handle: notification.actorHandle,
-                                     name: notification.actorName, avatar: notification.avatarURL)))
-        }
+    private var actorRef: ProfileRef {
+        ProfileRef(id: notification.actorID, handle: notification.actorHandle,
+                   name: notification.actorName, avatar: notification.avatarURL)
+    }
+
+    private func openProfile() { push(.profile(actorRef)) }
+
+    private func openPost() {
+        if let post = notification.post { push(.thread(post)) } else { push(.profile(actorRef)) }
     }
 
     private var icon: String {
