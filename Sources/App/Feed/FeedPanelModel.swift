@@ -211,6 +211,54 @@ final class FeedPanelModel {
         (try? await resolveService().following(of: id)) ?? []
     }
 
+    /// Whether a post was authored by the signed-in user (controls delete/pin actions).
+    func isMine(_ post: FeedPost) -> Bool {
+        let mine = target == .mastodon ? store.mastodonUsername : store.blueskyHandle
+        return !mine.isEmpty && post.authorHandle.lowercased() == "@\(mine.lowercased())"
+    }
+
+    func deletePost(_ post: FeedPost) {
+        posts.removeAll { $0.id == post.id }
+        Task {
+            do { try await resolveService().deletePost(post) }
+            catch { showActionError(error.userMessage) }
+        }
+    }
+
+    func setBookmarked(_ bookmarked: Bool, on post: FeedPost) {
+        updatePost(post.id) { $0.isBookmarked = bookmarked }
+        Task {
+            do {
+                let updated = try await resolveService().setBookmarked(bookmarked, on: post)
+                updatePost(post.id) { $0 = updated }
+            } catch {
+                updatePost(post.id) { $0.isBookmarked = !bookmarked }
+                showActionError(error.userMessage)
+            }
+        }
+    }
+
+    func setPinned(_ pinned: Bool, on post: FeedPost) {
+        Task {
+            do {
+                let updated = try await resolveService().setPinned(pinned, on: post)
+                updatePost(post.id) { $0 = updated }
+            } catch { showActionError(error.userMessage) }
+        }
+    }
+
+    func likedBy(_ post: FeedPost) async -> [Profile] {
+        (try? await resolveService().likedBy(post)) ?? []
+    }
+
+    func repostedBy(_ post: FeedPost) async -> [Profile] {
+        (try? await resolveService().repostedBy(post)) ?? []
+    }
+
+    private func updatePost(_ id: String, _ mutate: (inout FeedPost) -> Void) {
+        if let index = posts.firstIndex(where: { $0.id == id }) { mutate(&posts[index]) }
+    }
+
     /// Service-backed like/repost for posts not held in this panel's timeline
     /// (used by thread and profile lists).
     func serviceSetLiked(_ liked: Bool, on post: FeedPost) async throws -> FeedPost {

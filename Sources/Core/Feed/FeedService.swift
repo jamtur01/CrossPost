@@ -43,4 +43,16 @@ public protocol FeedService: Sendable {
     func unreadNotificationCount() async throws -> Int
     /// Mark notifications as read (clears the unread count).
     func markNotificationsRead() async throws
+
+    // MARK: Post management & engagement
+
+    /// Delete one of the signed-in user's own posts.
+    func deletePost(_ post: FeedPost) async throws
+    /// Bookmark / unbookmark a post; returns the post with its updated flag.
+    func setBookmarked(_ bookmarked: Bool, on post: FeedPost) async throws -> FeedPost
+    /// Pin / unpin one of your own posts (Mastodon; throws on Bluesky).
+    func setPinned(_ pinned: Bool, on post: FeedPost) async throws -> FeedPost
+    /// Accounts that liked / reposted a post.
+    func likedBy(_ post: FeedPost) async throws -> [Profile]
+    func repostedBy(_ post: FeedPost) async throws -> [Profile]
 }

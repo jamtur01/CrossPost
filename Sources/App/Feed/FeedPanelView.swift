@@ -165,6 +165,12 @@ struct FeedPanelView: View {
                                 onOpen: { model.openInBrowser(post) },
                                 onOpenProfile: { routes.append(.profile(post.profileRef())) },
                                 onOpenURL: { model.openLink($0) { routes.append($0) } },
+                                isMine: model.isMine(post),
+                                onBookmark: { model.setBookmarked(!post.isBookmarked, on: post) },
+                                onDelete: { model.deletePost(post) },
+                                onPin: { model.setPinned(!post.isPinned, on: post) },
+                                onLikedBy: { routes.append(.profileList(ProfileListRef(kind: .likedBy, post: post))) },
+                                onRepostedBy: { routes.append(.profileList(ProfileListRef(kind: .repostedBy, post: post))) },
                                 onShowParent: post.isReply ? { routes.append(.thread(post)) } : nil,
                                 onOpenDetail: { routes.append(.thread(post)) })
                         }

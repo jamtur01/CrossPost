@@ -37,6 +37,12 @@ struct ThreadView: View {
                         onOpen: { panel.openInBrowser(row) },
                         onOpenProfile: { push(.profile(row.profileRef())) },
                         onOpenURL: { panel.openLink($0, push: push) },
+                        isMine: panel.isMine(row),
+                        onBookmark: { panel.setBookmarked(!row.isBookmarked, on: row) },
+                        onDelete: { list.posts.removeAll { $0.id == row.id }; panel.deletePost(row) },
+                        onPin: { panel.setPinned(!row.isPinned, on: row) },
+                        onLikedBy: { push(.profileList(ProfileListRef(kind: .likedBy, post: row))) },
+                        onRepostedBy: { push(.profileList(ProfileListRef(kind: .repostedBy, post: row))) },
                         onOpenDetail: isFocused ? nil : { push(.thread(row)) },
                         inTimeline: !isFocused,
                         expanded: isFocused)

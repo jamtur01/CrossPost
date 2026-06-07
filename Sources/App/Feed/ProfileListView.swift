@@ -30,9 +30,12 @@ struct ProfileListView: View {
         .scrollContentBackground(.hidden)
         .background(Color(nsColor: .textBackgroundColor))
         .task {
-            profiles = ref.kind == .followers
-                ? await panel.followers(of: ref.accountID)
-                : await panel.following(of: ref.accountID)
+            switch ref.kind {
+            case .followers: profiles = await panel.followers(of: ref.accountID)
+            case .following: profiles = await panel.following(of: ref.accountID)
+            case .likedBy: if let post = ref.post { profiles = await panel.likedBy(post) }
+            case .repostedBy: if let post = ref.post { profiles = await panel.repostedBy(post) }
+            }
             loading = false
         }
     }

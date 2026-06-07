@@ -124,6 +124,39 @@ public struct MastodonFeedService: FeedService {
         try await client.getTimeline(.user(userID: id)).result.map { Self.feedPost(from: $0) }
     }
 
+    public func deletePost(_ post: FeedPost) async throws {
+        guard case .mastodon(let id) = post.nativeRef else { throw FeedError.wrongPlatform }
+        _ = try await client.deletePost(id: id)
+    }
+
+    public func setBookmarked(_ bookmarked: Bool, on post: FeedPost) async throws -> FeedPost {
+        guard case .mastodon(let id) = post.nativeRef else { return post }
+        let updated = bookmarked
+            ? try await client.bookmarkPost(id: id)
+            : try await client.unbookmarkPost(id: id)
+        var copy = post
+        copy.isBookmarked = updated.bookmarked ?? bookmarked
+        return copy
+    }
+
+    public func setPinned(_ pinned: Bool, on post: FeedPost) async throws -> FeedPost {
+        guard case .mastodon(let id) = post.nativeRef else { return post }
+        let updated = pinned ? try await client.pinPost(id: id) : try await client.unpinPost(id: id)
+        var copy = post
+        copy.isPinned = updated.pinned ?? pinned
+        return copy
+    }
+
+    public func likedBy(_ post: FeedPost) async throws -> [Profile] {
+        guard case .mastodon(let id) = post.nativeRef else { return [] }
+        return try await client.getAccountsFavourited(id: id).result.map { Self.profile(from: $0) }
+    }
+
+    public func repostedBy(_ post: FeedPost) async throws -> [Profile] {
+        guard case .mastodon(let id) = post.nativeRef else { return [] }
+        return try await client.getAccountsBoosted(id: id).result.map { Self.profile(from: $0) }
+    }
+
     public func relationship(with id: String) async throws -> AccountRelationship {
         Self.relationship(from: try await client.getRelationships(by: [id]).first)
     }
@@ -254,6 +287,8 @@ public struct MastodonFeedService: FeedService {
             webURL: display.url.flatMap(URL.init(string:)),
             isLiked: display.favourited ?? false,
             isReposted: display.reposted ?? false,
+            isBookmarked: display.bookmarked ?? false,
+            isPinned: display.pinned ?? false,
             replyCount: display.repliesCount,
             repostCount: display.repostsCount,
             likeCount: display.favouritesCount,

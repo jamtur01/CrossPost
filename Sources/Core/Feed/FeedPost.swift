@@ -71,6 +71,8 @@ public struct FeedPost: Identifiable, Equatable, Sendable {
     public let webURL: URL?
     public var isLiked: Bool
     public var isReposted: Bool
+    public var isBookmarked: Bool
+    public var isPinned: Bool
     public var replyCount: Int
     public var repostCount: Int
     public var likeCount: Int
@@ -90,6 +92,7 @@ public struct FeedPost: Identifiable, Equatable, Sendable {
                 text: AttributedString, images: [FeedImage],
                 card: LinkCard? = nil, quoted: QuotedPost? = nil,
                 webURL: URL?, isLiked: Bool, isReposted: Bool,
+                isBookmarked: Bool = false, isPinned: Bool = false,
                 replyCount: Int = 0, repostCount: Int = 0, likeCount: Int = 0,
                 likeRecordURI: String? = nil, repostRecordURI: String? = nil,
                 boostedBy: String? = nil, mentionHandles: [String] = [],
@@ -103,6 +106,7 @@ public struct FeedPost: Identifiable, Equatable, Sendable {
         self.text = text; self.images = images
         self.card = card; self.quoted = quoted; self.webURL = webURL
         self.isLiked = isLiked; self.isReposted = isReposted
+        self.isBookmarked = isBookmarked; self.isPinned = isPinned
         self.replyCount = replyCount; self.repostCount = repostCount; self.likeCount = likeCount
         self.likeRecordURI = likeRecordURI; self.repostRecordURI = repostRecordURI
         self.boostedBy = boostedBy; self.mentionHandles = mentionHandles

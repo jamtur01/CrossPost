@@ -264,6 +264,37 @@ public struct BlueskyFeedService: FeedService {
         return try await profile(id: id)
     }
 
+    public func deletePost(_ post: FeedPost) async throws {
+        guard case .bluesky(let uri, _, _, _) = post.nativeRef else { throw FeedError.wrongPlatform }
+        try await bluesky.deleteRecord(.recordURI(atURI: uri))
+    }
+
+    public func setBookmarked(_ bookmarked: Bool, on post: FeedPost) async throws -> FeedPost {
+        guard case .bluesky(let uri, let cid, _, _) = post.nativeRef else { return post }
+        if bookmarked {
+            try await kit.createBookmark(uri: uri, cid: cid)
+        } else {
+            try await kit.deleteBookmark(uri: uri)
+        }
+        var copy = post
+        copy.isBookmarked = bookmarked
+        return copy
+    }
+
+    public func setPinned(_ pinned: Bool, on post: FeedPost) async throws -> FeedPost {
+        throw FeedError.notSupported("Pinning posts isn't supported on Bluesky yet.")
+    }
+
+    public func likedBy(_ post: FeedPost) async throws -> [Profile] {
+        guard case .bluesky(let uri, _, _, _) = post.nativeRef else { return [] }
+        return try await kit.getLikes(from: uri).likes.map { Self.profile(fromBasic: $0.actor) }
+    }
+
+    public func repostedBy(_ post: FeedPost) async throws -> [Profile] {
+        guard case .bluesky(let uri, _, _, _) = post.nativeRef else { return [] }
+        return try await kit.getRepostedBy(uri).repostedBy.map { Self.profile(fromBasic: $0) }
+    }
+
     public func relationship(with id: String) async throws -> AccountRelationship {
         Self.relationship(from: try await kit.getProfile(for: id).viewer)
     }
@@ -430,6 +461,8 @@ public struct BlueskyFeedService: FeedService {
             webURL: URL(string: "https://bsky.app/profile/\(p.author.actorHandle)/post/\(rkey)"),
             isLiked: p.viewer?.likeURI != nil,
             isReposted: p.viewer?.repostURI != nil,
+            isBookmarked: p.viewer?.isBookmarked ?? false,
+            isPinned: p.viewer?.isPinned ?? false,
             replyCount: p.replyCount ?? 0,
             repostCount: p.repostCount ?? 0,
             likeCount: p.likeCount ?? 0,

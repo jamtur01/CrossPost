@@ -9,6 +9,12 @@ struct FeedPostView: View {
     var onOpen: () -> Void = {}
     var onOpenProfile: () -> Void = {}
     var onOpenURL: (URL) -> Void = { _ in }
+    var isMine: Bool = false
+    var onBookmark: () -> Void = {}
+    var onDelete: () -> Void = {}
+    var onPin: () -> Void = {}
+    var onLikedBy: () -> Void = {}
+    var onRepostedBy: () -> Void = {}
     var onShowParent: (() -> Void)?
     var onOpenDetail: (() -> Void)?
     var showActions: Bool = true
@@ -203,8 +209,45 @@ struct FeedPostView: View {
                         active: post.isLiked, tint: .pink, help: "Like", action: onLike)
             Spacer(minLength: 0)
             iconAction("square.and.arrow.up", help: "Open in browser", action: onOpen)
+            moreMenu
         }
         .padding(.top, 4)
+    }
+
+    private var moreMenu: some View {
+        Menu {
+            Button(action: onBookmark) {
+                Label(post.isBookmarked ? "Remove Bookmark" : "Bookmark",
+                      systemImage: post.isBookmarked ? "bookmark.fill" : "bookmark")
+            }
+            if post.likeCount > 0 {
+                Button(action: onLikedBy) { Label("Liked by…", systemImage: "heart") }
+            }
+            if post.repostCount > 0 {
+                Button(action: onRepostedBy) { Label("Reposted by…", systemImage: "arrow.2.squarepath") }
+            }
+            Divider()
+            Button(action: onOpen) { Label("Open in Browser", systemImage: "safari") }
+            if isMine {
+                if post.target == .mastodon {
+                    Button(action: onPin) {
+                        Label(post.isPinned ? "Unpin" : "Pin to Profile", systemImage: "pin")
+                    }
+                }
+                Divider()
+                Button(role: .destructive, action: onDelete) { Label("Delete", systemImage: "trash") }
+            }
+        } label: {
+            Image(systemName: "ellipsis")
+                .font(Theme.action)
+                .foregroundStyle(.secondary)
+                .padding(.vertical, 5).padding(.horizontal, 3)
+                .contentShape(Rectangle())
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help("More")
     }
 
     private func countAction(_ symbol: String, count: Int, active: Bool, tint: Color,
