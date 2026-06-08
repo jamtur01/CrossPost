@@ -130,4 +130,20 @@ final class ComposeModelTests: XCTestCase {
         XCTAssertFalse(model.selectedTargets.contains(.bluesky))
         XCTAssertNotNil(model.errorMessage)
     }
+
+    /// Intended behavior: the lock keys on text + image identity, so editing only a
+    /// post's alt text must NOT release a landed target's lock — re-posting the same
+    /// text and images would duplicate it. (Guards against a regression that folds
+    /// alt text into the content signature.)
+    func testEditingOnlyAltTextKeepsTheLock() {
+        let model = makeModel()
+        model.thread[0].text = "with image"
+        model.thread[0].attachments = [Attachment(imageData: Data([0x1]), altText: "old")]
+        model.addPost(); model.thread[1].text = "second"
+        model.handleCompletion([result(.bluesky, .partial(posted: posted, failedIndex: 1, message: "x"))])
+        XCTAssertTrue(model.isLocked(.bluesky))
+
+        model.thread[0].attachments[0].altText = "new alt text"   // same image id
+        XCTAssertTrue(model.isLocked(.bluesky))
+    }
 }
