@@ -89,9 +89,11 @@ struct BlueskyFeedService: FeedService {
         try await kit.getUnreadCount(priority: nil).count
     }
 
-    func markNotificationsRead(upTo latestID: String?) async throws {
-        // Bluesky marks read by timestamp, not id.
-        try await kit.updateSeen()
+    func markNotificationsRead(upTo latest: FeedNotification?) async throws {
+        // Bluesky marks read by timestamp; bound it to the newest notification we
+        // actually loaded so one arriving mid-fetch isn't marked read while unseen.
+        guard let latest else { return }
+        try await kit.updateSeen(seenAt: latest.date)
     }
 
     /// Hydrate posts by AT-URI (getPosts accepts up to 25 at a time).

@@ -49,7 +49,10 @@ final class ReplyModel {
         !isSending && !DraftPost(text: text, attachments: attachments).isEmpty
     }
 
-    func send() async {
+    /// Returns true only when the reply was actually posted, so the UI doesn't
+    /// report success on a validation or network failure.
+    @discardableResult
+    func send() async -> Bool {
         isSending = true
         blockedIssues = nil
         errorMessage = nil
@@ -58,7 +61,7 @@ final class ReplyModel {
         let issues = PostValidator.validate(thread: [draft], targets: [post.target], limits: store.limits)
         guard issues.isEmpty else {
             blockedIssues = issues
-            return
+            return false
         }
         do {
             let service = try await FeedServiceFactory.make(for: post.target, store: store)
@@ -67,8 +70,10 @@ final class ReplyModel {
             // Refresh the panel for this platform so the reply shows up.
             NotificationCenter.default.post(name: .crossPostDidPost, object: nil,
                                             userInfo: [crossPostTargetsKey: Set([post.target])])
+            return true
         } catch {
             errorMessage = error.userMessage
+            return false
         }
     }
 }

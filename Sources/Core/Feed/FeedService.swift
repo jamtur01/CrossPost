@@ -40,9 +40,10 @@ protocol FeedService: Sendable {
     func notifications() async throws -> [FeedNotification]
     /// Count of unread notifications, for the tab badge.
     func unreadNotificationCount() async throws -> Int
-    /// Mark notifications read up to the given id (the newest one the user just
-    /// saw), so a notification that arrives after the list loaded isn't marked read.
-    func markNotificationsRead(upTo latestID: String?) async throws
+    /// Mark notifications read up to the newest one the user just saw, so a
+    /// notification that arrives after the list loaded isn't marked read. Mastodon
+    /// uses its id as a read marker; Bluesky uses its timestamp as the seen boundary.
+    func markNotificationsRead(upTo latest: FeedNotification?) async throws
 
     // MARK: Post management & engagement
 

@@ -118,7 +118,7 @@ final class FeedPanelModel {
                 if Task.isCancelled { return }
                 errorMessage = nil
                 notifications = fetched
-                try? await svc.markNotificationsRead(upTo: fetched.first?.id)
+                try? await svc.markNotificationsRead(upTo: fetched.first)
                 unreadCount = 0
             } else if kind == .messages {
                 let fetched = try await svc.conversations()

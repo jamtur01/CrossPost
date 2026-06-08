@@ -89,8 +89,7 @@ struct ReplySheet: View {
                 Button("Cancel", action: onClose).disabled(justSent || model.isSending)
                 Button(model.isSending ? "Sending…" : "Reply") {
                     Task {
-                        await model.send()
-                        guard model.errorMessage == nil else { return }
+                        guard await model.send() else { return }
                         justSent = true
                         try? await Task.sleep(nanoseconds: 800_000_000)
                         onClose()

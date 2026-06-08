@@ -43,4 +43,18 @@ final class ReplyModelTests: XCTestCase {
         let model = ReplyModel(post: post, store: store)
         XCTAssertEqual(model.text, "@carol@h.io ")
     }
+
+    func testOverLimitReplyReportsFailureAndDoesNotPost() async {
+        let store = AccountStore()
+        let post = TestFactory.feedPost(target: .bluesky)
+        let model = ReplyModel(post: post, store: store)
+        model.text = String(repeating: "a", count: TargetLimits.blueskyMax + 1)
+
+        let posted = await model.send()   // validation fails before any network call
+
+        XCTAssertFalse(posted)                       // must NOT report success
+        XCTAssertNotNil(model.blockedIssues)
+        XCTAssertNil(model.errorMessage)
+        XCTAssertNil(model.postedURL)
+    }
 }
