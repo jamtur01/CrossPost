@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 struct MainView: View {
     @EnvironmentObject var store: AccountStore
@@ -27,6 +28,9 @@ struct MainView: View {
             if mastodon == nil { mastodon = FeedPanelModel(target: .mastodon, store: store) }
             if bluesky == nil { bluesky = FeedPanelModel(target: .bluesky, store: store) }
         }
+        // Mirror the total unread notifications (both networks) onto the dock badge.
+        .onChange(of: mastodon?.unreadCount) { updateDockBadge() }
+        .onChange(of: bluesky?.unreadCount) { updateDockBadge() }
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
                 Button {
@@ -42,6 +46,11 @@ struct MainView: View {
                 .help("Settings (⌘,)")
             }
         }
+    }
+
+    private func updateDockBadge() {
+        let total = (mastodon?.unreadCount ?? 0) + (bluesky?.unreadCount ?? 0)
+        NSApplication.shared.dockTile.badgeLabel = total > 0 ? "\(total)" : nil
     }
 
     @ViewBuilder
