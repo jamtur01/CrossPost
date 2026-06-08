@@ -27,7 +27,9 @@ struct MainView: View {
         .onAppear {
             if mastodon == nil { mastodon = FeedPanelModel(target: .mastodon, store: store) }
             if bluesky == nil { bluesky = FeedPanelModel(target: .bluesky, store: store) }
+            updateDockBadge()
         }
+        .onDisappear { NSApplication.shared.dockTile.badgeLabel = nil }
         // Mirror the total unread notifications (both networks) onto the dock badge.
         .onChange(of: mastodon?.unreadCount) { updateDockBadge() }
         .onChange(of: bluesky?.unreadCount) { updateDockBadge() }

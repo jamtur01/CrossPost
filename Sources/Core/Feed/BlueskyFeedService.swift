@@ -54,7 +54,7 @@ public struct BlueskyFeedService: FeedService {
         for n in notes {
             switch n.reason {
             case .mention, .reply, .quote: uris.insert(n.uri)
-            case .like, .likeViaRepost, .repost:
+            case .like, .likeViaRepost, .repost, .repostViaRepost:
                 if let subject = n.reasonSubjectURI { uris.insert(subject) }
             default: break
             }
@@ -66,7 +66,7 @@ public struct BlueskyFeedService: FeedService {
             case .mention: kind = .mention
             case .reply: kind = .reply
             case .like, .likeViaRepost: kind = .like
-            case .repost: kind = .repost
+            case .repost, .repostViaRepost: kind = .repost
             case .follow: kind = .follow
             case .quote: kind = .quote
             default: kind = .other
@@ -469,14 +469,28 @@ public struct BlueskyFeedService: FeedService {
         } else {
             replyRoot = nil
         }
-        return feedPost(fromPostView: item.post, replyRoot: replyRoot, isReply: item.reply != nil)
+        // A repost carries the original post plus who reposted it. Attribute the
+        // booster and key the id by the reposter so the same post reposted by
+        // several people (or also present as an original) stays distinct — else
+        // ForEach ids collide and FeedMerge drops reposts.
+        var boostedBy: String?
+        var boostKey: String?
+        if case .reasonRepost(let repost)? = item.reason {
+            boostedBy = repost.by.displayName?.isEmpty == false
+                ? repost.by.displayName! : repost.by.actorHandle
+            boostKey = repost.by.actorDID
+        }
+        return feedPost(fromPostView: item.post, replyRoot: replyRoot, isReply: item.reply != nil,
+                        boostedBy: boostedBy, boostKey: boostKey)
     }
 
     /// Map a bare post view (timeline item, reply parent, etc.) to a FeedPost.
     static func feedPost(
         fromPostView p: AppBskyLexicon.Feed.PostViewDefinition,
         replyRoot: (uri: String, cid: String)? = nil,
-        isReply: Bool? = nil
+        isReply: Bool? = nil,
+        boostedBy: String? = nil,
+        boostKey: String? = nil
     ) -> FeedPost {
         let record = p.record.getRecord(ofType: AppBskyLexicon.Feed.PostRecord.self)
         var images: [FeedImage] = []
@@ -516,7 +530,7 @@ public struct BlueskyFeedService: FeedService {
         let root = BlueskyThreadRef.root(postURI: p.uri, postCID: p.cid, replyRoot: resolvedReplyRoot)
         let rkey = p.uri.split(separator: "/").last.map(String.init) ?? ""
         return FeedPost(
-            id: "bluesky:\(p.uri)",
+            id: boostKey.map { "bluesky:\($0):\(p.uri)" } ?? "bluesky:\(p.uri)",
             target: .bluesky,
             authorName: p.author.displayName?.isEmpty == false
                 ? p.author.displayName!
@@ -540,6 +554,7 @@ public struct BlueskyFeedService: FeedService {
             likeCount: p.likeCount ?? 0,
             likeRecordURI: p.viewer?.likeURI,
             repostRecordURI: p.viewer?.repostURI,
+            boostedBy: boostedBy,
             isReply: isReply ?? (record?.reply != nil),
             nativeRef: .bluesky(uri: p.uri, cid: p.cid, rootURI: root.uri, rootCID: root.cid))
     }

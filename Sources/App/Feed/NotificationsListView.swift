@@ -98,6 +98,9 @@ private struct NotificationRow: View {
         .contentShape(Rectangle())
         .onTapGesture(perform: openPost)
         .onHover { hovering = $0 }
+        // Drop the optimistic copy when the underlying snapshot refreshes, so
+        // server truth wins instead of a stale local like/repost shadowing it.
+        .onChange(of: notification.post) { post = nil }
     }
 
     private var actorRef: ProfileRef {
@@ -145,7 +148,7 @@ private struct NotificationRow: View {
     @ViewBuilder
     private var followButton: some View {
         let isFollowing = following ?? false
-        Button { Task { await toggleFollow() } } label: {
+        Button { Task { await follow() } } label: {
             HStack(spacing: 3) {
                 Image(systemName: isFollowing ? "checkmark" : "person.badge.plus")
                 Text(isFollowing ? "Following" : "Follow")
@@ -154,8 +157,8 @@ private struct NotificationRow: View {
             .foregroundStyle(isFollowing ? .secondary : accent)
             .contentShape(Rectangle())
         }
-        .help(isFollowing ? "Unfollow \(notification.actorName)" : "Follow \(notification.actorName)")
-        .disabled(followWorking)
+        .help(isFollowing ? "Following \(notification.actorName)" : "Follow \(notification.actorName)")
+        .disabled(followWorking || isFollowing)
     }
 
     private func toggleLike() {
@@ -163,7 +166,7 @@ private struct NotificationRow: View {
         mutating = true
         let original = optimistic
         optimistic.isLiked.toggle()
-        optimistic.likeCount += optimistic.isLiked ? 1 : -1
+        optimistic.likeCount = max(0, optimistic.likeCount + (optimistic.isLiked ? 1 : -1))
         post = optimistic
         Task {
             defer { mutating = false }
@@ -177,7 +180,7 @@ private struct NotificationRow: View {
         mutating = true
         let original = optimistic
         optimistic.isReposted.toggle()
-        optimistic.repostCount += optimistic.isReposted ? 1 : -1
+        optimistic.repostCount = max(0, optimistic.repostCount + (optimistic.isReposted ? 1 : -1))
         post = optimistic
         Task {
             defer { mutating = false }
@@ -186,15 +189,18 @@ private struct NotificationRow: View {
         }
     }
 
-    /// Resolve the current relationship on first use (no per-row prefetch), then toggle it.
-    private func toggleFollow() async {
-        guard !followWorking else { return }
+    /// One-way follow: resolve the relationship on tap (no per-row prefetch) and
+    /// follow only if not already following. Never unfollows from here — the label
+    /// can read "Follow" before the relationship is known, so a toggle would risk
+    /// unfollowing someone you already follow. Unfollow lives on the profile.
+    private func follow() async {
+        guard !followWorking, following != true else { return }
         followWorking = true
         defer { followWorking = false }
         let current = await model.relationship(with: notification.actorID)
-        let target = !(following ?? current.isFollowing)
+        if current.isFollowing { following = true; return }   // already following — just reflect it
         do {
-            let updated = try await model.setFollowing(target, for: notification.actorID, current: current)
+            let updated = try await model.setFollowing(true, for: notification.actorID, current: current)
             following = updated.isFollowing
         } catch {
             model.reportActionError(error.userMessage)

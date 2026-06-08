@@ -23,6 +23,7 @@ final class FeedPanelModel {
     private var loadTask: Task<Void, Never>?
     private var pollTask: Task<Void, Never>?
     private var liveTask: Task<Void, Never>?
+    private var unreadTask: Task<Void, Never>?
     private var mutating: Set<String> = []   // post ids with an in-flight like/repost
     private let pollInterval: UInt64 = 60_000_000_000
 
@@ -61,6 +62,7 @@ final class FeedPanelModel {
                    let stream = await service.liveUpdates() {
                     backoff = 2_000_000_000   // reset after a successful connection
                     for await _ in stream {
+                        if Task.isCancelled { break }   // a cancelled stream mustn't keep driving loads
                         if NSApplication.shared.isActive {
                             self.enqueueLoad(reset: false)
                             self.refreshUnreadCount()
@@ -140,9 +142,11 @@ final class FeedPanelModel {
     /// Refresh the unread-notification badge in the background (does not disturb the feed).
     func refreshUnreadCount() {
         guard hasCredentials, kind != .notifications else { return }
-        Task {
+        unreadTask?.cancel()
+        unreadTask = Task {
             if let svc = try? await resolveService(),
                let count = try? await svc.unreadNotificationCount(),
+               !Task.isCancelled,
                kind != .notifications {   // re-check: don't overwrite a just-cleared count
                 unreadCount = count
             }
@@ -163,13 +167,19 @@ final class FeedPanelModel {
     }
 
     func toggleLike(_ post: FeedPost) {
-        mutate(post, optimistic: { $0.isLiked.toggle() }) { svc, p in
+        mutate(post, optimistic: {
+            $0.isLiked.toggle()
+            $0.likeCount = max(0, $0.likeCount + ($0.isLiked ? 1 : -1))
+        }) { svc, p in
             try await svc.setLiked(p.isLiked, on: p)
         }
     }
 
     func toggleRepost(_ post: FeedPost) {
-        mutate(post, optimistic: { $0.isReposted.toggle() }) { svc, p in
+        mutate(post, optimistic: {
+            $0.isReposted.toggle()
+            $0.repostCount = max(0, $0.repostCount + ($0.isReposted ? 1 : -1))
+        }) { svc, p in
             try await svc.setReposted(p.isReposted, on: p)
         }
     }
@@ -422,6 +432,7 @@ final class FeedPanelModel {
         pollTask?.cancel(); pollTask = nil
         loadTask?.cancel(); loadTask = nil
         liveTask?.cancel(); liveTask = nil
+        unreadTask?.cancel(); unreadTask = nil
         isLoading = false
     }
 }
