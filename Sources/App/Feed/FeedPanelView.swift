@@ -155,7 +155,8 @@ struct FeedPanelView: View {
         if model.needsCredentials {
             connectState
         } else if model.kind == .notifications {
-            NotificationsListView(model: model) { routes.append($0) }
+            NotificationsListView(model: model, push: { routes.append($0) },
+                                  onReply: { replyTarget = $0 })
         } else if model.kind == .messages {
             MessagesListView(model: model) { routes.append($0) }
         } else if let error = model.errorMessage, model.posts.isEmpty {

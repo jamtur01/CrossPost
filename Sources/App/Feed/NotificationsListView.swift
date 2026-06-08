@@ -4,6 +4,7 @@ import SwiftUI
 struct NotificationsListView: View {
     let model: FeedPanelModel
     let push: (FeedRoute) -> Void
+    let onReply: (FeedPost) -> Void
 
     private var accent: Color { model.target.accent }
 
@@ -20,7 +21,8 @@ struct NotificationsListView: View {
             ScrollView {
                 LazyVStack(spacing: 0) {
                     ForEach(model.notifications) { notification in
-                        NotificationRow(notification: notification, accent: accent, push: push)
+                        NotificationRow(notification: notification, accent: accent,
+                                        model: model, push: push, onReply: onReply)
                         Divider().opacity(0.5)
                     }
                 }
@@ -33,9 +35,19 @@ struct NotificationsListView: View {
 private struct NotificationRow: View {
     let notification: FeedNotification
     let accent: Color
+    let model: FeedPanelModel
     let push: (FeedRoute) -> Void
+    let onReply: (FeedPost) -> Void
 
     @State private var hovering = false
+    // Optimistic like/repost state for the referenced post (nil → use the
+    // notification's snapshot). Held so repeated toggles keep the record URIs.
+    @State private var post: FeedPost?
+    @State private var mutating = false
+    @State private var following: Bool?
+    @State private var followWorking = false
+
+    private var livePost: FeedPost? { post ?? notification.post }
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -70,13 +82,15 @@ private struct NotificationRow: View {
                         .font(Theme.meta).foregroundStyle(.tertiary).fixedSize()
                 }
 
-                if let post = notification.post, !post.text.characters.isEmpty {
+                if let post = livePost, !post.text.characters.isEmpty {
                     Text(post.text)
                         .font(Theme.content)
                         .foregroundStyle(.secondary)
                         .lineLimit(3)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
+
+                actionBar
             }
         }
         .padding(.horizontal, Theme.rowPaddingH).padding(.vertical, 10)
@@ -94,7 +108,97 @@ private struct NotificationRow: View {
     private func openProfile() { push(.profile(actorRef)) }
 
     private func openPost() {
-        if let post = notification.post { push(.thread(post)) } else { push(.profile(actorRef)) }
+        if let post = livePost { push(.thread(post)) } else { push(.profile(actorRef)) }
+    }
+
+    // MARK: Actions
+
+    @ViewBuilder
+    private var actionBar: some View {
+        HStack(spacing: 18) {
+            if let post = livePost {
+                actionButton("arrowshape.turn.up.left", tint: accent, help: "Reply") { onReply(post) }
+                actionButton("arrow.2.squarepath", active: post.isReposted, tint: .green,
+                             help: post.isReposted ? "Undo repost" : "Repost", action: toggleRepost)
+                actionButton(post.isLiked ? "heart.fill" : "heart", active: post.isLiked, tint: .pink,
+                             help: post.isLiked ? "Unlike" : "Like", action: toggleLike)
+            }
+            followButton
+            Spacer(minLength: 0)
+        }
+        .padding(.top, 3)
+        .buttonStyle(.plain)
+    }
+
+    private func actionButton(_ symbol: String, active: Bool = false, tint: Color,
+                              help: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 13))
+                .foregroundStyle(active ? tint : .secondary)
+                .frame(width: 22, height: 18)
+                .contentShape(Rectangle())
+        }
+        .help(help)
+    }
+
+    @ViewBuilder
+    private var followButton: some View {
+        let isFollowing = following ?? false
+        Button { Task { await toggleFollow() } } label: {
+            HStack(spacing: 3) {
+                Image(systemName: isFollowing ? "checkmark" : "person.badge.plus")
+                Text(isFollowing ? "Following" : "Follow")
+            }
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundStyle(isFollowing ? .secondary : accent)
+            .contentShape(Rectangle())
+        }
+        .help(isFollowing ? "Unfollow \(notification.actorName)" : "Follow \(notification.actorName)")
+        .disabled(followWorking)
+    }
+
+    private func toggleLike() {
+        guard !mutating, var optimistic = livePost else { return }
+        mutating = true
+        let original = optimistic
+        optimistic.isLiked.toggle()
+        optimistic.likeCount += optimistic.isLiked ? 1 : -1
+        post = optimistic
+        Task {
+            defer { mutating = false }
+            do { post = try await model.serviceSetLiked(optimistic.isLiked, on: optimistic) }
+            catch { post = original; model.reportActionError(error.userMessage) }
+        }
+    }
+
+    private func toggleRepost() {
+        guard !mutating, var optimistic = livePost else { return }
+        mutating = true
+        let original = optimistic
+        optimistic.isReposted.toggle()
+        optimistic.repostCount += optimistic.isReposted ? 1 : -1
+        post = optimistic
+        Task {
+            defer { mutating = false }
+            do { post = try await model.serviceSetReposted(optimistic.isReposted, on: optimistic) }
+            catch { post = original; model.reportActionError(error.userMessage) }
+        }
+    }
+
+    /// Resolve the current relationship on first use (no per-row prefetch), then toggle it.
+    private func toggleFollow() async {
+        guard !followWorking else { return }
+        followWorking = true
+        defer { followWorking = false }
+        let current = await model.relationship(with: notification.actorID)
+        let target = !(following ?? current.isFollowing)
+        do {
+            let updated = try await model.setFollowing(target, for: notification.actorID, current: current)
+            following = updated.isFollowing
+        } catch {
+            model.reportActionError(error.userMessage)
+        }
     }
 
     private var icon: String {
