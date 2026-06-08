@@ -35,7 +35,8 @@ struct ComposeColumnView: View {
                 VStack(spacing: 12) {
                     PostCardView(post: $model.thread[0], index: 0, limit: limit,
                                  showLabel: false, fills: true,
-                                 canRemove: false, onRemove: {})
+                                 canRemove: false, onRemove: {},
+                                 onError: { model.errorMessage = $0 })
                         .frame(maxHeight: .infinity)
                     addThreadButton(model)
                 }
@@ -47,7 +48,8 @@ struct ComposeColumnView: View {
                             let index = model.thread.firstIndex(where: { $0.id == post.id }) ?? 0
                             PostCardView(post: $post, index: index, limit: limit,
                                          canRemove: true,
-                                         onRemove: { model.removePost(at: index) })
+                                         onRemove: { model.removePost(at: index) },
+                                         onError: { model.errorMessage = $0 })
                         }
                         addThreadButton(model)
                     }

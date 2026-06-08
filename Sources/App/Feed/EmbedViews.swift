@@ -58,9 +58,18 @@ struct QuoteCardView: View {
     private var hasText: Bool { !quote.text.characters.isEmpty }
 
     var body: some View {
-        Button { if let url = quote.webURL { onOpen(url) } } label: {
-            HStack(spacing: 0) {
-                Capsule().fill(accent.opacity(0.55)).frame(width: 3)
+        // Only present as tappable when there's a URL to open; otherwise it's a
+        // plain card, not a dead button.
+        if let url = quote.webURL {
+            Button { onOpen(url) } label: { card }.buttonStyle(.plain)
+        } else {
+            card
+        }
+    }
+
+    private var card: some View {
+        HStack(spacing: 0) {
+            Capsule().fill(accent.opacity(0.55)).frame(width: 3)
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(spacing: 6) {
                         AsyncImage(url: quote.avatarURL) { img in
@@ -106,6 +115,4 @@ struct QuoteCardView: View {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .strokeBorder(Color.primary.opacity(0.08)))
         }
-        .buttonStyle(.plain)
     }
-}

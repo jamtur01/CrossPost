@@ -27,7 +27,14 @@ struct PlainTextEditor: NSViewRepresentable {
 
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         guard let textView = scrollView.documentView as? NSTextView else { return }
-        if textView.string != text { textView.string = text }
+        // Don't disturb an in-progress IME composition (CJK / dead keys).
+        guard !textView.hasMarkedText(), textView.string != text else { return }
+        // Setting `string` resets the selection to the start; preserve the caret,
+        // clamped to the new length (e.g. after a programmatic prefill or clear).
+        let selected = textView.selectedRange()
+        textView.string = text
+        let clamped = NSRange(location: min(selected.location, text.utf16.count), length: 0)
+        textView.setSelectedRange(clamped)
     }
 
     func makeCoordinator() -> Coordinator { Coordinator(text: $text) }

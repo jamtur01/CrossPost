@@ -300,6 +300,9 @@ public struct MastodonFeedService: FeedService {
 
     static func quotedPost(from quote: Quote?) -> QuotedPost? {
         guard let quote, case .post(let quoted)? = quote.quotedPost else { return nil }
+        // `quotedPost` is also non-nil when the quoted account is blocked/muted;
+        // only render an explicitly accepted quote (or flavors that report no state).
+        if let state = quote.state?.value, state != .accepted { return nil }
         let q = quoted.displayPost
         let image = q.mediaAttachments.first { $0.type.value == .image }
         return QuotedPost(

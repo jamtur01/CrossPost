@@ -50,7 +50,7 @@ public struct Profile: Sendable, Identifiable {
     public let avatarURL: URL?
     public let bannerURL: URL?
     public let bio: AttributedString
-    public let followers: Int
+    public var followers: Int
     public let following: Int
     public let posts: Int
     public let webURL: URL?

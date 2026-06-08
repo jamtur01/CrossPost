@@ -37,4 +37,17 @@ final class ProfileLinkTests: XCTestCase {
     func testBareDomainIsNotAMastodonProfile() {
         XCTAssertFalse(ProfileLink.isMastodonProfileURL(url("https://hachyderm.io")))
     }
+
+    func testRemoteMastodonProfileFormIsRecognised() {
+        XCTAssertTrue(ProfileLink.isMastodonProfileURL(url("https://hachyderm.io/@user@other.social")))
+    }
+
+    func testLookalikeHandleWithDotIsRejected() {
+        // Medium-style "/@first.last" isn't a Mastodon username (no dots allowed).
+        XCTAssertFalse(ProfileLink.isMastodonProfileURL(url("https://medium.com/@first.last")))
+    }
+
+    func testLookalikeHandleWithHyphenIsRejected() {
+        XCTAssertFalse(ProfileLink.isMastodonProfileURL(url("https://example.com/@some-blog")))
+    }
 }

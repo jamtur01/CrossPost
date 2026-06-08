@@ -8,6 +8,7 @@ struct PostCardView: View {
     var fills: Bool = false      // editor expands to fill available height
     let canRemove: Bool
     let onRemove: () -> Void
+    var onError: (String) -> Void = { _ in }
 
     /// Warn (orange) once within this many graphemes of the limit.
     private static let warnWithin = 20
@@ -115,16 +116,19 @@ struct PostCardView: View {
     private func addImage() {
         guard canAddImages else { return }
         let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.png, .jpeg, .heic, .gif, .tiff]
+        panel.allowedContentTypes = [.png, .jpeg, .heic, .tiff]
         panel.allowsMultipleSelection = true
-        if panel.runModal() == .OK {
-            let remaining = TargetLimits.imageMax - post.attachments.count
-            for url in panel.urls.prefix(remaining) {
-                if let data = try? Data(contentsOf: url) {
-                    post.attachments.append(Attachment(imageData: data))
-                }
+        guard panel.runModal() == .OK else { return }
+        let remaining = TargetLimits.imageMax - post.attachments.count
+        var failed: [String] = []
+        for url in panel.urls.prefix(remaining) {
+            if let data = try? Data(contentsOf: url) {
+                post.attachments.append(Attachment(imageData: data))
+            } else {
+                failed.append(url.lastPathComponent)
             }
         }
+        if !failed.isEmpty { onError("Couldn't read \(failed.joined(separator: ", ")).") }
     }
 
     private func removeAttachment(id: UUID) {

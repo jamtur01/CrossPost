@@ -8,6 +8,7 @@ public struct MastodonPoster: Poster, ThreadPublisher {
 
     private let client: TootClient
     private let visibility: Post.Visibility
+    private let imageLimit = ImageByteLimitCache()
 
     public init(client: TootClient, visibility: Post.Visibility = .public) {
         self.client = client
@@ -25,7 +26,7 @@ public struct MastodonPoster: Poster, ThreadPublisher {
                                                      count: draft.attachments.count,
                                                      limit: TargetLimits.imageMax)
         }
-        let maxBytes = draft.attachments.isEmpty ? 0 : await client.mastodonImageByteLimit()
+        let maxBytes = draft.attachments.isEmpty ? 0 : await imageLimit.get(client)
         for attachment in draft.attachments {
             // Transcode to JPEG so the bytes match the declared MIME type (the picker
             // accepts PNG/HEIC/GIF/TIFF), scaling down only if it exceeds the
@@ -55,5 +56,18 @@ extension TootClient {
     func mastodonImageByteLimit() async -> Int {
         let reported = try? await getInstanceInfoV2().configuration?.mediaAttachments?.imageSizeLimit
         return (reported ?? nil) ?? TargetLimits.mastodonImageBytes
+    }
+}
+
+/// Caches the instance image-size limit for the duration of one cross-post so a
+/// thread fetches instance info once instead of per post. Posting is sequential,
+/// so the unsynchronised access is safe.
+private final class ImageByteLimitCache: @unchecked Sendable {
+    private var value: Int?
+    func get(_ client: TootClient) async -> Int {
+        if let value { return value }
+        let limit = await client.mastodonImageByteLimit()
+        value = limit
+        return limit
     }
 }

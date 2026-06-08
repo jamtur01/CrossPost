@@ -13,10 +13,17 @@ public enum ProfileLink {
         return parts[1]
     }
 
-    /// Whether a URL is a Mastodon profile page (`https://instance/@user`).
-    /// A status URL (`/@user/<id>`) or tag URL (`/tags/x`) is not a profile.
+    /// Whether a URL is a Mastodon profile page (`https://instance/@user` or the
+    /// remote `https://instance/@user@host` form). A status URL (`/@user/<id>`) or
+    /// tag URL (`/tags/x`) is not a profile. The username must use Mastodon's
+    /// charset ([A-Za-z0-9_]), which rejects look-alikes like `medium.com/@a.b`.
+    /// A bare `/@name` on a non-Mastodon host can't be ruled out by URL alone; it
+    /// falls through to a WebFinger lookup that fails into the browser.
     public static func isMastodonProfileURL(_ url: URL) -> Bool {
         let parts = url.pathComponents.filter { $0 != "/" }
-        return parts.count == 1 && parts[0].hasPrefix("@") && parts[0].count > 1
+        guard parts.count == 1, parts[0].hasPrefix("@") else { return false }
+        let username = parts[0].dropFirst().split(separator: "@", maxSplits: 1).first ?? ""
+        let allowed = Set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_")
+        return !username.isEmpty && username.allSatisfy { allowed.contains($0) }
     }
 }

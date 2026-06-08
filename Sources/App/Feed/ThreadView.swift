@@ -62,7 +62,11 @@ struct ThreadView: View {
             // Read the focused post after the fetch so a poll during loading can't
             // leave it showing stale counts.
             let live = panel.posts.first { $0.id == focusedPost.id } ?? focusedPost
-            list.posts = thread.ancestors + [live] + thread.descendants
+            // Guard against a service returning the focused post inside its own
+            // context, which would duplicate its id in the ForEach.
+            let ancestors = thread.ancestors.filter { $0.id != focusedPost.id }
+            let descendants = thread.descendants.filter { $0.id != focusedPost.id }
+            list.posts = ancestors + [live] + descendants
             loading = false
         }
         .sheet(item: $replyTarget) { target in

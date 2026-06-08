@@ -11,6 +11,7 @@ struct ProfileView: View {
     @State private var list: PostList
     @State private var replyTarget: FeedPost?
     @State private var relationship = AccountRelationship()
+    @State private var updatingRelationship = false
     @State private var loading = true
 
     private var accent: Color { panel.target.accent }
@@ -179,6 +180,7 @@ struct ProfileView: View {
                 }
             }
             .font(.system(size: 13, weight: .semibold))
+            .disabled(updatingRelationship)
 
             Menu {
                 Button(relationship.isMuting ? "Unmute" : "Mute") { Task { await toggleMute() } }
@@ -195,14 +197,24 @@ struct ProfileView: View {
     }
 
     private func toggleFollow() async {
+        guard !updatingRelationship else { return }
+        updatingRelationship = true
+        defer { updatingRelationship = false }
         let target = !relationship.isFollowing
         let previous = relationship
         relationship.isFollowing = target
+        profile?.followers = max(0, (profile?.followers ?? 0) + (target ? 1 : -1))
         do { relationship = try await panel.setFollowing(target, for: accountID, current: previous) }
-        catch { relationship = previous }
+        catch {
+            relationship = previous
+            profile?.followers = max(0, (profile?.followers ?? 0) + (target ? -1 : 1))
+        }
     }
 
     private func toggleMute() async {
+        guard !updatingRelationship else { return }
+        updatingRelationship = true
+        defer { updatingRelationship = false }
         let target = !relationship.isMuting
         let previous = relationship
         relationship.isMuting = target
@@ -211,6 +223,9 @@ struct ProfileView: View {
     }
 
     private func toggleBlock() async {
+        guard !updatingRelationship else { return }
+        updatingRelationship = true
+        defer { updatingRelationship = false }
         let target = !relationship.isBlocking
         let previous = relationship
         relationship.isBlocking = target

@@ -151,16 +151,19 @@ struct ReplySheet: View {
     private func addImage() {
         guard model.attachments.count < TargetLimits.imageMax else { return }
         let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.png, .jpeg, .heic, .gif, .tiff]
+        panel.allowedContentTypes = [.png, .jpeg, .heic, .tiff]
         panel.allowsMultipleSelection = true
-        if panel.runModal() == .OK {
-            let remaining = TargetLimits.imageMax - model.attachments.count
-            for url in panel.urls.prefix(remaining) {
-                if let data = try? Data(contentsOf: url) {
-                    model.attachments.append(Attachment(imageData: data))
-                }
+        guard panel.runModal() == .OK else { return }
+        let remaining = TargetLimits.imageMax - model.attachments.count
+        var failed: [String] = []
+        for url in panel.urls.prefix(remaining) {
+            if let data = try? Data(contentsOf: url) {
+                model.attachments.append(Attachment(imageData: data))
+            } else {
+                failed.append(url.lastPathComponent)
             }
         }
+        if !failed.isEmpty { model.errorMessage = "Couldn't read \(failed.joined(separator: ", "))." }
     }
 
     private func removeAttachment(id: UUID) {

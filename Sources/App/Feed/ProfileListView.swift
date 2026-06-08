@@ -13,9 +13,9 @@ struct ProfileListView: View {
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 0) {
-                ForEach(profiles) { profile in
+                ForEach(Array(profiles.enumerated()), id: \.element.id) { index, profile in
+                    if index > 0 { Divider().opacity(0.5) }
                     row(profile)
-                    Divider().opacity(0.5)
                 }
                 if loading {
                     ProgressView().controlSize(.small)
