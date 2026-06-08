@@ -5,17 +5,19 @@ import Foundation
 enum TestFactory {
     static func feedPost(
         target: PostTarget = .mastodon,
+        id: String? = nil,
         authorName: String = "Author",
         authorHandle: String = "@author",
         authorID: String = "author-id",
         mentionHandles: [String] = [],
         text: AttributedString = AttributedString("hello")
     ) -> FeedPost {
+        let key = id ?? "\(target.rawValue):1"
         let nativeRef: NativeRef = target == .mastodon
-            ? .mastodon(statusID: "1")
-            : .bluesky(uri: "at://1", cid: "cid", rootURI: "at://1", rootCID: "cid")
+            ? .mastodon(statusID: key)
+            : .bluesky(uri: "at://\(key)", cid: "cid", rootURI: "at://\(key)", rootCID: "cid")
         return FeedPost(
-            id: "\(target.rawValue):1",
+            id: key,
             target: target,
             authorName: authorName,
             authorHandle: authorHandle,

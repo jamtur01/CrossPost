@@ -18,6 +18,7 @@ final class FeedPanelModel {
     private(set) var scrollToTopToken = 0   // bumped on each user-initiated refresh
 
     private let store: AccountStore
+    private let makeService: @MainActor (PostTarget, AccountStore) async throws -> FeedService
     private var service: FeedService?
     private var serviceTask: Task<FeedService, Error>?
     private var loadTask: Task<Void, Never>?
@@ -27,9 +28,12 @@ final class FeedPanelModel {
     private var mutating: Set<String> = []   // post ids with an in-flight like/repost
     private let pollInterval: UInt64 = 60_000_000_000
 
-    init(target: PostTarget, store: AccountStore) {
+    init(target: PostTarget, store: AccountStore,
+         makeService: @escaping @MainActor (PostTarget, AccountStore) async throws -> FeedService
+             = FeedServiceFactory.make) {
         self.target = target
         self.store = store
+        self.makeService = makeService
     }
 
     private var hasCredentials: Bool {
@@ -158,7 +162,7 @@ final class FeedPanelModel {
         // Dedup concurrent callers (load + poll + live + badge all fire on start)
         // so they share one client build instead of each authenticating separately.
         if let serviceTask { return try await serviceTask.value }
-        let task = Task { try await FeedServiceFactory.make(for: target, store: store) }
+        let task = Task { try await makeService(target, store) }
         serviceTask = task
         defer { serviceTask = nil }
         let svc = try await task.value
