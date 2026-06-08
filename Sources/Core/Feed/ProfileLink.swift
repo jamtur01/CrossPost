@@ -3,10 +3,10 @@ import Foundation
 /// Classifies profile/mention web links so they can open in-app instead of the
 /// browser. Pure URL parsing — resolving a Mastodon URL to an account is the
 /// feed service's job (`profile(forURL:)`).
-public enum ProfileLink {
+enum ProfileLink {
     /// The handle or DID from a Bluesky profile URL (`bsky.app/profile/<id>`), else nil.
     /// A post URL (`/profile/<id>/post/<rkey>`) is not a profile and returns nil.
-    public static func blueskyID(from url: URL) -> String? {
+    static func blueskyID(from url: URL) -> String? {
         guard url.host == "bsky.app" else { return nil }
         let parts = url.pathComponents.filter { $0 != "/" }
         guard parts.count == 2, parts[0] == "profile" else { return nil }
@@ -19,7 +19,7 @@ public enum ProfileLink {
     /// charset ([A-Za-z0-9_]), which rejects look-alikes like `medium.com/@a.b`.
     /// A bare `/@name` on a non-Mastodon host can't be ruled out by URL alone; it
     /// falls through to a WebFinger lookup that fails into the browser.
-    public static func isMastodonProfileURL(_ url: URL) -> Bool {
+    static func isMastodonProfileURL(_ url: URL) -> Bool {
         let parts = url.pathComponents.filter { $0 != "/" }
         guard parts.count == 1, parts[0].hasPrefix("@") else { return false }
         let username = parts[0].dropFirst().split(separator: "@", maxSplits: 1).first ?? ""

@@ -1,13 +1,13 @@
 import Foundation
 import ATProtoKit
 
-public struct BlueskyFeedService: FeedService {
+struct BlueskyFeedService: FeedService {
     private let kit: ATProtoKit
     private let bluesky: ATProtoBluesky
     private let chat: ATProtoBlueskyChat
     private let handle: String
 
-    public init(kit: ATProtoKit, bluesky: ATProtoBluesky, handle: String) {
+    init(kit: ATProtoKit, bluesky: ATProtoBluesky, handle: String) {
         self.kit = kit
         self.bluesky = bluesky
         self.chat = ATProtoBlueskyChat(atProtoKitInstance: kit)
@@ -29,7 +29,7 @@ public struct BlueskyFeedService: FeedService {
         return collected
     }
 
-    public func loadFeed(_ kind: FeedKind) async throws -> [FeedPost] {
+    func loadFeed(_ kind: FeedKind) async throws -> [FeedPost] {
         switch kind {
         case .home:
             let feed = try await paged(target: 100, maxPages: 2) {
@@ -42,7 +42,7 @@ public struct BlueskyFeedService: FeedService {
         }
     }
 
-    public func notifications() async throws -> [FeedNotification] {
+    func notifications() async throws -> [FeedNotification] {
         let notes = try await paged(target: 100, maxPages: 2) {
             let output = try await kit.listNotifications(limit: 100, cursor: $0)
             return (output.notifications, output.cursor)
@@ -85,11 +85,11 @@ public struct BlueskyFeedService: FeedService {
         }
     }
 
-    public func unreadNotificationCount() async throws -> Int {
+    func unreadNotificationCount() async throws -> Int {
         try await kit.getUnreadCount(priority: nil).count
     }
 
-    public func markNotificationsRead(upTo latestID: String?) async throws {
+    func markNotificationsRead(upTo latestID: String?) async throws {
         // Bluesky marks read by timestamp, not id.
         try await kit.updateSeen()
     }
@@ -108,7 +108,7 @@ public struct BlueskyFeedService: FeedService {
         return result
     }
 
-    public func setLiked(_ liked: Bool, on post: FeedPost) async throws -> FeedPost {
+    func setLiked(_ liked: Bool, on post: FeedPost) async throws -> FeedPost {
         guard case .bluesky(let uri, let cid, _, _) = post.nativeRef else { return post }
         var copy = post
         if liked {
@@ -124,7 +124,7 @@ public struct BlueskyFeedService: FeedService {
         return copy
     }
 
-    public func setReposted(_ reposted: Bool, on post: FeedPost) async throws -> FeedPost {
+    func setReposted(_ reposted: Bool, on post: FeedPost) async throws -> FeedPost {
         guard case .bluesky(let uri, let cid, _, _) = post.nativeRef else { return post }
         var copy = post
         if reposted {
@@ -140,7 +140,7 @@ public struct BlueskyFeedService: FeedService {
         return copy
     }
 
-    public func reply(to post: FeedPost, text: String, images: [Attachment]) async throws -> PostedItem {
+    func reply(to post: FeedPost, text: String, images: [Attachment]) async throws -> PostedItem {
         guard case .bluesky(let uri, let cid, let rootURI, let rootCID) = post.nativeRef else {
             throw FeedError.wrongPlatform
         }
@@ -170,7 +170,7 @@ public struct BlueskyFeedService: FeedService {
         return PostedItem(url: "https://bsky.app/profile/\(handle)/post/\(rkey)")
     }
 
-    public func thread(of post: FeedPost) async throws -> PostThread {
+    func thread(of post: FeedPost) async throws -> PostThread {
         guard case .bluesky(let uri, _, _, _) = post.nativeRef else {
             return PostThread(ancestors: [], descendants: [])
         }
@@ -277,21 +277,21 @@ public struct BlueskyFeedService: FeedService {
             webURL: URL(string: "https://bsky.app/profile/\(vr.author.actorHandle)/post/\(rkey)"))
     }
 
-    public func profile(id: String) async throws -> Profile {
+    func profile(id: String) async throws -> Profile {
         Self.profile(from: try await kit.getProfile(for: id))
     }
 
-    public func profile(forURL url: URL) async throws -> Profile? {
+    func profile(forURL url: URL) async throws -> Profile? {
         guard let id = ProfileLink.blueskyID(from: url) else { return nil }
         return try await profile(id: id)
     }
 
-    public func deletePost(_ post: FeedPost) async throws {
+    func deletePost(_ post: FeedPost) async throws {
         guard case .bluesky(let uri, _, _, _) = post.nativeRef else { throw FeedError.wrongPlatform }
         try await bluesky.deleteRecord(.recordURI(atURI: uri))
     }
 
-    public func setBookmarked(_ bookmarked: Bool, on post: FeedPost) async throws -> FeedPost {
+    func setBookmarked(_ bookmarked: Bool, on post: FeedPost) async throws -> FeedPost {
         guard case .bluesky(let uri, let cid, _, _) = post.nativeRef else { return post }
         if bookmarked {
             try await kit.createBookmark(uri: uri, cid: cid)
@@ -303,21 +303,21 @@ public struct BlueskyFeedService: FeedService {
         return copy
     }
 
-    public func setPinned(_ pinned: Bool, on post: FeedPost) async throws -> FeedPost {
+    func setPinned(_ pinned: Bool, on post: FeedPost) async throws -> FeedPost {
         throw FeedError.notSupported("Pinning posts isn't supported on Bluesky yet.")
     }
 
-    public func likedBy(_ post: FeedPost) async throws -> [Profile] {
+    func likedBy(_ post: FeedPost) async throws -> [Profile] {
         guard case .bluesky(let uri, _, _, _) = post.nativeRef else { return [] }
         return try await kit.getLikes(from: uri).likes.map { Self.profile(fromBasic: $0.actor) }
     }
 
-    public func repostedBy(_ post: FeedPost) async throws -> [Profile] {
+    func repostedBy(_ post: FeedPost) async throws -> [Profile] {
         guard case .bluesky(let uri, _, _, _) = post.nativeRef else { return [] }
         return try await kit.getRepostedBy(uri).repostedBy.map { Self.profile(fromBasic: $0) }
     }
 
-    public func conversations() async throws -> [Conversation] {
+    func conversations() async throws -> [Conversation] {
         let myDID = try await kit.getProfile(for: handle).actorDID
         let output = try await chat.listConversations()
         return output.conversations.compactMap { convo in
@@ -334,7 +334,7 @@ public struct BlueskyFeedService: FeedService {
         }
     }
 
-    public func messages(in conversationID: String) async throws -> [DirectMessage] {
+    func messages(in conversationID: String) async throws -> [DirectMessage] {
         let myDID = try await kit.getProfile(for: handle).actorDID
         let output = try await chat.getMessages(from: conversationID)
         let messages = output.messages.compactMap { message -> DirectMessage? in
@@ -345,14 +345,14 @@ public struct BlueskyFeedService: FeedService {
         return messages.reversed()   // getMessages returns newest-first; show oldest-first
     }
 
-    public func sendMessage(_ text: String, to conversationID: String) async throws {
+    func sendMessage(_ text: String, to conversationID: String) async throws {
         _ = try await chat.sendMessage(
             to: conversationID,
             message: ChatBskyLexicon.Conversation.MessageInputDefinition(text: text))
     }
 
     // Bluesky has no per-user timeline stream (only the global firehose), so it polls.
-    public func liveUpdates() async -> AsyncStream<Void>? { nil }
+    func liveUpdates() async -> AsyncStream<Void>? { nil }
 
     static func lastMessage(_ union: ChatBskyLexicon.Conversation.ConversationViewDefinition.LastMessageUnion?)
         -> (text: String?, date: Date?) {
@@ -360,7 +360,7 @@ public struct BlueskyFeedService: FeedService {
         return (m.text, m.sentAt)
     }
 
-    public func relationship(with id: String) async throws -> AccountRelationship {
+    func relationship(with id: String) async throws -> AccountRelationship {
         Self.relationship(from: try await kit.getProfile(for: id).viewer)
     }
 
@@ -374,7 +374,7 @@ public struct BlueskyFeedService: FeedService {
             blockRecordURI: viewer?.blockingURI)
     }
 
-    public func setFollowing(_ following: Bool, for id: String,
+    func setFollowing(_ following: Bool, for id: String,
                              current: AccountRelationship) async throws -> AccountRelationship {
         var rel = current
         if following {
@@ -389,7 +389,7 @@ public struct BlueskyFeedService: FeedService {
         return rel
     }
 
-    public func setMuted(_ muted: Bool, for id: String,
+    func setMuted(_ muted: Bool, for id: String,
                          current: AccountRelationship) async throws -> AccountRelationship {
         if muted { try await kit.muteActor(id) } else { try await kit.unmuteActor(id) }
         var rel = current
@@ -397,7 +397,7 @@ public struct BlueskyFeedService: FeedService {
         return rel
     }
 
-    public func setBlocked(_ blocked: Bool, for id: String,
+    func setBlocked(_ blocked: Bool, for id: String,
                            current: AccountRelationship) async throws -> AccountRelationship {
         var rel = current
         if blocked {
@@ -412,11 +412,11 @@ public struct BlueskyFeedService: FeedService {
         return rel
     }
 
-    public func followers(of id: String) async throws -> [Profile] {
+    func followers(of id: String) async throws -> [Profile] {
         try await kit.getFollowers(by: id).followers.map { Self.profile(fromBasic: $0) }
     }
 
-    public func following(of id: String) async throws -> [Profile] {
+    func following(of id: String) async throws -> [Profile] {
         try await kit.getFollows(from: id).follows.map { Self.profile(fromBasic: $0) }
     }
 
@@ -428,11 +428,11 @@ public struct BlueskyFeedService: FeedService {
                 webURL: URL(string: "https://bsky.app/profile/\(p.actorHandle)"))
     }
 
-    public func myProfile() async throws -> Profile {
+    func myProfile() async throws -> Profile {
         Self.profile(from: try await kit.getProfile(for: handle))
     }
 
-    public func authorPosts(id: String) async throws -> [FeedPost] {
+    func authorPosts(id: String) async throws -> [FeedPost] {
         let feed = try await paged(target: 100, maxPages: 2) {
             let output = try await kit.getAuthorFeed(by: id, limit: 100, cursor: $0)
             return (output.feed, output.cursor)
@@ -532,7 +532,6 @@ public struct BlueskyFeedService: FeedService {
             authorHandle: "@\(p.author.actorHandle)",
             authorID: p.author.actorHandle,
             avatarURL: p.author.avatarImageURL,
-            authorURL: URL(string: "https://bsky.app/profile/\(p.author.actorHandle)"),
             date: p.indexedAt,
             text: Self.attributedText(record),
             images: images,

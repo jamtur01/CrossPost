@@ -1,10 +1,10 @@
 import Foundation
 
-public enum HTMLRenderer {
+enum HTMLRenderer {
     /// Convert Mastodon's limited HTML into an AttributedString: `</p>` → blank
     /// line, `<br>` → newline, `<a href>` → a link run (visible label as text,
     /// href as `.link`), other tags stripped, entities decoded.
-    public static func renderAttributed(_ html: String) -> AttributedString {
+    static func renderAttributed(_ html: String) -> AttributedString {
         var s = html
         s = s.replacingOccurrences(of: "</p>", with: "\n\n", options: .caseInsensitive)
         s = s.replacingOccurrences(of: "<br>", with: "\n", options: .caseInsensitive)

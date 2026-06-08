@@ -2,24 +2,24 @@ import Foundation
 import TootSDK
 
 /// Posts to Mastodon via TootSDK. Ref is the status id used for in-reply-to chaining.
-public struct MastodonPoster: Poster, ThreadPublisher {
-    public typealias Ref = String
-    public let target: PostTarget = .mastodon
+struct MastodonPoster: Poster, ThreadPublisher {
+    typealias Ref = String
+    let target: PostTarget = .mastodon
 
     private let client: TootClient
     private let visibility: Post.Visibility
     private let imageLimit = ImageByteLimitCache()
 
-    public init(client: TootClient, visibility: Post.Visibility = .public) {
+    init(client: TootClient, visibility: Post.Visibility = .public) {
         self.client = client
         self.visibility = visibility
     }
 
-    public func post(thread: [DraftPost]) async throws -> [PostedItem] {
+    func post(thread: [DraftPost]) async throws -> [PostedItem] {
         try await runThread(thread, using: self)
     }
 
-    public func publishOne(_ draft: DraftPost, root: String?, parent: String?) async throws -> (ref: String, item: PostedItem) {
+    func publishOne(_ draft: DraftPost, root: String?, parent: String?) async throws -> (ref: String, item: PostedItem) {
         var mediaIds: [String] = []
         guard draft.attachments.count <= TargetLimits.imageMax else {
             throw MediaValidationError.tooManyImages(target: .mastodon,

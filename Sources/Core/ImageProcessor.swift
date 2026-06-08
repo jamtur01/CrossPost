@@ -2,12 +2,12 @@ import Foundation
 import AppKit
 import UniformTypeIdentifiers
 
-public enum ImageProcessor {
-    public enum ProcessingError: Error, CustomStringConvertible, LocalizedError {
+enum ImageProcessor {
+    enum ProcessingError: Error, CustomStringConvertible, LocalizedError {
         case decodeFailed
         case encodeFailed
         case cannotFitBudget(bytes: Int, budget: Int)
-        public var description: String {
+        var description: String {
             switch self {
             case .decodeFailed: return "Could not read image data"
             case .encodeFailed: return "Could not encode image data"
@@ -15,12 +15,12 @@ public enum ImageProcessor {
                 return "Image is \(b) bytes; could not compress under \(budget) bytes"
             }
         }
-        public var errorDescription: String? { description }
+        var errorDescription: String? { description }
     }
 
     /// Re-encode `data` as JPEG no larger than `maxBytes`, scaling down if needed.
     /// `maxBytes` defaults to Bluesky's per-image limit; Mastodon passes its own.
-    public static func jpegUnderBudget(_ data: Data,
+    static func jpegUnderBudget(_ data: Data,
                                        maxBytes: Int = TargetLimits.blueskyImageBytes) throws -> Data {
         guard let image = NSImage(data: data) else { throw ProcessingError.decodeFailed }
 

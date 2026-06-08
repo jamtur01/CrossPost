@@ -2,23 +2,23 @@ import Foundation
 import ATProtoKit
 
 /// Posts to Bluesky via ATProtoKit. Ref is the StrongReference used for reply root/parent.
-public struct BlueskyPoster: Poster, ThreadPublisher {
-    public typealias Ref = ComAtprotoLexicon.Repository.StrongReference
-    public let target: PostTarget = .bluesky
+struct BlueskyPoster: Poster, ThreadPublisher {
+    typealias Ref = ComAtprotoLexicon.Repository.StrongReference
+    let target: PostTarget = .bluesky
 
     private let bluesky: ATProtoBluesky
     private let handle: String
 
-    public init(bluesky: ATProtoBluesky, handle: String) {
+    init(bluesky: ATProtoBluesky, handle: String) {
         self.bluesky = bluesky
         self.handle = handle
     }
 
-    public func post(thread: [DraftPost]) async throws -> [PostedItem] {
+    func post(thread: [DraftPost]) async throws -> [PostedItem] {
         try await runThread(thread, using: self)
     }
 
-    public func publishOne(
+    func publishOne(
         _ draft: DraftPost,
         root: Ref?,
         parent: Ref?

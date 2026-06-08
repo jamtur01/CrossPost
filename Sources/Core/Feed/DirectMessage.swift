@@ -1,17 +1,17 @@
 import Foundation
 
 /// A direct-message conversation, projected to the other participant plus a preview.
-public struct Conversation: Identifiable, Sendable, Equatable {
-    public let id: String
-    public let otherName: String
-    public let otherHandle: String
-    public let otherID: String
-    public let otherAvatarURL: URL?
-    public let lastMessage: String?
-    public let lastDate: Date?
-    public var unreadCount: Int
+struct Conversation: Identifiable, Sendable, Equatable {
+    let id: String
+    let otherName: String
+    let otherHandle: String
+    let otherID: String
+    let otherAvatarURL: URL?
+    let lastMessage: String?
+    let lastDate: Date?
+    var unreadCount: Int
 
-    public init(id: String, otherName: String, otherHandle: String, otherID: String,
+    init(id: String, otherName: String, otherHandle: String, otherID: String,
                 otherAvatarURL: URL?, lastMessage: String?, lastDate: Date?, unreadCount: Int) {
         self.id = id
         self.otherName = otherName
@@ -25,13 +25,13 @@ public struct Conversation: Identifiable, Sendable, Equatable {
 }
 
 /// A single message within a conversation.
-public struct DirectMessage: Identifiable, Sendable, Equatable {
-    public let id: String
-    public let text: String
-    public let date: Date
-    public let isFromMe: Bool
+struct DirectMessage: Identifiable, Sendable, Equatable {
+    let id: String
+    let text: String
+    let date: Date
+    let isFromMe: Bool
 
-    public init(id: String, text: String, date: Date, isFromMe: Bool) {
+    init(id: String, text: String, date: Date, isFromMe: Bool) {
         self.id = id
         self.text = text
         self.date = date

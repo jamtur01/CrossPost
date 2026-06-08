@@ -1,9 +1,9 @@
 import Foundation
 
-public struct CrossPostCoordinator: Sendable {
-    public init() {}
+struct CrossPostCoordinator: Sendable {
+    init() {}
 
-    public func publish(thread: [DraftPost],
+    func publish(thread: [DraftPost],
                         to targets: [PostTarget],
                         using posters: [Poster],
                         limits: TargetLimits) async -> CrossPostOutcome {

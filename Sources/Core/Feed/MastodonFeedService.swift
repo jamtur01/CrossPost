@@ -1,10 +1,10 @@
 import Foundation
 import TootSDK
 
-public struct MastodonFeedService: FeedService {
+struct MastodonFeedService: FeedService {
     private let client: TootClient
 
-    public init(client: TootClient) { self.client = client }
+    init(client: TootClient) { self.client = client }
 
     /// Fetch up to ~`target` items by following the older-results page cursor.
     /// Mastodon's per-page maxima are small (40 for timelines, 30 for
@@ -23,7 +23,7 @@ public struct MastodonFeedService: FeedService {
         return collected
     }
 
-    public func loadFeed(_ kind: FeedKind) async throws -> [FeedPost] {
+    func loadFeed(_ kind: FeedKind) async throws -> [FeedPost] {
         switch kind {
         case .home:
             let posts = try await paged(target: 80, maxPages: 2) {
@@ -35,7 +35,7 @@ public struct MastodonFeedService: FeedService {
         }
     }
 
-    public func notifications() async throws -> [FeedNotification] {
+    func notifications() async throws -> [FeedNotification] {
         // 30 is Mastodon's documented per-page max for notifications.
         let notes = try await paged(target: 80, maxPages: 3) {
             try await client.getNotifications(params: .init(), $0, limit: 30)
@@ -43,11 +43,11 @@ public struct MastodonFeedService: FeedService {
         return notes.map { Self.notification(from: $0) }
     }
 
-    public func unreadNotificationCount() async throws -> Int {
+    func unreadNotificationCount() async throws -> Int {
         try await client.getNotificationsUnreadCount()
     }
 
-    public func markNotificationsRead(upTo latestID: String?) async throws {
+    func markNotificationsRead(upTo latestID: String?) async throws {
         guard let latestID else { return }
         _ = try await client.updateMarkers(notificationsLastReadId: latestID)
     }
@@ -71,7 +71,7 @@ public struct MastodonFeedService: FeedService {
             post: n.post.map { Self.feedPost(from: $0) }, date: n.createdAt)
     }
 
-    public func setLiked(_ liked: Bool, on post: FeedPost) async throws -> FeedPost {
+    func setLiked(_ liked: Bool, on post: FeedPost) async throws -> FeedPost {
         guard case .mastodon(let id) = post.nativeRef else { return post }
         let updated = liked
             ? try await client.favouritePost(id: id)
@@ -81,7 +81,7 @@ public struct MastodonFeedService: FeedService {
         return copy
     }
 
-    public func setReposted(_ reposted: Bool, on post: FeedPost) async throws -> FeedPost {
+    func setReposted(_ reposted: Bool, on post: FeedPost) async throws -> FeedPost {
         guard case .mastodon(let id) = post.nativeRef else { return post }
         let updated = reposted
             ? try await client.boostPost(id: id)
@@ -91,7 +91,7 @@ public struct MastodonFeedService: FeedService {
         return copy
     }
 
-    public func reply(to post: FeedPost, text: String, images: [Attachment]) async throws -> PostedItem {
+    func reply(to post: FeedPost, text: String, images: [Attachment]) async throws -> PostedItem {
         guard case .mastodon(let id) = post.nativeRef else {
             throw FeedError.wrongPlatform
         }
@@ -123,7 +123,7 @@ public struct MastodonFeedService: FeedService {
         return PostedItem(url: posted.url)
     }
 
-    public func thread(of post: FeedPost) async throws -> PostThread {
+    func thread(of post: FeedPost) async throws -> PostThread {
         guard case .mastodon(let id) = post.nativeRef else {
             return PostThread(ancestors: [], descendants: [])
         }
@@ -133,26 +133,26 @@ public struct MastodonFeedService: FeedService {
             descendants: context.descendants.map { Self.feedPost(from: $0) })
     }
 
-    public func profile(id: String) async throws -> Profile {
+    func profile(id: String) async throws -> Profile {
         Self.profile(from: try await client.getAccount(by: id))
     }
 
-    public func myProfile() async throws -> Profile {
+    func myProfile() async throws -> Profile {
         Self.profile(from: try await client.verifyCredentials())
     }
 
-    public func authorPosts(id: String) async throws -> [FeedPost] {
+    func authorPosts(id: String) async throws -> [FeedPost] {
         try await paged(target: 80, maxPages: 2) {
             try await client.getTimeline(.user(userID: id), pageInfo: $0, limit: 40)
         }.map { Self.feedPost(from: $0) }
     }
 
-    public func deletePost(_ post: FeedPost) async throws {
+    func deletePost(_ post: FeedPost) async throws {
         guard case .mastodon(let id) = post.nativeRef else { throw FeedError.wrongPlatform }
         _ = try await client.deletePost(id: id)
     }
 
-    public func setBookmarked(_ bookmarked: Bool, on post: FeedPost) async throws -> FeedPost {
+    func setBookmarked(_ bookmarked: Bool, on post: FeedPost) async throws -> FeedPost {
         guard case .mastodon(let id) = post.nativeRef else { return post }
         let updated = bookmarked
             ? try await client.bookmarkPost(id: id)
@@ -162,7 +162,7 @@ public struct MastodonFeedService: FeedService {
         return copy
     }
 
-    public func setPinned(_ pinned: Bool, on post: FeedPost) async throws -> FeedPost {
+    func setPinned(_ pinned: Bool, on post: FeedPost) async throws -> FeedPost {
         guard case .mastodon(let id) = post.nativeRef else { return post }
         let updated = pinned ? try await client.pinPost(id: id) : try await client.unpinPost(id: id)
         var copy = post
@@ -170,27 +170,27 @@ public struct MastodonFeedService: FeedService {
         return copy
     }
 
-    public func likedBy(_ post: FeedPost) async throws -> [Profile] {
+    func likedBy(_ post: FeedPost) async throws -> [Profile] {
         guard case .mastodon(let id) = post.nativeRef else { return [] }
         return try await client.getAccountsFavourited(id: id).result.map { Self.profile(from: $0) }
     }
 
-    public func repostedBy(_ post: FeedPost) async throws -> [Profile] {
+    func repostedBy(_ post: FeedPost) async throws -> [Profile] {
         guard case .mastodon(let id) = post.nativeRef else { return [] }
         return try await client.getAccountsBoosted(id: id).result.map { Self.profile(from: $0) }
     }
 
-    public func conversations() async throws -> [Conversation] {
+    func conversations() async throws -> [Conversation] {
         throw FeedError.notSupported("Direct messages aren't supported for Mastodon yet.")
     }
-    public func messages(in conversationID: String) async throws -> [DirectMessage] {
+    func messages(in conversationID: String) async throws -> [DirectMessage] {
         throw FeedError.notSupported("Direct messages aren't supported for Mastodon yet.")
     }
-    public func sendMessage(_ text: String, to conversationID: String) async throws {
+    func sendMessage(_ text: String, to conversationID: String) async throws {
         throw FeedError.notSupported("Direct messages aren't supported for Mastodon yet.")
     }
 
-    public func liveUpdates() async -> AsyncStream<Void>? {
+    func liveUpdates() async -> AsyncStream<Void>? {
         guard let socket = try? await client.beginStreaming() else { return nil }
         try? await socket.sendQuery(StreamQuery(.subscribe, timeline: .user))
         return AsyncStream { continuation in
@@ -209,7 +209,7 @@ public struct MastodonFeedService: FeedService {
         }
     }
 
-    public func relationship(with id: String) async throws -> AccountRelationship {
+    func relationship(with id: String) async throws -> AccountRelationship {
         Self.relationship(from: try await client.getRelationships(by: [id]).first)
     }
 
@@ -218,36 +218,36 @@ public struct MastodonFeedService: FeedService {
                             isMuting: r?.muting ?? false, isBlocking: r?.blocking ?? false)
     }
 
-    public func setFollowing(_ following: Bool, for id: String,
+    func setFollowing(_ following: Bool, for id: String,
                              current: AccountRelationship) async throws -> AccountRelationship {
         Self.relationship(from: following
             ? try await client.followAccount(by: id)
             : try await client.unfollowAccount(by: id))
     }
 
-    public func setMuted(_ muted: Bool, for id: String,
+    func setMuted(_ muted: Bool, for id: String,
                          current: AccountRelationship) async throws -> AccountRelationship {
         Self.relationship(from: muted
             ? try await client.muteAccount(by: id)
             : try await client.unmuteAccount(by: id))
     }
 
-    public func setBlocked(_ blocked: Bool, for id: String,
+    func setBlocked(_ blocked: Bool, for id: String,
                            current: AccountRelationship) async throws -> AccountRelationship {
         Self.relationship(from: blocked
             ? try await client.blockAccount(by: id)
             : try await client.unblockAccount(by: id))
     }
 
-    public func followers(of id: String) async throws -> [Profile] {
+    func followers(of id: String) async throws -> [Profile] {
         try await client.getFollowers(for: id).result.map { Self.profile(from: $0) }
     }
 
-    public func following(of id: String) async throws -> [Profile] {
+    func following(of id: String) async throws -> [Profile] {
         try await client.getFollowing(for: id).result.map { Self.profile(from: $0) }
     }
 
-    public func profile(forURL url: URL) async throws -> Profile? {
+    func profile(forURL url: URL) async throws -> Profile? {
         guard ProfileLink.isMastodonProfileURL(url) else { return nil }
         // Search with WebFinger resolution turns a profile URL — including a remote
         // account the instance hasn't cached — into a local account record.
@@ -331,7 +331,6 @@ public struct MastodonFeedService: FeedService {
             authorHandle: "@\(display.account.acct)",
             authorID: display.account.id,
             avatarURL: URL(string: display.account.avatar),
-            authorURL: URL(string: display.account.url),
             date: display.createdAt,
             text: HTMLRenderer.renderAttributed(display.content ?? ""),
             images: images,
@@ -355,16 +354,16 @@ public struct MastodonFeedService: FeedService {
     }
 }
 
-public enum FeedError: Error, CustomStringConvertible, LocalizedError {
+enum FeedError: Error, CustomStringConvertible, LocalizedError {
     case wrongPlatform
     case notSupported(String)
 
-    public var description: String {
+    var description: String {
         switch self {
         case .wrongPlatform: return "This action does not apply to this post's platform"
         case .notSupported(let what): return what
         }
     }
 
-    public var errorDescription: String? { description }
+    var errorDescription: String? { description }
 }

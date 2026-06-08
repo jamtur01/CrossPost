@@ -1,14 +1,14 @@
 import Foundation
 
 /// A link preview card (Mastodon `card`, Bluesky external embed).
-public struct LinkCard: Equatable, Sendable {
-    public let url: URL
-    public let title: String
-    public let description: String
-    public let imageURL: URL?
-    public let providerName: String   // e.g. "nytimes.com"
+struct LinkCard: Equatable, Sendable {
+    let url: URL
+    let title: String
+    let description: String
+    let imageURL: URL?
+    let providerName: String   // e.g. "nytimes.com"
 
-    public init(url: URL, title: String, description: String,
+    init(url: URL, title: String, description: String,
                 imageURL: URL?, providerName: String) {
         self.url = url
         self.title = title
@@ -20,16 +20,16 @@ public struct LinkCard: Equatable, Sendable {
 
 /// A quoted post embedded in another (Mastodon quote, Bluesky record embed).
 /// A lightweight projection — enough to render a nested card and open the original.
-public struct QuotedPost: Equatable, Sendable, Identifiable {
-    public let id: String
-    public let authorName: String
-    public let authorHandle: String
-    public let avatarURL: URL?
-    public let text: AttributedString
-    public let imageURL: URL?
-    public let webURL: URL?
+struct QuotedPost: Equatable, Sendable, Identifiable {
+    let id: String
+    let authorName: String
+    let authorHandle: String
+    let avatarURL: URL?
+    let text: AttributedString
+    let imageURL: URL?
+    let webURL: URL?
 
-    public init(id: String, authorName: String, authorHandle: String,
+    init(id: String, authorName: String, authorHandle: String,
                 avatarURL: URL?, text: AttributedString, imageURL: URL?, webURL: URL?) {
         self.id = id
         self.authorName = authorName
@@ -42,19 +42,19 @@ public struct QuotedPost: Equatable, Sendable, Identifiable {
 }
 
 /// A user profile: header details for the profile view.
-public struct Profile: Sendable, Identifiable {
-    public let id: String          // account id (Mastodon) / handle (Bluesky)
-    public let name: String
-    public let handle: String      // "@..."
-    public let avatarURL: URL?
-    public let bannerURL: URL?
-    public let bio: AttributedString
-    public var followers: Int
-    public let following: Int
-    public let posts: Int
-    public let webURL: URL?
+struct Profile: Sendable, Identifiable {
+    let id: String          // account id (Mastodon) / handle (Bluesky)
+    let name: String
+    let handle: String      // "@..."
+    let avatarURL: URL?
+    let bannerURL: URL?
+    let bio: AttributedString
+    var followers: Int
+    let following: Int
+    let posts: Int
+    let webURL: URL?
 
-    public init(id: String, name: String, handle: String,
+    init(id: String, name: String, handle: String,
                 avatarURL: URL?, bannerURL: URL?, bio: AttributedString,
                 followers: Int, following: Int, posts: Int, webURL: URL?) {
         self.id = id
@@ -72,15 +72,15 @@ public struct Profile: Sendable, Identifiable {
 
 /// The viewer's relationship to another account. Record URIs are carried so
 /// Bluesky can undo a follow/block (Mastodon acts by account id and leaves them nil).
-public struct AccountRelationship: Sendable, Equatable {
-    public var isFollowing: Bool
-    public var isFollowedBy: Bool
-    public var isMuting: Bool
-    public var isBlocking: Bool
-    public var followRecordURI: String?
-    public var blockRecordURI: String?
+struct AccountRelationship: Sendable, Equatable {
+    var isFollowing: Bool
+    var isFollowedBy: Bool
+    var isMuting: Bool
+    var isBlocking: Bool
+    var followRecordURI: String?
+    var blockRecordURI: String?
 
-    public init(isFollowing: Bool = false, isFollowedBy: Bool = false,
+    init(isFollowing: Bool = false, isFollowedBy: Bool = false,
                 isMuting: Bool = false, isBlocking: Bool = false,
                 followRecordURI: String? = nil, blockRecordURI: String? = nil) {
         self.isFollowing = isFollowing
@@ -94,11 +94,11 @@ public struct AccountRelationship: Sendable, Equatable {
 
 /// A post's surrounding thread: posts above (ancestors, oldest first) and the
 /// replies below it (descendants).
-public struct PostThread: Sendable {
-    public let ancestors: [FeedPost]
-    public let descendants: [FeedPost]
+struct PostThread: Sendable {
+    let ancestors: [FeedPost]
+    let descendants: [FeedPost]
 
-    public init(ancestors: [FeedPost], descendants: [FeedPost]) {
+    init(ancestors: [FeedPost], descendants: [FeedPost]) {
         self.ancestors = ancestors
         self.descendants = descendants
     }

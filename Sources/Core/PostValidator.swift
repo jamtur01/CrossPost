@@ -1,15 +1,15 @@
 import Foundation
 
-public enum ValidationIssue: Equatable, Sendable {
+enum ValidationIssue: Equatable, Sendable {
     case empty(postIndex: Int)
     case tooLong(postIndex: Int, target: PostTarget, count: Int, limit: Int)
     case tooManyImages(postIndex: Int, target: PostTarget, count: Int, limit: Int)
 }
 
-public enum MediaValidationError: Error, LocalizedError, Sendable {
+enum MediaValidationError: Error, LocalizedError, Sendable {
     case tooManyImages(target: PostTarget, count: Int, limit: Int)
 
-    public var errorDescription: String? {
+    var errorDescription: String? {
         switch self {
         case .tooManyImages(let target, let count, let limit):
             return "\(target.displayName) supports at most \(limit) images per post; \(count) were attached."
@@ -17,14 +17,14 @@ public enum MediaValidationError: Error, LocalizedError, Sendable {
     }
 }
 
-public enum PostValidator {
+enum PostValidator {
     /// Grapheme-cluster count. Swift's `String.count` counts Characters (grapheme clusters),
     /// which is the unit Bluesky uses for its 300 limit.
-    public static func graphemeCount(_ text: String) -> Int {
+    static func graphemeCount(_ text: String) -> Int {
         text.count
     }
 
-    public static func validate(thread: [DraftPost],
+    static func validate(thread: [DraftPost],
                                 targets: [PostTarget],
                                 limits: TargetLimits) -> [ValidationIssue] {
         var issues: [ValidationIssue] = []
