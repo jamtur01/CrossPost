@@ -57,4 +57,24 @@ final class ReplyModelTests: XCTestCase {
         XCTAssertNil(model.errorMessage)
         XCTAssertNil(model.postedURL)
     }
+
+    func testImageOnlyReplyPostsAndRefreshesOnce() async {
+        let fake = FakeFeedService()
+        let post = TestFactory.feedPost(target: .bluesky)
+        let model = ReplyModel(post: post, store: AccountStore()) { _, _ in fake }
+        model.text = ""                                   // no text…
+        model.attachments = [Attachment(imageData: Data([0x1]), altText: "alt")]   // …just an image
+
+        var refreshCount = 0
+        let token = NotificationCenter.default.addObserver(
+            forName: .crossPostDidPost, object: nil, queue: nil) { _ in refreshCount += 1 }
+        defer { NotificationCenter.default.removeObserver(token) }
+
+        let posted = await model.send()
+
+        XCTAssertTrue(posted)                             // image-only reply is allowed
+        XCTAssertNil(model.blockedIssues)
+        XCTAssertNotNil(model.postedURL)
+        XCTAssertEqual(refreshCount, 1)
+    }
 }

@@ -13,10 +13,14 @@ final class ReplyModel {
     var postedURL: String?
 
     private let store: AccountStore
+    private let makeService: @MainActor (PostTarget, AccountStore) async throws -> FeedService
 
-    init(post: FeedPost, store: AccountStore) {
+    init(post: FeedPost, store: AccountStore,
+         makeService: @escaping @MainActor (PostTarget, AccountStore) async throws -> FeedService
+             = FeedServiceFactory.make) {
         self.post = post
         self.store = store
+        self.makeService = makeService
         self.text = Self.prefill(for: post, store: store)
     }
 
@@ -64,7 +68,7 @@ final class ReplyModel {
             return false
         }
         do {
-            let service = try await FeedServiceFactory.make(for: post.target, store: store)
+            let service = try await makeService(post.target, store)
             let item = try await service.reply(to: post, text: text, images: attachments)
             postedURL = item.url ?? "Sent."
             // Refresh the panel for this platform so the reply shows up.
