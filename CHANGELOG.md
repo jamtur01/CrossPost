@@ -5,6 +5,13 @@ All notable changes to CrossPost are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.3] - 2026-06-08
+
+### Added
+
+- The app's dock icon shows a badge with the total number of unread
+  notifications across both networks.
+
 ## [0.4.2] - 2026-06-07
 
 ### Added
@@ -174,6 +181,7 @@ Initial release.
 - Keychain-backed credential storage.
 - Signed and notarized Developer ID release builds produced by CI.
 
+[0.4.3]: https://github.com/jamtur01/CrossPost/releases/tag/v0.4.3
 [0.4.2]: https://github.com/jamtur01/CrossPost/releases/tag/v0.4.2
 [0.4.1]: https://github.com/jamtur01/CrossPost/releases/tag/v0.4.1
 [0.4.0]: https://github.com/jamtur01/CrossPost/releases/tag/v0.4.0
