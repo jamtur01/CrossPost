@@ -5,6 +5,36 @@ All notable changes to CrossPost are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.4] - 2026-06-08
+
+### Added
+
+- Reply, repost, like, and follow actions directly on notification rows.
+- A direct-message conversation header that opens the other person's profile,
+  and a timestamp under each message.
+
+### Fixed
+
+- Bluesky reposts no longer vanish from feeds and now show a "reposted by"
+  attribution.
+- Posts quoting an account you've blocked or muted are no longer shown.
+- An over-limit or failed reply no longer reports "Reply sent" and loses the
+  draft.
+- The follow button on notifications can no longer accidentally unfollow
+  someone you already follow.
+- Like and repost counts update immediately in the timeline, matching the
+  notification rows.
+- Editing a post's text no longer moves the cursor to the start, and the
+  composer leaves in-progress input-method composition alone.
+- Images that can't be read when attaching now surface an error instead of
+  being silently dropped.
+
+### Changed
+
+- Feeds, profiles, and notifications fetch the same content more completely,
+  and the Bluesky handle is normalized so your own posts are recognized
+  regardless of how you typed it at sign-in.
+
 ## [0.4.3] - 2026-06-08
 
 ### Added
@@ -181,6 +211,7 @@ Initial release.
 - Keychain-backed credential storage.
 - Signed and notarized Developer ID release builds produced by CI.
 
+[0.4.4]: https://github.com/jamtur01/CrossPost/releases/tag/v0.4.4
 [0.4.3]: https://github.com/jamtur01/CrossPost/releases/tag/v0.4.3
 [0.4.2]: https://github.com/jamtur01/CrossPost/releases/tag/v0.4.2
 [0.4.1]: https://github.com/jamtur01/CrossPost/releases/tag/v0.4.1
