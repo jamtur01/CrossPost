@@ -3,7 +3,6 @@ import Foundation
 /// A platform's feed: load posts, toggle like/repost, and reply to one post.
 /// `setLiked`/`setReposted` return the updated FeedPost (new flags + record uris).
 public protocol FeedService: Sendable {
-    var target: PostTarget { get }
     func loadFeed(_ kind: FeedKind) async throws -> [FeedPost]
     func setLiked(_ liked: Bool, on post: FeedPost) async throws -> FeedPost
     func setReposted(_ reposted: Bool, on post: FeedPost) async throws -> FeedPost
@@ -59,8 +58,6 @@ public protocol FeedService: Sendable {
 
     // MARK: Direct messages
 
-    /// Whether this platform supports direct messages in the app.
-    var supportsDirectMessages: Bool { get }
     /// The user's DM conversations.
     func conversations() async throws -> [Conversation]
     /// Messages in a conversation, oldest first.

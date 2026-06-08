@@ -44,7 +44,6 @@ public struct QuotedPost: Equatable, Sendable, Identifiable {
 /// A user profile: header details for the profile view.
 public struct Profile: Sendable, Identifiable {
     public let id: String          // account id (Mastodon) / handle (Bluesky)
-    public let target: PostTarget
     public let name: String
     public let handle: String      // "@..."
     public let avatarURL: URL?
@@ -55,11 +54,10 @@ public struct Profile: Sendable, Identifiable {
     public let posts: Int
     public let webURL: URL?
 
-    public init(id: String, target: PostTarget, name: String, handle: String,
+    public init(id: String, name: String, handle: String,
                 avatarURL: URL?, bannerURL: URL?, bio: AttributedString,
                 followers: Int, following: Int, posts: Int, webURL: URL?) {
         self.id = id
-        self.target = target
         self.name = name
         self.handle = handle
         self.avatarURL = avatarURL

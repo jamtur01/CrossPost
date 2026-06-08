@@ -189,11 +189,6 @@ final class FeedPanelModel {
         open(url)
     }
 
-    func openProfile(_ post: FeedPost) {
-        guard let url = post.authorURL else { return }
-        open(url)
-    }
-
     /// The single sink for handing a URL to the system. Rejects any non-web scheme
     /// so a malicious post can't open a `file://` or custom-scheme URL.
     func open(_ url: URL) {

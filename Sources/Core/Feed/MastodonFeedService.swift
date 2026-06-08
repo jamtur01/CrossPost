@@ -2,7 +2,6 @@ import Foundation
 import TootSDK
 
 public struct MastodonFeedService: FeedService {
-    public let target: PostTarget = .mastodon
     private let client: TootClient
 
     public init(client: TootClient) { self.client = client }
@@ -181,7 +180,6 @@ public struct MastodonFeedService: FeedService {
         return try await client.getAccountsBoosted(id: id).result.map { Self.profile(from: $0) }
     }
 
-    public var supportsDirectMessages: Bool { false }
     public func conversations() async throws -> [Conversation] {
         throw FeedError.notSupported("Direct messages aren't supported for Mastodon yet.")
     }
@@ -263,7 +261,6 @@ public struct MastodonFeedService: FeedService {
     static func profile(from account: Account) -> Profile {
         Profile(
             id: account.id,
-            target: .mastodon,
             name: account.displayName?.isEmpty == false ? account.displayName! : account.acct,
             handle: "@\(account.acct)",
             avatarURL: URL(string: account.avatar),
@@ -285,7 +282,6 @@ public struct MastodonFeedService: FeedService {
         }
         if type == .gifv || type == .video {
             return FeedImage(url: url, altText: att.description ?? "", kind: .video,
-                             previewURL: att.previewUrl.flatMap(URL.init(string:)),
                              aspectRatio: att.aspectRatio)
         }
         return nil

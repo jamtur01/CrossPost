@@ -2,7 +2,6 @@ import Foundation
 import ATProtoKit
 
 public struct BlueskyFeedService: FeedService {
-    public let target: PostTarget = .bluesky
     private let kit: ATProtoKit
     private let bluesky: ATProtoBluesky
     private let chat: ATProtoBlueskyChat
@@ -37,7 +36,7 @@ public struct BlueskyFeedService: FeedService {
                 let output = try await kit.getTimeline(limit: 100, cursor: $0)
                 return (output.feed, output.cursor)
             }
-            return feed.compactMap { Self.feedPost(from: $0, handle: handle) }
+            return feed.compactMap { Self.feedPost(from: $0) }
         case .notifications, .messages:
             return []   // these load through their own methods, not as posts
         }
@@ -210,7 +209,6 @@ public struct BlueskyFeedService: FeedService {
     static func videoMedia(from view: AppBskyLexicon.Embed.VideoDefinition.View) -> FeedImage? {
         guard let url = URL(string: view.playlistURI) else { return nil }
         return FeedImage(url: url, altText: view.altText ?? "", kind: .video,
-                         previewURL: view.thumbnailImageURL.flatMap(URL.init(string:)),
                          aspectRatio: Self.aspect(view.aspectRatio))
     }
 
@@ -225,7 +223,7 @@ public struct BlueskyFeedService: FeedService {
         guard let url = URL(string: external.uri),
               url.absoluteString.split(separator: "?").first?.lowercased().hasSuffix(".gif") == true
         else { return nil }
-        return FeedImage(url: url, altText: external.title, kind: .gif, previewURL: external.thumbnailImageURL)
+        return FeedImage(url: url, altText: external.title, kind: .gif)
     }
 
     static func linkCard(from external: AppBskyLexicon.Embed.ExternalDefinition.ViewExternal) -> LinkCard? {
@@ -318,8 +316,6 @@ public struct BlueskyFeedService: FeedService {
         guard case .bluesky(let uri, _, _, _) = post.nativeRef else { return [] }
         return try await kit.getRepostedBy(uri).repostedBy.map { Self.profile(fromBasic: $0) }
     }
-
-    public var supportsDirectMessages: Bool { true }
 
     public func conversations() async throws -> [Conversation] {
         let myDID = try await kit.getProfile(for: handle).actorDID
@@ -425,7 +421,7 @@ public struct BlueskyFeedService: FeedService {
     }
 
     static func profile(fromBasic p: AppBskyLexicon.Actor.ProfileViewDefinition) -> Profile {
-        Profile(id: p.actorDID, target: .bluesky,
+        Profile(id: p.actorDID,
                 name: p.displayName?.isEmpty == false ? p.displayName! : p.actorHandle,
                 handle: "@\(p.actorHandle)", avatarURL: p.avatarImageURL, bannerURL: nil,
                 bio: AttributedString(p.description ?? ""), followers: 0, following: 0, posts: 0,
@@ -441,13 +437,12 @@ public struct BlueskyFeedService: FeedService {
             let output = try await kit.getAuthorFeed(by: id, limit: 100, cursor: $0)
             return (output.feed, output.cursor)
         }
-        return feed.compactMap { Self.feedPost(from: $0, handle: handle) }
+        return feed.compactMap { Self.feedPost(from: $0) }
     }
 
     static func profile(from p: AppBskyLexicon.Actor.ProfileViewDetailedDefinition) -> Profile {
         Profile(
             id: p.actorDID,   // the stable id; follow/block records require the DID, not the handle
-            target: .bluesky,
             name: p.displayName?.isEmpty == false ? p.displayName! : p.actorHandle,
             handle: "@\(p.actorHandle)",
             avatarURL: p.avatarImageURL,
@@ -460,8 +455,7 @@ public struct BlueskyFeedService: FeedService {
     }
 
     static func feedPost(
-        from item: AppBskyLexicon.Feed.FeedViewPostDefinition,
-        handle: String
+        from item: AppBskyLexicon.Feed.FeedViewPostDefinition
     ) -> FeedPost? {
         let replyRoot: (uri: String, cid: String)?
         if case .postView(let rootPost)? = item.reply?.root {
