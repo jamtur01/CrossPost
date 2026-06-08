@@ -150,6 +150,22 @@ jobs:
         run: |
           ditto -c -k --keepParent build/CrossPost.app "CrossPost-${GITHUB_REF_NAME}.zip"
 
+      - name: Build, sign, and notarize DMG
+        env:
+          MACOS_CODESIGN_IDENTITY: ${{ secrets.MACOS_CODESIGN_IDENTITY }}
+        run: |
+          dmg="CrossPost-${GITHUB_REF_NAME}.dmg"
+          # Stage the (stapled) app plus a drag-to-Applications shortcut.
+          staging="$(mktemp -d)"
+          cp -R build/CrossPost.app "$staging/"
+          ln -s /Applications "$staging/Applications"
+          hdiutil create -volname "CrossPost" -srcfolder "$staging" -ov -format UDZO "$dmg"
+          rm -rf "$staging"
+          # Sign, notarize, and staple the DMG itself so Gatekeeper trusts it directly.
+          /usr/bin/codesign --force --timestamp --sign "$MACOS_CODESIGN_IDENTITY" "$dmg"
+          xcrun notarytool submit "$dmg" --keychain-profile "notarytool-profile" --wait
+          xcrun stapler staple "$dmg"
+
       - name: Extract version from tag
         id: get_version
         run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
@@ -157,7 +173,7 @@ jobs:
       - name: Build release notes from CHANGELOG
         env:
           VERSION: ${{ steps.get_version.outputs.VERSION }}
-          ASSET: CrossPost-${{ github.ref_name }}.zip
+          REF: ${{ github.ref_name }}
         run: |
           # Pull this version's section out of CHANGELOG.md (everything between
           # its "## [x.y.z]" heading and the next version heading).
@@ -176,10 +192,8 @@ jobs:
             echo
             echo "## Installation"
             echo
-            echo "1. Download \`$ASSET\`"
-            echo "2. Unzip it"
-            echo "3. Move \`CrossPost.app\` to your Applications folder"
-            echo "4. Open it"
+            echo "Download \`CrossPost-${REF}.dmg\`, open it, and drag CrossPost to Applications."
+            echo "(A zip, \`CrossPost-${REF}.zip\`, is also attached.)"
             echo
             echo "This build is signed with a Developer ID and notarized by Apple."
           } > release-notes.md
@@ -192,4 +206,5 @@ jobs:
           prerelease: false
           body_path: release-notes.md
           files: |
+            CrossPost-${{ github.ref_name }}.dmg
             CrossPost-${{ github.ref_name }}.zip

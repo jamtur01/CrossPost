@@ -132,7 +132,8 @@ xcodebuild test -project CrossPost.xcodeproj -scheme CrossPost -destination 'pla
 **Releases** (`.github/workflows/release.yml`) trigger on `v*` tags: they build an
 Apple Silicon Release bundle, stamp its version from the tag, **code-sign it with a
 Developer ID and notarize it with Apple**, then publish a GitHub Release whose notes
-are taken from the matching `CHANGELOG.md` section, with the zipped app attached.
+are taken from the matching `CHANGELOG.md` section, with a notarized DMG and a
+zip of the app attached.
 
 ### Cutting a release
 
