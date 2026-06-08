@@ -144,7 +144,7 @@ struct FeedPanelView: View {
         case .profileList(let ref):
             ProfileListView(panel: model, ref: ref) { routes.append($0) }
         case .conversation(let convo):
-            ConversationView(panel: model, conversation: convo)
+            ConversationView(panel: model, conversation: convo) { routes.append($0) }
         case .none:
             EmptyView()
         }

@@ -77,6 +77,7 @@ struct MessagesListView: View {
 struct ConversationView: View {
     let panel: FeedPanelModel
     let conversation: Conversation
+    let push: (FeedRoute) -> Void
 
     @State private var messages: [DirectMessage] = []
     @State private var draft = ""
@@ -85,8 +86,14 @@ struct ConversationView: View {
 
     private var accent: Color { panel.target.accent }
 
+    private var otherProfile: ProfileRef {
+        ProfileRef(id: conversation.otherID, handle: conversation.otherHandle,
+                   name: conversation.otherName, avatar: conversation.otherAvatarURL)
+    }
+
     var body: some View {
         VStack(spacing: 0) {
+            header
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 8) {
@@ -113,16 +120,47 @@ struct ConversationView: View {
         }
     }
 
+    /// Tappable header opening the other participant's profile.
+    private var header: some View {
+        Button { push(.profile(otherProfile)) } label: {
+            HStack(spacing: 8) {
+                AsyncImage(url: conversation.otherAvatarURL) { img in
+                    img.resizable().scaledToFill()
+                } placeholder: {
+                    Circle().fill(.quaternary)
+                }
+                .frame(width: 30, height: 30)
+                .clipShape(Circle())
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(conversation.otherName).font(Theme.name).lineLimit(1)
+                    Text(conversation.otherHandle).font(Theme.meta).foregroundStyle(.secondary).lineLimit(1)
+                }
+                Spacer()
+                Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, 12).padding(.vertical, 8)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .background(.bar)
+        .overlay(alignment: .bottom) { Divider() }
+    }
+
     private func bubble(_ message: DirectMessage) -> some View {
-        Text(message.text)
-            .font(Theme.content)
-            .foregroundStyle(message.isFromMe ? .white : .primary)
-            .textSelection(.enabled)
-            .padding(.horizontal, 11).padding(.vertical, 7)
-            .background(message.isFromMe ? accent : Color.secondary.opacity(0.18),
-                        in: RoundedRectangle(cornerRadius: 15, style: .continuous))
-            .frame(maxWidth: 260, alignment: .leading)
-            .frame(maxWidth: .infinity, alignment: message.isFromMe ? .trailing : .leading)
+        VStack(alignment: message.isFromMe ? .trailing : .leading, spacing: 2) {
+            Text(message.text)
+                .font(Theme.content)
+                .foregroundStyle(message.isFromMe ? .white : .primary)
+                .textSelection(.enabled)
+                .padding(.horizontal, 11).padding(.vertical, 7)
+                .background(message.isFromMe ? accent : Color.secondary.opacity(0.18),
+                            in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+                .frame(maxWidth: 260, alignment: .leading)
+            Text(message.date, format: .dateTime.hour().minute())
+                .font(.system(size: 9)).foregroundStyle(.tertiary)
+                .padding(.horizontal, 4)
+        }
+        .frame(maxWidth: .infinity, alignment: message.isFromMe ? .trailing : .leading)
     }
 
     private var composer: some View {
