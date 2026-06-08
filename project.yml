@@ -41,6 +41,7 @@ targets:
       - Tests
     dependencies:
       - target: CrossPost
+      - package: TootSDK
     settings:
       base:
         BUNDLE_LOADER: "$(TEST_HOST)"
