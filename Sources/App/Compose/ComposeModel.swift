@@ -12,13 +12,19 @@ final class ComposeModel {
 
     private let coordinator = CrossPostCoordinator()
     private let store: AccountStore
+    private let makePosters: @MainActor ([PostTarget], AccountStore) async throws -> [Poster]
 
     /// The content signature each target last received, so re-pressing Post can't
     /// duplicate an already-published thread. Editing the thread changes the
     /// signature, which releases the lock automatically.
     private var postedSignatures: [PostTarget: Int] = [:]
 
-    init(store: AccountStore) { self.store = store }
+    init(store: AccountStore,
+         makePosters: @escaping @MainActor ([PostTarget], AccountStore) async throws -> [Poster]
+             = PosterFactory.makePosters) {
+        self.store = store
+        self.makePosters = makePosters
+    }
 
     var canPost: Bool {
         !isPosting && !selectedTargets.isEmpty && thread.contains { !$0.isEmpty }
@@ -68,7 +74,7 @@ final class ComposeModel {
         guard issues.isEmpty else { blockedIssues = issues; return }
 
         do {
-            let posters = try await PosterFactory.makePosters(for: targets, store: store)
+            let posters = try await makePosters(targets, store)
             let outcome = await coordinator.publish(thread: thread, to: targets,
                                                     using: posters, limits: store.limits)
             switch outcome {

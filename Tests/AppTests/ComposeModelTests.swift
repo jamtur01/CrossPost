@@ -131,6 +131,69 @@ final class ComposeModelTests: XCTestCase {
         XCTAssertNotNil(model.errorMessage)
     }
 
+    // MARK: submit() — the button/keyboard path
+
+    private func model(with recorder: PosterRecorder) -> ComposeModel {
+        ComposeModel(store: AccountStore()) { recorder.make($0, $1) }
+    }
+
+    func testValidationFailureBlocksBeforePosterCreation() async {
+        let recorder = PosterRecorder()
+        let model = model(with: recorder)
+        model.thread[0].text = String(repeating: "a", count: TargetLimits.blueskyMax + 1)  // over Bluesky's limit
+
+        await model.submit()
+
+        XCTAssertNotNil(model.blockedIssues)
+        XCTAssertTrue(recorder.requestedTargets.isEmpty)   // never reached poster creation
+        XCTAssertFalse(model.thread[0].isEmpty)            // draft kept
+    }
+
+    func testOnlySelectedTargetsGetPosters() async {
+        let recorder = PosterRecorder()
+        let model = model(with: recorder)
+        model.thread[0].text = "hi"
+        model.toggle(.bluesky)   // leave only Mastodon selected
+
+        await model.submit()
+
+        XCTAssertEqual(recorder.requestedTargets, [[.mastodon]])
+    }
+
+    func testSuccessClearsDraftAndPostsRefreshNotificationOnce() async {
+        let recorder = PosterRecorder()
+        let model = model(with: recorder)
+        model.thread[0].text = "hi"
+
+        var refreshCount = 0
+        let token = NotificationCenter.default.addObserver(
+            forName: .crossPostDidPost, object: nil, queue: nil) { _ in refreshCount += 1 }
+        defer { NotificationCenter.default.removeObserver(token) }
+
+        await model.submit()
+
+        XCTAssertEqual(refreshCount, 1)
+        XCTAssertEqual(model.thread.count, 1)
+        XCTAssertTrue(model.thread[0].isEmpty)   // box cleared on a clean run
+        XCTAssertNil(model.errorMessage)
+    }
+
+    func testPartialFailureKeepsDraftAndDeselectsOnlyLanded() async {
+        let recorder = PosterRecorder()
+        let bluesky = FakePoster(target: .bluesky)
+        bluesky.result = .failure(FakePostError.boom)   // Bluesky fails entirely
+        recorder.postersByTarget = [.bluesky: bluesky]  // Mastodon defaults to success
+        let model = model(with: recorder)
+        model.thread[0].text = "hi"
+
+        await model.submit()
+
+        XCTAssertNotNil(model.errorMessage)
+        XCTAssertEqual(model.thread.count, 1)
+        XCTAssertFalse(model.thread[0].isEmpty)          // draft kept
+        XCTAssertEqual(model.selectedTargets, [.bluesky]) // only landed Mastodon de-selected
+    }
+
     /// Intended behavior: the lock keys on text + image identity, so editing only a
     /// post's alt text must NOT release a landed target's lock — re-posting the same
     /// text and images would duplicate it. (Guards against a regression that folds
