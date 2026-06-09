@@ -31,6 +31,85 @@ final class FeedPanelModelTests: XCTestCase {
         }
     }
 
+    // MARK: Service lifecycle
+
+    /// Suspends service builds until the test releases them, so cancellation
+    /// races can be staged deterministically.
+    @MainActor
+    private final class ServiceGate {
+        private var waiters: [CheckedContinuation<Void, Never>] = []
+        private(set) var arrivals = 0
+        func wait() async {
+            arrivals += 1
+            await withCheckedContinuation { waiters.append($0) }
+        }
+        func open() {
+            waiters.forEach { $0.resume() }
+            waiters = []
+        }
+    }
+
+    private func makeStore() -> AccountStore {
+        let store = AccountStore()
+        store.mastodonInstanceURL = "https://h.io"
+        store.mastodonToken = "tok"
+        store.blueskyHandle = "me.bsky.social"
+        store.blueskyAppPassword = "pw"
+        return store
+    }
+
+    func testRestartDiscardsServiceBuiltBeforeRestart() async {
+        let stale = FakeFeedService()
+        stale.feed = [TestFactory.feedPost(id: "stale")]
+        let fresh = FakeFeedService()
+        fresh.feed = [TestFactory.feedPost(id: "fresh")]
+        let gate = ServiceGate()
+        var builds = 0
+        let model = FeedPanelModel(target: .bluesky, store: makeStore()) { _, _ in
+            builds += 1
+            if builds == 1 {
+                await gate.wait()
+                return stale
+            }
+            return fresh
+        }
+
+        // A service build starts, then hangs mid-flight (slow network).
+        let staleCaller = Task { await model.profile(id: "p") }
+        await waitUntil { gate.arrivals == 1 }
+
+        // Credentials change: restart drops the cached service and builds anew.
+        model.start()
+        await waitUntil { model.posts.map(\.id) == ["fresh"] }
+
+        // The pre-restart build finally completes; it must not be installed.
+        gate.open()
+        _ = await staleCaller.value
+
+        model.refresh()
+        await waitUntil { stale.loadFeedCalls + fresh.loadFeedCalls == 2 }
+        XCTAssertEqual(model.posts.map(\.id), ["fresh"])
+        XCTAssertEqual(stale.loadFeedCalls, 0)
+        model.stop()
+    }
+
+    func testStopCancelsInFlightServiceBuild() async {
+        let fake = FakeFeedService()
+        let gate = ServiceGate()
+        let model = FeedPanelModel(target: .bluesky, store: makeStore()) { _, _ in
+            await gate.wait()
+            return fake
+        }
+
+        let caller = Task { await model.profile(id: "p") }
+        await waitUntil { gate.arrivals == 1 }
+
+        model.stop()
+        gate.open()
+        let profile = await caller.value
+        XCTAssertNil(profile, "a service build finishing after stop() must not be used")
+    }
+
     // MARK: Notifications loading
 
     func testLoadingNotificationsStoresFetchedMarksNewestAndClearsBadge() async {

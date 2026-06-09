@@ -20,8 +20,12 @@ final class FakeFeedService: FeedService, @unchecked Sendable {
     // Recorded calls.
     private(set) var markedReadCalls: [FeedNotification?] = []
     private(set) var deletedIDs: [String] = []
+    private(set) var loadFeedCalls = 0
 
-    func loadFeed(_ kind: FeedKind) async throws -> [FeedPost] { feed }
+    func loadFeed(_ kind: FeedKind) async throws -> [FeedPost] {
+        loadFeedCalls += 1
+        return feed
+    }
 
     func setLiked(_ liked: Bool, on post: FeedPost) async throws -> FeedPost {
         if failLike { throw FakeError.boom }

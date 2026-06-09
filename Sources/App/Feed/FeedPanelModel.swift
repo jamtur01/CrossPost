@@ -164,10 +164,21 @@ final class FeedPanelModel {
         if let serviceTask { return try await serviceTask.value }
         let task = Task { try await makeService(target, store) }
         serviceTask = task
-        defer { serviceTask = nil }
-        let svc = try await task.value
-        service = svc
-        return svc
+        do {
+            let svc = try await task.value
+            // start()/stop() cancel this task when credentials change or the panel
+            // tears down; a build that finished anyway must not be installed, or a
+            // client for the old account would serve every later call.
+            guard !task.isCancelled else { throw CancellationError() }
+            serviceTask = nil
+            service = svc
+            return svc
+        } catch {
+            // On cancellation the canceller already cleared (and may have replaced)
+            // serviceTask — only a plain failure should clear it for retry.
+            if !task.isCancelled { serviceTask = nil }
+            throw error
+        }
     }
 
     func toggleLike(_ post: FeedPost) {
@@ -432,6 +443,7 @@ final class FeedPanelModel {
         loadTask?.cancel(); loadTask = nil
         liveTask?.cancel(); liveTask = nil
         unreadTask?.cancel(); unreadTask = nil
+        serviceTask?.cancel(); serviceTask = nil
         isLoading = false
     }
 }
