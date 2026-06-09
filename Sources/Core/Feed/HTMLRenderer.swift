@@ -29,13 +29,14 @@ enum HTMLRenderer {
         return trimmed(result)
     }
 
+    // Compiled once: this runs for every Mastodon post mapped, and compiling an
+    // NSRegularExpression costs far more than executing it.
+    private static let anchorRegex = try? NSRegularExpression(
+        pattern: #"<a\b[^>]*\bhref\s*=\s*(['"])(.*?)\1[^>]*>(.*?)</a>"#,
+        options: [.caseInsensitive, .dotMatchesLineSeparators])
+
     private static func anchorMatches(in input: String) -> [NSTextCheckingResult] {
-        let pattern = #"<a\b[^>]*\bhref\s*=\s*(['"])(.*?)\1[^>]*>(.*?)</a>"#
-        guard let regex = try? NSRegularExpression(
-            pattern: pattern, options: [.caseInsensitive, .dotMatchesLineSeparators]
-        ) else {
-            return []
-        }
+        guard let regex = anchorRegex else { return [] }
         let nsInput = input as NSString
         return regex.matches(in: input, range: NSRange(location: 0, length: nsInput.length))
     }
