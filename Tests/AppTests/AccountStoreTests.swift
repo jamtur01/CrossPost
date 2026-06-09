@@ -22,6 +22,19 @@ final class AccountStoreTests: XCTestCase {
         XCTAssertEqual(normalized("http://localhost:3000"), URL(string: "http://localhost:3000"))
     }
 
+    func testRemoteHTTPIsRejected() {
+        // A plain-http remote instance would send the bearer token in cleartext.
+        XCTAssertNil(normalized("http://mastodon.example.com"))
+    }
+
+    func testLoopbackHTTPIsPreserved() {
+        XCTAssertEqual(normalized("http://127.0.0.1:3000"), URL(string: "http://127.0.0.1:3000"))
+    }
+
+    func testNonWebSchemeIsRejected() {
+        XCTAssertNil(normalized("ftp://hachyderm.io"))
+    }
+
     func testEmptyOrWhitespaceIsNil() {
         XCTAssertNil(normalized(""))
         XCTAssertNil(normalized("   "))

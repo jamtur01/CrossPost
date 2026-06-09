@@ -79,8 +79,14 @@ final class AccountStore: ObservableObject {
         guard !text.isEmpty else { return nil }
         if !text.contains("://") { text = "https://" + text }
         while text.hasSuffix("/") { text.removeLast() }
-        guard let url = URL(string: text), url.host?.isEmpty == false else { return nil }
-        return url
+        guard let url = URL(string: text), let host = url.host, !host.isEmpty else { return nil }
+        // The bearer token rides every request; only loopback may skip TLS
+        // (self-hosted dev instances), anything remote must be https.
+        switch url.scheme?.lowercased() {
+        case "https": return url
+        case "http" where ["localhost", "127.0.0.1", "::1"].contains(host.lowercased()): return url
+        default: return nil
+        }
     }
 
     var limits: TargetLimits { TargetLimits(mastodonMax: mastodonMaxChars) }
