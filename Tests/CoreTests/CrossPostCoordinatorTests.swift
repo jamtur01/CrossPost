@@ -20,6 +20,24 @@ private struct StubPoster: Poster {
 
 private struct Boom: Error, LocalizedError { var errorDescription: String? { "boom" } }
 
+private actor EventLog {
+    private(set) var events: [String] = []
+    func add(_ event: String) { events.append(event) }
+}
+
+/// Records begin/end around a sleep long enough that concurrent posters
+/// observably overlap while sequential ones cannot.
+private struct SlowPoster: Poster {
+    let target: PostTarget
+    let log: EventLog
+    func post(thread: [DraftPost]) async throws -> [PostedItem] {
+        await log.add("\(target.rawValue) begin")
+        try await Task.sleep(nanoseconds: 300_000_000)
+        await log.add("\(target.rawValue) end")
+        return [PostedItem(url: "https://example/\(target.rawValue)")]
+    }
+}
+
 final class CrossPostCoordinatorTests: XCTestCase {
     private let limits = TargetLimits(mastodonMax: 500)
     private let coordinator = CrossPostCoordinator()
@@ -45,6 +63,22 @@ final class CrossPostCoordinatorTests: XCTestCase {
             guard case .success(let posted) = r.outcome else { return XCTFail("expected success") }
             XCTAssertEqual(posted.count, 1)
         }
+    }
+
+    func testTargetsPostConcurrently() async {
+        let log = EventLog()
+        let posters: [Poster] = [
+            SlowPoster(target: .mastodon, log: log),
+            SlowPoster(target: .bluesky, log: log),
+        ]
+        let outcome = await coordinator.publish(thread: [DraftPost(text: "hi")],
+                                                to: [.mastodon, .bluesky], using: posters, limits: limits)
+        guard case .completed(let results) = outcome else { return XCTFail("expected completed") }
+        XCTAssertEqual(results.map(\.target), [.mastodon, .bluesky])   // caller order kept
+        // Both posts must begin before either finishes its 300 ms of work.
+        let firstTwo = await Set(log.events.prefix(2))
+        XCTAssertEqual(firstTwo, ["mastodon begin", "bluesky begin"],
+                       "targets should post concurrently, not one after the other")
     }
 
     func testPartialFailureIsReportedPerTarget() async {
