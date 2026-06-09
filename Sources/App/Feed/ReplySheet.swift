@@ -175,6 +175,8 @@ struct ReplySheet: View {
             return "Reply is empty."
         case .tooLong(_, let target, let count, let limit):
             return "Reply is too long for \(target.displayName): \(count)/\(limit)."
+        case .tooLongBytes(_, let target, let count, let limit):
+            return "Reply is too long for \(target.displayName): \(count)/\(limit) bytes."
         case .tooManyImages(_, let target, let count, let limit):
             return "Reply has too many images for \(target.displayName): \(count)/\(limit)."
         }

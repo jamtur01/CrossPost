@@ -3,6 +3,7 @@ import Foundation
 enum ValidationIssue: Equatable, Sendable {
     case empty(postIndex: Int)
     case tooLong(postIndex: Int, target: PostTarget, count: Int, limit: Int)
+    case tooLongBytes(postIndex: Int, target: PostTarget, count: Int, limit: Int)
     case tooManyImages(postIndex: Int, target: PostTarget, count: Int, limit: Int)
 }
 
@@ -34,10 +35,15 @@ enum PostValidator {
                 continue
             }
             let count = graphemeCount(post.text)
+            let byteCount = post.text.utf8.count
             for target in targets {
-                guard let limit = limits.maxGraphemes[target] else { continue }
-                if count > limit {
+                if let limit = limits.maxGraphemes[target], count > limit {
                     issues.append(.tooLong(postIndex: index, target: target, count: count, limit: limit))
+                } else if let byteLimit = limits.maxBytes[target], byteCount > byteLimit {
+                    // Multi-byte text (emoji, CJK) can blow the byte ceiling while
+                    // still under the grapheme limit.
+                    issues.append(.tooLongBytes(postIndex: index, target: target,
+                                                count: byteCount, limit: byteLimit))
                 }
                 if let imageLimit = limits.maxImages[target],
                    post.attachments.count > imageLimit {
