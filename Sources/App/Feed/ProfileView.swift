@@ -63,8 +63,10 @@ struct ProfileView: View {
         .task {
             profile = ref.isMe ? await panel.myProfile() : await panel.profile(id: ref.id)
             let id = profile?.id ?? ref.id
+            // Both calls only need the resolved id, so they run concurrently.
+            async let posts = panel.authorPosts(id: id)
             if !ref.isMe { relationship = await panel.relationship(with: id) }
-            list.posts = await panel.authorPosts(id: id)
+            list.posts = await posts
             loading = false
         }
         .sheet(item: $replyTarget) { target in

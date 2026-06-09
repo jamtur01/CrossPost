@@ -100,17 +100,8 @@ struct MastodonFeedService: FeedService {
                                                      count: images.count,
                                                      limit: TargetLimits.imageMax)
         }
-        var mediaIds: [String] = []
         let maxBytes = images.isEmpty ? 0 : await client.mastodonImageByteLimit()
-        for image in images {
-            let jpeg = try ImageProcessor.jpegUnderBudget(image.imageData, maxBytes: maxBytes)
-            let params = UploadMediaAttachmentParams(
-                file: jpeg,
-                thumbnail: nil,
-                description: image.altText.isEmpty ? nil : image.altText,
-                focus: nil)
-            mediaIds.append(try await client.uploadMedia(params, mimeType: "image/jpeg").id)
-        }
+        let mediaIds = try await client.uploadJPEGImages(images, maxBytes: maxBytes)
         // Inherit the parent's visibility (a public reply to a private post would
         // leak it) and its content warning. Default to unlisted if unknown.
         let visibility = post.visibility.flatMap(Post.Visibility.init(rawValue:)) ?? .unlisted

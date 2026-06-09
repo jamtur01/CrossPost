@@ -20,26 +20,13 @@ struct MastodonPoster: Poster, ThreadPublisher {
     }
 
     func publishOne(_ draft: DraftPost, root: String?, parent: String?) async throws -> (ref: String, item: PostedItem) {
-        var mediaIds: [String] = []
         guard draft.attachments.count <= TargetLimits.imageMax else {
             throw MediaValidationError.tooManyImages(target: .mastodon,
                                                      count: draft.attachments.count,
                                                      limit: TargetLimits.imageMax)
         }
         let maxBytes = draft.attachments.isEmpty ? 0 : await imageLimit.get(client)
-        for attachment in draft.attachments {
-            // Transcode to JPEG so the bytes match the declared MIME type (the picker
-            // accepts PNG/HEIC/GIF/TIFF), scaling down only if it exceeds the
-            // instance's image size limit so a large photo can't fail mid-thread.
-            let jpeg = try ImageProcessor.jpegUnderBudget(attachment.imageData, maxBytes: maxBytes)
-            let params = UploadMediaAttachmentParams(
-                file: jpeg,
-                thumbnail: nil,
-                description: attachment.altText.isEmpty ? nil : attachment.altText,
-                focus: nil)
-            let uploaded = try await client.uploadMedia(params, mimeType: "image/jpeg")
-            mediaIds.append(uploaded.id)
-        }
+        let mediaIds = try await client.uploadJPEGImages(draft.attachments, maxBytes: maxBytes)
 
         var params = PostParams(post: draft.text, visibility: visibility)
         if !mediaIds.isEmpty { params.mediaIds = mediaIds }
@@ -56,6 +43,30 @@ extension TootClient {
     func mastodonImageByteLimit() async -> Int {
         let reported = try? await getInstanceInfoV2().configuration?.mediaAttachments?.imageSizeLimit
         return (reported ?? nil) ?? TargetLimits.mastodonImageBytes
+    }
+
+    /// Transcode and upload images concurrently — they're independent — returning
+    /// media ids in attachment order so the post's gallery order is preserved.
+    /// Transcoding to JPEG makes the bytes match the declared MIME type (the picker
+    /// accepts PNG/HEIC/GIF/TIFF), scaling down only past the instance's image size
+    /// limit so a large photo can't fail mid-thread.
+    func uploadJPEGImages(_ images: [Attachment], maxBytes: Int) async throws -> [String] {
+        try await withThrowingTaskGroup(of: (Int, String).self) { group in
+            for (index, image) in images.enumerated() {
+                group.addTask {
+                    let jpeg = try ImageProcessor.jpegUnderBudget(image.imageData, maxBytes: maxBytes)
+                    let params = UploadMediaAttachmentParams(
+                        file: jpeg,
+                        thumbnail: nil,
+                        description: image.altText.isEmpty ? nil : image.altText,
+                        focus: nil)
+                    return (index, try await self.uploadMedia(params, mimeType: "image/jpeg").id)
+                }
+            }
+            var indexed: [(Int, String)] = []
+            for try await entry in group { indexed.append(entry) }
+            return indexed.sorted { $0.0 < $1.0 }.map(\.1)
+        }
     }
 }
 

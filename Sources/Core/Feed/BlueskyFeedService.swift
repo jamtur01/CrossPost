@@ -6,12 +6,22 @@ struct BlueskyFeedService: FeedService {
     private let bluesky: ATProtoBluesky
     private let chat: ATProtoBlueskyChat
     private let handle: String
+    private let didCache = OwnDIDCache()
 
     init(kit: ATProtoKit, bluesky: ATProtoBluesky, handle: String) {
         self.kit = kit
         self.bluesky = bluesky
         self.chat = ATProtoBlueskyChat(atProtoKitInstance: kit)
         self.handle = handle
+    }
+
+    /// The signed-in user's DID. Constant for the session, so it's fetched once and
+    /// cached — the chat endpoints would otherwise pay a getProfile call each time.
+    private func ownDID() async throws -> String {
+        if let cached = await didCache.get() { return cached }
+        let did = try await kit.getProfile(for: handle).actorDID
+        await didCache.set(did)
+        return did
     }
 
     /// Fetch up to ~`target` items by following the Bluesky cursor a few pages
@@ -96,16 +106,21 @@ struct BlueskyFeedService: FeedService {
         try await kit.updateSeen(seenAt: latest.date)
     }
 
-    /// Hydrate posts by AT-URI (getPosts accepts up to 25 at a time).
+    /// Hydrate posts by AT-URI. getPosts accepts up to 25 at a time, so the
+    /// chunks are fetched concurrently rather than one round-trip after another.
     private func hydratePosts(_ uris: [String]) async throws
         -> [String: AppBskyLexicon.Feed.PostViewDefinition] {
+        let chunks = stride(from: 0, to: uris.count, by: 25).map {
+            Array(uris[$0..<min($0 + 25, uris.count)])
+        }
         var result: [String: AppBskyLexicon.Feed.PostViewDefinition] = [:]
-        var index = 0
-        while index < uris.count {
-            let chunk = Array(uris[index..<min(index + 25, uris.count)])
-            let output = try await kit.getPosts(chunk)
-            for post in output.posts { result[post.uri] = post }
-            index += 25
+        try await withThrowingTaskGroup(of: [AppBskyLexicon.Feed.PostViewDefinition].self) { group in
+            for chunk in chunks {
+                group.addTask { try await kit.getPosts(chunk).posts }
+            }
+            for try await posts in group {
+                for post in posts { result[post.uri] = post }
+            }
         }
         return result
     }
@@ -320,7 +335,7 @@ struct BlueskyFeedService: FeedService {
     }
 
     func conversations() async throws -> [Conversation] {
-        let myDID = try await kit.getProfile(for: handle).actorDID
+        let myDID = try await ownDID()
         let output = try await chat.listConversations()
         return output.conversations.compactMap { convo in
             // Fall back to the first member for a self-conversation (DM to yourself).
@@ -337,7 +352,7 @@ struct BlueskyFeedService: FeedService {
     }
 
     func messages(in conversationID: String) async throws -> [DirectMessage] {
-        let myDID = try await kit.getProfile(for: handle).actorDID
+        let myDID = try await ownDID()
         let output = try await chat.getMessages(from: conversationID)
         let messages = output.messages.compactMap { message -> DirectMessage? in
             guard case .messageView(let m) = message else { return nil }
@@ -553,4 +568,12 @@ struct BlueskyFeedService: FeedService {
             isReply: isReply ?? (record?.reply != nil),
             nativeRef: .bluesky(uri: p.uri, cid: p.cid, rootURI: root.uri, rootCID: root.cid))
     }
+}
+
+/// Session-scoped cache for the signed-in user's DID. A reference type so copies
+/// of the (struct) service share one resolved value.
+private actor OwnDIDCache {
+    private var did: String?
+    func get() -> String? { did }
+    func set(_ value: String) { did = value }
 }
