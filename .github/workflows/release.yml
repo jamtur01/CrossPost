@@ -87,6 +87,10 @@ jobs:
           security create-keychain -p "temporary-password" build.keychain
           security default-keychain -s build.keychain
           security unlock-keychain -p "temporary-password" build.keychain
+          # New keychains auto-lock after 300s. The Release build runs between this
+          # unlock and codesign; when it took >5min (cold caches), codesign hit a
+          # locked keychain and hung forever on a headless SecurityAgent prompt.
+          security set-keychain-settings -lut 21600 build.keychain
           security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "temporary-password" build.keychain
 
@@ -100,11 +104,8 @@ jobs:
         env:
           MACOS_CODESIGN_IDENTITY: ${{ secrets.MACOS_CODESIGN_IDENTITY }}
         run: |
-          # codesign secure-timestamps against Apple's server, which can hang
-          # transiently. Run with a watchdog and retry so a stuck request
-          # doesn't wedge the job for hours. 420s per attempt: a degraded (slow
-          # but alive) timestamp service blew through the original 120s on
-          # every attempt of the v0.4.5 release runs.
+          # Watchdog + retry so a stuck codesign (slow timestamp server, locked
+          # keychain) fails the job in minutes instead of wedging it for hours.
           sign_with_timeout() {
             # --entitlements is required here: re-signing with --deep would
             # otherwise strip the App Sandbox entitlement xcodebuild applied.
