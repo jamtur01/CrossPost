@@ -5,6 +5,29 @@ All notable changes to CrossPost are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.5] - 2026-06-10
+
+### Fixed
+
+- Posts heavy in emoji or other multi-byte text that fit Bluesky's
+  300-character limit but exceed its 3,000-byte limit are now caught before
+  posting, instead of publishing to Mastodon and then failing on Bluesky.
+- Switching accounts no longer risks feeds quietly continuing to use a
+  connection for the previous account when the change happens mid-load.
+
+### Changed
+
+- Posts publish to Mastodon and Bluesky at the same time instead of one
+  after the other, and images upload concurrently, so cross-posts with media
+  complete in roughly half the time.
+- Feeds, notifications, profiles, and direct messages make fewer sequential
+  network requests, and post rendering caches work it used to repeat.
+
+### Security
+
+- Mastodon instance URLs must use HTTPS so the access token can't be sent in
+  cleartext; plain HTTP remains allowed only for localhost dev instances.
+
 ## [0.4.4] - 2026-06-08
 
 ### Added
