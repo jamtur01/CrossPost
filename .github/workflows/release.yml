@@ -101,8 +101,10 @@ jobs:
           MACOS_CODESIGN_IDENTITY: ${{ secrets.MACOS_CODESIGN_IDENTITY }}
         run: |
           # codesign secure-timestamps against Apple's server, which can hang
-          # transiently. Run with a 120s watchdog and retry so a stuck request
-          # doesn't wedge the job for hours.
+          # transiently. Run with a watchdog and retry so a stuck request
+          # doesn't wedge the job for hours. 420s per attempt: a degraded (slow
+          # but alive) timestamp service blew through the original 120s on
+          # every attempt of the v0.4.5 release runs.
           sign_with_timeout() {
             # --entitlements is required here: re-signing with --deep would
             # otherwise strip the App Sandbox entitlement xcodebuild applied.
@@ -111,8 +113,8 @@ jobs:
               --sign "$MACOS_CODESIGN_IDENTITY" --deep build/CrossPost.app &
             local pid=$! waited=0
             while kill -0 "$pid" 2>/dev/null; do
-              if [ "$waited" -ge 120 ]; then
-                echo "codesign exceeded 120s; killing and retrying"
+              if [ "$waited" -ge 420 ]; then
+                echo "codesign exceeded 420s; killing and retrying"
                 kill -9 "$pid" 2>/dev/null || true
                 wait "$pid" 2>/dev/null || true
                 return 124
