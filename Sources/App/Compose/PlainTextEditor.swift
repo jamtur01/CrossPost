@@ -21,6 +21,10 @@ struct PlainTextEditor: NSViewRepresentable {
             textView.textContainerInset = NSSize(width: 2, height: 6)
             textView.isRichText = false
             textView.allowsUndo = true
+            // Seed prefilled text (e.g. reply mentions) with the caret at the end,
+            // so typing continues after the @handles rather than before them.
+            textView.string = text
+            textView.setSelectedRange(NSRange(location: text.utf16.count, length: 0))
         }
         return scrollView
     }
