@@ -52,11 +52,22 @@ final class FakeFeedService: FeedService, @unchecked Sendable {
     func myProfile() async throws -> Profile { Self.profile("me") }
     func authorPosts(id: String) async throws -> [FeedPost] { feed }
 
-    func relationship(with id: String) async throws -> AccountRelationship { AccountRelationship() }
+    var relationshipsToReturn: [String: AccountRelationship] = [:]
+    private(set) var relationshipsRequests: [[String]] = []
+
+    func relationship(with id: String) async throws -> AccountRelationship {
+        relationshipsToReturn[id] ?? AccountRelationship()
+    }
+    func relationships(with ids: [String]) async throws -> [String: AccountRelationship] {
+        relationshipsRequests.append(ids)
+        return relationshipsToReturn.filter { ids.contains($0.key) }
+    }
     func setFollowing(_ following: Bool, for id: String,
                       current: AccountRelationship) async throws -> AccountRelationship {
+        setFollowingCalls.append("\(id):\(following)")
         var copy = current; copy.isFollowing = following; return copy
     }
+    private(set) var setFollowingCalls: [String] = []
     func setMuted(_ muted: Bool, for id: String,
                   current: AccountRelationship) async throws -> AccountRelationship {
         var copy = current; copy.isMuting = muted; return copy
@@ -101,8 +112,8 @@ final class FakeFeedService: FeedService, @unchecked Sendable {
 
 extension FeedNotification {
     /// A minimal notification fixture for model tests.
-    static func fixture(id: String, date: Date) -> FeedNotification {
-        FeedNotification(id: id, kind: .like, actorName: "A", actorHandle: "@a", actorID: "a",
+    static func fixture(id: String, date: Date, actorID: String = "a") -> FeedNotification {
+        FeedNotification(id: id, kind: .like, actorName: "A", actorHandle: "@a", actorID: actorID,
                          avatarURL: nil, post: nil, date: date)
     }
 }

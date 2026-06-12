@@ -23,6 +23,9 @@ protocol FeedService: Sendable {
 
     /// The viewer's relationship to an account (following, muting, blocking, …).
     func relationship(with id: String) async throws -> AccountRelationship
+    /// Batch lookup of the viewer's relationships, keyed by the requested ids.
+    /// Lets a notification list resolve follow state in one round-trip per page.
+    func relationships(with ids: [String]) async throws -> [String: AccountRelationship]
     /// Follow / unfollow. The current relationship carries any record URI needed to undo.
     func setFollowing(_ following: Bool, for id: String,
                       current: AccountRelationship) async throws -> AccountRelationship

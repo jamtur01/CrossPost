@@ -204,6 +204,16 @@ struct MastodonFeedService: FeedService {
         Self.relationship(from: try await client.getRelationships(by: [id]).first)
     }
 
+    func relationships(with ids: [String]) async throws -> [String: AccountRelationship] {
+        guard !ids.isEmpty else { return [:] }
+        var result: [String: AccountRelationship] = [:]
+        for r in try await client.getRelationships(by: ids) {
+            guard let id = r.id else { continue }
+            result[id] = Self.relationship(from: r)
+        }
+        return result
+    }
+
     static func relationship(from r: Relationship?) -> AccountRelationship {
         AccountRelationship(isFollowing: r?.following ?? false, isFollowedBy: r?.followedBy ?? false,
                             isMuting: r?.muting ?? false, isBlocking: r?.blocking ?? false)

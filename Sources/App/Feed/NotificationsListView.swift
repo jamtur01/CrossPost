@@ -44,7 +44,6 @@ private struct NotificationRow: View {
     // notification's snapshot). Held so repeated toggles keep the record URIs.
     @State private var post: FeedPost?
     @State private var mutating = false
-    @State private var following: Bool?
     @State private var followWorking = false
 
     private var livePost: FeedPost? { post ?? notification.post }
@@ -147,7 +146,10 @@ private struct NotificationRow: View {
 
     @ViewBuilder
     private var followButton: some View {
-        let isFollowing = following ?? false
+        // Real follow state, batch-resolved by the model when the page loaded —
+        // someone you already follow shows "Following" instead of an actionable
+        // "Follow" that would be a no-op.
+        let isFollowing = model.isFollowing(notification.actorID)
         Button { Task { await follow() } } label: {
             HStack(spacing: 3) {
                 Image(systemName: isFollowing ? "checkmark" : "person.badge.plus")
@@ -189,22 +191,11 @@ private struct NotificationRow: View {
         }
     }
 
-    /// One-way follow: resolve the relationship on tap (no per-row prefetch) and
-    /// follow only if not already following. Never unfollows from here — the label
-    /// can read "Follow" before the relationship is known, so a toggle would risk
-    /// unfollowing someone you already follow. Unfollow lives on the profile.
     private func follow() async {
-        guard !followWorking, following != true else { return }
+        guard !followWorking, !model.isFollowing(notification.actorID) else { return }
         followWorking = true
         defer { followWorking = false }
-        let current = await model.relationship(with: notification.actorID)
-        if current.isFollowing { following = true; return }   // already following — just reflect it
-        do {
-            let updated = try await model.setFollowing(true, for: notification.actorID, current: current)
-            following = updated.isFollowing
-        } catch {
-            model.reportActionError(error.userMessage)
-        }
+        await model.follow(actorID: notification.actorID)
     }
 
     private var icon: String {

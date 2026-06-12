@@ -381,6 +381,21 @@ struct BlueskyFeedService: FeedService {
         Self.relationship(from: try await kit.getProfile(for: id).viewer)
     }
 
+    func relationships(with ids: [String]) async throws -> [String: AccountRelationship] {
+        guard !ids.isEmpty else { return [:] }
+        var result: [String: AccountRelationship] = [:]
+        // getProfiles silently caps its input at 25 actors, so page explicitly.
+        for chunk in stride(from: 0, to: ids.count, by: 25).map({ Array(ids[$0..<min($0 + 25, ids.count)]) }) {
+            for profile in try await kit.getProfiles(for: chunk).profiles {
+                let relationship = Self.relationship(from: profile.viewer)
+                // Callers may hold either form of id; key by whichever they asked with.
+                result[profile.actorDID] = relationship
+                result[profile.actorHandle] = relationship
+            }
+        }
+        return result.filter { ids.contains($0.key) }
+    }
+
     static func relationship(from viewer: AppBskyLexicon.Actor.ViewerStateDefinition?) -> AccountRelationship {
         AccountRelationship(
             isFollowing: viewer?.followingURI != nil,

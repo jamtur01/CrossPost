@@ -13,6 +13,9 @@ final class FeedPanelModel {
     var actionError: String?       // transient banner for failed likes/reposts
     var needsCredentials = false
     var notifications: [FeedNotification] = []
+    /// Actor ids the signed-in user follows, resolved in batch after each
+    /// notifications load so rows can show real follow state immediately.
+    private(set) var followedActorIDs: Set<String> = []
     var conversations: [Conversation] = []
     var unreadCount = 0
     private(set) var scrollToTopToken = 0   // bumped on each user-initiated refresh
@@ -122,6 +125,7 @@ final class FeedPanelModel {
                 if Task.isCancelled { return }
                 errorMessage = nil
                 notifications = fetched
+                refreshFollowStates(for: fetched, service: svc)
                 try? await svc.markNotificationsRead(upTo: fetched.first)
                 unreadCount = 0
             } else if kind == .messages {
@@ -261,7 +265,35 @@ final class FeedPanelModel {
 
     func setFollowing(_ following: Bool, for id: String,
                       current: AccountRelationship) async throws -> AccountRelationship {
-        try await resolveService().setFollowing(following, for: id, current: current)
+        let updated = try await resolveService().setFollowing(following, for: id, current: current)
+        // Keep the shared follow set in sync so every row for this actor updates,
+        // including after a follow/unfollow made from a profile view.
+        if updated.isFollowing { followedActorIDs.insert(id) } else { followedActorIDs.remove(id) }
+        return updated
+    }
+
+    /// Whether the signed-in user follows this actor, per the latest batch resolve.
+    func isFollowing(_ actorID: String) -> Bool { followedActorIDs.contains(actorID) }
+
+    /// One-way follow used by notification rows: resolves the relationship first and
+    /// follows only if needed, so a stale "Follow" label can never unfollow anyone.
+    /// Unfollow lives on the profile view.
+    func follow(actorID: String) async {
+        let current = await relationship(with: actorID)
+        if current.isFollowing { followedActorIDs.insert(actorID); return }
+        do { _ = try await setFollowing(true, for: actorID, current: current) }
+        catch { showActionError(error.userMessage) }
+    }
+
+    /// Resolve follow state for a page of notification actors in one round-trip
+    /// (Bluesky pages by 25), so rows show the real state instead of a default.
+    private func refreshFollowStates(for fetched: [FeedNotification], service: FeedService) {
+        let ids = Set(fetched.map(\.actorID)).subtracting([""])
+        guard !ids.isEmpty else { followedActorIDs = []; return }
+        Task {
+            guard let relationships = try? await service.relationships(with: Array(ids)) else { return }
+            followedActorIDs = Set(relationships.filter(\.value.isFollowing).keys)
+        }
     }
 
     func setMuted(_ muted: Bool, for id: String,

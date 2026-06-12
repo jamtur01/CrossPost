@@ -129,6 +129,45 @@ final class FeedPanelModelTests: XCTestCase {
         model.stop()
     }
 
+    func testLoadingNotificationsResolvesFollowStateInOneBatch() async {
+        let fake = FakeFeedService()
+        fake.notificationsToReturn = [
+            .fixture(id: "n1", date: Date(timeIntervalSince1970: 200), actorID: "friend"),
+            .fixture(id: "n2", date: Date(timeIntervalSince1970: 100), actorID: "stranger"),
+        ]
+        fake.relationshipsToReturn = ["friend": AccountRelationship(isFollowing: true)]
+        let model = makeModel(fake)
+
+        model.switchTo(.notifications)
+        await waitUntil { model.isFollowing("friend") }
+
+        XCTAssertFalse(model.isFollowing("stranger"))
+        XCTAssertEqual(fake.relationshipsRequests.count, 1, "one batch lookup, not per-row calls")
+        XCTAssertEqual(Set(fake.relationshipsRequests[0]), ["friend", "stranger"])
+        model.stop()
+    }
+
+    func testFollowingAnAlreadyFollowedActorNeverWritesAFollow() async {
+        let fake = FakeFeedService()
+        fake.relationshipsToReturn = ["friend": AccountRelationship(isFollowing: true)]
+        let model = makeModel(fake)
+
+        await model.follow(actorID: "friend")
+
+        XCTAssertTrue(model.isFollowing("friend"), "state reflects the resolved relationship")
+        XCTAssertEqual(fake.setFollowingCalls, [], "already following — no follow/unfollow request")
+    }
+
+    func testFollowingANewActorFollowsAndUpdatesSharedState() async {
+        let fake = FakeFeedService()
+        let model = makeModel(fake)
+
+        await model.follow(actorID: "stranger")
+
+        XCTAssertTrue(model.isFollowing("stranger"))
+        XCTAssertEqual(fake.setFollowingCalls, ["stranger:true"])
+    }
+
     // MARK: Optimistic like / repost
 
     func testLikeSuccessUpdatesFlagCountAndRecordURI() async {
