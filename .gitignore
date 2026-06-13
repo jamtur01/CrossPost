@@ -6,6 +6,7 @@ xcuserdata/
 .swiftpm/
 CrossPost.xcodeproj/
 
-# claude-mem context stubs, scattered through Sources/ and Tests/
-CLAUDE.md
-**/CLAUDE.md
+# claude-mem context stubs scattered through the source tree (the tracked
+# project CLAUDE.md at the repo root is intentionally not ignored)
+Sources/**/CLAUDE.md
+Tests/**/CLAUDE.md
