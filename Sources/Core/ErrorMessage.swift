@@ -45,6 +45,13 @@ private func atProtoUserMessage(for error: any Error) -> String? {
         return message?.nonBlank ?? "An unexpected server error occurred."
     case ATProtoBluesky.ATBlueskyError.imageTooLarge:
         return "That image is too large to upload."
+    case let ATProtoBluesky.ATProtoBlueskyError.recordNotFound(message),
+         let ATProtoBluesky.ATProtoBlueskyError.invalidReplyReference(message),
+         let ATProtoBluesky.ATProtoBlueskyError.emptyReplaceArray(message):
+        return message.nonBlank ?? "Couldn't reach the server. Please try again."
+    case ATProtocolConfiguration.ATProtocolConfigurationError.tokensExpired,
+         ATProtocolConfiguration.ATProtocolConfigurationError.noSessionToken:
+        return "Your session expired. Reconnect the account in Settings."
     case is ATProtoError:
         // Any other ATProtoKit error: a clean generic line beats leaking the
         // Swift type/reflection or the "error 0" bridge string to the user.

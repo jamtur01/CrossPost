@@ -58,6 +58,18 @@ final class ErrorMessageTests: XCTestCase {
         XCTAssertEqual(error.userMessage, "That image is too large to upload.")
     }
 
+    func testReplyReferenceErrorSurfacesItsMessage() {
+        let error = ATProtoBluesky.ATProtoBlueskyError.invalidReplyReference(message: "Parent was deleted")
+        assertReadable(error.userMessage)
+        XCTAssertEqual(error.userMessage, "Parent was deleted")
+    }
+
+    func testExpiredSessionErrorPointsToReconnect() {
+        let error = ATProtocolConfiguration.ATProtocolConfigurationError.tokensExpired(message: "expired")
+        assertReadable(error.userMessage)
+        XCTAssertEqual(error.userMessage, "Your session expired. Reconnect the account in Settings.")
+    }
+
     func testOtherATProtoErrorsGetGenericText() {
         // A request-prep error (no server payload) still beats "error 0".
         assertReadable(ATRequestPrepareError.missingActiveSession.userMessage)
