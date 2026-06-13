@@ -148,6 +148,9 @@ struct ComposeColumnView: View {
             return "Post \(postIndex + 1) is too long for \(target.displayName): \(count)/\(limit) bytes."
         case .tooManyImages(let postIndex, let target, let count, let limit):
             return "Post \(postIndex + 1) has too many images for \(target.displayName): \(count)/\(limit)."
+        case .altTextTooLong(let postIndex, let imageIndex, let target, let count, let limit):
+            return "Post \(postIndex + 1) image \(imageIndex + 1) alt text is too long for "
+                + "\(target.displayName): \(count)/\(limit)."
         }
     }
 }

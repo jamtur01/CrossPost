@@ -5,6 +5,7 @@ enum ValidationIssue: Equatable, Sendable {
     case tooLong(postIndex: Int, target: PostTarget, count: Int, limit: Int)
     case tooLongBytes(postIndex: Int, target: PostTarget, count: Int, limit: Int)
     case tooManyImages(postIndex: Int, target: PostTarget, count: Int, limit: Int)
+    case altTextTooLong(postIndex: Int, imageIndex: Int, target: PostTarget, count: Int, limit: Int)
 }
 
 enum MediaValidationError: Error, LocalizedError, Sendable {
@@ -51,6 +52,16 @@ enum PostValidator {
                                                  target: target,
                                                  count: post.attachments.count,
                                                  limit: imageLimit))
+                }
+                if let altLimit = limits.maxAltText[target] {
+                    // Overlong alt text is rejected by the server mid-upload, after
+                    // earlier thread posts have already landed — catch it up front.
+                    for (imageIndex, attachment) in post.attachments.enumerated() {
+                        let altCount = graphemeCount(attachment.altText)
+                        guard altCount > altLimit else { continue }
+                        issues.append(.altTextTooLong(postIndex: index, imageIndex: imageIndex,
+                                                      target: target, count: altCount, limit: altLimit))
+                    }
                 }
             }
         }

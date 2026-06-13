@@ -179,6 +179,9 @@ struct ReplySheet: View {
             return "Reply is too long for \(target.displayName): \(count)/\(limit) bytes."
         case .tooManyImages(_, let target, let count, let limit):
             return "Reply has too many images for \(target.displayName): \(count)/\(limit)."
+        case .altTextTooLong(_, let imageIndex, let target, let count, let limit):
+            return "Reply image \(imageIndex + 1) alt text is too long for "
+                + "\(target.displayName): \(count)/\(limit)."
         }
     }
 }

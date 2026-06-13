@@ -72,6 +72,36 @@ final class PostValidatorTests: XCTestCase {
         XCTAssertEqual(issues, [.tooManyImages(postIndex: 0, target: .bluesky, count: 5, limit: 4)])
     }
 
+    func testAltTextOverMastodonLimitIsAnIssue() {
+        // 1600 chars: over Mastodon's 1500 but under Bluesky's 2000.
+        let alt = String(repeating: "a", count: 1600)
+        let post = DraftPost(text: "x", attachments: [Attachment(imageData: Data([0x1]), altText: alt)])
+        let issues = PostValidator.validate(thread: [post],
+                                            targets: [.mastodon, .bluesky], limits: limits)
+        XCTAssertEqual(issues, [.altTextTooLong(postIndex: 0, imageIndex: 0,
+                                                target: .mastodon, count: 1600, limit: 1500)])
+    }
+
+    func testAltTextOverBothLimitsReportsPerTargetAndImage() {
+        let alt = String(repeating: "a", count: 2100) // over both 1500 and 2000
+        let attachments = [Attachment(imageData: Data([0x1])),                       // no alt — fine
+                           Attachment(imageData: Data([0x2]), altText: alt)]         // image index 1
+        let post = DraftPost(text: "x", attachments: attachments)
+        let issues = PostValidator.validate(thread: [post],
+                                            targets: [.mastodon, .bluesky], limits: limits)
+        XCTAssertEqual(issues, [
+            .altTextTooLong(postIndex: 0, imageIndex: 1, target: .mastodon, count: 2100, limit: 1500),
+            .altTextTooLong(postIndex: 0, imageIndex: 1, target: .bluesky, count: 2100, limit: 2000),
+        ])
+    }
+
+    func testAltTextAtLimitIsAllowed() {
+        let alt = String(repeating: "a", count: 1500) // exactly Mastodon's limit
+        let post = DraftPost(text: "x", attachments: [Attachment(imageData: Data([0x1]), altText: alt)])
+        let issues = PostValidator.validate(thread: [post], targets: [.mastodon], limits: limits)
+        XCTAssertTrue(issues.isEmpty)
+    }
+
     func testMediaValidationErrorMessageNamesTargetAndCounts() {
         let error = MediaValidationError.tooManyImages(target: .bluesky, count: 5, limit: 4)
         XCTAssertEqual(error.errorDescription,
