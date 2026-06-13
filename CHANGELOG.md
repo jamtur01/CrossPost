@@ -5,6 +5,31 @@ All notable changes to CrossPost are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.7] - 2026-06-13
+
+### Added
+
+- Notification rows show whether you already follow someone, so the Follow
+  button reflects real state instead of always reading "Follow."
+- Non-public Mastodon posts (unlisted, followers-only, direct) show a small
+  indicator next to the timestamp.
+
+### Fixed
+
+- Bluesky errors now show a readable message instead of "ATAPIError error 0,"
+  and a failed refresh no longer leaves a red banner stuck over the feed.
+- Bookmark, pin, and like/repost counts now update immediately in thread and
+  profile views instead of waiting for the next reload.
+- Failed direct messages and failed follow/mute/block actions now show an
+  error instead of silently doing nothing.
+- Overlong image alt text is caught before posting instead of failing
+  mid-upload and splitting a thread across networks.
+
+### Changed
+
+- Bluesky image uploads may now be up to 2 MB (raised from 1 MB), matching
+  Bluesky's current limit, so images are compressed less aggressively.
+
 ## [0.4.6] - 2026-06-12
 
 ### Fixed
@@ -241,6 +266,7 @@ Initial release.
 - Keychain-backed credential storage.
 - Signed and notarized Developer ID release builds produced by CI.
 
+[0.4.7]: https://github.com/jamtur01/CrossPost/releases/tag/v0.4.7
 [0.4.6]: https://github.com/jamtur01/CrossPost/releases/tag/v0.4.6
 [0.4.5]: https://github.com/jamtur01/CrossPost/releases/tag/v0.4.5
 [0.4.4]: https://github.com/jamtur01/CrossPost/releases/tag/v0.4.4
