@@ -28,6 +28,7 @@ final class FeedPanelModel {
     private var pollTask: Task<Void, Never>?
     private var liveTask: Task<Void, Never>?
     private var unreadTask: Task<Void, Never>?
+    private var followStateTask: Task<Void, Never>?
     private var mutating: Set<String> = []   // post ids with an in-flight like/repost
     private let pollInterval: UInt64 = 60_000_000_000
 
@@ -50,7 +51,7 @@ final class FeedPanelModel {
         serviceTask = nil
         guard hasCredentials else { needsCredentials = true; return }
         needsCredentials = false
-        enqueueLoad(reset: true)
+        enqueueLoad(reset: true, userInitiated: false)
         refreshUnreadCount()
         startPolling()
         startLiveUpdates()
@@ -71,7 +72,7 @@ final class FeedPanelModel {
                     for await _ in stream {
                         if Task.isCancelled { break }   // a cancelled stream mustn't keep driving loads
                         if NSApplication.shared.isActive {
-                            self.enqueueLoad(reset: false)
+                            self.enqueueLoad(reset: false, userInitiated: false)
                             self.refreshUnreadCount()
                         }
                     }
@@ -91,7 +92,7 @@ final class FeedPanelModel {
         notifications = []
         conversations = []
         errorMessage = nil
-        enqueueLoad(reset: true)
+        enqueueLoad(reset: true, userInitiated: false)
         refreshUnreadCount()   // refresh the badge when leaving the notifications tab
     }
 
@@ -101,17 +102,18 @@ final class FeedPanelModel {
         guard hasCredentials else { return }
         if pollTask == nil { startPolling() }
         scrollToTopToken += 1
-        enqueueLoad(reset: false)
+        enqueueLoad(reset: false, userInitiated: true)
     }
 
     /// Start a load, superseding any in-flight one (so a user action isn't dropped
-    /// by a slow background poll).
-    private func enqueueLoad(reset: Bool) {
+    /// by a slow background poll). `userInitiated` distinguishes a refresh the user
+    /// asked for (worth a transient error banner) from a silent background poll.
+    private func enqueueLoad(reset: Bool, userInitiated: Bool) {
         loadTask?.cancel()
-        loadTask = Task { await load(reset: reset) }
+        loadTask = Task { await load(reset: reset, userInitiated: userInitiated) }
     }
 
-    private func load(reset: Bool) async {
+    private func load(reset: Bool, userInitiated: Bool) async {
         guard hasCredentials else { needsCredentials = true; return }
         if Task.isCancelled { return }
         needsCredentials = false
@@ -143,7 +145,26 @@ final class FeedPanelModel {
             }
         } catch {
             if Task.isCancelled { return }
-            errorMessage = error.userMessage
+            if currentCollectionIsEmpty {
+                // Nothing to show: a sticky explanation in the empty state is right.
+                errorMessage = error.userMessage
+            } else if userInitiated {
+                // We already have content; the user asked for a refresh, so give brief
+                // feedback that auto-dismisses instead of a banner that sticks forever.
+                showActionError(error.userMessage)
+            }
+            // A background poll/live failure with content present stays silent — the
+            // stale content stands and the next poll will quietly recover.
+        }
+    }
+
+    /// Whether the collection backing the current tab has nothing in it, used to
+    /// decide between a sticky empty-state error and a transient refresh error.
+    private var currentCollectionIsEmpty: Bool {
+        switch kind {
+        case .notifications: return notifications.isEmpty
+        case .messages: return conversations.isEmpty
+        case .home: return posts.isEmpty
         }
     }
 
@@ -265,6 +286,9 @@ final class FeedPanelModel {
 
     func setFollowing(_ following: Bool, for id: String,
                       current: AccountRelationship) async throws -> AccountRelationship {
+        // A user action wins over any in-flight batch resolve: cancel it so a stale
+        // snapshot can't land afterward and revert the change we're about to make.
+        followStateTask?.cancel()
         let updated = try await resolveService().setFollowing(following, for: id, current: current)
         // Keep the shared follow set in sync so every row for this actor updates,
         // including after a follow/unfollow made from a profile view.
@@ -287,12 +311,19 @@ final class FeedPanelModel {
 
     /// Resolve follow state for a page of notification actors in one round-trip
     /// (Bluesky pages by 25), so rows show the real state instead of a default.
+    /// Merges the result into the shared set rather than replacing it, so a follow
+    /// the user just made on an actor outside this page isn't dropped.
     private func refreshFollowStates(for fetched: [FeedNotification], service: FeedService) {
         let ids = Set(fetched.map(\.actorID)).subtracting([""])
-        guard !ids.isEmpty else { followedActorIDs = []; return }
-        Task {
-            guard let relationships = try? await service.relationships(with: Array(ids)) else { return }
-            followedActorIDs = Set(relationships.filter(\.value.isFollowing).keys)
+        followStateTask?.cancel()
+        guard !ids.isEmpty else { return }
+        followStateTask = Task {
+            guard let relationships = try? await service.relationships(with: Array(ids)),
+                  !Task.isCancelled else { return }
+            for (id, relationship) in relationships {
+                if relationship.isFollowing { followedActorIDs.insert(id) }
+                else { followedActorIDs.remove(id) }
+            }
         }
     }
 
@@ -417,6 +448,16 @@ final class FeedPanelModel {
         try await resolveService().setReposted(reposted, on: post)
     }
 
+    /// Service-backed bookmark/pin for posts not held in this panel's timeline
+    /// (thread and profile lists manage their own optimistic row state).
+    func serviceSetBookmarked(_ bookmarked: Bool, on post: FeedPost) async throws -> FeedPost {
+        try await resolveService().setBookmarked(bookmarked, on: post)
+    }
+
+    func serviceSetPinned(_ pinned: Bool, on post: FeedPost) async throws -> FeedPost {
+        try await resolveService().setPinned(pinned, on: post)
+    }
+
     /// Flip the UI immediately, call the service, reconcile or revert on failure.
     /// Ignores a second toggle for the same post while one is already in flight.
     private func mutate(_ post: FeedPost,
@@ -455,6 +496,9 @@ final class FeedPanelModel {
         }
     }
 
+    /// Dismiss the transient error banner immediately (tapping it).
+    func dismissActionError() { actionError = nil }
+
     private func startPolling() {
         pollTask?.cancel()
         pollTask = Task { [weak self] in
@@ -463,7 +507,7 @@ final class FeedPanelModel {
                 if Task.isCancelled { break }
                 // Only poll while the app is active, to avoid background churn.
                 if NSApplication.shared.isActive {
-                    self?.enqueueLoad(reset: false)
+                    self?.enqueueLoad(reset: false, userInitiated: false)
                     self?.refreshUnreadCount()
                 }
             }
@@ -475,6 +519,7 @@ final class FeedPanelModel {
         loadTask?.cancel(); loadTask = nil
         liveTask?.cancel(); liveTask = nil
         unreadTask?.cancel(); unreadTask = nil
+        followStateTask?.cancel(); followStateTask = nil
         serviceTask?.cancel(); serviceTask = nil
         isLoading = false
     }

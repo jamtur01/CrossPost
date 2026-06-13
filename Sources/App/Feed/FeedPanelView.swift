@@ -16,17 +16,16 @@ struct FeedPanelView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            if routes.isEmpty { platformHeader } else { navHeader }
+            // Transient errors (failed refresh, like, follow, …) surface here under
+            // whichever header is showing, so they're visible inside thread/profile
+            // routes too — and they auto-dismiss or can be tapped away.
+            if let actionError = model.actionError {
+                errorBanner(actionError)
+            }
             if routes.isEmpty {
-                platformHeader
-                if let actionError = model.actionError {
-                    errorBanner(actionError)
-                }
-                if let refreshError = model.errorMessage, !model.posts.isEmpty {
-                    errorBanner(refreshError)
-                }
                 timeline
             } else {
-                navHeader
                 // Identity per route so a profile→profile (or thread→thread) push
                 // re-creates the view and reloads, instead of reusing stale state.
                 routeContent.id(routes.last?.id)
@@ -200,14 +199,22 @@ struct FeedPanelView: View {
     }
 
     private func errorBanner(_ text: String) -> some View {
-        Text(text)
-            .font(.caption)
-            .foregroundStyle(.red)
-            .lineLimit(2)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 6)
-            .background(Color.red.opacity(0.08))
+        HStack(spacing: 8) {
+            Text(text)
+                .font(.caption)
+                .foregroundStyle(.red)
+                .lineLimit(2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Image(systemName: "xmark.circle.fill")
+                .font(.system(size: 12))
+                .foregroundStyle(.red.opacity(0.6))
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 6)
+        .background(Color.red.opacity(0.08))
+        .contentShape(Rectangle())
+        .onTapGesture { model.dismissActionError() }
+        .help("Dismiss")
     }
 
     private var connectState: some View {

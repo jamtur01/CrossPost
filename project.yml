@@ -25,7 +25,9 @@ targets:
     type: application
     platform: macOS
     sources:
-      - Sources
+      - path: Sources
+        excludes:
+          - "**/CLAUDE.md"   # docs, not app resources (would collide in Resources/)
     dependencies:
       - package: TootSDK
       - package: ATProtoKit
@@ -38,10 +40,13 @@ targets:
     type: bundle.unit-test
     platform: macOS
     sources:
-      - Tests
+      - path: Tests
+        excludes:
+          - "**/CLAUDE.md"
     dependencies:
       - target: CrossPost
       - package: TootSDK
+      - package: ATProtoKit
     settings:
       base:
         BUNDLE_LOADER: "$(TEST_HOST)"
