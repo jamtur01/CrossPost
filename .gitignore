@@ -5,3 +5,7 @@ DerivedData/
 xcuserdata/
 .swiftpm/
 CrossPost.xcodeproj/
+
+# claude-mem context stubs, scattered through Sources/ and Tests/
+CLAUDE.md
+**/CLAUDE.md
