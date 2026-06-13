@@ -13,6 +13,7 @@ final class FakeFeedService: FeedService, @unchecked Sendable {
     var unread = 0
 
     // Failure toggles.
+    var failLoad = false
     var failLike = false
     var failRepost = false
     var failDelete = false
@@ -24,6 +25,7 @@ final class FakeFeedService: FeedService, @unchecked Sendable {
 
     func loadFeed(_ kind: FeedKind) async throws -> [FeedPost] {
         loadFeedCalls += 1
+        if failLoad { throw FakeError.boom }
         return feed
     }
 

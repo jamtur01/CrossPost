@@ -47,12 +47,12 @@ struct BlueskyPoster: Poster, ThreadPublisher {
         }
 
         let ref = try await bluesky.createPostRecord(text: draft.text, replyTo: replyRef, embed: embed)
-        return (ref: ref, item: PostedItem(url: webURL(for: ref)))
+        return (ref: ref, item: PostedItem(url: Self.webURL(recordURI: ref.recordURI, handle: handle)))
     }
 
     /// Build a bsky.app web URL from the at:// record URI's record key.
-    private func webURL(for ref: Ref) -> String? {
-        guard let rkey = ref.recordURI.split(separator: "/").last else { return nil }
+    static func webURL(recordURI: String, handle: String) -> String? {
+        guard let rkey = recordURI.split(separator: "/").last else { return nil }
         return "https://bsky.app/profile/\(handle)/post/\(rkey)"
     }
 }

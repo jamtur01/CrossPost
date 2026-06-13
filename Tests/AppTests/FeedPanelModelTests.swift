@@ -7,6 +7,7 @@ final class FeedPanelModelTests: XCTestCase {
         // @AppStorage lives in a shared test suite; don't leak creds across tests.
         let store = AccountStore()
         store.mastodonInstanceURL = ""
+        store.mastodonUsername = ""
         store.blueskyHandle = ""
         super.tearDown()
     }
@@ -183,6 +184,51 @@ final class FeedPanelModelTests: XCTestCase {
         await waitUntil { model.isFollowing("other") }
 
         XCTAssertTrue(model.isFollowing("friend"), "a follow outside the page must survive a load")
+        model.stop()
+    }
+
+    // MARK: isMine (controls delete/pin)
+
+    func testIsMineMatchesOwnBlueskyHandleCaseInsensitively() {
+        let model = makeModel(FakeFeedService(), target: .bluesky)   // blueskyHandle = "me.bsky.social"
+        XCTAssertTrue(model.isMine(TestFactory.feedPost(target: .bluesky, authorHandle: "@me.bsky.social")))
+        XCTAssertTrue(model.isMine(TestFactory.feedPost(target: .bluesky, authorHandle: "@ME.BSKY.SOCIAL")))
+        XCTAssertFalse(model.isMine(TestFactory.feedPost(target: .bluesky, authorHandle: "@other.bsky.social")))
+    }
+
+    func testIsMineMatchesOwnMastodonUsername() {
+        let store = AccountStore()
+        store.mastodonUsername = "me@h.io"
+        let model = FeedPanelModel(target: .mastodon, store: store) { _, _ in FakeFeedService() }
+        XCTAssertTrue(model.isMine(TestFactory.feedPost(target: .mastodon, authorHandle: "@me@h.io")))
+        XCTAssertFalse(model.isMine(TestFactory.feedPost(target: .mastodon, authorHandle: "@someone@h.io")))
+    }
+
+    // MARK: Error routing (empty sticky vs transient vs silent)
+
+    func testFailedLoadOnEmptyFeedSetsStickyEmptyStateError() async {
+        let fake = FakeFeedService()
+        fake.failLoad = true
+        let model = makeModel(fake)
+        model.refresh()
+        await waitUntil { model.errorMessage != nil }
+        XCTAssertNil(model.actionError, "an empty-feed failure uses the sticky empty state, not the banner")
+        XCTAssertTrue(model.posts.isEmpty)
+        model.stop()
+    }
+
+    func testFailedRefreshWithContentShowsTransientBannerNotStickyError() async {
+        let fake = FakeFeedService()
+        fake.feed = [TestFactory.feedPost(target: .mastodon, id: "p1")]
+        let model = makeModel(fake)
+        model.refresh()
+        await waitUntil { !model.posts.isEmpty }   // first load succeeds
+
+        fake.failLoad = true
+        model.refresh()                            // user refresh fails with content present
+        await waitUntil { model.actionError != nil }
+        XCTAssertNil(model.errorMessage, "a refresh failure with content must not set the sticky banner")
+        XCTAssertEqual(model.posts.map(\.id), ["p1"], "stale content stands")
         model.stop()
     }
 
