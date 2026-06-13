@@ -121,10 +121,28 @@ struct FeedPostView: View {
             .help("Open profile")
 
             Spacer(minLength: 6)
+            if let visibility = visibilityBadge {
+                Image(systemName: visibility.symbol)
+                    .font(Theme.meta)
+                    .foregroundStyle(.tertiary)
+                    .help(visibility.label)
+                    .accessibilityLabel(visibility.label)
+            }
             Text(post.date, format: .relative(presentation: .numeric))
                 .font(Theme.meta)
                 .foregroundStyle(.tertiary)
                 .fixedSize()
+        }
+    }
+
+    /// Indicator for a non-public post (Mastodon visibility). Public posts and
+    /// Bluesky posts (which have no per-post visibility) show nothing.
+    private var visibilityBadge: (symbol: String, label: String)? {
+        switch post.visibility {
+        case "unlisted": return ("moon", "Unlisted")
+        case "private": return ("lock.fill", "Followers only")
+        case "direct": return ("envelope.fill", "Direct message")
+        default: return nil
         }
     }
 
