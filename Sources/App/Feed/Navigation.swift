@@ -70,14 +70,32 @@ final class PostList {
     init(panel: FeedPanelModel) { self.panel = panel }
 
     func toggleLike(_ post: FeedPost) {
-        mutate(post, optimistic: { $0.isLiked.toggle() }) { [panel] in
+        mutate(post, optimistic: {
+            $0.isLiked.toggle()
+            $0.likeCount = max(0, $0.likeCount + ($0.isLiked ? 1 : -1))
+        }) { [panel] in
             try await panel.serviceSetLiked($0.isLiked, on: $0)
         }
     }
 
     func toggleRepost(_ post: FeedPost) {
-        mutate(post, optimistic: { $0.isReposted.toggle() }) { [panel] in
+        mutate(post, optimistic: {
+            $0.isReposted.toggle()
+            $0.repostCount = max(0, $0.repostCount + ($0.isReposted ? 1 : -1))
+        }) { [panel] in
             try await panel.serviceSetReposted($0.isReposted, on: $0)
+        }
+    }
+
+    func setBookmarked(_ bookmarked: Bool, _ post: FeedPost) {
+        mutate(post, optimistic: { $0.isBookmarked = bookmarked }) { [panel] in
+            try await panel.serviceSetBookmarked(bookmarked, on: $0)
+        }
+    }
+
+    func setPinned(_ pinned: Bool, _ post: FeedPost) {
+        mutate(post, optimistic: { $0.isPinned = pinned }) { [panel] in
+            try await panel.serviceSetPinned(pinned, on: $0)
         }
     }
 

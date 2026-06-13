@@ -183,7 +183,15 @@ struct MastodonFeedService: FeedService {
 
     func liveUpdates() async -> AsyncStream<Void>? {
         guard let socket = try? await client.beginStreaming() else { return nil }
-        try? await socket.sendQuery(StreamQuery(.subscribe, timeline: .user))
+        // If the subscription fails, the socket stays open but silent: the stream
+        // would suspend forever and never finish, blocking the caller's reconnect
+        // loop. Bail so its backoff-retry can open a fresh connection instead.
+        do {
+            try await socket.sendQuery(StreamQuery(.subscribe, timeline: .user))
+        } catch {
+            socket.close()
+            return nil
+        }
         return AsyncStream { continuation in
             let task = Task {
                 // Each streamed event (status, notification, delete) is a signal to

@@ -83,6 +83,7 @@ struct ConversationView: View {
     @State private var draft = ""
     @State private var loading = true
     @State private var sending = false
+    @State private var sendError: String?
 
     private var accent: Color { panel.target.accent }
 
@@ -164,22 +165,30 @@ struct ConversationView: View {
     }
 
     private var composer: some View {
-        HStack(spacing: 8) {
-            TextField("Message", text: $draft)
-                .textFieldStyle(.plain)
-                .padding(.horizontal, 10).padding(.vertical, 7)
-                .background(Color.secondary.opacity(0.12),
-                            in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .onSubmit { Task { await send() } }
-
-            Button { Task { await send() } } label: {
-                Image(systemName: "arrow.up.circle.fill").font(.system(size: 24))
+        VStack(spacing: 0) {
+            if let sendError {
+                Text(sendError)
+                    .font(.caption).foregroundStyle(.red).lineLimit(2)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 12).padding(.top, 6)
             }
-            .buttonStyle(.plain)
-            .foregroundStyle(accent)
-            .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || sending)
+            HStack(spacing: 8) {
+                TextField("Message", text: $draft)
+                    .textFieldStyle(.plain)
+                    .padding(.horizontal, 10).padding(.vertical, 7)
+                    .background(Color.secondary.opacity(0.12),
+                                in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .onSubmit { Task { await send() } }
+
+                Button { Task { await send() } } label: {
+                    Image(systemName: "arrow.up.circle.fill").font(.system(size: 24))
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(accent)
+                .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || sending)
+            }
+            .padding(10)
         }
-        .padding(10)
         .background(.bar)
         .overlay(alignment: .top) { Divider() }
     }
@@ -193,6 +202,7 @@ struct ConversationView: View {
         let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, !sending else { return }
         sending = true
+        sendError = nil
         draft = ""
         defer { sending = false }
         do {
@@ -201,6 +211,7 @@ struct ConversationView: View {
             await panel.reloadConversations()
         } catch {
             draft = text   // restore the text so it isn't lost
+            sendError = error.userMessage
         }
     }
 }

@@ -168,6 +168,24 @@ final class FeedPanelModelTests: XCTestCase {
         XCTAssertEqual(fake.setFollowingCalls, ["stranger:true"])
     }
 
+    func testNotificationFollowStateMergesInsteadOfReplacing() async {
+        let fake = FakeFeedService()
+        let model = makeModel(fake)
+        // The user follows someone who isn't in any notification page.
+        await model.follow(actorID: "friend")
+        XCTAssertTrue(model.isFollowing("friend"))
+
+        // Loading a notifications page that resolves a different actor must not wipe
+        // the follow we just made — the batch merges into the set rather than replacing it.
+        fake.notificationsToReturn = [.fixture(id: "n1", date: Date(timeIntervalSince1970: 1), actorID: "other")]
+        fake.relationshipsToReturn = ["other": AccountRelationship(isFollowing: true)]
+        model.switchTo(.notifications)
+        await waitUntil { model.isFollowing("other") }
+
+        XCTAssertTrue(model.isFollowing("friend"), "a follow outside the page must survive a load")
+        model.stop()
+    }
+
     // MARK: Optimistic like / repost
 
     func testLikeSuccessUpdatesFlagCountAndRecordURI() async {

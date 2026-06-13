@@ -89,10 +89,14 @@ final class FakeFeedService: FeedService, @unchecked Sendable {
         deletedIDs.append(post.id)
         if failDelete { throw FakeError.boom }
     }
+    private(set) var bookmarkSetCalls: [Bool] = []
+    private(set) var pinSetCalls: [Bool] = []
     func setBookmarked(_ bookmarked: Bool, on post: FeedPost) async throws -> FeedPost {
+        bookmarkSetCalls.append(bookmarked)
         var copy = post; copy.isBookmarked = bookmarked; return copy
     }
     func setPinned(_ pinned: Bool, on post: FeedPost) async throws -> FeedPost {
+        pinSetCalls.append(pinned)
         var copy = post; copy.isPinned = pinned; return copy
     }
     func likedBy(_ post: FeedPost) async throws -> [Profile] { [] }
