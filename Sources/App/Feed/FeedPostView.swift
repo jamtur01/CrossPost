@@ -54,11 +54,10 @@ struct FeedPostView: View {
         RichText.styled(post.text, accent: accent, cacheKey: post.id)
     }
 
-    /// Body text. Selectable only in the expanded detail; in timeline rows the
-    /// text stays click-through so the whole row opens the thread.
-    @ViewBuilder
+    /// Body text. Selectable everywhere so the body can be copied; in timeline rows
+    /// a drag selects text while a plain click still falls through to open the thread.
     private var bodyText: some View {
-        let base = Text(styledText)
+        Text(styledText)
             .font(expanded ? Theme.contentLarge : Theme.content)
             .tint(accent)
             .lineSpacing(Theme.bodyLineSpacing)
@@ -67,11 +66,7 @@ struct FeedPostView: View {
             // Route link taps (mentions, URLs) through the app so profile links can
             // open in-app instead of always deferring to the system browser.
             .environment(\.openURL, OpenURLAction { url in onOpenURL(url); return .handled })
-        if expanded {
-            base.textSelection(.enabled)
-        } else {
-            base
-        }
+            .textSelection(.enabled)
     }
 
     @ViewBuilder
