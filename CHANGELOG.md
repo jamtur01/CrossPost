@@ -5,6 +5,24 @@ All notable changes to CrossPost are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.8] - 2026-06-14
+
+### Added
+
+- Post text in the timeline is now selectable, so you can copy from a post
+  without opening it first.
+
+### Fixed
+
+- The unread notification badge now updates when you return to the app and when
+  you refresh manually, not only on the timed background poll. A notification
+  that arrived while the app was in the background — common on Bluesky, which
+  has no live stream — no longer stays hidden until the next poll or relaunch.
+
+### Changed
+
+- The feed and notification badge refresh every 30 seconds (was 60).
+
 ## [0.4.7] - 2026-06-13
 
 ### Added
@@ -266,6 +284,7 @@ Initial release.
 - Keychain-backed credential storage.
 - Signed and notarized Developer ID release builds produced by CI.
 
+[0.4.8]: https://github.com/jamtur01/CrossPost/releases/tag/v0.4.8
 [0.4.7]: https://github.com/jamtur01/CrossPost/releases/tag/v0.4.7
 [0.4.6]: https://github.com/jamtur01/CrossPost/releases/tag/v0.4.6
 [0.4.5]: https://github.com/jamtur01/CrossPost/releases/tag/v0.4.5
