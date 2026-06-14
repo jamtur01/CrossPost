@@ -30,7 +30,10 @@ final class FeedPanelModel {
     private var unreadTask: Task<Void, Never>?
     private var followStateTask: Task<Void, Never>?
     private var mutating: Set<String> = []   // post ids with an in-flight like/repost
-    private let pollInterval: UInt64 = 60_000_000_000
+    // 30s active-only poll. Well within both platforms' limits: Mastodon allows 300
+    // requests / 5 min per account (~8/min here, well under), Bluesky 3000 / 5 min per
+    // IP. Bluesky has no live stream, so this poll is its only passive freshness path.
+    private let pollInterval: UInt64 = 30_000_000_000
 
     init(target: PostTarget, store: AccountStore,
          makeService: @escaping @MainActor (PostTarget, AccountStore) async throws -> FeedService
@@ -103,6 +106,18 @@ final class FeedPanelModel {
         if pollTask == nil { startPolling() }
         scrollToTopToken += 1
         enqueueLoad(reset: false, userInitiated: true)
+        refreshUnreadCount()   // a manual refresh must update the badge too, not just the feed
+    }
+
+    /// Foreground wake (the app was re-activated): silently catch the feed and the
+    /// unread badge up — the same work a poll tick does, but immediately rather than
+    /// waiting up to a full interval, and without the scroll-to-top of a user refresh.
+    /// Bluesky has no live stream, so without this its badge only moves on the 60s poll.
+    func wake() {
+        guard hasCredentials else { return }
+        if pollTask == nil { startPolling() }
+        enqueueLoad(reset: false, userInitiated: false)
+        refreshUnreadCount()
     }
 
     /// Start a load, superseding any in-flight one (so a user action isn't dropped

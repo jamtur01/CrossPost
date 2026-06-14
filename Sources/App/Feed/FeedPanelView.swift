@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 struct FeedPanelView: View {
     @State var model: FeedPanelModel
@@ -49,6 +50,11 @@ struct FeedPanelView: View {
                targets.contains(model.target) {
                 model.refresh()
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            // Returning to the app catches the feed and unread badge up at once —
+            // important for Bluesky, which has no live stream to drive updates while away.
+            model.wake()
         }
         .onReceive(NotificationCenter.default.publisher(for: .refreshAllFeeds)) { _ in
             model.refresh()
