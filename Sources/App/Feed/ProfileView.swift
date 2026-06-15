@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 /// A profile: banner, avatar, bio, counts, and the user's recent posts.
 struct ProfileView: View {
@@ -6,6 +7,8 @@ struct ProfileView: View {
     let store: AccountStore
     let ref: ProfileRef
     let push: (FeedRoute) -> Void
+
+    @Environment(ImageLightbox.self) private var lightbox
 
     @State private var profile: Profile?
     @State private var list: PostList
@@ -85,6 +88,13 @@ struct ProfileView: View {
             .frame(height: 110)
             .frame(maxWidth: .infinity)
             .clipped()
+            .contentShape(Rectangle())
+            .onTapGesture { if let url = profile?.bannerURL { lightbox.present(url) } }
+            .onHover { hovering in
+                guard profile?.bannerURL != nil else { return }
+                if hovering { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+            }
+            .help(profile?.bannerURL != nil ? "View banner" : "")
 
             VStack(alignment: .leading, spacing: 8) {
                 HStack(alignment: .bottom) {
@@ -99,6 +109,12 @@ struct ProfileView: View {
                     .overlay(Circle().strokeBorder(accent.opacity(0.4), lineWidth: 1.5))
                     .offset(y: -34)
                     .padding(.bottom, -34)
+                    .contentShape(Circle())
+                    .onTapGesture { popOutAvatar() }
+                    .onHover { hovering in
+                        if hovering { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+                    }
+                    .help("View profile photo")
 
                     Spacer()
 
@@ -156,6 +172,12 @@ struct ProfileView: View {
                 }
             }
             .padding(16)
+        }
+    }
+
+    private func popOutAvatar() {
+        if let url = profile?.avatarURL ?? ref.avatar {
+            lightbox.present(url, circular: true)
         }
     }
 

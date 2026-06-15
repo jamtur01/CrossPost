@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 struct FeedPostView: View {
     let post: FeedPost
@@ -24,6 +25,9 @@ struct FeedPostView: View {
     var expanded: Bool = false
 
     @State private var hovering = false
+    // Optional: present where no lightbox is installed (e.g. preview/sheet contexts)
+    // simply leaves images non-poppable rather than crashing.
+    @Environment(ImageLightbox.self) private var lightbox: ImageLightbox?
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.componentSpacing) {
@@ -189,6 +193,12 @@ struct FeedPostView: View {
             img.resizable().aspectRatio(contentMode: fit ? .fit : .fill)
         } placeholder: {
             RoundedRectangle(cornerRadius: Theme.mediaCorner).fill(.quaternary).frame(height: 120)
+        }
+        // Tap pops the image out; takes precedence over the row's open-thread tap.
+        .onTapGesture { lightbox?.present(url) }
+        .onHover { hovering in
+            guard lightbox != nil else { return }
+            if hovering { NSCursor.pointingHand.push() } else { NSCursor.pop() }
         }
     }
 

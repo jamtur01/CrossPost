@@ -7,6 +7,7 @@ struct MainView: View {
     // so re-rendering MainView never allocates a fresh model or drops feed state.
     @State private var mastodon: FeedPanelModel?
     @State private var bluesky: FeedPanelModel?
+    @State private var lightbox = ImageLightbox()
 
     var body: some View {
         HSplitView {
@@ -24,6 +25,8 @@ struct MainView: View {
             .frame(minWidth: 480)
         }
         .frame(minWidth: 760, minHeight: 540)
+        .environment(lightbox)
+        .overlay { ImageLightboxOverlay(lightbox: lightbox) }
         .onAppear {
             if mastodon == nil { mastodon = FeedPanelModel(target: .mastodon, store: store) }
             if bluesky == nil { bluesky = FeedPanelModel(target: .bluesky, store: store) }
