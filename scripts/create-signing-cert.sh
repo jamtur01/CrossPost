@@ -34,14 +34,17 @@ EOF
 
 openssl req -x509 -newkey rsa:2048 -nodes -days 3650 \
   -keyout "$tmp/cert.key" -out "$tmp/cert.crt" -config "$tmp/cert.conf"
-openssl pkcs12 -export -inkey "$tmp/cert.key" -in "$tmp/cert.crt" \
-  -name "$name" -out "$tmp/cert.p12" -passout pass:
 
-# Import the cert + key; -T scopes key access to codesign (first build may prompt
-# once to allow it — click "Always Allow").
-security import "$tmp/cert.p12" -k "$keychain" -P "" -T /usr/bin/codesign
+# Import the private key and certificate separately, rather than bundled as a
+# PKCS#12. OpenSSL 3 writes a .p12 whose MAC/cipher macOS's Security framework
+# can't read (it misreports this as "MAC verification failed / wrong password").
+# The keychain links the key and cert into a code-signing identity on its own.
+# -T scopes key access to codesign (the first build may prompt once to allow it
+# — click "Always Allow").
+security import "$tmp/cert.key" -k "$keychain" -T /usr/bin/codesign
+security import "$tmp/cert.crt" -k "$keychain"
 
 echo
 echo "Created code-signing identity '$name'. Verify with:"
-echo "  security find-identity -v -p codesigning"
+echo "  security find-identity -p codesigning | grep '$name'"
 echo "Next: cp Local.xcconfig.example Local.xcconfig  (CODE_SIGN_IDENTITY must equal '$name')"
