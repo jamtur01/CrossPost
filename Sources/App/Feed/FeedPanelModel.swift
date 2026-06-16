@@ -244,6 +244,16 @@ final class FeedPanelModel {
         open(url)
     }
 
+    /// Copy the post's web URL to the clipboard. Returns whether a URL was copied.
+    @discardableResult
+    func copyLink(_ post: FeedPost) -> Bool {
+        guard let url = post.webURL else { return false }
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(url.absoluteString, forType: .string)
+        return true
+    }
+
     /// The single sink for handing a URL to the system. Rejects any non-web scheme
     /// so a malicious post can't open a `file://` or custom-scheme URL.
     func open(_ url: URL) {

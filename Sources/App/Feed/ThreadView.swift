@@ -51,6 +51,7 @@ struct ThreadView: View {
                             _ = try await panel.quote(post: row, text: text, visibility: visibility)
                         },
                         onEdit: postEditActions(for: row, panel),
+                        onCopyLink: { panel.copyLink(row) },
                         inTimeline: !isFocused,
                         expanded: isFocused)
                         .padding(isFocused ? 16 : 0)

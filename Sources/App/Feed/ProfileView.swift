@@ -201,7 +201,8 @@ struct ProfileView: View {
             onQuote: { text, visibility in
                 _ = try await panel.quote(post: row, text: text, visibility: visibility)
             },
-            onEdit: postEditActions(for: row, panel))
+            onEdit: postEditActions(for: row, panel),
+            onCopyLink: { panel.copyLink(row) })
     }
 
     private var pinnedHeader: some View {

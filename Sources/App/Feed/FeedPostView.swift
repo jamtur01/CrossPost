@@ -24,6 +24,7 @@ struct FeedPostView: View {
     var onQuote: ((String, PostVisibility) async throws -> Void)?
     /// Edits this post; when nil, the Edit menu item is hidden (Mastodon only).
     var onEdit: PostEditActions?
+    var onCopyLink: () -> Void = {}
     var showActions: Bool = true
     /// Timeline rows get hover highlight + a separator; sheet/detail views don't.
     var inTimeline: Bool = true
@@ -260,6 +261,9 @@ struct FeedPostView: View {
                 Button(action: onRepostedBy) { Label("Reposted by…", systemImage: "arrow.2.squarepath") }
             }
             Divider()
+            if post.webURL != nil {
+                Button(action: onCopyLink) { Label("Copy Link", systemImage: "link") }
+            }
             Button(action: onOpen) { Label("Open in Browser", systemImage: "safari") }
             if isMine {
                 if post.target == .mastodon {

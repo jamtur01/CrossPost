@@ -1,4 +1,5 @@
 import XCTest
+import AppKit
 @testable import CrossPost
 
 @MainActor
@@ -369,6 +370,28 @@ final class FeedPanelModelTests: XCTestCase {
         XCTAssertEqual(bookmarks.map(\.id), ["b1"])
         XCTAssertEqual(likes.map(\.id), ["l1"])
         XCTAssertEqual(pins.map(\.id), ["p1"])
+    }
+
+    func testCopyLinkWritesWebURLToPasteboard() {
+        let model = makeModel(FakeFeedService())
+        let post = TestFactory.feedPost(id: "https-test")
+        // TestFactory posts have no webURL, so build one that does.
+        let withURL = FeedPost(
+            id: post.id, target: .mastodon, authorName: "A", authorHandle: "@a", avatarURL: nil,
+            date: Date(timeIntervalSince1970: 0), text: AttributedString("hi"), images: [],
+            webURL: URL(string: "https://h.io/@a/1"), isLiked: false, isReposted: false,
+            nativeRef: .mastodon(statusID: "1"))
+
+        NSPasteboard.general.clearContents()
+        let copied = model.copyLink(withURL)
+
+        XCTAssertTrue(copied)
+        XCTAssertEqual(NSPasteboard.general.string(forType: .string), "https://h.io/@a/1")
+    }
+
+    func testCopyLinkReturnsFalseWithoutWebURL() {
+        let model = makeModel(FakeFeedService())
+        XCTAssertFalse(model.copyLink(TestFactory.feedPost()))   // no webURL
     }
 
     func testReportAccountForwardsToService() async throws {

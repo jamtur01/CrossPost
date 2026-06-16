@@ -222,7 +222,8 @@ struct FeedPanelView: View {
                                 onQuote: { text, visibility in
                                     _ = try await model.quote(post: post, text: text, visibility: visibility)
                                 },
-                                onEdit: postEditActions(for: post, model))
+                                onEdit: postEditActions(for: post, model),
+                                onCopyLink: { model.copyLink(post) })
                         }
                     }
                 }
