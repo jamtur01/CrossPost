@@ -44,6 +44,9 @@ struct ThreadView: View {
                         onLikedBy: { push(.profileList(ProfileListRef(kind: .likedBy, post: row))) },
                         onRepostedBy: { push(.profileList(ProfileListRef(kind: .repostedBy, post: row))) },
                         onOpenDetail: isFocused ? nil : { push(.thread(row)) },
+                        onReport: panel.isMine(row) ? nil : { reason, comment in
+                            try await panel.report(post: row, reason: reason, comment: comment)
+                        },
                         inTimeline: !isFocused,
                         expanded: isFocused)
                         .padding(isFocused ? 16 : 0)

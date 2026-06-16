@@ -17,6 +17,7 @@ struct ProfileView: View {
     @State private var relationship = AccountRelationship()
     @State private var updatingRelationship = false
     @State private var loading = true
+    @State private var reportingAccount = false
 
     private var accent: Color { panel.target.accent }
     private var accountID: String { profile?.id ?? ref.id }
@@ -65,6 +66,12 @@ struct ProfileView: View {
             pinnedList.posts = await pins
             list.posts = await posts
             loading = false
+        }
+        .sheet(isPresented: $reportingAccount) {
+            ReportSheet(subjectLabel: profile?.handle ?? ref.handle, accent: accent,
+                        submit: { reason, comment in
+                            try await panel.report(accountID: accountID, reason: reason, comment: comment)
+                        }) { reportingAccount = false }
         }
         .sheet(item: $replyTarget) { target in
             ReplySheet(model: ReplyModel(post: target, store: store)) { replyTarget = nil }
@@ -187,7 +194,10 @@ struct ProfileView: View {
             onLikedBy: { push(.profileList(ProfileListRef(kind: .likedBy, post: row))) },
             onRepostedBy: { push(.profileList(ProfileListRef(kind: .repostedBy, post: row))) },
             onShowParent: row.isReply ? { push(.thread(row)) } : nil,
-            onOpenDetail: { push(.thread(row)) })
+            onOpenDetail: { push(.thread(row)) },
+            onReport: panel.isMine(row) ? nil : { reason, comment in
+                try await panel.report(post: row, reason: reason, comment: comment)
+            })
     }
 
     private var pinnedHeader: some View {
@@ -236,6 +246,8 @@ struct ProfileView: View {
                 Button(relationship.isMuting ? "Unmute" : "Mute") { Task { await toggleMute() } }
                 Button(relationship.isBlocking ? "Unblock" : "Block",
                        role: .destructive) { Task { await toggleBlock() } }
+                Divider()
+                Button("Report…", role: .destructive) { reportingAccount = true }
             } label: {
                 Image(systemName: "ellipsis").font(.system(size: 15, weight: .semibold))
             }

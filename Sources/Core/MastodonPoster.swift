@@ -40,6 +40,20 @@ extension PostVisibility {
     var tootVisibility: Post.Visibility { Post.Visibility(rawValue: rawValue) ?? .public }
 }
 
+extension ReportReason {
+    /// Closest matching Mastodon report category.
+    var mastodonCategory: ReportCategory {
+        switch self {
+        case .spam: return .spam
+        case .harassment: return .abusive
+        case .misleading: return .other
+        case .sexual: return .sensitive
+        case .illegal: return .legal
+        case .other: return .other
+        }
+    }
+}
+
 extension TootClient {
     /// The instance's maximum image upload size in bytes, falling back to Mastodon's
     /// documented 10 MB default when the instance doesn't report one.

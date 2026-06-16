@@ -138,6 +138,19 @@ struct MastodonFeedService: FeedService {
         }.map { Self.feedPost(from: $0) }
     }
 
+    func report(post: FeedPost, reason: ReportReason, comment: String) async throws {
+        guard case .mastodon(let statusID) = post.nativeRef else { throw FeedError.wrongPlatform }
+        try await client.report(ReportParams(
+            accountId: post.authorID, category: reason.mastodonCategory,
+            postIds: [statusID], comment: comment.isEmpty ? nil : comment))
+    }
+
+    func report(accountID id: String, reason: ReportReason, comment: String) async throws {
+        try await client.report(ReportParams(
+            accountId: id, category: reason.mastodonCategory,
+            comment: comment.isEmpty ? nil : comment))
+    }
+
     func pinnedPosts(of id: String) async throws -> [FeedPost] {
         let query = UserTimelineQuery(userId: id, pinned: true)
         let posts = try await client.getTimeline(.user(query), limit: 40).result

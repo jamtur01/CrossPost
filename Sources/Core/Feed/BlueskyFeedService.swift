@@ -477,6 +477,27 @@ struct BlueskyFeedService: FeedService {
         []   // Bluesky pinning isn't supported in this app.
     }
 
+    func report(post: FeedPost, reason: ReportReason, comment: String) async throws {
+        guard case .bluesky(let uri, let cid, _, _) = post.nativeRef else { throw FeedError.wrongPlatform }
+        let subject = ComAtprotoLexicon.Moderation.CreateReportRequestBody.SubjectUnion
+            .strongReference(.init(recordURI: uri, cidHash: cid))
+        _ = try await kit.createReport(with: reason.blueskyReason,
+                                       andContextof: comment.isEmpty ? nil : comment,
+                                       subject: subject)
+    }
+
+    func report(accountID id: String, reason: ReportReason, comment: String) async throws {
+        // `id` is the account's DID. ATProtoKit's repoRef type exposes no public
+        // initializer across the module boundary, so the subject is built by
+        // decoding the lexicon's own JSON shape (the union keys off `$type`).
+        let json = Data(#"{"$type":"com.atproto.admin.defs#repoRef","did":"\#(id)"}"#.utf8)
+        let subject = try JSONDecoder().decode(
+            ComAtprotoLexicon.Moderation.CreateReportRequestBody.SubjectUnion.self, from: json)
+        _ = try await kit.createReport(with: reason.blueskyReason,
+                                       andContextof: comment.isEmpty ? nil : comment,
+                                       subject: subject)
+    }
+
     static func profile(from p: AppBskyLexicon.Actor.ProfileViewDetailedDefinition) -> Profile {
         Profile(
             id: p.actorDID,   // the stable id; follow/block records require the DID, not the handle
@@ -587,6 +608,20 @@ struct BlueskyFeedService: FeedService {
             boostedBy: boostedBy,
             isReply: isReply ?? (record?.reply != nil),
             nativeRef: .bluesky(uri: p.uri, cid: p.cid, rootURI: root.uri, rootCID: root.cid))
+    }
+}
+
+extension ReportReason {
+    /// Closest matching Bluesky moderation reason.
+    var blueskyReason: ComAtprotoLexicon.Moderation.ReasonTypeDefinition {
+        switch self {
+        case .spam: return .spam
+        case .harassment: return .rude
+        case .misleading: return .misleading
+        case .sexual: return .sexual
+        case .illegal: return .violation
+        case .other: return .other
+        }
     }
 }
 

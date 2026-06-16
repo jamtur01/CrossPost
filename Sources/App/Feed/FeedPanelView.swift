@@ -190,7 +190,10 @@ struct FeedPanelView: View {
                                 onLikedBy: { routes.append(.profileList(ProfileListRef(kind: .likedBy, post: post))) },
                                 onRepostedBy: { routes.append(.profileList(ProfileListRef(kind: .repostedBy, post: post))) },
                                 onShowParent: post.isReply ? { routes.append(.thread(post)) } : nil,
-                                onOpenDetail: { routes.append(.thread(post)) })
+                                onOpenDetail: { routes.append(.thread(post)) },
+                                onReport: model.isMine(post) ? nil : { reason, comment in
+                                    try await model.report(post: post, reason: reason, comment: comment)
+                                })
                         }
                     }
                 }

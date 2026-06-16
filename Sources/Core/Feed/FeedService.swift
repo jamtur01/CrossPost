@@ -64,6 +64,10 @@ protocol FeedService: Sendable {
     /// Accounts that liked / reposted a post.
     func likedBy(_ post: FeedPost) async throws -> [Profile]
     func repostedBy(_ post: FeedPost) async throws -> [Profile]
+    /// Report a post for moderation, with an optional free-text comment.
+    func report(post: FeedPost, reason: ReportReason, comment: String) async throws
+    /// Report an account for moderation (`id` = Mastodon account id / Bluesky DID).
+    func report(accountID id: String, reason: ReportReason, comment: String) async throws
 
     // MARK: Direct messages
 

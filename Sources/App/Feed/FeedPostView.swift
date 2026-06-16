@@ -18,6 +18,8 @@ struct FeedPostView: View {
     var onRepostedBy: () -> Void = {}
     var onShowParent: (() -> Void)?
     var onOpenDetail: (() -> Void)?
+    /// Files a moderation report; when nil, the Report menu item is hidden.
+    var onReport: ((ReportReason, String) async throws -> Void)?
     var showActions: Bool = true
     /// Timeline rows get hover highlight + a separator; sheet/detail views don't.
     var inTimeline: Bool = true
@@ -25,6 +27,7 @@ struct FeedPostView: View {
     var expanded: Bool = false
 
     @State private var hovering = false
+    @State private var reporting = false
     // Optional: present where no lightbox is installed (e.g. preview/sheet contexts)
     // simply leaves images non-poppable rather than crashing.
     @Environment(ImageLightbox.self) private var lightbox: ImageLightbox?
@@ -52,6 +55,12 @@ struct FeedPostView: View {
         .contentShape(Rectangle())
         .onHover { hovering = $0 }
         .onTapGesture { onOpenDetail?() }
+        .sheet(isPresented: $reporting) {
+            if let onReport {
+                ReportSheet(subjectLabel: "this post", accent: accent,
+                            submit: onReport) { reporting = false }
+            }
+        }
     }
 
     private var styledText: AttributedString {
@@ -239,6 +248,11 @@ struct FeedPostView: View {
                 }
                 Divider()
                 Button(role: .destructive, action: onDelete) { Label("Delete", systemImage: "trash") }
+            } else if onReport != nil {
+                Divider()
+                Button(role: .destructive) { reporting = true } label: {
+                    Label("Report…", systemImage: "flag")
+                }
             }
         } label: {
             Image(systemName: "ellipsis")
