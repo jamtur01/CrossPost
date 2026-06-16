@@ -47,7 +47,7 @@ struct SavedPostsView: View {
                             try await panel.report(post: row, reason: reason, comment: comment)
                         },
                         onQuote: { text, visibility in
-                            try await panel.quote(post: row, text: text, visibility: visibility)
+                            _ = try await panel.quote(post: row, text: text, visibility: visibility)
                         },
                         onEdit: postEditActions(for: row, panel))
                 }

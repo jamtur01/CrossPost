@@ -44,6 +44,28 @@ final class ReplyModelTests: XCTestCase {
         XCTAssertEqual(model.text, "@carol@h.io ")
     }
 
+    func testReplyVisibilitySeededFromMastodonParent() {
+        let post = TestFactory.feedPost(target: .mastodon, visibility: "private")
+        let model = ReplyModel(post: post, store: AccountStore())
+        XCTAssertEqual(model.visibility, .private)   // never widens the parent's audience
+    }
+
+    func testReplyVisibilityDefaultsPublicWhenParentHasNone() {
+        let post = TestFactory.feedPost(target: .bluesky)   // Bluesky carries no visibility
+        let model = ReplyModel(post: post, store: AccountStore())
+        XCTAssertEqual(model.visibility, .public)
+    }
+
+    func testReplyForwardsVisibilityToService() async {
+        let fake = FakeFeedService()
+        let post = TestFactory.feedPost(target: .mastodon, visibility: "unlisted")
+        let model = ReplyModel(post: post, store: AccountStore()) { _, _ in fake }
+        model.text = "sure"
+        let posted = await model.send()
+        XCTAssertTrue(posted)
+        XCTAssertEqual(fake.replyVisibilities, [.unlisted])   // forwarded the parent's level
+    }
+
     func testOverLimitReplyReportsFailureAndDoesNotPost() async {
         let store = AccountStore()
         let post = TestFactory.feedPost(target: .bluesky)

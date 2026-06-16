@@ -22,6 +22,10 @@ final class FakeFeedService: FeedService, @unchecked Sendable {
     private(set) var markedReadCalls: [FeedNotification?] = []
     private(set) var deletedIDs: [String] = []
     private(set) var loadFeedCalls = 0
+    private(set) var quoteCalls: [(text: String, visibility: PostVisibility)] = []
+    private(set) var editCalls: [(text: String, spoiler: String)] = []
+    private(set) var reportPostCalls: [(reason: ReportReason, comment: String)] = []
+    private(set) var reportAccountCalls: [(id: String, reason: ReportReason, comment: String)] = []
 
     func loadFeed(_ kind: FeedKind) async throws -> [FeedPost] {
         loadFeedCalls += 1
@@ -45,12 +49,15 @@ final class FakeFeedService: FeedService, @unchecked Sendable {
         return copy
     }
 
+    private(set) var replyVisibilities: [PostVisibility] = []
     func reply(to post: FeedPost, text: String, images: [Attachment],
                visibility: PostVisibility) async throws -> PostedItem {
-        PostedItem(url: "https://example/reply")
+        replyVisibilities.append(visibility)
+        return PostedItem(url: "https://example/reply")
     }
     func quote(post: FeedPost, text: String, visibility: PostVisibility) async throws -> PostedItem {
-        PostedItem(url: "https://example/quote")
+        quoteCalls.append((text, visibility))
+        return PostedItem(url: "https://example/quote")
     }
     func thread(of post: FeedPost) async throws -> PostThread { PostThread(ancestors: [], descendants: []) }
     func profile(id: String) async throws -> Profile { Self.profile(id) }
@@ -63,9 +70,16 @@ final class FakeFeedService: FeedService, @unchecked Sendable {
     func editableSource(of post: FeedPost) async throws -> EditableSource {
         EditableSource(text: String(post.text.characters), spoiler: post.spoilerText ?? "")
     }
-    func edit(post: FeedPost, text: String, spoiler: String) async throws -> FeedPost { post }
-    func report(post: FeedPost, reason: ReportReason, comment: String) async throws {}
-    func report(accountID id: String, reason: ReportReason, comment: String) async throws {}
+    func edit(post: FeedPost, text: String, spoiler: String) async throws -> FeedPost {
+        editCalls.append((text, spoiler))
+        return post
+    }
+    func report(post: FeedPost, reason: ReportReason, comment: String) async throws {
+        reportPostCalls.append((reason, comment))
+    }
+    func report(accountID id: String, reason: ReportReason, comment: String) async throws {
+        reportAccountCalls.append((id, reason, comment))
+    }
 
     var relationshipsToReturn: [String: AccountRelationship] = [:]
     private(set) var relationshipsRequests: [[String]] = []

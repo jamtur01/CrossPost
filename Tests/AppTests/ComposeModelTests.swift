@@ -160,6 +160,34 @@ final class ComposeModelTests: XCTestCase {
         XCTAssertEqual(recorder.requestedTargets, [[.mastodon]])
     }
 
+    func testSubmitStampsChosenVisibilityOntoEveryDraft() async {
+        let recorder = PosterRecorder()
+        let masto = FakePoster(target: .mastodon)
+        recorder.postersByTarget = [.mastodon: masto]
+        let model = model(with: recorder)
+        model.toggle(.bluesky)                                  // Mastodon only
+        model.thread = [DraftPost(text: "one"), DraftPost(text: "two")]
+        model.visibility = .private
+
+        await model.submit()
+
+        XCTAssertEqual(masto.postedThreads.count, 1)
+        XCTAssertEqual(masto.postedThreads.first?.map(\.visibility), [.private, .private])
+    }
+
+    func testSubmitDefaultsToPublicVisibility() async {
+        let recorder = PosterRecorder()
+        let masto = FakePoster(target: .mastodon)
+        recorder.postersByTarget = [.mastodon: masto]
+        let model = model(with: recorder)
+        model.toggle(.bluesky)
+        model.thread[0].text = "hi"
+
+        await model.submit()
+
+        XCTAssertEqual(masto.postedThreads.first?.first?.visibility, .public)
+    }
+
     func testSuccessClearsDraftAndPostsRefreshNotificationOnce() async {
         let recorder = PosterRecorder()
         let model = model(with: recorder)

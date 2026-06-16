@@ -220,7 +220,7 @@ struct FeedPanelView: View {
                                     try await model.report(post: post, reason: reason, comment: comment)
                                 },
                                 onQuote: { text, visibility in
-                                    try await model.quote(post: post, text: text, visibility: visibility)
+                                    _ = try await model.quote(post: post, text: text, visibility: visibility)
                                 },
                                 onEdit: postEditActions(for: post, model))
                         }

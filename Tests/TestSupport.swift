@@ -10,6 +10,7 @@ enum TestFactory {
         authorHandle: String = "@author",
         authorID: String = "author-id",
         mentionHandles: [String] = [],
+        visibility: String? = nil,
         text: AttributedString = AttributedString("hello")
     ) -> FeedPost {
         let key = id ?? "\(target.rawValue):1"
@@ -30,6 +31,7 @@ enum TestFactory {
             isLiked: false,
             isReposted: false,
             mentionHandles: mentionHandles,
+            visibility: visibility,
             nativeRef: nativeRef)
     }
 }

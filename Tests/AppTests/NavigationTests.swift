@@ -20,4 +20,15 @@ final class NavigationTests: XCTestCase {
         XCTAssertEqual(FeedRoute.profile(ref).id, "profile:\(ref.id):false")
         XCTAssertNotEqual(FeedRoute.thread(post).id, FeedRoute.profile(ref).id)
     }
+
+    func testSavedRouteIDsAreStableAndDistinct() {
+        XCTAssertEqual(FeedRoute.saved(.bookmarks).id, "saved:bookmarks")
+        XCTAssertEqual(FeedRoute.saved(.likes).id, "saved:likes")
+        XCTAssertNotEqual(FeedRoute.saved(.bookmarks).id, FeedRoute.saved(.likes).id)
+    }
+
+    func testSavedKindTitles() {
+        XCTAssertEqual(SavedKind.bookmarks.title, "Bookmarks")
+        XCTAssertEqual(SavedKind.likes.title, "Likes")
+    }
 }

@@ -18,4 +18,8 @@ final class DraftPostTests: XCTestCase {
         let attachment = Attachment(imageData: Data([0x01, 0x02]))
         XCTAssertFalse(DraftPost(text: "   ", attachments: [attachment]).isEmpty)
     }
+
+    func testDefaultVisibilityIsPublic() {
+        XCTAssertEqual(DraftPost().visibility, .public)
+    }
 }

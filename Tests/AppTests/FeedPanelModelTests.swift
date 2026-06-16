@@ -305,4 +305,66 @@ final class FeedPanelModelTests: XCTestCase {
         await waitUntil { fake.deletedIDs.contains("a") }
         XCTAssertEqual(model.posts.map(\.id), ["b"])            // stays removed
     }
+
+    // MARK: Quote / edit / report / saved feeds
+
+    private func expectRefreshNotification() -> (count: () -> Int, stop: () -> Void) {
+        var count = 0
+        let token = NotificationCenter.default.addObserver(
+            forName: .crossPostDidPost, object: nil, queue: nil) { _ in count += 1 }
+        return ({ count }, { NotificationCenter.default.removeObserver(token) })
+    }
+
+    func testQuoteForwardsArgsAndRefreshesOnce() async throws {
+        let fake = FakeFeedService()
+        let model = makeModel(fake)
+        let refresh = expectRefreshNotification()
+        defer { refresh.stop() }
+
+        _ = try await model.quote(post: TestFactory.feedPost(), text: "nice", visibility: .unlisted)
+
+        XCTAssertEqual(fake.quoteCalls.count, 1)
+        XCTAssertEqual(fake.quoteCalls.first?.text, "nice")
+        XCTAssertEqual(fake.quoteCalls.first?.visibility, .unlisted)
+        XCTAssertEqual(refresh.count(), 1)
+    }
+
+    func testEditForwardsArgsAndRefreshesOnce() async throws {
+        let fake = FakeFeedService()
+        let model = makeModel(fake)
+        let refresh = expectRefreshNotification()
+        defer { refresh.stop() }
+
+        _ = try await model.edit(post: TestFactory.feedPost(), text: "fixed", spoiler: "cw")
+
+        XCTAssertEqual(fake.editCalls.count, 1)
+        XCTAssertEqual(fake.editCalls.first?.text, "fixed")
+        XCTAssertEqual(fake.editCalls.first?.spoiler, "cw")
+        XCTAssertEqual(refresh.count(), 1)
+    }
+
+    func testReportForwardsToService() async throws {
+        let fake = FakeFeedService()
+        let model = makeModel(fake)
+
+        try await model.report(post: TestFactory.feedPost(), reason: .spam, comment: "bot")
+
+        XCTAssertEqual(fake.reportPostCalls.count, 1)
+        XCTAssertEqual(fake.reportPostCalls.first?.reason, .spam)
+        XCTAssertEqual(fake.reportPostCalls.first?.comment, "bot")
+    }
+
+    func testBookmarkedAndLikedPostsReadFromService() async {
+        let fake = FakeFeedService()
+        var bookmarked = TestFactory.feedPost(id: "b1"); bookmarked.isBookmarked = true
+        var liked = TestFactory.feedPost(id: "l1"); liked.isLiked = true
+        fake.feed = [bookmarked, liked, TestFactory.feedPost(id: "plain")]
+        let model = makeModel(fake)
+
+        let bookmarks = await model.bookmarkedPosts()
+        let likes = await model.likedPosts()
+
+        XCTAssertEqual(bookmarks.map(\.id), ["b1"])
+        XCTAssertEqual(likes.map(\.id), ["l1"])
+    }
 }
