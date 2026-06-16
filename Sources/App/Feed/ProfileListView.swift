@@ -9,6 +9,7 @@ struct ProfileListView: View {
 
     @State private var profiles: [Profile] = []
     @State private var loading = true
+    @State private var loadError: String?
 
     var body: some View {
         ScrollView {
@@ -20,6 +21,8 @@ struct ProfileListView: View {
                 if loading {
                     ProgressView().controlSize(.small)
                         .frame(maxWidth: .infinity).padding(.vertical, 24)
+                } else if let loadError, profiles.isEmpty {
+                    ErrorStateView(message: loadError, fills: false) { Task { await load() } }
                 } else if profiles.isEmpty {
                     EmptyStateView(text: "No one here yet", systemImage: "person.2", fills: false)
                 }
@@ -27,15 +30,23 @@ struct ProfileListView: View {
         }
         .scrollContentBackground(.hidden)
         .background(Color(nsColor: .textBackgroundColor))
-        .task {
+        .task { await load() }
+    }
+
+    private func load() async {
+        loading = true
+        loadError = nil
+        do {
             switch ref.kind {
-            case .followers: profiles = await panel.followers(of: ref.accountID)
-            case .following: profiles = await panel.following(of: ref.accountID)
-            case .likedBy: if let post = ref.post { profiles = await panel.likedBy(post) }
-            case .repostedBy: if let post = ref.post { profiles = await panel.repostedBy(post) }
+            case .followers: profiles = try await panel.followers(of: ref.accountID)
+            case .following: profiles = try await panel.following(of: ref.accountID)
+            case .likedBy: if let post = ref.post { profiles = try await panel.likedBy(post) }
+            case .repostedBy: if let post = ref.post { profiles = try await panel.repostedBy(post) }
             }
-            loading = false
+        } catch {
+            loadError = error.userMessage
         }
+        loading = false
     }
 
     private func row(_ profile: Profile) -> some View {

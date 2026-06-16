@@ -10,6 +10,7 @@ struct SavedPostsView: View {
     @State private var list: PostList
     @State private var replyTarget: FeedPost?
     @State private var loading = true
+    @State private var loadError: String?
 
     private var accent: Color { panel.target.accent }
 
@@ -56,21 +57,31 @@ struct SavedPostsView: View {
             if loading {
                 ProgressView().controlSize(.small)
                     .frame(maxWidth: .infinity).padding(.vertical, 24)
+            } else if let loadError, list.posts.isEmpty {
+                ErrorStateView(message: loadError, fills: false) { Task { await load() } }
             } else if list.posts.isEmpty {
                 emptyState
             }
         }
         .scrollContentBackground(.hidden)
         .background(Color(nsColor: .textBackgroundColor))
-        .task {
-            list.posts = kind == .bookmarks
-                ? await panel.bookmarkedPosts()
-                : await panel.likedPosts()
-            loading = false
-        }
+        .task { await load() }
         .sheet(item: $replyTarget) { target in
             ReplySheet(model: ReplyModel(post: target, store: store)) { replyTarget = nil }
         }
+    }
+
+    private func load() async {
+        loading = true
+        loadError = nil
+        do {
+            list.posts = kind == .bookmarks
+                ? try await panel.bookmarkedPosts()
+                : try await panel.likedPosts()
+        } catch {
+            loadError = error.userMessage
+        }
+        loading = false
     }
 
     private var emptyState: some View {

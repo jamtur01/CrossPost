@@ -312,41 +312,39 @@ final class FeedPanelModel {
     }
 
     /// Fetch the surrounding thread (ancestors + replies) for the detail view.
-    func thread(of post: FeedPost) async -> PostThread {
-        do {
-            let svc = try await resolveService()
-            return try await svc.thread(of: post)
-        } catch {
-            return PostThread(ancestors: [], descendants: [])
-        }
+    // These detail-view fetches propagate errors so the views can show a real
+    // error state with retry, rather than an empty pane that hides a failure.
+
+    func thread(of post: FeedPost) async throws -> PostThread {
+        try await resolveService().thread(of: post)
     }
 
-    func profile(id: String) async -> Profile? {
-        try? await resolveService().profile(id: id)
+    func profile(id: String) async throws -> Profile {
+        try await resolveService().profile(id: id)
     }
 
-    func myProfile() async -> Profile? {
-        try? await resolveService().myProfile()
+    func myProfile() async throws -> Profile {
+        try await resolveService().myProfile()
     }
 
-    func authorPosts(id: String) async -> [FeedPost] {
-        (try? await resolveService().authorPosts(id: id)) ?? []
+    func authorPosts(id: String) async throws -> [FeedPost] {
+        try await resolveService().authorPosts(id: id)
     }
 
-    func pinnedPosts(id: String) async -> [FeedPost] {
-        (try? await resolveService().pinnedPosts(of: id)) ?? []
+    func pinnedPosts(id: String) async throws -> [FeedPost] {
+        try await resolveService().pinnedPosts(of: id)
     }
 
     func search(_ query: String) async throws -> SearchResults {
         try await resolveService().search(query)
     }
 
-    func bookmarkedPosts() async -> [FeedPost] {
-        (try? await resolveService().bookmarkedPosts()) ?? []
+    func bookmarkedPosts() async throws -> [FeedPost] {
+        try await resolveService().bookmarkedPosts()
     }
 
-    func likedPosts() async -> [FeedPost] {
-        (try? await resolveService().likedPosts()) ?? []
+    func likedPosts() async throws -> [FeedPost] {
+        try await resolveService().likedPosts()
     }
 
     func editableSource(of post: FeedPost) async throws -> EditableSource {
@@ -433,12 +431,12 @@ final class FeedPanelModel {
         try await resolveService().setBlocked(blocked, for: id, current: current)
     }
 
-    func followers(of id: String) async -> [Profile] {
-        (try? await resolveService().followers(of: id)) ?? []
+    func followers(of id: String) async throws -> [Profile] {
+        try await resolveService().followers(of: id)
     }
 
-    func following(of id: String) async -> [Profile] {
-        (try? await resolveService().following(of: id)) ?? []
+    func following(of id: String) async throws -> [Profile] {
+        try await resolveService().following(of: id)
     }
 
     /// Whether a post was authored by the signed-in user (controls delete/pin actions).
@@ -522,12 +520,12 @@ final class FeedPanelModel {
         }
     }
 
-    func likedBy(_ post: FeedPost) async -> [Profile] {
-        (try? await resolveService().likedBy(post)) ?? []
+    func likedBy(_ post: FeedPost) async throws -> [Profile] {
+        try await resolveService().likedBy(post)
     }
 
-    func repostedBy(_ post: FeedPost) async -> [Profile] {
-        (try? await resolveService().repostedBy(post)) ?? []
+    func repostedBy(_ post: FeedPost) async throws -> [Profile] {
+        try await resolveService().repostedBy(post)
     }
 
     private func updatePost(_ id: String, _ mutate: (inout FeedPost) -> Void) {

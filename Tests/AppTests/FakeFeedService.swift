@@ -60,10 +60,16 @@ final class FakeFeedService: FeedService, @unchecked Sendable {
         return PostedItem(url: "https://example/quote")
     }
     func thread(of post: FeedPost) async throws -> PostThread { PostThread(ancestors: [], descendants: []) }
-    func profile(id: String) async throws -> Profile { Self.profile(id) }
+    func profile(id: String) async throws -> Profile {
+        if failLoad { throw FakeError.boom }
+        return Self.profile(id)
+    }
     func profile(forURL url: URL) async throws -> Profile? { nil }
     func myProfile() async throws -> Profile { Self.profile("me") }
-    func authorPosts(id: String) async throws -> [FeedPost] { feed }
+    func authorPosts(id: String) async throws -> [FeedPost] {
+        if failLoad { throw FakeError.boom }
+        return feed
+    }
     func pinnedPosts(of id: String) async throws -> [FeedPost] { feed.filter(\.isPinned) }
 
     var searchResultsToReturn = SearchResults()

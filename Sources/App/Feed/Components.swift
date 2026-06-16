@@ -7,15 +7,33 @@ struct EmptyStateView: View {
     let text: String
     var systemImage = "tray"
     var fills = true
+    /// When set, a "Try Again" button is shown — used for error states.
+    var retry: (() -> Void)?
 
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 10) {
             Image(systemName: systemImage).font(.largeTitle).foregroundStyle(.secondary)
             Text(text).font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center)
+            if let retry {
+                Button("Try Again", action: retry)
+                    .buttonStyle(.bordered).controlSize(.small)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: fills ? .infinity : nil)
         .padding(fills ? 16 : 0)
         .padding(.vertical, fills ? 0 : 40)
+    }
+}
+
+/// A failed-fetch state with a retry button, in the shared visual language.
+struct ErrorStateView: View {
+    let message: String
+    var fills = true
+    let retry: () -> Void
+
+    var body: some View {
+        EmptyStateView(text: message, systemImage: "exclamationmark.triangle",
+                       fills: fills, retry: retry)
     }
 }
 

@@ -77,7 +77,7 @@ final class FeedPanelModelTests: XCTestCase {
         }
 
         // A service build starts, then hangs mid-flight (slow network).
-        let staleCaller = Task { await model.profile(id: "p") }
+        let staleCaller = Task { try? await model.profile(id: "p") }
         await waitUntil { gate.arrivals == 1 }
 
         // Credentials change: restart drops the cached service and builds anew.
@@ -103,7 +103,7 @@ final class FeedPanelModelTests: XCTestCase {
             return fake
         }
 
-        let caller = Task { await model.profile(id: "p") }
+        let caller = Task { try? await model.profile(id: "p") }
         await waitUntil { gate.arrivals == 1 }
 
         model.stop()
@@ -355,7 +355,7 @@ final class FeedPanelModelTests: XCTestCase {
         XCTAssertEqual(fake.reportPostCalls.first?.comment, "bot")
     }
 
-    func testBookmarkedLikedAndPinnedPostsReadFromService() async {
+    func testBookmarkedLikedAndPinnedPostsReadFromService() async throws {
         let fake = FakeFeedService()
         var bookmarked = TestFactory.feedPost(id: "b1"); bookmarked.isBookmarked = true
         var liked = TestFactory.feedPost(id: "l1"); liked.isLiked = true
@@ -363,13 +363,27 @@ final class FeedPanelModelTests: XCTestCase {
         fake.feed = [bookmarked, liked, pinned, TestFactory.feedPost(id: "plain")]
         let model = makeModel(fake)
 
-        let bookmarks = await model.bookmarkedPosts()
-        let likes = await model.likedPosts()
-        let pins = await model.pinnedPosts(id: "anyone")
+        let bookmarks = try await model.bookmarkedPosts()
+        let likes = try await model.likedPosts()
+        let pins = try await model.pinnedPosts(id: "anyone")
 
         XCTAssertEqual(bookmarks.map(\.id), ["b1"])
         XCTAssertEqual(likes.map(\.id), ["l1"])
         XCTAssertEqual(pins.map(\.id), ["p1"])
+    }
+
+    func testDetailFetchesPropagateErrors() async {
+        let fake = FakeFeedService()
+        fake.failLoad = true
+        let model = makeModel(fake)
+
+        // The detail views rely on these throwing so they can show a retry state.
+        var profileThrew = false, postsThrew = false
+        do { _ = try await model.profile(id: "x") } catch { profileThrew = true }
+        do { _ = try await model.authorPosts(id: "x") } catch { postsThrew = true }
+
+        XCTAssertTrue(profileThrew)
+        XCTAssertTrue(postsThrew)
     }
 
     func testFailedReadMarkLeavesBadgeUncleared() async {

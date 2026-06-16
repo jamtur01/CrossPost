@@ -17,6 +17,7 @@ struct ProfileView: View {
     @State private var relationship = AccountRelationship()
     @State private var updatingRelationship = false
     @State private var loading = true
+    @State private var loadError: String?
     @State private var reportingAccount = false
 
     private var accent: Color { panel.target.accent }
@@ -58,6 +59,8 @@ struct ProfileView: View {
                 if loading {
                     ProgressView().controlSize(.small)
                         .frame(maxWidth: .infinity).padding(.vertical, 24)
+                } else if let loadError, pinnedList.posts.isEmpty && feedRows.isEmpty {
+                    ErrorStateView(message: loadError, fills: false) { Task { await load() } }
                 } else if pinnedList.posts.isEmpty && feedRows.isEmpty {
                     EmptyStateView(text: "No posts yet", systemImage: "text.bubble", fills: false)
                 }
@@ -65,17 +68,7 @@ struct ProfileView: View {
         }
         .scrollContentBackground(.hidden)
         .background(Color(nsColor: .textBackgroundColor))
-        .task {
-            profile = ref.isMe ? await panel.myProfile() : await panel.profile(id: ref.id)
-            let id = profile?.id ?? ref.id
-            // Both calls only need the resolved id, so they run concurrently.
-            async let posts = panel.authorPosts(id: id)
-            async let pins = panel.pinnedPosts(id: id)
-            if !ref.isMe { relationship = await panel.relationship(with: id) }
-            pinnedList.posts = await pins
-            list.posts = await posts
-            loading = false
-        }
+        .task { await load() }
         .sheet(isPresented: $reportingAccount) {
             ReportSheet(subjectLabel: profile?.handle ?? ref.handle, accent: accent,
                         submit: { reason, comment in
@@ -183,6 +176,26 @@ struct ProfileView: View {
             }
             .padding(16)
         }
+    }
+
+    private func load() async {
+        loading = true
+        loadError = nil
+        do {
+            let resolved = ref.isMe ? try await panel.myProfile() : try await panel.profile(id: ref.id)
+            profile = resolved
+            let id = resolved.id
+            // Posts and pins only need the resolved id, so they run concurrently.
+            async let posts = panel.authorPosts(id: id)
+            async let pins = panel.pinnedPosts(id: id)
+            // A relationship failure shouldn't block the profile, so it stays best-effort.
+            if !ref.isMe { relationship = await panel.relationship(with: id) }
+            pinnedList.posts = try await pins
+            list.posts = try await posts
+        } catch {
+            loadError = error.userMessage
+        }
+        loading = false
     }
 
     @ViewBuilder
