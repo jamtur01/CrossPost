@@ -233,8 +233,33 @@ struct FeedPanelView: View {
                         proxy.scrollTo(Self.topAnchor, anchor: .top)
                     }
                 }
+                .overlay(alignment: .top) {
+                    if model.newPostCount > 0 { newPostsPill(proxy) }
+                }
+                .animation(.snappy(duration: 0.2), value: model.newPostCount)
             }
         }
+    }
+
+    /// Tapping jumps to the top and clears the count.
+    private func newPostsPill(_ proxy: ScrollViewProxy) -> some View {
+        Button {
+            withAnimation(.easeOut(duration: 0.25)) { proxy.scrollTo(Self.topAnchor, anchor: .top) }
+            model.markCaughtUp()
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: "arrow.up").font(.system(size: 10, weight: .bold))
+                Text("\(model.newPostCount) new \(model.newPostCount == 1 ? "post" : "posts")")
+                    .font(.system(size: 12, weight: .semibold))
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, 12).padding(.vertical, 6)
+            .background(Capsule().fill(accent))
+            .shadow(color: .black.opacity(0.2), radius: 4, y: 2)
+        }
+        .buttonStyle(.plain)
+        .padding(.top, 8)
+        .transition(.move(edge: .top).combined(with: .opacity))
     }
 
     private func errorBanner(_ text: String) -> some View {

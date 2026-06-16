@@ -8,6 +8,9 @@ final class FeedPanelModel {
     let target: PostTarget
     var kind: FeedKind = .home
     var posts: [FeedPost] = []
+    /// Posts that arrived above what the user last saw, for the "new posts" pill.
+    var newPostCount = 0
+    private var lastSeenTopID: String?
     var isLoading = false
     var errorMessage: String?      // shown only when the feed is empty
     var actionError: String?       // transient banner for failed likes/reposts
@@ -99,6 +102,18 @@ final class FeedPanelModel {
         refreshUnreadCount()   // refresh the badge when leaving the notifications tab
     }
 
+    /// The user is viewing the top of the feed, so clear the new-posts pill.
+    func markCaughtUp() {
+        lastSeenTopID = posts.first?.id
+        newPostCount = 0
+    }
+
+    private func recomputeNewPostCount() {
+        guard let lastSeenTopID,
+              let index = posts.firstIndex(where: { $0.id == lastSeenTopID }) else { return }
+        newPostCount = index   // posts now sitting above the last one the user saw
+    }
+
     func refresh() {
         // A refresh must not repurpose the first-run `needsCredentials` flag or it
         // could blank an already-populated panel.
@@ -157,6 +172,9 @@ final class FeedPanelModel {
                 posts = reset
                     ? fetched
                     : FeedMerge.merge(existing: posts, fetched: fetched, preservingIDs: mutating)
+                // A user refresh or full reload scrolls to the top, so the user is
+                // caught up; a silent background poll may have added posts above.
+                if reset || userInitiated { markCaughtUp() } else { recomputeNewPostCount() }
             }
         } catch {
             if Task.isCancelled { return }
