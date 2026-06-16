@@ -13,8 +13,6 @@ This file is the **deferred** remainder — to pick up later.
 
 Scoped out of the current pass; pick up next.
 
-- [ ] **Post editing (Mastodon)** — fetch the source, edit UI, submit via
-      `editPost`. Bluesky has no edit.
 - [ ] **Polls** — render polls in the feed, vote, and create one when composing.
       Three sub-features; Bluesky has no polls.
 - [ ] **Emoji / mention / hashtag autocomplete** — a completion UI over the text
