@@ -517,15 +517,21 @@ struct BlueskyFeedService: FeedService {
     }
 
     func report(accountID id: String, reason: ReportReason, comment: String) async throws {
-        // `id` is the account's DID. ATProtoKit's repoRef type exposes no public
-        // initializer across the module boundary, so the subject is built by
-        // decoding the lexicon's own JSON shape (the union keys off `$type`).
-        let json = Data(#"{"$type":"com.atproto.admin.defs#repoRef","did":"\#(id)"}"#.utf8)
-        let subject = try JSONDecoder().decode(
-            ComAtprotoLexicon.Moderation.CreateReportRequestBody.SubjectUnion.self, from: json)
         _ = try await kit.createReport(with: reason.blueskyReason,
                                        andContextof: comment.isEmpty ? nil : comment,
-                                       subject: subject)
+                                       subject: Self.accountReportSubject(did: id))
+    }
+
+    /// The report subject for an account. ATProtoKit's repoRef type exposes no
+    /// public initializer across the module boundary, so it's built by decoding
+    /// the lexicon's own JSON shape (the union keys off `$type`). Static and
+    /// internal so the construction can be unit-tested without the network.
+    static func accountReportSubject(
+        did: String
+    ) throws -> ComAtprotoLexicon.Moderation.CreateReportRequestBody.SubjectUnion {
+        let json = Data(#"{"$type":"com.atproto.admin.defs#repoRef","did":"\#(did)"}"#.utf8)
+        return try JSONDecoder().decode(
+            ComAtprotoLexicon.Moderation.CreateReportRequestBody.SubjectUnion.self, from: json)
     }
 
     static func profile(from p: AppBskyLexicon.Actor.ProfileViewDetailedDefinition) -> Profile {

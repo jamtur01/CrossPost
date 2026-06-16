@@ -354,17 +354,48 @@ final class FeedPanelModelTests: XCTestCase {
         XCTAssertEqual(fake.reportPostCalls.first?.comment, "bot")
     }
 
-    func testBookmarkedAndLikedPostsReadFromService() async {
+    func testBookmarkedLikedAndPinnedPostsReadFromService() async {
         let fake = FakeFeedService()
         var bookmarked = TestFactory.feedPost(id: "b1"); bookmarked.isBookmarked = true
         var liked = TestFactory.feedPost(id: "l1"); liked.isLiked = true
-        fake.feed = [bookmarked, liked, TestFactory.feedPost(id: "plain")]
+        var pinned = TestFactory.feedPost(id: "p1"); pinned.isPinned = true
+        fake.feed = [bookmarked, liked, pinned, TestFactory.feedPost(id: "plain")]
         let model = makeModel(fake)
 
         let bookmarks = await model.bookmarkedPosts()
         let likes = await model.likedPosts()
+        let pins = await model.pinnedPosts(id: "anyone")
 
         XCTAssertEqual(bookmarks.map(\.id), ["b1"])
         XCTAssertEqual(likes.map(\.id), ["l1"])
+        XCTAssertEqual(pins.map(\.id), ["p1"])
+    }
+
+    func testReportAccountForwardsToService() async throws {
+        let fake = FakeFeedService()
+        let model = makeModel(fake)
+
+        try await model.report(accountID: "did:plc:abc", reason: .harassment, comment: "stop")
+
+        XCTAssertEqual(fake.reportAccountCalls.count, 1)
+        XCTAssertEqual(fake.reportAccountCalls.first?.id, "did:plc:abc")
+        XCTAssertEqual(fake.reportAccountCalls.first?.reason, .harassment)
+        XCTAssertEqual(fake.reportAccountCalls.first?.comment, "stop")
+    }
+
+    func testEditAffordanceGatedToOwnMastodonPosts() {
+        let store = AccountStore()
+        store.mastodonUsername = "me@h.io"
+        store.blueskyHandle = "me.bsky.social"
+        let panel = FeedPanelModel(target: .mastodon, store: store) { _, _ in FakeFeedService() }
+
+        let ownMastodon = TestFactory.feedPost(target: .mastodon, authorHandle: "@me@h.io")
+        let othersMastodon = TestFactory.feedPost(target: .mastodon, authorHandle: "@bob@h.io")
+        let ownBluesky = TestFactory.feedPost(target: .bluesky, authorHandle: "@me.bsky.social",
+                                              authorID: "me.bsky.social")
+
+        XCTAssertNotNil(postEditActions(for: ownMastodon, panel))    // editable
+        XCTAssertNil(postEditActions(for: othersMastodon, panel))    // not yours
+        XCTAssertNil(postEditActions(for: ownBluesky, panel))        // Bluesky has no edit
     }
 }

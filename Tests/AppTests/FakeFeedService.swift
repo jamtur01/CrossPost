@@ -64,7 +64,7 @@ final class FakeFeedService: FeedService, @unchecked Sendable {
     func profile(forURL url: URL) async throws -> Profile? { nil }
     func myProfile() async throws -> Profile { Self.profile("me") }
     func authorPosts(id: String) async throws -> [FeedPost] { feed }
-    func pinnedPosts(of id: String) async throws -> [FeedPost] { [] }
+    func pinnedPosts(of id: String) async throws -> [FeedPost] { feed.filter(\.isPinned) }
     func bookmarkedPosts() async throws -> [FeedPost] { feed.filter(\.isBookmarked) }
     func likedPosts() async throws -> [FeedPost] { feed.filter(\.isLiked) }
     func editableSource(of post: FeedPost) async throws -> EditableSource {
