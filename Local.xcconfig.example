@@ -8,11 +8,10 @@
 //      (Identity Type: Self Signed Root, Certificate Type: Code Signing).
 // 2. Copy this file:  cp Local.xcconfig.example Local.xcconfig
 // 3. Rebuild (./build.sh), launch, and click "Always Allow" once.
+//
+// Debug builds disable Hardened Runtime (see project.yml), so the self-signed
+// debug dylib loads despite having no Team ID — the full debug/preview build
+// keeps working. Release builds are unaffected.
 
 CODE_SIGN_STYLE = Manual
 CODE_SIGN_IDENTITY = CrossPost Local
-
-// Xcode 16 splits Debug builds into a launcher + CrossPost.debug.dylib. A
-// self-signed cert has no Team ID, so dyld refuses to load the dylib ("different
-// Team IDs") and the app won't open. Building a single binary avoids that.
-ENABLE_DEBUG_DYLIB = NO

@@ -37,9 +37,14 @@ targets:
       - package: ATProtoKit
     settings:
       base:
-        ENABLE_HARDENED_RUNTIME: YES
         CODE_SIGN_ENTITLEMENTS: CrossPost.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+      configs:
+        # Hardened Runtime is a distribution requirement; enforcing it on Debug
+        # makes a self-signed local build's library validation reject the
+        # (same-cert but Team-ID-less) debug dylib. Release keeps it for CI.
+        Release:
+          ENABLE_HARDENED_RUNTIME: YES
   CrossPostTests:
     type: bundle.unit-test
     platform: macOS
