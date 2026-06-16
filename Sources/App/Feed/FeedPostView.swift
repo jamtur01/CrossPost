@@ -30,8 +30,6 @@ struct FeedPostView: View {
     var inTimeline: Bool = true
     /// Detail (pop-out) view shows a bigger avatar and full-width media.
     var expanded: Bool = false
-    /// Highlighted as the keyboard-navigation selection.
-    var selected: Bool = false
 
     @State private var hovering = false
     @State private var reporting = false
@@ -335,7 +333,7 @@ struct FeedPostView: View {
 
     private var rowBackground: some View {
         Rectangle()
-            .fill(selected ? accent.opacity(0.10) : (hovering && inTimeline ? Theme.hoverFill : .clear))
+            .fill(hovering && inTimeline ? Theme.hoverFill : .clear)
             .animation(.easeOut(duration: 0.12), value: hovering)
     }
 }

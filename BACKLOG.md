@@ -59,9 +59,6 @@ Consciously scoped out for size; pick up next.
 
 ## Tier 4 — smaller UX niceties
 
-- [ ] **Keyboard navigation** — j/k row movement and shortcuts for like/reply/refresh
-      (compose/reply/edit/quote/report sheets now take `⌘↩`/Esc, but the feed has no
-      row navigation).
 - [ ] **Appearance settings** — text size, font, and a theme override (today
       follows system light/dark only; also an accessibility consideration).
 

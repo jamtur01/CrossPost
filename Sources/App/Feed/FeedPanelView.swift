@@ -6,7 +6,6 @@ struct FeedPanelView: View {
     @EnvironmentObject var store: AccountStore
     @State private var replyTarget: FeedPost?
     @State private var routes: [FeedRoute] = []
-    @State private var selectedID: String?      // keyboard-navigation selection
 
     private var accent: Color { model.target.accent }
     private static let topAnchor = "feed-top"
@@ -228,8 +227,7 @@ struct FeedPanelView: View {
                                     _ = try await model.quote(post: post, text: text, visibility: visibility)
                                 },
                                 onEdit: postEditActions(for: post, model),
-                                onCopyLink: { model.copyLink(post) },
-                                selected: selectedID == post.id)
+                                onCopyLink: { model.copyLink(post) })
                         }
                     }
                 }
@@ -239,34 +237,8 @@ struct FeedPanelView: View {
                         proxy.scrollTo(Self.topAnchor, anchor: .top)
                     }
                 }
-                // Keyboard navigation (when the feed has focus): j/k move the
-                // selection, l like, t repost, r reply, Return opens the thread,
-                // "." refreshes. Restricted to `.down` so a single press can't also
-                // fire on key-repeat and move (or like) twice.
-                .focusable()
-                .focusEffectDisabled()
-                .onKeyPress("j", phases: .down) { _ in moveSelection(down: true, proxy); return .handled }
-                .onKeyPress("k", phases: .down) { _ in moveSelection(down: false, proxy); return .handled }
-                .onKeyPress("l", phases: .down) { _ in withSelected { model.toggleLike($0) }; return .handled }
-                .onKeyPress("t", phases: .down) { _ in withSelected { model.toggleRepost($0) }; return .handled }
-                .onKeyPress("r", phases: .down) { _ in withSelected { replyTarget = $0 }; return .handled }
-                .onKeyPress(.return, phases: .down) { _ in withSelected { routes.append(.thread($0)) }; return .handled }
-                .onKeyPress(".", phases: .down) { _ in model.refresh(); return .handled }
             }
         }
-    }
-
-    private func moveSelection(down: Bool, _ proxy: ScrollViewProxy) {
-        let next = feedSelectionID(movingDown: down, from: selectedID, in: model.posts)
-        selectedID = next
-        // Minimal scroll to keep the selected row visible — no forced centering or
-        // animation, which jump and pile up under rapid presses.
-        if let next { proxy.scrollTo(next) }
-    }
-
-    private func withSelected(_ action: (FeedPost) -> Void) {
-        guard let selectedID, let post = model.posts.first(where: { $0.id == selectedID }) else { return }
-        action(post)
     }
 
     private func errorBanner(_ text: String) -> some View {
