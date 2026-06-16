@@ -25,6 +25,7 @@ struct EditSheet: View {
     var accent: Color = .accentColor
     let actions: PostEditActions
     let onClose: () -> Void
+    @EnvironmentObject private var store: AccountStore
 
     @State private var text = ""
     @State private var spoiler = ""
@@ -34,7 +35,9 @@ struct EditSheet: View {
     @State private var sent = false
     @State private var errorMessage: String?
 
-    private var limit: Int { TargetLimits.mastodonFallback }
+    private var limit: Int {
+        post.target == .bluesky ? TargetLimits.blueskyMax : store.mastodonMaxChars
+    }
     private var count: Int { PostValidator.graphemeCount(text) }
     private var counterColor: Color {
         if count > limit { return .red }
@@ -42,7 +45,7 @@ struct EditSheet: View {
         return .secondary
     }
     private var canSave: Bool {
-        !sending && !sent
+        !sending && !sent && count <= limit
             && (!text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !post.images.isEmpty)
     }
 

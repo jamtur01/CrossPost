@@ -7,6 +7,7 @@ struct QuoteSheet: View {
     var accent: Color = .accentColor
     let submit: (String, PostVisibility) async throws -> Void
     let onClose: () -> Void
+    @EnvironmentObject private var store: AccountStore
 
     @State private var text = ""
     @State private var visibility: PostVisibility = .public
@@ -15,7 +16,7 @@ struct QuoteSheet: View {
     @State private var errorMessage: String?
 
     private var limit: Int {
-        post.target == .bluesky ? TargetLimits.blueskyMax : TargetLimits.mastodonFallback
+        post.target == .bluesky ? TargetLimits.blueskyMax : store.mastodonMaxChars
     }
     private var count: Int { PostValidator.graphemeCount(text) }
     private var counterColor: Color {

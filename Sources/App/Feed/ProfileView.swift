@@ -22,6 +22,13 @@ struct ProfileView: View {
     private var accent: Color { panel.target.accent }
     private var accountID: String { profile?.id ?? ref.id }
 
+    /// The author's timeline minus any post already shown in the pinned section,
+    /// so the same id is never rendered twice in one container.
+    private var feedRows: [FeedPost] {
+        let pinnedIDs = Set(pinnedList.posts.map(\.id))
+        return list.posts.filter { !pinnedIDs.contains($0.id) }
+    }
+
     init(panel: FeedPanelModel, store: AccountStore, ref: ProfileRef,
          push: @escaping (FeedRoute) -> Void) {
         self.panel = panel
@@ -44,7 +51,7 @@ struct ProfileView: View {
                             postRow(row, in: pinnedList)
                         }
                     }
-                    ForEach(list.posts) { row in
+                    ForEach(feedRows) { row in
                         postRow(row, in: list)
                     }
                 }
