@@ -118,8 +118,10 @@ final class FakeFeedService: FeedService, @unchecked Sendable {
 
     func notifications() async throws -> [FeedNotification] { notificationsToReturn }
     func unreadNotificationCount() async throws -> Int { unread }
+    var failMarkRead = false
     func markNotificationsRead(upTo latest: FeedNotification?) async throws {
         markedReadCalls.append(latest)
+        if failMarkRead { throw FakeError.boom }
     }
 
     func deletePost(_ post: FeedPost) async throws {

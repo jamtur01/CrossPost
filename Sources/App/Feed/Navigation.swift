@@ -145,7 +145,9 @@ final class PostList {
                     posts[i] = updated
                 }
             } catch {
-                if let i = posts.firstIndex(where: { $0.id == post.id }), posts[i] == optimisticPost {
+                // Always revert a failed action by id (a concurrent refresh may have
+                // touched the row) so the optimistic state never sticks.
+                if let i = posts.firstIndex(where: { $0.id == post.id }) {
                     posts[i] = original
                 }
                 panel.reportActionError(error.userMessage)

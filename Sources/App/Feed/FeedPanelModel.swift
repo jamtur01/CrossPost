@@ -109,9 +109,14 @@ final class FeedPanelModel {
     }
 
     private func recomputeNewPostCount() {
-        guard let lastSeenTopID,
-              let index = posts.firstIndex(where: { $0.id == lastSeenTopID }) else { return }
-        newPostCount = index   // posts now sitting above the last one the user saw
+        guard let lastSeenTopID else { newPostCount = 0; return }
+        if let index = posts.firstIndex(where: { $0.id == lastSeenTopID }) {
+            newPostCount = index   // posts now sitting above the last one the user saw
+        } else {
+            // The seen anchor scrolled off the merge cap; re-seed to the new top so
+            // the count can't freeze at a stale value.
+            markCaughtUp()
+        }
     }
 
     func refresh() {
@@ -158,8 +163,13 @@ final class FeedPanelModel {
                 errorMessage = nil
                 notifications = fetched
                 refreshFollowStates(for: fetched, service: svc)
-                try? await svc.markNotificationsRead(upTo: fetched.first)
-                unreadCount = 0
+                // Only clear the badge once the server confirms the read; a failed
+                // mark must not falsely zero it. Cancel any in-flight unread fetch so
+                // a stale count can't resurrect the badge after we clear it.
+                if (try? await svc.markNotificationsRead(upTo: fetched.first)) != nil {
+                    unreadTask?.cancel()
+                    unreadCount = 0
+                }
             } else if kind == .messages {
                 let fetched = try await svc.conversations()
                 if Task.isCancelled { return }
@@ -566,7 +576,9 @@ final class FeedPanelModel {
                     posts[i] = updated
                 }
             } catch {
-                if let i = posts.firstIndex(where: { $0.id == post.id }), posts[i] == optimisticPost {
+                // Always revert a failed action by id, even if a concurrent merge
+                // touched the post meanwhile — otherwise the optimistic state sticks.
+                if let i = posts.firstIndex(where: { $0.id == post.id }) {
                     posts[i] = original
                 }
                 showActionError(error.userMessage)

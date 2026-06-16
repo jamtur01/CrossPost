@@ -372,6 +372,20 @@ final class FeedPanelModelTests: XCTestCase {
         XCTAssertEqual(pins.map(\.id), ["p1"])
     }
 
+    func testFailedReadMarkLeavesBadgeUncleared() async {
+        let fake = FakeFeedService()
+        fake.failMarkRead = true
+        fake.notificationsToReturn = [.fixture(id: "n1", date: Date(timeIntervalSince1970: 1))]
+        let model = makeModel(fake)
+        model.unreadCount = 3
+
+        model.switchTo(.notifications)
+        await waitUntil { !model.notifications.isEmpty }
+
+        XCTAssertEqual(model.unreadCount, 3, "a failed read-mark must not falsely clear the badge")
+        model.stop()
+    }
+
     // MARK: Search
 
     func testSearchForwardsQueryAndReturnsResults() async throws {

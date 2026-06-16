@@ -9,6 +9,7 @@ struct FeedPanelView: View {
 
     private var accent: Color { model.target.accent }
     private static let topAnchor = "feed-top"
+    private static let scrollSpace = "feed-scroll"
 
     // Messages is only available where the platform supports DMs (Bluesky for now).
     private var availableKinds: [FeedKind] {
@@ -202,6 +203,10 @@ struct FeedPanelView: View {
                 ScrollView {
                     LazyVStack(spacing: 0) {
                         Color.clear.frame(height: 0).id(Self.topAnchor)
+                            .background(GeometryReader { geo in
+                                Color.clear.preference(key: FeedTopOffsetKey.self,
+                                    value: geo.frame(in: .named(Self.scrollSpace)).minY)
+                            })
                         ForEach(model.posts) { post in
                             FeedPostView(
                                 post: post,
@@ -232,10 +237,16 @@ struct FeedPanelView: View {
                     }
                 }
                 .scrollContentBackground(.hidden)
+                .coordinateSpace(name: Self.scrollSpace)
                 .onChange(of: model.scrollToTopToken) {
                     withAnimation(.easeOut(duration: 0.25)) {
                         proxy.scrollTo(Self.topAnchor, anchor: .top)
                     }
+                }
+                .onPreferenceChange(FeedTopOffsetKey.self) { minY in
+                    // The top sentinel sitting at/near the viewport top means the
+                    // user has caught up, so clear (and re-seed) the new-posts count.
+                    if minY > -12 { model.markCaughtUp() }
                 }
                 .overlay(alignment: .top) {
                     if model.newPostCount > 0 { newPostsPill(proxy) }
@@ -311,4 +322,11 @@ struct FeedPanelView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity).padding()
     }
+}
+
+/// Reports the feed's top-sentinel offset within the scroll view, so the panel
+/// can tell when the user is at the top and clear the new-posts pill.
+private struct FeedTopOffsetKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
 }
