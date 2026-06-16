@@ -25,21 +25,21 @@ enum ImageProcessor {
         guard let image = NSImage(data: data) else { throw ProcessingError.decodeFailed }
 
         var scale = 1.0
-        for _ in 0..<8 {
+        var lastEncoded: Data?
+        // Shrink until a quality pass fits the budget. The factor and iteration
+        // count drive any realistic source well under the budget before the loop
+        // ends (0.75^16 ≈ 0.01), so an image can't fail mid-thread and strand
+        // already-published posts.
+        for _ in 0..<16 {
             for quality in stride(from: 0.9, through: 0.4, by: -0.1) {
-                if let encoded = encodeJPEG(image, scale: scale, quality: quality),
-                   encoded.count <= maxBytes {
-                    return encoded
-                }
+                guard let encoded = encodeJPEG(image, scale: scale, quality: quality) else { continue }
+                if encoded.count <= maxBytes { return encoded }
+                lastEncoded = encoded
             }
-            scale *= 0.8
+            scale *= 0.75
         }
-        // Last attempt at the smallest scale/quality.
-        if let encoded = encodeJPEG(image, scale: scale, quality: 0.4) {
-            if encoded.count <= maxBytes { return encoded }
-            throw ProcessingError.cannotFitBudget(bytes: encoded.count, budget: maxBytes)
-        }
-        throw ProcessingError.decodeFailed
+        // Unreachable for real images; surface a clear error rather than posting oversized.
+        throw ProcessingError.cannotFitBudget(bytes: lastEncoded?.count ?? 0, budget: maxBytes)
     }
 
     private static func encodeJPEG(_ image: NSImage, scale: Double, quality: Double) -> Data? {

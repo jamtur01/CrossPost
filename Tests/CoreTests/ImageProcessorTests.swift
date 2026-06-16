@@ -30,6 +30,15 @@ final class ImageProcessorTests: XCTestCase {
         XCTAssertEqual(Array(output.prefix(2)), [0xFF, 0xD8])
     }
 
+    func testLargeImageScalesUnderBudgetWithoutThrowing() throws {
+        // A large source must shrink to fit rather than fail (which mid-thread would
+        // strand already-published posts).
+        let output = try ImageProcessor.jpegUnderBudget(solidPNG(side: 3000),
+                                                        maxBytes: TargetLimits.blueskyImageBytes)
+        XCTAssertLessThanOrEqual(output.count, TargetLimits.blueskyImageBytes)
+        XCTAssertEqual(Array(output.prefix(2)), [0xFF, 0xD8])
+    }
+
     func testJpegUnderBudgetRejectsUndecodableInput() {
         XCTAssertThrowsError(try ImageProcessor.jpegUnderBudget(Data([0x00, 0x01])))
     }

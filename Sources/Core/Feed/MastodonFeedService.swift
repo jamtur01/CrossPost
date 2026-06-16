@@ -72,7 +72,7 @@ struct MastodonFeedService: FeedService {
     }
 
     func setLiked(_ liked: Bool, on post: FeedPost) async throws -> FeedPost {
-        guard case .mastodon(let id) = post.nativeRef else { return post }
+        guard case .mastodon(let id) = post.nativeRef else { throw FeedError.wrongPlatform }
         let updated = liked
             ? try await client.favouritePost(id: id)
             : try await client.unfavouritePost(id: id)
@@ -82,7 +82,7 @@ struct MastodonFeedService: FeedService {
     }
 
     func setReposted(_ reposted: Bool, on post: FeedPost) async throws -> FeedPost {
-        guard case .mastodon(let id) = post.nativeRef else { return post }
+        guard case .mastodon(let id) = post.nativeRef else { throw FeedError.wrongPlatform }
         let updated = reposted
             ? try await client.boostPost(id: id)
             : try await client.unboostPost(id: id)
@@ -211,7 +211,7 @@ struct MastodonFeedService: FeedService {
     }
 
     func setBookmarked(_ bookmarked: Bool, on post: FeedPost) async throws -> FeedPost {
-        guard case .mastodon(let id) = post.nativeRef else { return post }
+        guard case .mastodon(let id) = post.nativeRef else { throw FeedError.wrongPlatform }
         let updated = bookmarked
             ? try await client.bookmarkPost(id: id)
             : try await client.unbookmarkPost(id: id)
@@ -221,7 +221,7 @@ struct MastodonFeedService: FeedService {
     }
 
     func setPinned(_ pinned: Bool, on post: FeedPost) async throws -> FeedPost {
-        guard case .mastodon(let id) = post.nativeRef else { return post }
+        guard case .mastodon(let id) = post.nativeRef else { throw FeedError.wrongPlatform }
         let updated = pinned ? try await client.pinPost(id: id) : try await client.unpinPost(id: id)
         var copy = post
         copy.isPinned = updated.pinned ?? pinned

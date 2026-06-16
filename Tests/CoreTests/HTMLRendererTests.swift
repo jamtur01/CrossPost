@@ -22,6 +22,13 @@ final class HTMLRendererTests: XCTestCase {
         XCTAssertEqual(plain("a<br>b<br/>c"), "a\nb\nc")
     }
 
+    func testBrAndPWithAttributesBecomeBreaks() {
+        // A federated instance may emit <br>/<p> with attributes; these must still break.
+        XCTAssertEqual(plain("a<br class=\"x\">b"), "a\nb")
+        XCTAssertEqual(plain("<p dir=\"ltr\">one</p><p>two</p>"), "one\n\ntwo")
+        XCTAssertEqual(plain("a<BR />b"), "a\nb")
+    }
+
     func testDecodesEntities() {
         XCTAssertEqual(plain("Ben &amp; Jerry &lt;3 &#39;x&#39; &quot;y&quot;"),
                        "Ben & Jerry <3 'x' \"y\"")

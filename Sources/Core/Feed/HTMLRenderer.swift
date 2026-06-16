@@ -6,10 +6,12 @@ enum HTMLRenderer {
     /// href as `.link`), other tags stripped, entities decoded.
     static func renderAttributed(_ html: String) -> AttributedString {
         var s = html
-        s = s.replacingOccurrences(of: "</p>", with: "\n\n", options: .caseInsensitive)
-        s = s.replacingOccurrences(of: "<br>", with: "\n", options: .caseInsensitive)
-        s = s.replacingOccurrences(of: "<br/>", with: "\n", options: .caseInsensitive)
-        s = s.replacingOccurrences(of: "<br />", with: "\n", options: .caseInsensitive)
+        // Match the closing/self-closing tags tolerant of attributes and whitespace
+        // (e.g. a federated instance's `<br class="…">`), which a literal match misses.
+        s = s.replacingOccurrences(of: "</p\\s*>", with: "\n\n",
+                                   options: [.regularExpression, .caseInsensitive])
+        s = s.replacingOccurrences(of: "<br[^>]*>", with: "\n",
+                                   options: [.regularExpression, .caseInsensitive])
 
         var result = AttributedString()
         let nsInput = s as NSString

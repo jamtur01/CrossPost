@@ -126,7 +126,7 @@ struct BlueskyFeedService: FeedService {
     }
 
     func setLiked(_ liked: Bool, on post: FeedPost) async throws -> FeedPost {
-        guard case .bluesky(let uri, let cid, _, _) = post.nativeRef else { return post }
+        guard case .bluesky(let uri, let cid, _, _) = post.nativeRef else { throw FeedError.wrongPlatform }
         var copy = post
         if liked {
             let ref = ComAtprotoLexicon.Repository.StrongReference(recordURI: uri, cidHash: cid)
@@ -142,7 +142,7 @@ struct BlueskyFeedService: FeedService {
     }
 
     func setReposted(_ reposted: Bool, on post: FeedPost) async throws -> FeedPost {
-        guard case .bluesky(let uri, let cid, _, _) = post.nativeRef else { return post }
+        guard case .bluesky(let uri, let cid, _, _) = post.nativeRef else { throw FeedError.wrongPlatform }
         var copy = post
         if reposted {
             let ref = ComAtprotoLexicon.Repository.StrongReference(recordURI: uri, cidHash: cid)
@@ -319,7 +319,7 @@ struct BlueskyFeedService: FeedService {
     }
 
     func setBookmarked(_ bookmarked: Bool, on post: FeedPost) async throws -> FeedPost {
-        guard case .bluesky(let uri, let cid, _, _) = post.nativeRef else { return post }
+        guard case .bluesky(let uri, let cid, _, _) = post.nativeRef else { throw FeedError.wrongPlatform }
         if bookmarked {
             try await kit.createBookmark(uri: uri, cid: cid)
         } else {
@@ -633,7 +633,7 @@ struct BlueskyFeedService: FeedService {
                 ? p.author.displayName!
                 : p.author.actorHandle,
             authorHandle: "@\(p.author.actorHandle)",
-            authorID: p.author.actorHandle,
+            authorID: p.author.actorDID,   // stable id; profile + author-feed lookups accept the DID
             avatarURL: p.author.avatarImageURL,
             date: p.indexedAt,
             text: Self.attributedText(record),
