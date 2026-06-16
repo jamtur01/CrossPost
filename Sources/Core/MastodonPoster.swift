@@ -7,12 +7,10 @@ struct MastodonPoster: Poster, ThreadPublisher {
     let target: PostTarget = .mastodon
 
     private let client: TootClient
-    private let visibility: Post.Visibility
     private let imageLimit = ImageByteLimitCache()
 
-    init(client: TootClient, visibility: Post.Visibility = .public) {
+    init(client: TootClient) {
         self.client = client
-        self.visibility = visibility
     }
 
     func post(thread: [DraftPost]) async throws -> [PostedItem] {
@@ -28,13 +26,18 @@ struct MastodonPoster: Poster, ThreadPublisher {
         let maxBytes = draft.attachments.isEmpty ? 0 : await imageLimit.get(client)
         let mediaIds = try await client.uploadJPEGImages(draft.attachments, maxBytes: maxBytes)
 
-        var params = PostParams(post: draft.text, visibility: visibility)
+        var params = PostParams(post: draft.text, visibility: draft.visibility.tootVisibility)
         if !mediaIds.isEmpty { params.mediaIds = mediaIds }
         if let parent { params.inReplyToId = parent } // Mastodon threads by parent chain only
 
         let post = try await client.publishPost(params)
         return (ref: post.id, item: PostedItem(url: post.url))
     }
+}
+
+extension PostVisibility {
+    /// Maps onto TootSDK's visibility type; the raw strings are identical.
+    var tootVisibility: Post.Visibility { Post.Visibility(rawValue: rawValue) ?? .public }
 }
 
 extension TootClient {

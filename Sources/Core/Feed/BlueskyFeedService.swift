@@ -157,7 +157,8 @@ struct BlueskyFeedService: FeedService {
         return copy
     }
 
-    func reply(to post: FeedPost, text: String, images: [Attachment]) async throws -> PostedItem {
+    func reply(to post: FeedPost, text: String, images: [Attachment],
+               visibility _: PostVisibility) async throws -> PostedItem {
         guard case .bluesky(let uri, let cid, let rootURI, let rootCID) = post.nativeRef else {
             throw FeedError.wrongPlatform
         }

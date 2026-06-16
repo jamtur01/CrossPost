@@ -87,6 +87,16 @@ struct ComposeColumnView: View {
                 Text(error).font(.caption).foregroundStyle(.red)
             }
 
+            if model.selectedTargets.contains(.mastodon) {
+                HStack(spacing: 6) {
+                    Image(systemName: PostTarget.mastodon.glyph)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                    VisibilityMenu(visibility: $model.visibility, accent: PostTarget.mastodon.accent)
+                    Spacer()
+                }
+            }
+
             HStack(spacing: 8) {
                 Spacer(minLength: 0)
                 ForEach(PostTarget.allCases) { target in

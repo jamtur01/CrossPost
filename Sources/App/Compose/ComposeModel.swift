@@ -6,6 +6,8 @@ import SwiftUI
 final class ComposeModel {
     var thread: [DraftPost] = [DraftPost()]
     var selectedTargets: Set<PostTarget> = [.mastodon, .bluesky]
+    /// Mastodon visibility applied to every post in the thread at submit; Bluesky ignores it.
+    var visibility: PostVisibility = .public
     var isPosting = false
     var blockedIssues: [ValidationIssue]?
     var errorMessage: String?
@@ -69,13 +71,21 @@ final class ComposeModel {
 
         let targets = PostTarget.allCases.filter { selectedTargets.contains($0) }
 
+        // Stamp the chosen visibility onto every post in the thread (Mastodon honors
+        // it; Bluesky ignores it) so the picker is the single source of truth.
+        let outgoing = thread.map { draft in
+            var draft = draft
+            draft.visibility = visibility
+            return draft
+        }
+
         // Validate up front so length/empty errors abort before any network connection.
-        let issues = PostValidator.validate(thread: thread, targets: targets, limits: store.limits)
+        let issues = PostValidator.validate(thread: outgoing, targets: targets, limits: store.limits)
         guard issues.isEmpty else { blockedIssues = issues; return }
 
         do {
             let posters = try await makePosters(targets, store)
-            let outcome = await coordinator.publish(thread: thread, to: targets,
+            let outcome = await coordinator.publish(thread: outgoing, to: targets,
                                                     using: posters, limits: store.limits)
             switch outcome {
             case .blocked(let issues): blockedIssues = issues

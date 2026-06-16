@@ -6,7 +6,10 @@ protocol FeedService: Sendable {
     func loadFeed(_ kind: FeedKind) async throws -> [FeedPost]
     func setLiked(_ liked: Bool, on post: FeedPost) async throws -> FeedPost
     func setReposted(_ reposted: Bool, on post: FeedPost) async throws -> FeedPost
-    func reply(to post: FeedPost, text: String, images: [Attachment]) async throws -> PostedItem
+    /// Reply to a post. `visibility` applies to Mastodon (defaulting to the
+    /// parent's, so a reply never widens its audience); Bluesky ignores it.
+    func reply(to post: FeedPost, text: String, images: [Attachment],
+               visibility: PostVisibility) async throws -> PostedItem
     /// The surrounding thread (ancestors + replies) for the post's detail view.
     func thread(of post: FeedPost) async throws -> PostThread
     /// Profile details for a user (`id` = Mastodon account id / Bluesky handle).

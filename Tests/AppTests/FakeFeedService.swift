@@ -45,7 +45,8 @@ final class FakeFeedService: FeedService, @unchecked Sendable {
         return copy
     }
 
-    func reply(to post: FeedPost, text: String, images: [Attachment]) async throws -> PostedItem {
+    func reply(to post: FeedPost, text: String, images: [Attachment],
+               visibility: PostVisibility) async throws -> PostedItem {
         PostedItem(url: "https://example/reply")
     }
     func thread(of post: FeedPost) async throws -> PostThread { PostThread(ancestors: [], descendants: []) }

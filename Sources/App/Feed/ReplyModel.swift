@@ -7,6 +7,9 @@ final class ReplyModel {
     let post: FeedPost
     var text: String = ""
     var attachments: [Attachment] = []
+    /// Mastodon reply visibility, seeded from the parent so it never widens the
+    /// audience by default. Unused for Bluesky.
+    var visibility: PostVisibility
     var isSending = false
     var blockedIssues: [ValidationIssue]?
     var errorMessage: String?
@@ -22,6 +25,7 @@ final class ReplyModel {
         self.store = store
         self.makeService = makeService
         self.text = Self.prefill(for: post, store: store)
+        self.visibility = PostVisibility(mastodon: post.visibility) ?? .public
     }
 
     /// Mastodon needs the people a reply addresses named in the body to mention and
@@ -69,7 +73,8 @@ final class ReplyModel {
         }
         do {
             let service = try await makeService(post.target, store)
-            let item = try await service.reply(to: post, text: text, images: attachments)
+            let item = try await service.reply(to: post, text: text, images: attachments,
+                                               visibility: visibility)
             postedURL = item.url ?? "Sent."
             // Refresh the panel for this platform so the reply shows up.
             NotificationCenter.default.post(name: .crossPostDidPost, object: nil,

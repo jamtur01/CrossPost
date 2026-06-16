@@ -91,7 +91,8 @@ struct MastodonFeedService: FeedService {
         return copy
     }
 
-    func reply(to post: FeedPost, text: String, images: [Attachment]) async throws -> PostedItem {
+    func reply(to post: FeedPost, text: String, images: [Attachment],
+               visibility: PostVisibility) async throws -> PostedItem {
         guard case .mastodon(let id) = post.nativeRef else {
             throw FeedError.wrongPlatform
         }
@@ -102,11 +103,10 @@ struct MastodonFeedService: FeedService {
         }
         let maxBytes = images.isEmpty ? 0 : await client.mastodonImageByteLimit()
         let mediaIds = try await client.uploadJPEGImages(images, maxBytes: maxBytes)
-        // Inherit the parent's visibility (a public reply to a private post would
-        // leak it) and its content warning. Default to unlisted if unknown.
-        let visibility = post.visibility.flatMap(Post.Visibility.init(rawValue:)) ?? .unlisted
+        // Carry the parent's content warning forward; the caller seeds visibility
+        // from the parent so a reply never widens its audience.
         let spoiler = (post.spoilerText?.isEmpty == false) ? post.spoilerText : nil
-        var params = PostParams(post: text, visibility: visibility, spoilerText: spoiler)
+        var params = PostParams(post: text, visibility: visibility.tootVisibility, spoilerText: spoiler)
         if !mediaIds.isEmpty { params.mediaIds = mediaIds }
         params.inReplyToId = id
         params.sensitive = post.isSensitive

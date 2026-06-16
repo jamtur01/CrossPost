@@ -59,6 +59,10 @@ struct ReplySheet: View {
                       ? "Maximum \(TargetLimits.imageMax) images"
                       : "Add image")
 
+                if model.post.target == .mastodon {
+                    VisibilityMenu(visibility: $model.visibility, accent: accent)
+                }
+
                 Spacer()
 
                 Text("\(model.count)/\(model.limit)")
