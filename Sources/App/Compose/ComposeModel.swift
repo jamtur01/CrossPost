@@ -83,6 +83,14 @@ final class ComposeModel {
         let issues = PostValidator.validate(thread: outgoing, targets: targets, limits: store.limits)
         guard issues.isEmpty else { blockedIssues = issues; return }
 
+        // Reject an unreadable image before posting so it can't strand a thread mid-publish.
+        if let badIndex = outgoing.firstIndex(where: {
+            $0.attachments.contains { !ImageProcessor.canDecode($0.imageData) }
+        }) {
+            errorMessage = "Post \(badIndex + 1) has an image that can't be read. Remove it and try again."
+            return
+        }
+
         do {
             let posters = try await makePosters(targets, store)
             let outcome = await coordinator.publish(thread: outgoing, to: targets,

@@ -188,6 +188,21 @@ final class ComposeModelTests: XCTestCase {
         XCTAssertEqual(masto.postedThreads.first?.first?.visibility, .public)
     }
 
+    func testSubmitRejectsUnreadableImageBeforePosting() async {
+        let recorder = PosterRecorder()
+        let masto = FakePoster(target: .mastodon)
+        recorder.postersByTarget = [.mastodon: masto]
+        let model = model(with: recorder)
+        model.toggle(.bluesky)                                   // Mastodon only
+        model.thread[0].text = "hi"
+        model.thread[0].attachments = [Attachment(imageData: Data([0x00, 0x01]))]   // not an image
+
+        await model.submit()
+
+        XCTAssertNotNil(model.errorMessage)
+        XCTAssertTrue(masto.postedThreads.isEmpty, "an unreadable image must abort before any post")
+    }
+
     func testSuccessClearsDraftAndPostsRefreshNotificationOnce() async {
         let recorder = PosterRecorder()
         let model = model(with: recorder)

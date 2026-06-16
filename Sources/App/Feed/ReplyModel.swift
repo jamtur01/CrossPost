@@ -71,6 +71,10 @@ final class ReplyModel {
             blockedIssues = issues
             return false
         }
+        if attachments.contains(where: { !ImageProcessor.canDecode($0.imageData) }) {
+            errorMessage = "An image can't be read. Remove it and try again."
+            return false
+        }
         do {
             let service = try await makeService(post.target, store)
             let item = try await service.reply(to: post, text: text, images: attachments,

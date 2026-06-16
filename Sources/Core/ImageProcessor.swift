@@ -18,6 +18,12 @@ enum ImageProcessor {
         var errorDescription: String? { description }
     }
 
+    /// Whether `data` is a decodable image. Used to reject a corrupt attachment
+    /// up front, before any post in a thread is published.
+    static func canDecode(_ data: Data) -> Bool {
+        NSImage(data: data) != nil
+    }
+
     /// Re-encode `data` as JPEG no larger than `maxBytes`, scaling down if needed.
     /// `maxBytes` defaults to Bluesky's per-image limit; Mastodon passes its own.
     static func jpegUnderBudget(_ data: Data,
