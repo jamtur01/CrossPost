@@ -29,7 +29,7 @@ struct QuoteSheet: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
                 Circle().fill(accent).frame(width: 9, height: 9)
-                Text("Quote on \(post.target.displayName)").font(.headline)
+                Text("Quote on \(post.target.displayName)").font(Theme.columnTitle)
             }
 
             PlainTextEditor(text: $text)
@@ -68,14 +68,17 @@ struct QuoteSheet: View {
                         .font(.callout).foregroundStyle(.green)
                 }
                 Spacer()
-                Button("Cancel", action: onClose).disabled(sending || sent)
+                Button("Cancel", action: onClose)
+                    .keyboardShortcut(.cancelAction)
+                    .disabled(sending || sent)
                 Button(sending ? "Posting…" : "Quote") { send() }
                     .buttonStyle(.borderedProminent)
+                    .keyboardShortcut(.return, modifiers: .command)
                     .disabled(sending || sent || count > limit)
             }
         }
         .padding(20)
-        .frame(width: 420)
+        .frame(width: Theme.sheetWidth)
     }
 
     private var quotedPreview: some View {

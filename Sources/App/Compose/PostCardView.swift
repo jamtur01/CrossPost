@@ -90,7 +90,7 @@ struct PostCardView: View {
                                     .scaledToFill()
                                     .frame(width: 80, height: 80)
                                     .clipped()
-                                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                                    .clipShape(RoundedRectangle(cornerRadius: Theme.mediaCorner, style: .continuous))
                             }
                             Button(role: .destructive) {
                                 removeAttachment(id: attachment.id)

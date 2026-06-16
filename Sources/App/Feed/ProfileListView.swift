@@ -21,9 +21,7 @@ struct ProfileListView: View {
                     ProgressView().controlSize(.small)
                         .frame(maxWidth: .infinity).padding(.vertical, 24)
                 } else if profiles.isEmpty {
-                    Text("No one here yet")
-                        .font(Theme.meta).foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity).padding(.vertical, 40)
+                    EmptyStateView(text: "No one here yet", systemImage: "person.2", fills: false)
                 }
             }
         }
@@ -51,7 +49,7 @@ struct ProfileListView: View {
                 } placeholder: {
                     Circle().fill(.quaternary)
                 }
-                .frame(width: 42, height: 42)
+                .frame(width: Theme.avatarSmall, height: Theme.avatarSmall)
                 .clipShape(Circle())
                 .overlay(Circle().strokeBorder(Theme.avatarRing, lineWidth: 0.5))
 
@@ -66,6 +64,7 @@ struct ProfileListView: View {
             }
             .padding(.horizontal, Theme.rowPaddingH).padding(.vertical, 10)
             .contentShape(Rectangle())
+            .hoverHighlight()
         }
         .buttonStyle(.plain)
     }

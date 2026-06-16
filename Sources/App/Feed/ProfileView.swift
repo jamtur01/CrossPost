@@ -58,6 +58,8 @@ struct ProfileView: View {
                 if loading {
                     ProgressView().controlSize(.small)
                         .frame(maxWidth: .infinity).padding(.vertical, 24)
+                } else if pinnedList.posts.isEmpty && feedRows.isEmpty {
+                    EmptyStateView(text: "No posts yet", systemImage: "text.bubble", fills: false)
                 }
             }
         }
@@ -215,7 +217,7 @@ struct ProfileView: View {
     private var pinnedHeader: some View {
         HStack(spacing: 6) {
             Image(systemName: "pin.fill").font(.system(size: 10))
-            Text("Pinned").font(.system(size: 11, weight: .semibold))
+            Text("Pinned").font(Theme.sectionHeader)
         }
         .foregroundStyle(.secondary)
         .frame(maxWidth: .infinity, alignment: .leading)

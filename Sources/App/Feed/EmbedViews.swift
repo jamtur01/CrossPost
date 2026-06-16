@@ -102,7 +102,7 @@ struct QuoteCardView: View {
                         }
                         .frame(height: 120)
                         .frame(maxWidth: .infinity)
-                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .clipShape(RoundedRectangle(cornerRadius: Theme.mediaCorner, style: .continuous))
                     }
                 }
                 .padding(10)

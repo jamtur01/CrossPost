@@ -316,11 +316,7 @@ struct FeedPanelView: View {
     }
 
     private func emptyState(_ text: String, systemImage: String) -> some View {
-        VStack(spacing: 8) {
-            Image(systemName: systemImage).font(.largeTitle).foregroundStyle(.secondary)
-            Text(text).font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity).padding()
+        EmptyStateView(text: text, systemImage: systemImage)
     }
 }
 

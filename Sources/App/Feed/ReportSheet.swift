@@ -18,7 +18,7 @@ struct ReportSheet: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
                 Image(systemName: "flag").foregroundStyle(accent)
-                Text("Report \(subjectLabel)").font(.headline)
+                Text("Report \(subjectLabel)").font(Theme.columnTitle)
             }
 
             Text("Reason").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
@@ -47,14 +47,17 @@ struct ReportSheet: View {
                         .font(.callout).foregroundStyle(.green)
                 }
                 Spacer()
-                Button("Cancel", action: onClose).disabled(sending || sent)
+                Button("Cancel", action: onClose)
+                    .keyboardShortcut(.cancelAction)
+                    .disabled(sending || sent)
                 Button(sending ? "Reporting…" : "Report", role: .destructive) { send() }
                     .buttonStyle(.borderedProminent)
+                    .keyboardShortcut(.return, modifiers: .command)
                     .disabled(sending || sent)
             }
         }
         .padding(20)
-        .frame(width: 380)
+        .frame(width: Theme.sheetWidth)
     }
 
     private func send() {

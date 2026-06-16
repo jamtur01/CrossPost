@@ -17,7 +17,7 @@ struct ReplySheet: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
                 Circle().fill(accent).frame(width: 9, height: 9)
-                Text("Reply on \(model.post.target.displayName)").font(.headline)
+                Text("Reply on \(model.post.target.displayName)").font(Theme.columnTitle)
             }
 
             HStack(alignment: .top, spacing: 0) {
@@ -90,7 +90,9 @@ struct ReplySheet: View {
                         .font(.callout).foregroundStyle(.green)
                 }
                 Spacer()
-                Button("Cancel", action: onClose).disabled(justSent || model.isSending)
+                Button("Cancel", action: onClose)
+                    .keyboardShortcut(.cancelAction)
+                    .disabled(justSent || model.isSending)
                 Button(model.isSending ? "Sending…" : "Reply") {
                     Task {
                         guard await model.send() else { return }
@@ -100,11 +102,12 @@ struct ReplySheet: View {
                     }
                 }
                 .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.return, modifiers: .command)
                 .disabled(!model.canSend || justSent)
             }
         }
         .padding(20)
-        .frame(width: 420)
+        .frame(width: Theme.sheetWidth)
     }
 
     private var attachments: some View {

@@ -53,7 +53,7 @@ struct EditSheet: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
                 Image(systemName: "pencil").foregroundStyle(accent)
-                Text("Edit post").font(.headline)
+                Text("Edit post").font(Theme.columnTitle)
             }
 
             if loading {
@@ -73,14 +73,17 @@ struct EditSheet: View {
                         .font(.callout).foregroundStyle(.green)
                 }
                 Spacer()
-                Button("Cancel", action: onClose).disabled(sending || sent)
+                Button("Cancel", action: onClose)
+                    .keyboardShortcut(.cancelAction)
+                    .disabled(sending || sent)
                 Button(sending ? "Saving…" : "Save") { save() }
                     .buttonStyle(.borderedProminent)
+                    .keyboardShortcut(.return, modifiers: .command)
                     .disabled(!canSave)
             }
         }
         .padding(20)
-        .frame(width: 420)
+        .frame(width: Theme.sheetWidth)
         .task {
             do {
                 let source = try await actions.load()

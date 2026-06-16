@@ -34,6 +34,7 @@ enum Theme {
     static let context = Font.system(size: 12, weight: .medium)       // "boosted" / "in reply"
     static let action = Font.system(size: 13.5)
     static let count = Font.system(size: 12.5).monospacedDigit()
+    static let sectionHeader = Font.system(size: 11, weight: .semibold) // "People" / "Pinned"
 
     // Metrics (8pt-ish grid)
     static let rowPaddingH: CGFloat = 16
@@ -43,10 +44,12 @@ enum Theme {
     static let gutter: CGFloat = 10                                   // avatar → content
     static let actionGap: CGFloat = 20                               // between action buttons
     static let avatar: CGFloat = 44
+    static let avatarSmall: CGFloat = 42                              // list rows (search/followers)
     static let avatarLarge: CGFloat = 54
     static let cardCorner: CGFloat = 12
     static let mediaCorner: CGFloat = 10
     static let bodyLineSpacing: CGFloat = 3
+    static let sheetWidth: CGFloat = 420
 
     // Surfaces — hierarchy through subtle fills + hairlines, never loud borders.
     static let hairline = Color.primary.opacity(0.07)

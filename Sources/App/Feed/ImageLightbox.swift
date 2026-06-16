@@ -52,21 +52,27 @@ struct ImageLightboxOverlay: View {
     private func image(_ item: ImageLightbox.Item, in size: CGSize) -> some View {
         if item.isCircular {
             let side = min(size.width, size.height) * 0.72
-            AsyncImage(url: item.url) { img in
-                img.resizable().scaledToFill()
-            } placeholder: {
-                ProgressView().controlSize(.large).tint(.white)
-            }
-            .frame(width: side, height: side)
-            .clipShape(Circle())
+            AsyncImage(url: item.url) { phase in phaseContent(phase, fill: true) }
+                .frame(width: side, height: side)
+                .clipShape(Circle())
         } else {
-            AsyncImage(url: item.url) { img in
-                img.resizable().scaledToFit()
-            } placeholder: {
-                ProgressView().controlSize(.large).tint(.white)
-            }
-            .frame(maxWidth: size.width * 0.92, maxHeight: size.height * 0.92)
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            AsyncImage(url: item.url) { phase in phaseContent(phase, fill: false) }
+                .frame(maxWidth: size.width * 0.92, maxHeight: size.height * 0.92)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+    }
+
+    @ViewBuilder
+    private func phaseContent(_ phase: AsyncImagePhase, fill: Bool) -> some View {
+        switch phase {
+        case .success(let img):
+            img.resizable().aspectRatio(contentMode: fill ? .fill : .fit)
+        case .failure:
+            Image(systemName: "photo.badge.exclamationmark")
+                .font(.system(size: 40)).foregroundStyle(.white.opacity(0.7))
+                .accessibilityLabel("Image failed to load")
+        default:
+            ProgressView().controlSize(.large).tint(.white)
         }
     }
 }

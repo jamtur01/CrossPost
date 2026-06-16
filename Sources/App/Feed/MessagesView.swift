@@ -29,11 +29,7 @@ struct MessagesListView: View {
     }
 
     private func emptyState(_ symbol: String, _ text: String) -> some View {
-        VStack(spacing: 8) {
-            Image(systemName: symbol).font(.largeTitle).foregroundStyle(.secondary)
-            Text(text).font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity).padding()
+        EmptyStateView(text: text, systemImage: symbol)
     }
 
     private func row(_ convo: Conversation) -> some View {
@@ -158,7 +154,7 @@ struct ConversationView: View {
                             in: RoundedRectangle(cornerRadius: 15, style: .continuous))
                 .frame(maxWidth: 260, alignment: .leading)
             Text(message.date, format: .dateTime.hour().minute())
-                .font(.system(size: 9)).foregroundStyle(.tertiary)
+                .font(.system(size: 11)).foregroundStyle(.tertiary)
                 .padding(.horizontal, 4)
         }
         .frame(maxWidth: .infinity, alignment: message.isFromMe ? .trailing : .leading)
@@ -185,6 +181,7 @@ struct ConversationView: View {
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(accent)
+                .accessibilityLabel("Send message")
                 .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || sending)
             }
             .padding(10)

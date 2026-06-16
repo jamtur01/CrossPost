@@ -12,11 +12,7 @@ struct NotificationsListView: View {
         if model.notifications.isEmpty && model.isLoading {
             VStack { Spacer(); ProgressView(); Spacer() }
         } else if model.notifications.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "bell").font(.largeTitle).foregroundStyle(.secondary)
-                Text("No notifications yet").font(.callout).foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity).padding()
+            EmptyStateView(text: "No notifications yet", systemImage: "bell")
         } else {
             ScrollView {
                 LazyVStack(spacing: 0) {

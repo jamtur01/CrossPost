@@ -74,11 +74,6 @@ struct SavedPostsView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: 8) {
-            Image(systemName: kind.icon).font(.largeTitle).foregroundStyle(.secondary)
-            Text("No \(kind.title.lowercased()) yet")
-                .font(.callout).foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity).padding(.vertical, 48)
+        EmptyStateView(text: "No \(kind.title.lowercased()) yet", systemImage: kind.icon, fills: false)
     }
 }

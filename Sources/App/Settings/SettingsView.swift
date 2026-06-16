@@ -8,6 +8,8 @@ struct SettingsView: View {
     @State private var blueskyPassword: String = ""
     @State private var status: String = ""
     @State private var statusIsError: Bool = false
+    @State private var verifyingMastodon = false
+    @State private var verifyingBluesky = false
 
     var body: some View {
         Form {
@@ -15,7 +17,8 @@ struct SettingsView: View {
                 TextField("Instance URL", text: $mastodonInstanceURL)
                     .textContentType(.URL)
                 SecureField("Access token", text: $mastodonToken)
-                verifyButton(title: "Verify & Save Mastodon", ready: mastodonReady) {
+                verifyButton(title: "Verify & Save Mastodon", ready: mastodonReady,
+                             verifying: verifyingMastodon) {
                     await verifyMastodon()
                 }
             }
@@ -23,7 +26,8 @@ struct SettingsView: View {
             Section("Bluesky") {
                 TextField("Handle (e.g. you.bsky.social)", text: $blueskyHandle)
                 SecureField("App password", text: $blueskyPassword)
-                verifyButton(title: "Verify & Save Bluesky", ready: blueskyReady) {
+                verifyButton(title: "Verify & Save Bluesky", ready: blueskyReady,
+                             verifying: verifyingBluesky) {
                     await verifyBluesky()
                 }
             }
@@ -65,10 +69,15 @@ struct SettingsView: View {
     }
 
     @ViewBuilder
-    private func verifyButton(title: String, ready: Bool,
+    private func verifyButton(title: String, ready: Bool, verifying: Bool,
                               action: @escaping () async -> Void) -> some View {
-        let button = Button(title) { Task { await action() } }
-            .disabled(!ready)
+        let button = Button { Task { await action() } } label: {
+            HStack(spacing: 6) {
+                if verifying { ProgressView().controlSize(.small) }
+                Text(verifying ? "Verifying…" : title)
+            }
+        }
+        .disabled(!ready || verifying)
         if ready {
             button.buttonStyle(.borderedProminent)
         } else {
@@ -87,6 +96,8 @@ struct SettingsView: View {
     }
 
     private func verifyMastodon() async {
+        verifyingMastodon = true
+        defer { verifyingMastodon = false }
         do {
             let verified = try await PosterFactory.makeMastodon(
                 instanceURL: mastodonInstanceURL,
@@ -106,6 +117,8 @@ struct SettingsView: View {
     }
 
     private func verifyBluesky() async {
+        verifyingBluesky = true
+        defer { verifyingBluesky = false }
         do {
             _ = try await PosterFactory.makeBluesky(handle: blueskyHandle, appPassword: blueskyPassword)
             try store.saveBluesky(handle: blueskyHandle, appPassword: blueskyPassword)

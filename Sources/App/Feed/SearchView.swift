@@ -50,6 +50,7 @@ struct SearchView: View {
                     Image(systemName: "xmark.circle.fill").foregroundStyle(.tertiary)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Clear search")
             }
             if searching { ProgressView().controlSize(.small).scaleEffect(0.7) }
         }
@@ -87,7 +88,7 @@ struct SearchView: View {
 
     private func sectionHeader(_ title: String) -> some View {
         Text(title)
-            .font(.system(size: 11, weight: .semibold))
+            .font(Theme.sectionHeader)
             .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, Theme.rowPaddingH).padding(.top, 10).padding(.bottom, 3)
@@ -102,7 +103,7 @@ struct SearchView: View {
                 AsyncImage(url: profile.avatarURL) { img in
                     img.resizable().scaledToFill()
                 } placeholder: { Circle().fill(.quaternary) }
-                .frame(width: 42, height: 42)
+                .frame(width: Theme.avatarSmall, height: Theme.avatarSmall)
                 .clipShape(Circle())
                 .overlay(Circle().strokeBorder(Theme.avatarRing, lineWidth: 0.5))
 
@@ -117,6 +118,7 @@ struct SearchView: View {
             }
             .padding(.horizontal, Theme.rowPaddingH).padding(.vertical, 10)
             .contentShape(Rectangle())
+            .hoverHighlight()
         }
         .buttonStyle(.plain)
     }
@@ -150,11 +152,7 @@ struct SearchView: View {
     }
 
     private func message(_ text: String, systemImage: String) -> some View {
-        VStack(spacing: 8) {
-            Image(systemName: systemImage).font(.largeTitle).foregroundStyle(.secondary)
-            Text(text).font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity).padding()
+        EmptyStateView(text: text, systemImage: systemImage)
     }
 
     /// Debounce: cancel any pending search and run a new one ~300ms after typing stops.
