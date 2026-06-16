@@ -5,6 +5,25 @@ All notable changes to CrossPost are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.10] - 2026-06-16
+
+### Fixed
+
+- Posting several images to Mastodon at once is more reliable — images are now
+  processed one at a time before uploading, avoiding an intermittent failure.
+- A profile whose pinned posts fail to load now still shows the timeline instead
+  of an error.
+
+### Changed
+
+- Tab in the compose box moves to the next control instead of inserting a tab
+  character.
+
+### Removed
+
+- The "new posts" indicator pill, which could show a count that didn't match the
+  already-updated feed.
+
 ## [0.4.9] - 2026-06-16
 
 ### Added
