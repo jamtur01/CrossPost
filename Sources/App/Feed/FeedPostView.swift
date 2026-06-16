@@ -22,6 +22,8 @@ struct FeedPostView: View {
     var onReport: ((ReportReason, String) async throws -> Void)?
     /// Posts a quote of this post; when nil, the Quote menu item is hidden.
     var onQuote: ((String, PostVisibility) async throws -> Void)?
+    /// Edits this post; when nil, the Edit menu item is hidden (Mastodon only).
+    var onEdit: PostEditActions?
     var showActions: Bool = true
     /// Timeline rows get hover highlight + a separator; sheet/detail views don't.
     var inTimeline: Bool = true
@@ -31,6 +33,7 @@ struct FeedPostView: View {
     @State private var hovering = false
     @State private var reporting = false
     @State private var quoting = false
+    @State private var editing = false
     // Optional: present where no lightbox is installed (e.g. preview/sheet contexts)
     // simply leaves images non-poppable rather than crashing.
     @Environment(ImageLightbox.self) private var lightbox: ImageLightbox?
@@ -67,6 +70,11 @@ struct FeedPostView: View {
         .sheet(isPresented: $quoting) {
             if let onQuote {
                 QuoteSheet(post: post, accent: accent, submit: onQuote) { quoting = false }
+            }
+        }
+        .sheet(isPresented: $editing) {
+            if let onEdit {
+                EditSheet(post: post, accent: accent, actions: onEdit) { editing = false }
             }
         }
     }
@@ -255,6 +263,9 @@ struct FeedPostView: View {
             Button(action: onOpen) { Label("Open in Browser", systemImage: "safari") }
             if isMine {
                 if post.target == .mastodon {
+                    if onEdit != nil {
+                        Button { editing = true } label: { Label("Edit…", systemImage: "pencil") }
+                    }
                     Button(action: onPin) {
                         Label(post.isPinned ? "Unpin" : "Pin to Profile", systemImage: "pin")
                     }

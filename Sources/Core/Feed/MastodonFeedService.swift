@@ -182,6 +182,26 @@ struct MastodonFeedService: FeedService {
         _ = try await client.deletePost(id: id)
     }
 
+    func editableSource(of post: FeedPost) async throws -> EditableSource {
+        guard case .mastodon(let id) = post.nativeRef else { throw FeedError.wrongPlatform }
+        let source = try await client.getPostSource(id: id)
+        return EditableSource(text: source.text, spoiler: source.spoilerText)
+    }
+
+    func edit(post: FeedPost, text: String, spoiler: String) async throws -> FeedPost {
+        guard case .mastodon(let id) = post.nativeRef else { throw FeedError.wrongPlatform }
+        // Re-attach the post's existing media (and keep its sensitivity) so an
+        // edit to the text alone never drops the images.
+        let current = try await client.getPost(id: id)
+        var params = EditPostParams(post: text)
+        params.spoilerText = spoiler.isEmpty ? nil : spoiler
+        params.sensitive = post.isSensitive
+        let mediaIds = current.mediaAttachments.map(\.id)
+        if !mediaIds.isEmpty { params.mediaIds = mediaIds }
+        let updated = try await client.editPost(id: id, params)
+        return Self.feedPost(from: updated)
+    }
+
     func setBookmarked(_ bookmarked: Bool, on post: FeedPost) async throws -> FeedPost {
         guard case .mastodon(let id) = post.nativeRef else { return post }
         let updated = bookmarked

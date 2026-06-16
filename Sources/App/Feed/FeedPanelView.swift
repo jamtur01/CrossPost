@@ -221,7 +221,8 @@ struct FeedPanelView: View {
                                 },
                                 onQuote: { text, visibility in
                                     try await model.quote(post: post, text: text, visibility: visibility)
-                                })
+                                },
+                                onEdit: postEditActions(for: post, model))
                         }
                     }
                 }

@@ -1,5 +1,12 @@
 import Foundation
 
+/// The editable source of a post: the raw text and content warning, before the
+/// server renders them to HTML/rich text.
+struct EditableSource: Sendable, Equatable {
+    let text: String
+    let spoiler: String
+}
+
 /// A platform's feed: load posts, toggle like/repost, and reply to one post.
 /// `setLiked`/`setReposted` return the updated FeedPost (new flags + record uris).
 protocol FeedService: Sendable {
@@ -64,6 +71,11 @@ protocol FeedService: Sendable {
 
     /// Delete one of the signed-in user's own posts.
     func deletePost(_ post: FeedPost) async throws
+    /// The editable source (raw text + content warning) of your own post.
+    /// Mastodon only; Bluesky has no edit and throws.
+    func editableSource(of post: FeedPost) async throws -> EditableSource
+    /// Submit an edit to your own post; returns the updated post. Mastodon only.
+    func edit(post: FeedPost, text: String, spoiler: String) async throws -> FeedPost
     /// Bookmark / unbookmark a post; returns the post with its updated flag.
     func setBookmarked(_ bookmarked: Bool, on post: FeedPost) async throws -> FeedPost
     /// Pin / unpin one of your own posts (Mastodon; throws on Bluesky).

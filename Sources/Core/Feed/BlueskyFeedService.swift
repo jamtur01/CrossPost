@@ -334,6 +334,14 @@ struct BlueskyFeedService: FeedService {
         throw FeedError.notSupported("Pinning posts isn't supported on Bluesky yet.")
     }
 
+    func editableSource(of post: FeedPost) async throws -> EditableSource {
+        throw FeedError.notSupported("Bluesky posts can't be edited.")
+    }
+
+    func edit(post: FeedPost, text: String, spoiler: String) async throws -> FeedPost {
+        throw FeedError.notSupported("Bluesky posts can't be edited.")
+    }
+
     func likedBy(_ post: FeedPost) async throws -> [Profile] {
         guard case .bluesky(let uri, _, _, _) = post.nativeRef else { return [] }
         return try await kit.getLikes(from: uri).likes.map { Self.profile(fromBasic: $0.actor) }

@@ -48,7 +48,8 @@ struct SavedPostsView: View {
                         },
                         onQuote: { text, visibility in
                             try await panel.quote(post: row, text: text, visibility: visibility)
-                        })
+                        },
+                        onEdit: postEditActions(for: row, panel))
                 }
             }
             if loading {

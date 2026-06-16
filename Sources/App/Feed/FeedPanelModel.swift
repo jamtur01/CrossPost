@@ -307,6 +307,17 @@ final class FeedPanelModel {
         (try? await resolveService().likedPosts()) ?? []
     }
 
+    func editableSource(of post: FeedPost) async throws -> EditableSource {
+        try await resolveService().editableSource(of: post)
+    }
+
+    func edit(post: FeedPost, text: String, spoiler: String) async throws -> FeedPost {
+        let updated = try await resolveService().edit(post: post, text: text, spoiler: spoiler)
+        NotificationCenter.default.post(name: .crossPostDidPost, object: nil,
+                                        userInfo: [crossPostTargetsKey: Set([post.target])])
+        return updated
+    }
+
     func quote(post: FeedPost, text: String, visibility: PostVisibility) async throws -> PostedItem {
         let item = try await resolveService().quote(post: post, text: text, visibility: visibility)
         // Refresh this platform's feed so the new quote shows up.
