@@ -241,16 +241,17 @@ struct FeedPanelView: View {
                 }
                 // Keyboard navigation (when the feed has focus): j/k move the
                 // selection, l like, t repost, r reply, Return opens the thread,
-                // "." refreshes.
+                // "." refreshes. Restricted to `.down` so a single press can't also
+                // fire on key-repeat and move (or like) twice.
                 .focusable()
                 .focusEffectDisabled()
-                .onKeyPress("j") { moveSelection(down: true, proxy); return .handled }
-                .onKeyPress("k") { moveSelection(down: false, proxy); return .handled }
-                .onKeyPress("l") { withSelected { model.toggleLike($0) }; return .handled }
-                .onKeyPress("t") { withSelected { model.toggleRepost($0) }; return .handled }
-                .onKeyPress("r") { withSelected { replyTarget = $0 }; return .handled }
-                .onKeyPress(.return) { withSelected { routes.append(.thread($0)) }; return .handled }
-                .onKeyPress(".") { model.refresh(); return .handled }
+                .onKeyPress("j", phases: .down) { _ in moveSelection(down: true, proxy); return .handled }
+                .onKeyPress("k", phases: .down) { _ in moveSelection(down: false, proxy); return .handled }
+                .onKeyPress("l", phases: .down) { _ in withSelected { model.toggleLike($0) }; return .handled }
+                .onKeyPress("t", phases: .down) { _ in withSelected { model.toggleRepost($0) }; return .handled }
+                .onKeyPress("r", phases: .down) { _ in withSelected { replyTarget = $0 }; return .handled }
+                .onKeyPress(.return, phases: .down) { _ in withSelected { routes.append(.thread($0)) }; return .handled }
+                .onKeyPress(".", phases: .down) { _ in model.refresh(); return .handled }
             }
         }
     }
@@ -258,9 +259,9 @@ struct FeedPanelView: View {
     private func moveSelection(down: Bool, _ proxy: ScrollViewProxy) {
         let next = feedSelectionID(movingDown: down, from: selectedID, in: model.posts)
         selectedID = next
-        if let next {
-            withAnimation(.easeOut(duration: 0.15)) { proxy.scrollTo(next, anchor: .center) }
-        }
+        // Minimal scroll to keep the selected row visible — no forced centering or
+        // animation, which jump and pile up under rapid presses.
+        if let next { proxy.scrollTo(next) }
     }
 
     private func withSelected(_ action: (FeedPost) -> Void) {

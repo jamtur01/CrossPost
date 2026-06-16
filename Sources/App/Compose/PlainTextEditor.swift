@@ -51,5 +51,20 @@ struct PlainTextEditor: NSViewRepresentable {
             guard let textView = notification.object as? NSTextView else { return }
             text.wrappedValue = textView.string
         }
+
+        /// Tab / Shift-Tab move focus to the next/previous control rather than
+        /// inserting a tab character — the expected behavior for a compose field.
+        func textView(_ textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+            switch commandSelector {
+            case #selector(NSResponder.insertTab(_:)):
+                textView.window?.selectNextKeyView(nil)
+                return true
+            case #selector(NSResponder.insertBacktab(_:)):
+                textView.window?.selectPreviousKeyView(nil)
+                return true
+            default:
+                return false
+            }
+        }
     }
 }
