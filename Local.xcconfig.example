@@ -11,3 +11,8 @@
 
 CODE_SIGN_STYLE = Manual
 CODE_SIGN_IDENTITY = CrossPost Local
+
+// Xcode 16 splits Debug builds into a launcher + CrossPost.debug.dylib. A
+// self-signed cert has no Team ID, so dyld refuses to load the dylib ("different
+// Team IDs") and the app won't open. Building a single binary avoids that.
+ENABLE_DEBUG_DYLIB = NO
