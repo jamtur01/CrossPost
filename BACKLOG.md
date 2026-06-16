@@ -59,10 +59,6 @@ Consciously scoped out for size; pick up next.
 
 ## Tier 4 — smaller UX niceties
 
-- [ ] **New-posts indicator** — a "hold-and-load" pill (buffer new background posts,
-      load + scroll to top on tap). An earlier auto-merge version was removed: it
-      showed a stale count because the feed already inserts new posts, so the pill's
-      "N waiting" semantics didn't match. The buffer model is the correct approach.
 - [ ] **Keyboard navigation** — j/k row movement and shortcuts for like/reply/refresh
       (compose/reply/edit/quote/report sheets now take `⌘↩`/Esc, but the feed has no
       row navigation).
