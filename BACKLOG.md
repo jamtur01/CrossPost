@@ -5,7 +5,7 @@ Gaps found in the 2026-06-15 review of CrossPost against mature Mastodon
 
 This file is the remaining work — to pick up later.
 
-## Shipped (2026-06-15)
+## Shipped
 
 - [x] **Compose visibility picker** — Mastodon public/unlisted/followers/direct,
       on compose and replies (replies seed from the parent).
@@ -14,6 +14,9 @@ This file is the remaining work — to pick up later.
 - [x] **Bookmarks & likes feeds** — saved-posts menu in each feed header.
 - [x] **Quote posting** — embed a post on its own network.
 - [x] **Post editing** — edit your own Mastodon posts (text + content warning).
+- [x] **Search** — people and posts on both networks, from a header search field.
+- [x] **Copy link to post** — on the post menu.
+- [x] **New-posts pill** — an "X new posts ▲" pill that jumps to the top.
 
 ## Deferred — larger efforts
 
@@ -22,13 +25,11 @@ Consciously scoped out for size; pick up next.
 - [ ] **Polls** — render polls in the feed, vote, and create one when composing.
       Three sub-features; Bluesky has no polls.
 - [ ] **Emoji / mention / hashtag autocomplete** — a completion UI over the text
-      editor, custom server-emoji fetching, and mention search (depends on the
-      Search item below).
+      editor, custom server-emoji fetching, and mention lookup (the search service
+      now exists to back it).
 
 ## Tier 1 — table stakes
 
-- [ ] **Search** — users, posts, and hashtags. No UI and no service call today
-      (the only search code resolves profile URLs internally). Biggest single gap.
 - [ ] **Content warnings — read** — reveal row for CW'd Mastodon posts
       (`spoilerText` is already parsed; today the body shows directly).
 - [ ] **Content warnings — write** — add a CW when composing.
@@ -59,11 +60,9 @@ Consciously scoped out for size; pick up next.
 
 ## Tier 4 — smaller UX niceties
 
-- [ ] **New-posts indicator** — an "X new posts ▲" pill to jump to top (live
-      updates land silently).
-- [ ] **Copy link to post** — today only "Open in Browser".
-- [ ] **Keyboard navigation** — j/k row movement and shortcuts for
-      like/reply/refresh (today only `⌘↩` to post and Esc to dismiss the lightbox).
+- [ ] **Keyboard navigation** — j/k row movement and shortcuts for like/reply/refresh
+      (compose/reply/edit/quote/report sheets now take `⌘↩`/Esc, but the feed has no
+      row navigation).
 - [ ] **Appearance settings** — text size, font, and a theme override (today
       follows system light/dark only; also an accessibility consideration).
 

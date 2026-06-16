@@ -5,6 +5,48 @@ All notable changes to CrossPost are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.9] - 2026-06-16
+
+### Added
+
+- Search people and posts on both networks from a search field in each feed
+  header; tap a result to open the profile or thread.
+- Choose Mastodon post visibility (public, unlisted, followers-only, or
+  mentioned-only) when composing or replying. Replies start at the parent post's
+  visibility so a reply never widens its audience.
+- Report posts and accounts on both networks, with a reason and optional note.
+- Bookmarks and likes feeds, opened from a saved-posts menu in each feed header.
+- Quote a post (a Bluesky quote, or a Mastodon quote where the instance supports
+  it).
+- Edit your own Mastodon posts (text and content warning); media is preserved.
+- Pinned posts now show at the top of Mastodon profiles.
+- Tap an avatar, banner, or post image to pop it out full-screen; click anywhere
+  or press Esc to dismiss.
+- A "Copy Link" action on the post menu.
+- An "X new posts" pill that appears when new posts arrive while you're scrolled
+  down; tap it to jump to the top.
+
+### Fixed
+
+- Profile, thread, and saved-post views now show an error with a Try Again
+  button instead of a blank pane when a fetch fails.
+- A failed like or repost reliably reverts instead of sticking.
+- The unread badge no longer clears if marking notifications read fails on the
+  server.
+- A pinned post no longer appears twice on a profile.
+- The edit and quote character counters use your instance's real limit, and you
+  can't save an over-limit edit.
+- An unreadable image is caught before posting, so it can't fail partway through
+  a thread and strand earlier posts.
+- Posts from some servers no longer lose their line breaks.
+
+### Changed
+
+- The compose, reply, edit, quote, and report sheets take Cmd-Return to submit
+  and Esc to cancel.
+- Empty and error states, list-row hover, and the editor sheets share a more
+  consistent look.
+
 ## [0.4.8] - 2026-06-14
 
 ### Added
