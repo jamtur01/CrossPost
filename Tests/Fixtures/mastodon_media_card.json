@@ -1,0 +1,54 @@
+{
+  "id": "MEDIA-1",
+  "uri": "https://h.io/users/alice/statuses/MEDIA-1",
+  "created_at": "2024-01-04T00:00:00.000Z",
+  "visibility": "public",
+  "sensitive": true,
+  "spoiler_text": "",
+  "content": "<p>look at this</p>",
+  "url": "https://h.io/@alice/MEDIA-1",
+  "media_attachments": [
+    {
+      "id": "m1",
+      "type": "image",
+      "url": "https://h.io/cat.png",
+      "description": "a cat"
+    },
+    {
+      "id": "m2",
+      "type": "video",
+      "url": "https://h.io/clip.mp4",
+      "description": "a clip"
+    }
+  ],
+  "card": {
+    "url": "https://example.com/article",
+    "title": "Headline",
+    "description": "the description",
+    "type": "link",
+    "provider_name": "Example News",
+    "image": "https://example.com/thumb.jpg"
+  },
+  "mentions": [],
+  "tags": [],
+  "emojis": [],
+  "reblogs_count": 3,
+  "favourites_count": 7,
+  "replies_count": 2,
+  "account": {
+    "id": "acc-alice",
+    "username": "alice",
+    "acct": "alice@h.io",
+    "display_name": "Alice Author",
+    "url": "https://h.io/@alice",
+    "note": "",
+    "avatar": "https://h.io/alice.png",
+    "header": "https://h.io/alice-h.png",
+    "header_static": "https://h.io/alice-h.png",
+    "locked": false,
+    "created_at": "2023-01-01T00:00:00.000Z",
+    "statuses_count": 100,
+    "followers_count": 50,
+    "following_count": 20
+  }
+}

@@ -51,4 +51,21 @@ final class MastodonMappingTests: XCTestCase {
         XCTAssertTrue(mapped.isSensitive)
         XCTAssertTrue(mapped.isReply)
     }
+
+    func testMapsMediaKindsLinkCardCountsAndSensitive() throws {
+        let mapped = MastodonFeedService.feedPost(from: try decodePost("mastodon_media_card"))
+
+        XCTAssertEqual(mapped.images.count, 2)
+        XCTAssertEqual(mapped.images[0].kind, .image)
+        XCTAssertEqual(mapped.images[0].altText, "a cat")
+        XCTAssertEqual(mapped.images[1].kind, .video)            // Mastodon video/gifv → .video
+
+        XCTAssertEqual(mapped.card?.title, "Headline")
+        XCTAssertEqual(mapped.card?.providerName, "Example News")
+
+        XCTAssertEqual(mapped.likeCount, 7)                       // favourites_count
+        XCTAssertEqual(mapped.repostCount, 3)
+        XCTAssertEqual(mapped.replyCount, 2)
+        XCTAssertTrue(mapped.isSensitive)
+    }
 }

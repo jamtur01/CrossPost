@@ -80,12 +80,26 @@ final class ReplyModelTests: XCTestCase {
         XCTAssertNil(model.postedURL)
     }
 
+    func testReplyWithUnreadableImageIsRejected() async {
+        let fake = FakeFeedService()
+        let post = TestFactory.feedPost(target: .bluesky)
+        let model = ReplyModel(post: post, store: AccountStore()) { _, _ in fake }
+        model.text = "sure"
+        model.attachments = [Attachment(imageData: Data([0x00, 0x01]))]   // not an image
+
+        let posted = await model.send()
+
+        XCTAssertFalse(posted)
+        XCTAssertNotNil(model.errorMessage)
+        XCTAssertNil(model.postedURL)
+    }
+
     func testImageOnlyReplyPostsAndRefreshesOnce() async {
         let fake = FakeFeedService()
         let post = TestFactory.feedPost(target: .bluesky)
         let model = ReplyModel(post: post, store: AccountStore()) { _, _ in fake }
         model.text = ""                                   // no text…
-        model.attachments = [Attachment(imageData: Data([0x1]), altText: "alt")]   // …just an image
+        model.attachments = [Attachment(imageData: TestFactory.pngData(), altText: "alt")]   // …just an image
 
         var refreshCount = 0
         let token = NotificationCenter.default.addObserver(

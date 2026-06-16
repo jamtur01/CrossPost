@@ -59,6 +59,77 @@ final class PostListTests: XCTestCase {
         XCTAssertEqual(list.posts[0].likeCount, 0)
     }
 
+    func testToggleRepostAdjustsCountAndReconciles() async {
+        let fake = FakeFeedService()
+        let list = PostList(panel: makeModel(fake))
+        var post = TestFactory.feedPost(target: .bluesky)
+        post.repostCount = 2
+        list.posts = [post]
+
+        list.toggleRepost(post)
+        XCTAssertTrue(list.posts[0].isReposted)         // optimistic, synchronous
+        XCTAssertEqual(list.posts[0].repostCount, 3)
+
+        await waitUntil { list.posts[0].repostRecordURI != nil }   // reconciled
+        XCTAssertEqual(list.posts[0].repostCount, 3)
+    }
+
+    func testLikeFailureRollsBackOptimisticChange() async {
+        let fake = FakeFeedService()
+        fake.failLike = true
+        let list = PostList(panel: makeModel(fake))
+        var post = TestFactory.feedPost(target: .bluesky)
+        post.likeCount = 5
+        list.posts = [post]
+
+        list.toggleLike(post)
+        XCTAssertTrue(list.posts[0].isLiked)            // optimistic
+        XCTAssertEqual(list.posts[0].likeCount, 6)
+
+        await waitUntil { !list.posts[0].isLiked }      // rolled back on failure
+        XCTAssertEqual(list.posts[0].likeCount, 5)      // count restored
+    }
+
+    func testSetPinnedUpdatesItsOwnRow() async {
+        let fake = FakeFeedService()
+        let list = PostList(panel: makeModel(fake))
+        let post = TestFactory.feedPost(target: .bluesky)
+        list.posts = [post]
+
+        list.setPinned(true, post)
+        XCTAssertTrue(list.posts[0].isPinned)           // optimistic
+
+        await waitUntil { fake.pinSetCalls == [true] }
+        XCTAssertTrue(list.posts[0].isPinned)           // not rolled back
+    }
+
+    func testDeleteRemovesRowAndStaysRemoved() async {
+        let fake = FakeFeedService()
+        let list = PostList(panel: makeModel(fake))
+        let posts = ["a", "b"].map { TestFactory.feedPost(target: .bluesky, id: $0) }
+        list.posts = posts
+
+        list.delete(posts[0])
+        XCTAssertEqual(list.posts.map(\.id), ["b"])     // optimistic removal
+
+        await waitUntil { fake.deletedIDs.contains("a") }
+        XCTAssertEqual(list.posts.map(\.id), ["b"])
+    }
+
+    func testDeleteFailureReInsertsRow() async {
+        let fake = FakeFeedService()
+        fake.failDelete = true
+        let list = PostList(panel: makeModel(fake))
+        let posts = ["a", "b", "c"].map { TestFactory.feedPost(target: .bluesky, id: $0) }
+        list.posts = posts
+
+        list.delete(posts[1])
+        XCTAssertEqual(list.posts.map(\.id), ["a", "c"])    // optimistic removal
+
+        await waitUntil { list.posts.count == 3 }           // re-inserted on failure
+        XCTAssertEqual(list.posts.map(\.id), ["a", "b", "c"])
+    }
+
     func testSetBookmarkedUpdatesItsOwnRow() async {
         let fake = FakeFeedService()
         let list = PostList(panel: makeModel(fake))
