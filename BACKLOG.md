@@ -3,15 +3,21 @@
 Gaps found in the 2026-06-15 review of CrossPost against mature Mastodon
 (Ice Cubes / Ivory / Mona) and Bluesky (official / Graysky / Skeets) clients.
 
-**Shipped** from the original batch: compose visibility picker, pinned posts on
-profile, moderation reporting. **In progress:** bookmarks/likes feeds and
-quote-posting.
+This file is the remaining work — to pick up later.
 
-This file is the **deferred** remainder — to pick up later.
+## Shipped (2026-06-15)
 
-## Deferred from the in-progress batch
+- [x] **Compose visibility picker** — Mastodon public/unlisted/followers/direct,
+      on compose and replies (replies seed from the parent).
+- [x] **Pinned posts** — surfaced on Mastodon profiles.
+- [x] **Moderation reporting** — report posts and accounts on both networks.
+- [x] **Bookmarks & likes feeds** — saved-posts menu in each feed header.
+- [x] **Quote posting** — embed a post on its own network.
+- [x] **Post editing** — edit your own Mastodon posts (text + content warning).
 
-Scoped out of the current pass; pick up next.
+## Deferred — larger efforts
+
+Consciously scoped out for size; pick up next.
 
 - [ ] **Polls** — render polls in the feed, vote, and create one when composing.
       Three sub-features; Bluesky has no polls.
