@@ -1,0 +1,13 @@
+// Copy this file to `Local.xcconfig` (gitignored) to sign local Debug builds
+// with a stable self-signed certificate, so a one-time Keychain "Always Allow"
+// persists across rebuilds instead of re-prompting every build.
+//
+// 1. Create the certificate once (name must match CODE_SIGN_IDENTITY below):
+//      ./scripts/create-signing-cert.sh "CrossPost Local"
+//    or via Keychain Access → Certificate Assistant → Create a Certificate…
+//      (Identity Type: Self Signed Root, Certificate Type: Code Signing).
+// 2. Copy this file:  cp Local.xcconfig.example Local.xcconfig
+// 3. Rebuild (./build.sh), launch, and click "Always Allow" once.
+
+CODE_SIGN_STYLE = Manual
+CODE_SIGN_IDENTITY = CrossPost Local

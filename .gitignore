@@ -10,3 +10,6 @@ CrossPost.xcodeproj/
 # project CLAUDE.md at the repo root is intentionally not ignored)
 Sources/**/CLAUDE.md
 Tests/**/CLAUDE.md
+
+# Local code-signing identity override (see Local.xcconfig.example)
+Local.xcconfig

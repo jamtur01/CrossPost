@@ -1,0 +1,10 @@
+// Committed. Defaults to Xcode's automatic local (ad-hoc) signing, which
+// re-prompts for Keychain access on every rebuild because the ad-hoc identity
+// changes each build.
+//
+// To stop the prompt: create a stable self-signed code-signing certificate
+// (see Local.xcconfig.example / scripts/create-signing-cert.sh) and put its
+// name in Local.xcconfig. That file is gitignored, so this override stays
+// local — without it the optional include below is a no-op and the build is
+// unchanged for everyone else.
+#include? "Local.xcconfig"

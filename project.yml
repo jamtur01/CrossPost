@@ -12,7 +12,6 @@ settings:
     PRODUCT_BUNDLE_IDENTIFIER: net.kartar.crosspost
     GENERATE_INFOPLIST_FILE: YES
     INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.social-networking
-    CODE_SIGN_STYLE: Automatic
 packages:
   TootSDK:
     url: https://github.com/TootSDK/TootSDK
@@ -24,6 +23,11 @@ targets:
   CrossPost:
     type: application
     platform: macOS
+    # Debug signing is driven by Signing.xcconfig, which optionally includes a
+    # gitignored Local.xcconfig. Without it, builds fall back to Xcode's
+    # automatic local signing (ad-hoc) — so teammates and CI are unaffected.
+    configFiles:
+      Debug: Signing.xcconfig
     sources:
       - path: Sources
         excludes:
