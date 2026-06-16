@@ -423,45 +423,6 @@ final class FeedPanelModelTests: XCTestCase {
         } catch { /* expected */ }
     }
 
-    // MARK: New-posts pill
-
-    func testBackgroundPollSurfacesNewPostCountAndCatchUpClearsIt() async {
-        let fake = FakeFeedService()
-        fake.feed = [TestFactory.feedPost(id: "p1")]
-        let model = makeModel(fake)
-
-        model.refresh()                                   // initial load → caught up
-        await waitUntil { model.posts.map(\.id) == ["p1"] }
-        XCTAssertEqual(model.newPostCount, 0)
-
-        // A silent background poll prepends two newer posts.
-        fake.feed = [TestFactory.feedPost(id: "p3"), TestFactory.feedPost(id: "p2"),
-                     TestFactory.feedPost(id: "p1")]
-        model.wake()                                      // background-style load (not user-initiated)
-        await waitUntil { model.posts.count == 3 }
-
-        XCTAssertEqual(model.newPostCount, 2)             // two arrived above what was seen
-        model.markCaughtUp()
-        XCTAssertEqual(model.newPostCount, 0)
-        model.stop()
-    }
-
-    func testUserRefreshDoesNotShowNewPostPill() async {
-        let fake = FakeFeedService()
-        fake.feed = [TestFactory.feedPost(id: "p1")]
-        let model = makeModel(fake)
-        model.refresh()
-        await waitUntil { model.posts.map(\.id) == ["p1"] }
-
-        // The user pulls a refresh that brings a new post — they scroll to top, so no pill.
-        fake.feed = [TestFactory.feedPost(id: "p2"), TestFactory.feedPost(id: "p1")]
-        model.refresh()
-        await waitUntil { model.posts.count == 2 }
-
-        XCTAssertEqual(model.newPostCount, 0)
-        model.stop()
-    }
-
     func testCopyLinkWritesWebURLToPasteboard() {
         let model = makeModel(FakeFeedService())
         let post = TestFactory.feedPost(id: "https-test")

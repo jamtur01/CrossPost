@@ -9,7 +9,6 @@ struct FeedPanelView: View {
 
     private var accent: Color { model.target.accent }
     private static let topAnchor = "feed-top"
-    private static let scrollSpace = "feed-scroll"
 
     // Messages is only available where the platform supports DMs (Bluesky for now).
     private var availableKinds: [FeedKind] {
@@ -203,10 +202,6 @@ struct FeedPanelView: View {
                 ScrollView {
                     LazyVStack(spacing: 0) {
                         Color.clear.frame(height: 0).id(Self.topAnchor)
-                            .background(GeometryReader { geo in
-                                Color.clear.preference(key: FeedTopOffsetKey.self,
-                                    value: geo.frame(in: .named(Self.scrollSpace)).minY)
-                            })
                         ForEach(model.posts) { post in
                             FeedPostView(
                                 post: post,
@@ -237,44 +232,13 @@ struct FeedPanelView: View {
                     }
                 }
                 .scrollContentBackground(.hidden)
-                .coordinateSpace(name: Self.scrollSpace)
                 .onChange(of: model.scrollToTopToken) {
                     withAnimation(.easeOut(duration: 0.25)) {
                         proxy.scrollTo(Self.topAnchor, anchor: .top)
                     }
                 }
-                .onPreferenceChange(FeedTopOffsetKey.self) { minY in
-                    // The top sentinel sitting at/near the viewport top means the
-                    // user has caught up, so clear (and re-seed) the new-posts count.
-                    if minY > -12 { model.markCaughtUp() }
-                }
-                .overlay(alignment: .top) {
-                    if model.newPostCount > 0 { newPostsPill(proxy) }
-                }
-                .animation(.snappy(duration: 0.2), value: model.newPostCount)
             }
         }
-    }
-
-    /// Tapping jumps to the top and clears the count.
-    private func newPostsPill(_ proxy: ScrollViewProxy) -> some View {
-        Button {
-            withAnimation(.easeOut(duration: 0.25)) { proxy.scrollTo(Self.topAnchor, anchor: .top) }
-            model.markCaughtUp()
-        } label: {
-            HStack(spacing: 5) {
-                Image(systemName: "arrow.up").font(.system(size: 10, weight: .bold))
-                Text("\(model.newPostCount) new \(model.newPostCount == 1 ? "post" : "posts")")
-                    .font(.system(size: 12, weight: .semibold))
-            }
-            .foregroundStyle(.white)
-            .padding(.horizontal, 12).padding(.vertical, 6)
-            .background(Capsule().fill(accent))
-            .shadow(color: .black.opacity(0.2), radius: 4, y: 2)
-        }
-        .buttonStyle(.plain)
-        .padding(.top, 8)
-        .transition(.move(edge: .top).combined(with: .opacity))
     }
 
     private func errorBanner(_ text: String) -> some View {
@@ -318,11 +282,4 @@ struct FeedPanelView: View {
     private func emptyState(_ text: String, systemImage: String) -> some View {
         EmptyStateView(text: text, systemImage: systemImage)
     }
-}
-
-/// Reports the feed's top-sentinel offset within the scroll view, so the panel
-/// can tell when the user is at the top and clear the new-posts pill.
-private struct FeedTopOffsetKey: PreferenceKey {
-    static let defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
 }

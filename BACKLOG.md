@@ -16,7 +16,6 @@ This file is the remaining work — to pick up later.
 - [x] **Post editing** — edit your own Mastodon posts (text + content warning).
 - [x] **Search** — people and posts on both networks, from a header search field.
 - [x] **Copy link to post** — on the post menu.
-- [x] **New-posts pill** — an "X new posts ▲" pill that jumps to the top.
 
 ## Deferred — larger efforts
 
@@ -60,6 +59,10 @@ Consciously scoped out for size; pick up next.
 
 ## Tier 4 — smaller UX niceties
 
+- [ ] **New-posts indicator** — a "hold-and-load" pill (buffer new background posts,
+      load + scroll to top on tap). An earlier auto-merge version was removed: it
+      showed a stale count because the feed already inserts new posts, so the pill's
+      "N waiting" semantics didn't match. The buffer model is the correct approach.
 - [ ] **Keyboard navigation** — j/k row movement and shortcuts for like/reply/refresh
       (compose/reply/edit/quote/report sheets now take `⌘↩`/Esc, but the feed has no
       row navigation).
