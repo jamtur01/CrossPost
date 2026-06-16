@@ -295,6 +295,10 @@ final class FeedPanelModel {
         (try? await resolveService().authorPosts(id: id)) ?? []
     }
 
+    func pinnedPosts(id: String) async -> [FeedPost] {
+        (try? await resolveService().pinnedPosts(of: id)) ?? []
+    }
+
     func relationship(with id: String) async -> AccountRelationship {
         (try? await resolveService().relationship(with: id)) ?? AccountRelationship()
     }

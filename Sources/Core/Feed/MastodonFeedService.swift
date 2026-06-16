@@ -138,6 +138,12 @@ struct MastodonFeedService: FeedService {
         }.map { Self.feedPost(from: $0) }
     }
 
+    func pinnedPosts(of id: String) async throws -> [FeedPost] {
+        let query = UserTimelineQuery(userId: id, pinned: true)
+        let posts = try await client.getTimeline(.user(query), limit: 40).result
+        return posts.map { Self.feedPost(from: $0) }
+    }
+
     func deletePost(_ post: FeedPost) async throws {
         guard case .mastodon(let id) = post.nativeRef else { throw FeedError.wrongPlatform }
         _ = try await client.deletePost(id: id)

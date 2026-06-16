@@ -473,6 +473,10 @@ struct BlueskyFeedService: FeedService {
         return feed.compactMap { Self.feedPost(from: $0) }
     }
 
+    func pinnedPosts(of id: String) async throws -> [FeedPost] {
+        []   // Bluesky pinning isn't supported in this app.
+    }
+
     static func profile(from p: AppBskyLexicon.Actor.ProfileViewDetailedDefinition) -> Profile {
         Profile(
             id: p.actorDID,   // the stable id; follow/block records require the DID, not the handle

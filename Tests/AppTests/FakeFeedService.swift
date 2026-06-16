@@ -54,6 +54,7 @@ final class FakeFeedService: FeedService, @unchecked Sendable {
     func profile(forURL url: URL) async throws -> Profile? { nil }
     func myProfile() async throws -> Profile { Self.profile("me") }
     func authorPosts(id: String) async throws -> [FeedPost] { feed }
+    func pinnedPosts(of id: String) async throws -> [FeedPost] { [] }
 
     var relationshipsToReturn: [String: AccountRelationship] = [:]
     private(set) var relationshipsRequests: [[String]] = []

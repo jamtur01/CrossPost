@@ -12,6 +12,7 @@ struct ProfileView: View {
 
     @State private var profile: Profile?
     @State private var list: PostList
+    @State private var pinnedList: PostList
     @State private var replyTarget: FeedPost?
     @State private var relationship = AccountRelationship()
     @State private var updatingRelationship = false
@@ -27,6 +28,7 @@ struct ProfileView: View {
         self.ref = ref
         self.push = push
         _list = State(initialValue: PostList(panel: panel))
+        _pinnedList = State(initialValue: PostList(panel: panel))
     }
 
     var body: some View {
@@ -35,24 +37,14 @@ struct ProfileView: View {
                 headerCard
                 Divider()
                 LazyVStack(spacing: 0) {
+                    if !pinnedList.posts.isEmpty {
+                        pinnedHeader
+                        ForEach(pinnedList.posts) { row in
+                            postRow(row, in: pinnedList)
+                        }
+                    }
                     ForEach(list.posts) { row in
-                        FeedPostView(
-                            post: row,
-                            accent: accent,
-                            onReply: { replyTarget = row },
-                            onLike: { list.toggleLike(row) },
-                            onRepost: { list.toggleRepost(row) },
-                            onOpen: { panel.openInBrowser(row) },
-                            onOpenProfile: { push(.profile(row.profileRef())) },
-                            onOpenURL: { panel.openLink($0, push: push) },
-                            isMine: panel.isMine(row),
-                            onBookmark: { list.setBookmarked(!row.isBookmarked, row) },
-                            onDelete: { list.delete(row) },
-                            onPin: { list.setPinned(!row.isPinned, row) },
-                            onLikedBy: { push(.profileList(ProfileListRef(kind: .likedBy, post: row))) },
-                            onRepostedBy: { push(.profileList(ProfileListRef(kind: .repostedBy, post: row))) },
-                            onShowParent: row.isReply ? { push(.thread(row)) } : nil,
-                            onOpenDetail: { push(.thread(row)) })
+                        postRow(row, in: list)
                     }
                 }
                 if loading {
@@ -68,7 +60,9 @@ struct ProfileView: View {
             let id = profile?.id ?? ref.id
             // Both calls only need the resolved id, so they run concurrently.
             async let posts = panel.authorPosts(id: id)
+            async let pins = panel.pinnedPosts(id: id)
             if !ref.isMe { relationship = await panel.relationship(with: id) }
+            pinnedList.posts = await pins
             list.posts = await posts
             loading = false
         }
@@ -173,6 +167,38 @@ struct ProfileView: View {
             }
             .padding(16)
         }
+    }
+
+    @ViewBuilder
+    private func postRow(_ row: FeedPost, in list: PostList) -> some View {
+        FeedPostView(
+            post: row,
+            accent: accent,
+            onReply: { replyTarget = row },
+            onLike: { list.toggleLike(row) },
+            onRepost: { list.toggleRepost(row) },
+            onOpen: { panel.openInBrowser(row) },
+            onOpenProfile: { push(.profile(row.profileRef())) },
+            onOpenURL: { panel.openLink($0, push: push) },
+            isMine: panel.isMine(row),
+            onBookmark: { list.setBookmarked(!row.isBookmarked, row) },
+            onDelete: { list.delete(row) },
+            onPin: { list.setPinned(!row.isPinned, row) },
+            onLikedBy: { push(.profileList(ProfileListRef(kind: .likedBy, post: row))) },
+            onRepostedBy: { push(.profileList(ProfileListRef(kind: .repostedBy, post: row))) },
+            onShowParent: row.isReply ? { push(.thread(row)) } : nil,
+            onOpenDetail: { push(.thread(row)) })
+    }
+
+    private var pinnedHeader: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "pin.fill").font(.system(size: 10))
+            Text("Pinned").font(.system(size: 11, weight: .semibold))
+        }
+        .foregroundStyle(.secondary)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, Theme.rowPaddingH)
+        .padding(.top, 8).padding(.bottom, 2)
     }
 
     private func popOutAvatar() {
