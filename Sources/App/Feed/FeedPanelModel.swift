@@ -307,6 +307,14 @@ final class FeedPanelModel {
         (try? await resolveService().likedPosts()) ?? []
     }
 
+    func quote(post: FeedPost, text: String, visibility: PostVisibility) async throws -> PostedItem {
+        let item = try await resolveService().quote(post: post, text: text, visibility: visibility)
+        // Refresh this platform's feed so the new quote shows up.
+        NotificationCenter.default.post(name: .crossPostDidPost, object: nil,
+                                        userInfo: [crossPostTargetsKey: Set([post.target])])
+        return item
+    }
+
     func report(post: FeedPost, reason: ReportReason, comment: String) async throws {
         try await resolveService().report(post: post, reason: reason, comment: comment)
     }

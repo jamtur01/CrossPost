@@ -114,6 +114,14 @@ struct MastodonFeedService: FeedService {
         return PostedItem(url: posted.url)
     }
 
+    func quote(post: FeedPost, text: String, visibility: PostVisibility) async throws -> PostedItem {
+        guard case .mastodon(let id) = post.nativeRef else { throw FeedError.wrongPlatform }
+        var params = PostParams(post: text, visibility: visibility.tootVisibility)
+        params.quotedId = id   // honored on instances that support quote posts (Mastodon 4.4+)
+        let posted = try await client.publishPost(params)
+        return PostedItem(url: posted.url)
+    }
+
     func thread(of post: FeedPost) async throws -> PostThread {
         guard case .mastodon(let id) = post.nativeRef else {
             return PostThread(ancestors: [], descendants: [])

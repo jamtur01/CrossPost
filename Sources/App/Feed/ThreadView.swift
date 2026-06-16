@@ -47,6 +47,9 @@ struct ThreadView: View {
                         onReport: panel.isMine(row) ? nil : { reason, comment in
                             try await panel.report(post: row, reason: reason, comment: comment)
                         },
+                        onQuote: { text, visibility in
+                            try await panel.quote(post: row, text: text, visibility: visibility)
+                        },
                         inTimeline: !isFocused,
                         expanded: isFocused)
                         .padding(isFocused ? 16 : 0)

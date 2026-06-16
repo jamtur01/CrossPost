@@ -20,6 +20,8 @@ struct FeedPostView: View {
     var onOpenDetail: (() -> Void)?
     /// Files a moderation report; when nil, the Report menu item is hidden.
     var onReport: ((ReportReason, String) async throws -> Void)?
+    /// Posts a quote of this post; when nil, the Quote menu item is hidden.
+    var onQuote: ((String, PostVisibility) async throws -> Void)?
     var showActions: Bool = true
     /// Timeline rows get hover highlight + a separator; sheet/detail views don't.
     var inTimeline: Bool = true
@@ -28,6 +30,7 @@ struct FeedPostView: View {
 
     @State private var hovering = false
     @State private var reporting = false
+    @State private var quoting = false
     // Optional: present where no lightbox is installed (e.g. preview/sheet contexts)
     // simply leaves images non-poppable rather than crashing.
     @Environment(ImageLightbox.self) private var lightbox: ImageLightbox?
@@ -59,6 +62,11 @@ struct FeedPostView: View {
             if let onReport {
                 ReportSheet(subjectLabel: "this post", accent: accent,
                             submit: onReport) { reporting = false }
+            }
+        }
+        .sheet(isPresented: $quoting) {
+            if let onQuote {
+                QuoteSheet(post: post, accent: accent, submit: onQuote) { quoting = false }
             }
         }
     }
@@ -231,6 +239,11 @@ struct FeedPostView: View {
             Button(action: onBookmark) {
                 Label(post.isBookmarked ? "Remove Bookmark" : "Bookmark",
                       systemImage: post.isBookmarked ? "bookmark.fill" : "bookmark")
+            }
+            if onQuote != nil {
+                Button { quoting = true } label: {
+                    Label("Quote", systemImage: "quote.bubble")
+                }
             }
             if post.likeCount > 0 {
                 Button(action: onLikedBy) { Label("Liked by…", systemImage: "heart") }

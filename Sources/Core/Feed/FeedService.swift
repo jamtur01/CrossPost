@@ -10,6 +10,9 @@ protocol FeedService: Sendable {
     /// parent's, so a reply never widens its audience); Bluesky ignores it.
     func reply(to post: FeedPost, text: String, images: [Attachment],
                visibility: PostVisibility) async throws -> PostedItem
+    /// Create a quote post embedding `post`, on the post's own network.
+    /// `visibility` applies to Mastodon only.
+    func quote(post: FeedPost, text: String, visibility: PostVisibility) async throws -> PostedItem
     /// The surrounding thread (ancestors + replies) for the post's detail view.
     func thread(of post: FeedPost) async throws -> PostThread
     /// Profile details for a user (`id` = Mastodon account id / Bluesky handle).

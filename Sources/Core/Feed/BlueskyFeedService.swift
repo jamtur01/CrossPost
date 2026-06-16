@@ -188,6 +188,15 @@ struct BlueskyFeedService: FeedService {
         return PostedItem(url: "https://bsky.app/profile/\(handle)/post/\(rkey)")
     }
 
+    func quote(post: FeedPost, text: String, visibility _: PostVisibility) async throws -> PostedItem {
+        guard case .bluesky(let uri, let cid, _, _) = post.nativeRef else { throw FeedError.wrongPlatform }
+        let ref = try await bluesky.createPostRecord(
+            text: text,
+            embed: .record(strongReference: .init(recordURI: uri, cidHash: cid)))
+        let rkey = ref.recordURI.split(separator: "/").last.map(String.init) ?? ""
+        return PostedItem(url: "https://bsky.app/profile/\(handle)/post/\(rkey)")
+    }
+
     func thread(of post: FeedPost) async throws -> PostThread {
         guard case .bluesky(let uri, _, _, _) = post.nativeRef else {
             return PostThread(ancestors: [], descendants: [])

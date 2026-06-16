@@ -49,6 +49,9 @@ final class FakeFeedService: FeedService, @unchecked Sendable {
                visibility: PostVisibility) async throws -> PostedItem {
         PostedItem(url: "https://example/reply")
     }
+    func quote(post: FeedPost, text: String, visibility: PostVisibility) async throws -> PostedItem {
+        PostedItem(url: "https://example/quote")
+    }
     func thread(of post: FeedPost) async throws -> PostThread { PostThread(ancestors: [], descendants: []) }
     func profile(id: String) async throws -> Profile { Self.profile(id) }
     func profile(forURL url: URL) async throws -> Profile? { nil }

@@ -218,6 +218,9 @@ struct FeedPanelView: View {
                                 onOpenDetail: { routes.append(.thread(post)) },
                                 onReport: model.isMine(post) ? nil : { reason, comment in
                                     try await model.report(post: post, reason: reason, comment: comment)
+                                },
+                                onQuote: { text, visibility in
+                                    try await model.quote(post: post, text: text, visibility: visibility)
                                 })
                         }
                     }
