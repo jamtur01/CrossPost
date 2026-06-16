@@ -72,6 +72,7 @@ struct FeedPanelView: View {
                 Text(model.target.displayName).font(Theme.columnTitle)
                 Spacer()
                 if model.isLoading { ProgressView().controlSize(.small).scaleEffect(0.8) }
+                headerIcon("magnifyingglass", help: "Search") { routes.append(.search) }
                 savedMenu
                 headerIcon("person.crop.circle", help: "My profile") { routes.append(.profile(myRef)) }
                 headerIcon("arrow.clockwise", help: "Refresh") { model.refresh() }
@@ -151,6 +152,7 @@ struct FeedPanelView: View {
         case .profileList(let ref): return ref.title
         case .conversation(let convo): return convo.otherName
         case .saved(let kind): return kind.title
+        case .search: return "Search"
         case .none: return ""
         }
     }
@@ -175,6 +177,8 @@ struct FeedPanelView: View {
             ConversationView(panel: model, conversation: convo) { routes.append($0) }
         case .saved(let kind):
             SavedPostsView(panel: model, store: store, kind: kind) { routes.append($0) }
+        case .search:
+            SearchView(panel: model, store: store) { routes.append($0) }
         case .none:
             EmptyView()
         }

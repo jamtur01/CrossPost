@@ -50,6 +50,7 @@ enum FeedRoute: Identifiable {
     case profileList(ProfileListRef)
     case conversation(Conversation)
     case saved(SavedKind)
+    case search
 
     var id: String {
         switch self {
@@ -58,6 +59,7 @@ enum FeedRoute: Identifiable {
         case .profileList(let ref): return "list:\(ref.id)"
         case .conversation(let convo): return "convo:\(convo.id)"
         case .saved(let kind): return "saved:\(kind.rawValue)"
+        case .search: return "search"
         }
     }
 }

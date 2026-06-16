@@ -165,6 +165,14 @@ struct MastodonFeedService: FeedService {
         return posts.map { Self.feedPost(from: $0) }
     }
 
+    func search(_ query: String) async throws -> SearchResults {
+        // resolve: true so a full "@user@instance" handle resolves a remote account.
+        let result = try await client.search(params: SearchParams(query: query, resolve: true), limit: 20)
+        return SearchResults(
+            accounts: result.accounts.map(Self.profile(from:)),
+            posts: result.posts.map(Self.feedPost(from:)))
+    }
+
     func bookmarkedPosts() async throws -> [FeedPost] {
         try await paged(target: 80, maxPages: 2) {
             try await client.getTimeline(.bookmarks, pageInfo: $0, limit: 40)

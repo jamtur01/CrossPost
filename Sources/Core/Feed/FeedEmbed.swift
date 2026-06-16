@@ -42,7 +42,7 @@ struct QuotedPost: Equatable, Sendable, Identifiable {
 }
 
 /// A user profile: header details for the profile view.
-struct Profile: Sendable, Identifiable {
+struct Profile: Sendable, Identifiable, Equatable {
     let id: String          // account id (Mastodon) / handle (Bluesky)
     let name: String
     let handle: String      // "@..."

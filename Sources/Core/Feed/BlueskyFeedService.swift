@@ -494,6 +494,15 @@ struct BlueskyFeedService: FeedService {
         []   // Bluesky pinning isn't supported in this app.
     }
 
+    func search(_ query: String) async throws -> SearchResults {
+        // Accounts and posts are independent endpoints, so query them concurrently.
+        async let actors = kit.searchActors(matching: query, limit: 20)
+        async let posts = kit.searchPosts(matching: query, limit: 20)
+        return SearchResults(
+            accounts: try await actors.actors.map(Self.profile(fromBasic:)),
+            posts: try await posts.posts.map { Self.feedPost(fromPostView: $0) })
+    }
+
     func bookmarkedPosts() async throws -> [FeedPost] {
         []   // Bluesky has no native bookmarks.
     }

@@ -327,6 +327,10 @@ final class FeedPanelModel {
         (try? await resolveService().pinnedPosts(of: id)) ?? []
     }
 
+    func search(_ query: String) async throws -> SearchResults {
+        try await resolveService().search(query)
+    }
+
     func bookmarkedPosts() async -> [FeedPost] {
         (try? await resolveService().bookmarkedPosts()) ?? []
     }

@@ -7,6 +7,18 @@ struct EditableSource: Sendable, Equatable {
     let spoiler: String
 }
 
+/// Results of a search: matching accounts and posts.
+struct SearchResults: Sendable, Equatable {
+    var accounts: [Profile]
+    var posts: [FeedPost]
+    var isEmpty: Bool { accounts.isEmpty && posts.isEmpty }
+
+    init(accounts: [Profile] = [], posts: [FeedPost] = []) {
+        self.accounts = accounts
+        self.posts = posts
+    }
+}
+
 /// A platform's feed: load posts, toggle like/repost, and reply to one post.
 /// `setLiked`/`setReposted` return the updated FeedPost (new flags + record uris).
 protocol FeedService: Sendable {
@@ -31,6 +43,8 @@ protocol FeedService: Sendable {
     func myProfile() async throws -> Profile
     /// Recent posts authored by a user.
     func authorPosts(id: String) async throws -> [FeedPost]
+    /// Search for accounts and posts matching `query`.
+    func search(_ query: String) async throws -> SearchResults
     /// Posts the user has pinned to their profile (Mastodon; empty on Bluesky).
     func pinnedPosts(of id: String) async throws -> [FeedPost]
     /// The signed-in user's bookmarked posts (Mastodon; empty on Bluesky).

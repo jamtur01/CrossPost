@@ -372,6 +372,29 @@ final class FeedPanelModelTests: XCTestCase {
         XCTAssertEqual(pins.map(\.id), ["p1"])
     }
 
+    // MARK: Search
+
+    func testSearchForwardsQueryAndReturnsResults() async throws {
+        let fake = FakeFeedService()
+        fake.searchResultsToReturn = SearchResults(posts: [TestFactory.feedPost(id: "r1")])
+        let model = makeModel(fake)
+
+        let results = try await model.search("swift")
+
+        XCTAssertEqual(fake.searchQueries, ["swift"])
+        XCTAssertEqual(results.posts.map(\.id), ["r1"])
+    }
+
+    func testSearchPropagatesError() async {
+        let fake = FakeFeedService()
+        fake.failLoad = true
+        let model = makeModel(fake)
+        do {
+            _ = try await model.search("x")
+            XCTFail("search should propagate the service error")
+        } catch { /* expected */ }
+    }
+
     // MARK: New-posts pill
 
     func testBackgroundPollSurfacesNewPostCountAndCatchUpClearsIt() async {
