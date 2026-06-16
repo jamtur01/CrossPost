@@ -477,6 +477,19 @@ struct BlueskyFeedService: FeedService {
         []   // Bluesky pinning isn't supported in this app.
     }
 
+    func bookmarkedPosts() async throws -> [FeedPost] {
+        []   // Bluesky has no native bookmarks.
+    }
+
+    func likedPosts() async throws -> [FeedPost] {
+        let did = try await ownDID()
+        let feed = try await paged(target: 100, maxPages: 2) {
+            let output = try await kit.getActorLikes(by: did, limit: 100, cursor: $0)
+            return (output.feed, output.cursor)
+        }
+        return feed.compactMap { Self.feedPost(from: $0) }
+    }
+
     func report(post: FeedPost, reason: ReportReason, comment: String) async throws {
         guard case .bluesky(let uri, let cid, _, _) = post.nativeRef else { throw FeedError.wrongPlatform }
         let subject = ComAtprotoLexicon.Moderation.CreateReportRequestBody.SubjectUnion

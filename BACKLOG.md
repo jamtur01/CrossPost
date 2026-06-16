@@ -3,12 +3,23 @@
 Gaps found in the 2026-06-15 review of CrossPost against mature Mastodon
 (Ice Cubes / Ivory / Mona) and Bluesky (official / Graysky / Skeets) clients.
 
-**In progress** (tracked separately, not in this list): compose visibility
-picker, bookmarks/likes feeds, post editing, report action, polls
-(render/vote/create), quote-posting, pinned posts on profile, and
-emoji/mention/hashtag autocomplete.
+**Shipped** from the original batch: compose visibility picker, pinned posts on
+profile, moderation reporting. **In progress:** bookmarks/likes feeds and
+quote-posting.
 
 This file is the **deferred** remainder — to pick up later.
+
+## Deferred from the in-progress batch
+
+Scoped out of the current pass; pick up next.
+
+- [ ] **Post editing (Mastodon)** — fetch the source, edit UI, submit via
+      `editPost`. Bluesky has no edit.
+- [ ] **Polls** — render polls in the feed, vote, and create one when composing.
+      Three sub-features; Bluesky has no polls.
+- [ ] **Emoji / mention / hashtag autocomplete** — a completion UI over the text
+      editor, custom server-emoji fetching, and mention search (depends on the
+      Search item below).
 
 ## Tier 1 — table stakes
 

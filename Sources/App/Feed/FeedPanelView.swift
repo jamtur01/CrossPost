@@ -72,6 +72,7 @@ struct FeedPanelView: View {
                 Text(model.target.displayName).font(Theme.columnTitle)
                 Spacer()
                 if model.isLoading { ProgressView().controlSize(.small).scaleEffect(0.8) }
+                savedMenu
                 headerIcon("person.crop.circle", help: "My profile") { routes.append(.profile(myRef)) }
                 headerIcon("arrow.clockwise", help: "Refresh") { model.refresh() }
             }
@@ -96,6 +97,27 @@ struct FeedPanelView: View {
         .padding(.horizontal, Theme.headerPaddingH).padding(.top, 10).padding(.bottom, 9)
         .background(.bar)
         .overlay(alignment: .bottom) { Divider() }
+    }
+
+    /// Bookmarks (Mastodon only) and Likes for the signed-in user.
+    private var savedMenu: some View {
+        Menu {
+            if model.target == .mastodon {
+                Button { routes.append(.saved(.bookmarks)) } label: {
+                    Label("Bookmarks", systemImage: "bookmark")
+                }
+            }
+            Button { routes.append(.saved(.likes)) } label: {
+                Label("Likes", systemImage: "heart")
+            }
+        } label: {
+            Image(systemName: "bookmark").font(.system(size: 13, weight: .medium))
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .foregroundStyle(.secondary)
+        .help("Saved posts")
     }
 
     private func headerIcon(_ symbol: String, help: String,
@@ -128,6 +150,7 @@ struct FeedPanelView: View {
         case .profile(let ref): return ref.name
         case .profileList(let ref): return ref.title
         case .conversation(let convo): return convo.otherName
+        case .saved(let kind): return kind.title
         case .none: return ""
         }
     }
@@ -150,6 +173,8 @@ struct FeedPanelView: View {
             ProfileListView(panel: model, ref: ref) { routes.append($0) }
         case .conversation(let convo):
             ConversationView(panel: model, conversation: convo) { routes.append($0) }
+        case .saved(let kind):
+            SavedPostsView(panel: model, store: store, kind: kind) { routes.append($0) }
         case .none:
             EmptyView()
         }

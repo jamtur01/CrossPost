@@ -35,12 +35,21 @@ struct ProfileListRef: Identifiable {
     }
 }
 
+/// One of the signed-in user's saved-post collections.
+enum SavedKind: String, Identifiable {
+    case bookmarks, likes
+    var id: String { rawValue }
+    var title: String { self == .bookmarks ? "Bookmarks" : "Likes" }
+    var icon: String { self == .bookmarks ? "bookmark" : "heart" }
+}
+
 /// A destination within a feed column's in-place navigation stack.
 enum FeedRoute: Identifiable {
     case thread(FeedPost)
     case profile(ProfileRef)
     case profileList(ProfileListRef)
     case conversation(Conversation)
+    case saved(SavedKind)
 
     var id: String {
         switch self {
@@ -48,6 +57,7 @@ enum FeedRoute: Identifiable {
         case .profile(let ref): return "profile:\(ref.id):\(ref.isMe)"
         case .profileList(let ref): return "list:\(ref.id)"
         case .conversation(let convo): return "convo:\(convo.id)"
+        case .saved(let kind): return "saved:\(kind.rawValue)"
         }
     }
 }

@@ -299,6 +299,14 @@ final class FeedPanelModel {
         (try? await resolveService().pinnedPosts(of: id)) ?? []
     }
 
+    func bookmarkedPosts() async -> [FeedPost] {
+        (try? await resolveService().bookmarkedPosts()) ?? []
+    }
+
+    func likedPosts() async -> [FeedPost] {
+        (try? await resolveService().likedPosts()) ?? []
+    }
+
     func report(post: FeedPost, reason: ReportReason, comment: String) async throws {
         try await resolveService().report(post: post, reason: reason, comment: comment)
     }

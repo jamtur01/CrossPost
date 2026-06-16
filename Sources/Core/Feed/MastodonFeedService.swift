@@ -157,6 +157,18 @@ struct MastodonFeedService: FeedService {
         return posts.map { Self.feedPost(from: $0) }
     }
 
+    func bookmarkedPosts() async throws -> [FeedPost] {
+        try await paged(target: 80, maxPages: 2) {
+            try await client.getTimeline(.bookmarks, pageInfo: $0, limit: 40)
+        }.map { Self.feedPost(from: $0) }
+    }
+
+    func likedPosts() async throws -> [FeedPost] {
+        try await paged(target: 80, maxPages: 2) {
+            try await client.getTimeline(.favourites, pageInfo: $0, limit: 40)
+        }.map { Self.feedPost(from: $0) }
+    }
+
     func deletePost(_ post: FeedPost) async throws {
         guard case .mastodon(let id) = post.nativeRef else { throw FeedError.wrongPlatform }
         _ = try await client.deletePost(id: id)

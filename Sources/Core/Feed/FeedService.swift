@@ -23,6 +23,10 @@ protocol FeedService: Sendable {
     func authorPosts(id: String) async throws -> [FeedPost]
     /// Posts the user has pinned to their profile (Mastodon; empty on Bluesky).
     func pinnedPosts(of id: String) async throws -> [FeedPost]
+    /// The signed-in user's bookmarked posts (Mastodon; empty on Bluesky).
+    func bookmarkedPosts() async throws -> [FeedPost]
+    /// The signed-in user's liked / favourited posts.
+    func likedPosts() async throws -> [FeedPost]
 
     // MARK: Social graph
 
