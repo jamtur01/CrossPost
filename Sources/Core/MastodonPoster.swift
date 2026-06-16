@@ -68,14 +68,19 @@ extension TootClient {
     /// accepts PNG/HEIC/GIF/TIFF), scaling down only past the instance's image size
     /// limit so a large photo can't fail mid-thread.
     func uploadJPEGImages(_ images: [Attachment], maxBytes: Int) async throws -> [String] {
-        try await withThrowingTaskGroup(of: (Int, String).self) { group in
-            for (index, image) in images.enumerated() {
+        // Transcode sequentially first: NSGraphicsContext/CoreGraphics drawing isn't
+        // safe to run concurrently. Then upload the encoded JPEGs in parallel — the
+        // network upload is what benefits from concurrency, not the CPU/AppKit encode.
+        let encoded: [(jpeg: Data, altText: String)] = try images.map {
+            (try ImageProcessor.jpegUnderBudget($0.imageData, maxBytes: maxBytes), $0.altText)
+        }
+        return try await withThrowingTaskGroup(of: (Int, String).self) { group in
+            for (index, item) in encoded.enumerated() {
                 group.addTask {
-                    let jpeg = try ImageProcessor.jpegUnderBudget(image.imageData, maxBytes: maxBytes)
                     let params = UploadMediaAttachmentParams(
-                        file: jpeg,
+                        file: item.jpeg,
                         thumbnail: nil,
-                        description: image.altText.isEmpty ? nil : image.altText,
+                        description: item.altText.isEmpty ? nil : item.altText,
                         focus: nil)
                     return (index, try await self.uploadMedia(params, mimeType: "image/jpeg").id)
                 }

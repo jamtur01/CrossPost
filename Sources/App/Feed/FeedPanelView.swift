@@ -6,6 +6,7 @@ struct FeedPanelView: View {
     @EnvironmentObject var store: AccountStore
     @State private var replyTarget: FeedPost?
     @State private var routes: [FeedRoute] = []
+    @State private var selectedID: String?      // keyboard-navigation selection
 
     private var accent: Color { model.target.accent }
     private static let topAnchor = "feed-top"
@@ -227,7 +228,8 @@ struct FeedPanelView: View {
                                     _ = try await model.quote(post: post, text: text, visibility: visibility)
                                 },
                                 onEdit: postEditActions(for: post, model),
-                                onCopyLink: { model.copyLink(post) })
+                                onCopyLink: { model.copyLink(post) },
+                                selected: selectedID == post.id)
                         }
                     }
                 }
@@ -237,8 +239,33 @@ struct FeedPanelView: View {
                         proxy.scrollTo(Self.topAnchor, anchor: .top)
                     }
                 }
+                // Keyboard navigation (when the feed has focus): j/k move the
+                // selection, l like, t repost, r reply, Return opens the thread,
+                // "." refreshes.
+                .focusable()
+                .focusEffectDisabled()
+                .onKeyPress("j") { moveSelection(down: true, proxy); return .handled }
+                .onKeyPress("k") { moveSelection(down: false, proxy); return .handled }
+                .onKeyPress("l") { withSelected { model.toggleLike($0) }; return .handled }
+                .onKeyPress("t") { withSelected { model.toggleRepost($0) }; return .handled }
+                .onKeyPress("r") { withSelected { replyTarget = $0 }; return .handled }
+                .onKeyPress(.return) { withSelected { routes.append(.thread($0)) }; return .handled }
+                .onKeyPress(".") { model.refresh(); return .handled }
             }
         }
+    }
+
+    private func moveSelection(down: Bool, _ proxy: ScrollViewProxy) {
+        let next = feedSelectionID(movingDown: down, from: selectedID, in: model.posts)
+        selectedID = next
+        if let next {
+            withAnimation(.easeOut(duration: 0.15)) { proxy.scrollTo(next, anchor: .center) }
+        }
+    }
+
+    private func withSelected(_ action: (FeedPost) -> Void) {
+        guard let selectedID, let post = model.posts.first(where: { $0.id == selectedID }) else { return }
+        action(post)
     }
 
     private func errorBanner(_ text: String) -> some View {

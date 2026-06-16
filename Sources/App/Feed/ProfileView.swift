@@ -190,8 +190,10 @@ struct ProfileView: View {
             async let pins = panel.pinnedPosts(id: id)
             // A relationship failure shouldn't block the profile, so it stays best-effort.
             if !ref.isMe { relationship = await panel.relationship(with: id) }
-            pinnedList.posts = try await pins
+            // The author timeline is the critical load; pinned posts are best-effort so
+            // a hiccup there doesn't blank a profile whose feed loaded fine.
             list.posts = try await posts
+            pinnedList.posts = (try? await pins) ?? []
         } catch {
             loadError = error.userMessage
         }
