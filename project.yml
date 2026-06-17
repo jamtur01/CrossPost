@@ -15,7 +15,7 @@ settings:
 packages:
   TootSDK:
     url: https://github.com/TootSDK/TootSDK
-    exactVersion: 21.8.0
+    exactVersion: 23.0.0
   ATProtoKit:
     url: https://github.com/MasterJ93/ATProtoKit
     exactVersion: 0.32.5
