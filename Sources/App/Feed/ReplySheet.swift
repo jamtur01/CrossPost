@@ -15,10 +15,7 @@ struct ReplySheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
-                Circle().fill(accent).frame(width: 9, height: 9)
-                Text("Reply on \(model.post.target.displayName)").font(Theme.columnTitle)
-            }
+            sheetHeader(icon: nil, label: "Reply on \(model.post.target.displayName)", accent: accent)
 
             QuotedPreviewBlock(post: model.post, accent: accent)
 
@@ -96,8 +93,7 @@ struct ReplySheet: View {
                 .disabled(!model.canSend || justSent)
             }
         }
-        .padding(20)
-        .frame(width: Theme.sheetWidth)
+        .sheetContainer()
     }
 
     private var attachments: some View {

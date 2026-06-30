@@ -51,10 +51,7 @@ struct EditSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
-                Image(systemName: "pencil").foregroundStyle(accent)
-                Text("Edit post").font(Theme.columnTitle)
-            }
+            sheetHeader(icon: "pencil", label: "Edit post", accent: accent)
 
             if loading {
                 ProgressView().controlSize(.small)
@@ -82,8 +79,7 @@ struct EditSheet: View {
                     .disabled(!canSave)
             }
         }
-        .padding(20)
-        .frame(width: Theme.sheetWidth)
+        .sheetContainer()
         .task {
             do {
                 let source = try await actions.load()

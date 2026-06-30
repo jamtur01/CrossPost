@@ -16,10 +16,7 @@ struct ReportSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
-                Image(systemName: "flag").foregroundStyle(accent)
-                Text("Report \(subjectLabel)").font(Theme.columnTitle)
-            }
+            sheetHeader(icon: "flag", label: "Report \(subjectLabel)", accent: accent)
 
             Text("Reason").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
             Picker("Reason", selection: $reason) {
@@ -56,8 +53,7 @@ struct ReportSheet: View {
                     .disabled(sending || sent)
             }
         }
-        .padding(20)
-        .frame(width: Theme.sheetWidth)
+        .sheetContainer()
     }
 
     private func send() {

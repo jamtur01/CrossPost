@@ -27,10 +27,7 @@ struct QuoteSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
-                Circle().fill(accent).frame(width: 9, height: 9)
-                Text("Quote on \(post.target.displayName)").font(Theme.columnTitle)
-            }
+            sheetHeader(icon: nil, label: "Quote on \(post.target.displayName)", accent: accent)
 
             PlainTextEditor(text: $text)
                 .frame(minHeight: 80)
@@ -77,8 +74,7 @@ struct QuoteSheet: View {
                     .disabled(sending || sent || count > limit)
             }
         }
-        .padding(20)
-        .frame(width: Theme.sheetWidth)
+        .sheetContainer()
     }
 
     private var quotedPreview: some View {
