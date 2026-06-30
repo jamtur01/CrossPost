@@ -74,7 +74,6 @@ struct AvatarView: View {
 }
 
 /// A relative ("2m", "1h") timestamp in the shared meta styling.
-@ViewBuilder
 func relativeTimestamp(_ date: Date) -> some View {
     Text(date, format: .relative(presentation: .numeric))
         .font(Theme.meta).foregroundStyle(.tertiary).fixedSize()
