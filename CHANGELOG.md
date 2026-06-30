@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.11] - 2026-06-30
+
+### Fixed
+
+- Notification mentions and replies now render in full-strength text with
+  tappable @mentions and links, instead of greyed-out, non-interactive text.
+
 ### Changed
 
 - Updated TootSDK to 23.0.0.
