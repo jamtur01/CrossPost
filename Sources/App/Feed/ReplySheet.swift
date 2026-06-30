@@ -20,17 +20,7 @@ struct ReplySheet: View {
                 Text("Reply on \(model.post.target.displayName)").font(Theme.columnTitle)
             }
 
-            HStack(alignment: .top, spacing: 0) {
-                Capsule().fill(accent.opacity(0.5)).frame(width: 3)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(model.post.authorHandle).font(.caption.bold()).foregroundStyle(.secondary)
-                    Text(model.post.text).font(.callout).foregroundStyle(.secondary).lineLimit(4)
-                }
-                .padding(.leading, 10)
-            }
-            .padding(8)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(RoundedRectangle(cornerRadius: 8).fill(.quaternary.opacity(0.35)))
+            QuotedPreviewBlock(post: model.post, accent: accent)
 
             PlainTextEditor(text: $model.text)
                 .frame(minHeight: 96)
