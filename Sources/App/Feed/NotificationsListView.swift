@@ -78,11 +78,18 @@ private struct NotificationRow: View {
                 }
 
                 if let post = livePost, !post.text.characters.isEmpty {
-                    Text(post.text)
+                    Text(RichText.styled(post.text, accent: accent, cacheKey: post.id))
                         .font(Theme.content)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(bodyIsPrimary ? .primary : .secondary)
+                        .tint(accent)
+                        .lineSpacing(Theme.bodyLineSpacing)
                         .lineLimit(3)
                         .frame(maxWidth: .infinity, alignment: .leading)
+                        // Route mention/URL taps through the app so profiles open
+                        // in-app, matching the timeline body.
+                        .environment(\.openURL, OpenURLAction { url in
+                            model.openLink(url, push: push); return .handled
+                        })
                 }
 
                 actionBar
@@ -204,6 +211,16 @@ private struct NotificationRow: View {
         case .quote: return "quote.bubble.fill"
         case .poll: return "chart.bar.fill"
         case .other: return "bell.fill"
+        }
+    }
+
+    // Mentions, replies, and quotes carry text directed at the user, so render
+    // it in the primary color. For likes/reposts/polls the body is the user's
+    // own post shown only as context, which stays secondary.
+    private var bodyIsPrimary: Bool {
+        switch notification.kind {
+        case .mention, .reply, .quote: return true
+        case .like, .repost, .follow, .poll, .other: return false
         }
     }
 
