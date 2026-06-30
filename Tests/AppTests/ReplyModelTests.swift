@@ -113,4 +113,17 @@ final class ReplyModelTests: XCTestCase {
         XCTAssertNotNil(model.postedURL)
         XCTAssertEqual(refreshCount, 1)
     }
+
+    func testSendIgnoresReentrantCallWhileSending() async {
+        let fake = FakeFeedService()
+        let post = TestFactory.feedPost(target: .bluesky)
+        let model = ReplyModel(post: post, store: AccountStore()) { _, _ in fake }
+        model.text = "hi"
+        model.isSending = true   // simulate a send already in flight
+
+        let posted = await model.send()
+
+        XCTAssertFalse(posted)
+        XCTAssertTrue(fake.replyVisibilities.isEmpty, "a reentrant send must not post again")
+    }
 }

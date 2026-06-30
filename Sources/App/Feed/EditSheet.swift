@@ -9,13 +9,19 @@ struct PostEditActions {
 }
 
 /// Edit actions for a post if it's your own Mastodon post; nil otherwise (Bluesky
-/// has no edit). Centralizes the per-row check the feed surfaces share.
+/// has no edit). Centralizes the per-row check the feed surfaces share. `onUpdated`
+/// receives the edited post so a PostList-backed route (thread/profile/search/saved)
+/// can replace its own row, since those don't observe the panel timeline refresh.
 @MainActor
-func postEditActions(for post: FeedPost, _ panel: FeedPanelModel) -> PostEditActions? {
+func postEditActions(for post: FeedPost, _ panel: FeedPanelModel,
+                     onUpdated: @escaping (FeedPost) -> Void = { _ in }) -> PostEditActions? {
     guard post.target == .mastodon, panel.isMine(post) else { return nil }
     return PostEditActions(
         load: { try await panel.editableSource(of: post) },
-        submit: { text, spoiler in _ = try await panel.edit(post: post, text: text, spoiler: spoiler) })
+        submit: { text, spoiler in
+            let updated = try await panel.edit(post: post, text: text, spoiler: spoiler)
+            onUpdated(updated)
+        })
 }
 
 /// Edits one of your own posts: loads the raw source, lets you change the text

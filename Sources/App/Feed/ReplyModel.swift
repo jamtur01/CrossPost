@@ -61,6 +61,9 @@ final class ReplyModel {
     /// report success on a validation or network failure.
     @discardableResult
     func send() async -> Bool {
+        // Authoritative guard: a second queued send (double tap / ⌘↩ race) returns
+        // before posting again. The disabled button alone doesn't prevent the race.
+        guard canSend else { return false }
         isSending = true
         blockedIssues = nil
         errorMessage = nil

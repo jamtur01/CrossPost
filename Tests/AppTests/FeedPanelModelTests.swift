@@ -112,6 +112,25 @@ final class FeedPanelModelTests: XCTestCase {
         XCTAssertNil(profile, "a service build finishing after stop() must not be used")
     }
 
+    func testStartWithClearedCredentialsStopsAndFlagsNeedsCredentials() async {
+        let fake = FakeFeedService()
+        fake.feed = [TestFactory.feedPost(id: "p1")]
+        let store = makeStore()
+        let model = FeedPanelModel(target: .mastodon, store: store) { _, _ in fake }
+        model.start()
+        await waitUntil { !model.posts.isEmpty }
+
+        // Credentials cleared (e.g. a future sign-out): restart must tear everything
+        // down — no stale loading state — and surface the connect prompt.
+        store.mastodonInstanceURL = ""
+        store.mastodonToken = ""
+        model.start()
+
+        XCTAssertTrue(model.needsCredentials)
+        XCTAssertFalse(model.isLoading, "the cleared-credential restart must not leave a spinner running")
+        model.stop()
+    }
+
     // MARK: Notifications loading
 
     func testLoadingNotificationsStoresFetchedMarksNewestAndClearsBadge() async {

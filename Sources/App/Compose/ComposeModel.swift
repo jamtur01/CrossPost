@@ -16,10 +16,21 @@ final class ComposeModel {
     private let store: AccountStore
     private let makePosters: @MainActor ([PostTarget], AccountStore) async throws -> [Poster]
 
-    /// The content signature each target last received, so re-pressing Post can't
-    /// duplicate an already-published thread. Editing the thread changes the
-    /// signature, which releases the lock automatically.
-    private var postedSignatures: [PostTarget: Int] = [:]
+    /// What already landed on each target from a prior (possibly interrupted) submit:
+    /// the published items (their native refs let a retry resume the thread) plus a
+    /// per-post signature of each landed post, so an edit to an already-published post
+    /// is detected and never silently re-sent.
+    private struct LandedThread {
+        let items: [PostedItem]
+        let signatures: [Int]
+    }
+    private var landedByTarget: [PostTarget: LandedThread] = [:]
+
+    /// Why a target can't be (re)selected right now.
+    enum LockReason: Equatable {
+        case fullySent      // the whole current thread already landed
+        case prefixEdited   // an already-published post was changed; can't resume safely
+    }
 
     init(store: AccountStore,
          makePosters: @escaping @MainActor ([PostTarget], AccountStore) async throws -> [Poster]
@@ -32,19 +43,36 @@ final class ComposeModel {
         !isPosting && !selectedTargets.isEmpty && thread.contains { !$0.isEmpty }
     }
 
-    /// True when this target already received the current thread content; selecting
-    /// it would duplicate that post.
-    func isLocked(_ target: PostTarget) -> Bool {
-        postedSignatures[target] == contentSignature
+    /// True when this target can't receive the current thread: either it's fully sent
+    /// or its already-published prefix was edited. A target with intact landed posts
+    /// and unsent posts below them is *resumable*, not locked.
+    func isLocked(_ target: PostTarget) -> Bool { lockReason(target) != nil }
+
+    func lockReason(_ target: PostTarget) -> LockReason? {
+        guard let landed = landedByTarget[target] else { return nil }
+        guard prefixIntact(landed) else { return .prefixEdited }
+        return thread.count <= landed.items.count ? .fullySent : nil
     }
 
-    private var contentSignature: Int {
+    /// Signature of one post by its content identity (text + image ids); visibility
+    /// and alt text are excluded so they don't spuriously release a lock.
+    private func postSignature(_ post: DraftPost) -> Int {
         var hasher = Hasher()
-        for post in thread {
-            hasher.combine(post.text.trimmingCharacters(in: .whitespacesAndNewlines))
-            hasher.combine(post.attachments.map(\.id))
-        }
+        hasher.combine(post.text.trimmingCharacters(in: .whitespacesAndNewlines))
+        hasher.combine(post.attachments.map(\.id))
         return hasher.finalize()
+    }
+
+    /// Whether the current thread still begins with every landed post unchanged, so
+    /// resuming would thread onto exactly what's live. A shorter thread (a landed
+    /// post removed) or any changed prefix post fails this.
+    private func prefixIntact(_ landed: LandedThread) -> Bool {
+        guard thread.count >= landed.signatures.count else { return false }
+        for (index, signature) in landed.signatures.enumerated()
+        where postSignature(thread[index]) != signature {
+            return false
+        }
+        return true
     }
 
     func addPost() { thread.append(DraftPost()) }
@@ -57,19 +85,39 @@ final class ComposeModel {
     func toggle(_ target: PostTarget) {
         if selectedTargets.contains(target) {
             selectedTargets.remove(target)
-        } else if isLocked(target) {
-            errorMessage = "Already posted to \(target.displayName). Edit a post to send again."
+        } else if let reason = lockReason(target) {
+            errorMessage = lockMessage(target, reason)
         } else {
             selectedTargets.insert(target)
         }
     }
 
+    private func lockMessage(_ target: PostTarget, _ reason: LockReason) -> String {
+        switch reason {
+        case .fullySent:
+            return "Already posted to \(target.displayName). Add a new post to continue the thread."
+        case .prefixEdited:
+            return "Can't re-send to \(target.displayName): an already-posted post was changed. Undo the change or clear the box."
+        }
+    }
+
     func submit() async {
+        // Authoritative guard: a second queued submit (double tap / ⌘↩ race) or an
+        // empty/target-less call returns before touching state or the network.
+        guard canPost else { return }
         isPosting = true
         blockedIssues = nil; errorMessage = nil
         defer { isPosting = false }
 
         let targets = PostTarget.allCases.filter { selectedTargets.contains($0) }
+
+        // Refuse any target whose already-published prefix was edited: a live post
+        // can't be changed, and resuming onto a changed prefix would thread wrong.
+        let edited = targets.filter { landedByTarget[$0].map { !prefixIntact($0) } ?? false }
+        guard edited.isEmpty else {
+            errorMessage = edited.map { lockMessage($0, .prefixEdited) }.joined(separator: "\n")
+            return
+        }
 
         // Stamp the chosen visibility onto every post in the thread (Mastodon honors
         // it; Bluesky ignores it) so the picker is the single source of truth.
@@ -91,42 +139,59 @@ final class ComposeModel {
             return
         }
 
+        // Resume each target from its intact landed prefix so nothing is sent twice.
+        var resuming: [PostTarget: [PostedItem]] = [:]
+        for target in targets {
+            if let landed = landedByTarget[target], !landed.items.isEmpty {
+                resuming[target] = landed.items
+            }
+        }
+
         do {
             let posters = try await makePosters(targets, store)
             let outcome = await coordinator.publish(thread: outgoing, to: targets,
-                                                    using: posters, limits: store.limits)
+                                                    using: posters, limits: store.limits,
+                                                    resuming: resuming)
             switch outcome {
             case .blocked(let issues): blockedIssues = issues
-            case .completed(let results): handleCompletion(results)
+            case .completed(let results): handleCompletion(results, published: outgoing)
             }
         } catch {
             errorMessage = error.userMessage
         }
     }
 
-    /// Refresh the feed panels for platforms that received content, surface any
-    /// failures inline, and make retries safe: clear the box on a clean run, and on
-    /// a partial run keep the draft but de-select every target that already received
-    /// content so pressing Post again can't duplicate what already landed.
+    /// Refresh the feed panels for platforms that received content, surface failures
+    /// inline, and make retries safe: clear the box on a clean run; on a partial run
+    /// keep the draft, record what landed per target (with refs for resume), deselect
+    /// fully-sent targets, and keep partially-sent ones selected so pressing Post
+    /// again publishes only the unsent remainder.
     /// Internal (not private) so the partial-failure reconciliation can be unit-tested.
-    func handleCompletion(_ results: [PostResult]) {
-        // Targets that received any content — fully (.success) or partly (.partial
-        // with at least one landed post). A single-post failure reports `.partial`
-        // with no landed posts, so it correctly stays eligible for retry.
-        let landed = results.filter { result in
+    func handleCompletion(_ results: [PostResult], published: [DraftPost]? = nil) {
+        // Sign the snapshot that was actually published, not the live thread: the
+        // editor stays enabled during posting, so `thread` may have changed since.
+        let published = published ?? thread
+        var fullySent: [PostTarget] = []
+        var anyLanded: [PostTarget] = []
+        for result in results {
+            let items: [PostedItem]
+            let complete: Bool
             switch result.outcome {
-            case .success: return true
-            case .partial(let posted, _, _): return !posted.isEmpty
-            case .failure: return false
+            case .success(let posted): items = posted; complete = true
+            case .partial(let posted, _, _): items = posted; complete = false
+            case .failure: items = []; complete = false
             }
-        }.map(\.target)
+            guard !items.isEmpty else { continue }
+            anyLanded.append(result.target)
+            let count = min(items.count, published.count)
+            let signatures = (0..<count).map { postSignature(published[$0]) }
+            landedByTarget[result.target] = LandedThread(items: items, signatures: signatures)
+            if complete { fullySent.append(result.target) }
+        }
 
-        if !landed.isEmpty {
-            // Lock each landed target against re-posting this exact content.
-            let signature = contentSignature
-            for target in landed { postedSignatures[target] = signature }
+        if !anyLanded.isEmpty {
             NotificationCenter.default.post(name: .crossPostDidPost, object: nil,
-                                            userInfo: [crossPostTargetsKey: Set(landed)])
+                                            userInfo: [crossPostTargetsKey: Set(anyLanded)])
         }
 
         let failures = results.compactMap { result -> String? in
@@ -140,9 +205,12 @@ final class ComposeModel {
         errorMessage = failures.isEmpty ? nil : failures.joined(separator: "\n")
 
         if failures.isEmpty {
-            thread = [DraftPost()]                 // clean run — clear the box
+            thread = [DraftPost()]      // clean run — clear the box and all locks
+            landedByTarget = [:]
         } else {
-            selectedTargets.subtract(Set(landed))  // partial — don't re-post what landed
+            // Fully-sent targets have nothing left to send → deselect (locked).
+            // Partially-sent targets stay selected so a retry resumes the remainder.
+            selectedTargets.subtract(Set(fullySent))
         }
     }
 }

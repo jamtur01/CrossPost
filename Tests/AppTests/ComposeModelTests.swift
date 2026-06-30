@@ -55,7 +55,9 @@ final class ComposeModelTests: XCTestCase {
     private func result(_ target: PostTarget, _ outcome: PostResult.Outcome) -> PostResult {
         PostResult(target: target, outcome: outcome)
     }
-    private let posted = [PostedItem(url: "https://x/1")]
+    private let posted = [PostedItem(url: "https://x/1", ref: .mastodon(statusID: "1"))]
+    private let posted2 = [PostedItem(url: "https://x/1", ref: .mastodon(statusID: "1")),
+                           PostedItem(url: "https://x/2", ref: .mastodon(statusID: "2"))]
 
     func testCleanRunClearsTheBox() {
         let model = makeModel()
@@ -69,21 +71,23 @@ final class ComposeModelTests: XCTestCase {
         XCTAssertTrue(model.thread[0].isEmpty)         // box cleared on a clean run
     }
 
-    func testPartialFailureKeepsDraftAndLocksLandedTargets() {
+    func testFullySentTargetIsLockedAndPartialStaysResumable() {
         let model = makeModel()
         model.thread[0].text = "first"
         model.addPost(); model.thread[1].text = "second"
-        // Mastodon landed both posts; Bluesky failed on the 2nd (1st already live).
+        // Mastodon landed both posts (fully sent); Bluesky landed only the 1st.
         model.handleCompletion([
-            result(.mastodon, .success(posted: posted)),
+            result(.mastodon, .success(posted: posted2)),
             result(.bluesky, .partial(posted: posted, failedIndex: 1, message: "boom")),
         ])
         XCTAssertNotNil(model.errorMessage)
         XCTAssertEqual(model.thread.count, 2)          // draft kept, not cleared
-        // Both received content, so both are de-selected and locked against a re-post.
-        XCTAssertTrue(model.selectedTargets.isEmpty)
-        XCTAssertTrue(model.isLocked(.mastodon))
-        XCTAssertTrue(model.isLocked(.bluesky))
+        // Mastodon is fully sent → deselected and locked.
+        XCTAssertFalse(model.selectedTargets.contains(.mastodon))
+        XCTAssertEqual(model.lockReason(.mastodon), .fullySent)
+        // Bluesky has an unsent 2nd post → stays selected and resumable, not locked.
+        XCTAssertTrue(model.selectedTargets.contains(.bluesky))
+        XCTAssertFalse(model.isLocked(.bluesky))
     }
 
     func testSinglePostFailureStaysRetryable() {
@@ -107,26 +111,57 @@ final class ComposeModelTests: XCTestCase {
         XCTAssertEqual(model.thread.count, 1)
     }
 
-    func testEditingContentReleasesTheLock() {
+    func testEditingTheUnsentSuffixKeepsTargetResumable() {
         let model = makeModel()
         model.thread[0].text = "first"
         model.addPost(); model.thread[1].text = "second"
-        // Partial run keeps the draft, so the lock stays observable.
+        // Only the 1st post landed on Bluesky.
         model.handleCompletion([result(.bluesky, .partial(posted: posted, failedIndex: 1, message: "x"))])
-        XCTAssertTrue(model.isLocked(.bluesky))
+        XCTAssertFalse(model.isLocked(.bluesky))           // resumable: 2nd post unsent
 
-        model.thread[0].text = "first, edited"            // content signature changes
-        XCTAssertFalse(model.isLocked(.bluesky))
+        model.thread[1].text = "second, edited"            // edit only the unsent suffix
+        XCTAssertFalse(model.isLocked(.bluesky))           // still resumable, prefix intact
     }
 
-    func testTogglingALockedTargetIsRefusedWithMessage() {
+    func testEditingAnAlreadyLandedPostLocksTheTarget() {
         let model = makeModel()
         model.thread[0].text = "first"
         model.addPost(); model.thread[1].text = "second"
         model.handleCompletion([result(.bluesky, .partial(posted: posted, failedIndex: 1, message: "x"))])
-        // Bluesky landed → de-selected and locked; re-selecting it is refused.
-        XCTAssertFalse(model.selectedTargets.contains(.bluesky))
-        model.toggle(.bluesky)
+        XCTAssertFalse(model.isLocked(.bluesky))           // resumable before the edit
+
+        model.thread[0].text = "first, edited"             // edit the already-published 1st post
+        XCTAssertEqual(model.lockReason(.bluesky), .prefixEdited)
+    }
+
+    func testRemovingALandedPostLocksTheTarget() {
+        let model = makeModel()
+        model.thread[0].text = "first"
+        model.addPost(); model.thread[1].text = "second"
+        // Bluesky landed both posts; Mastodon failed so the draft is kept.
+        model.handleCompletion([
+            result(.bluesky, .success(posted: posted2)),
+            result(.mastodon, .failure(message: "no account")),
+        ])
+        XCTAssertEqual(model.lockReason(.bluesky), .fullySent)
+
+        model.removePost(at: 1)                            // remove the 2nd (landed) post
+        // The thread no longer matches the landed prefix → reposting [first] would
+        // duplicate it, so the target is locked as edited, never resent.
+        XCTAssertEqual(model.lockReason(.bluesky), .prefixEdited)
+    }
+
+    func testTogglingAFullySentTargetIsRefusedWithMessage() {
+        let model = makeModel()
+        model.thread[0].text = "only post"
+        // Bluesky fully sent; Mastodon failed so the draft (and lock) persist.
+        model.handleCompletion([
+            result(.bluesky, .success(posted: posted)),
+            result(.mastodon, .failure(message: "no account")),
+        ])
+        XCTAssertFalse(model.selectedTargets.contains(.bluesky))   // fully sent → de-selected
+        model.errorMessage = nil
+        model.toggle(.bluesky)                                     // re-selecting it is refused
         XCTAssertFalse(model.selectedTargets.contains(.bluesky))
         XCTAssertNotNil(model.errorMessage)
     }
@@ -237,19 +272,98 @@ final class ComposeModelTests: XCTestCase {
         XCTAssertEqual(model.selectedTargets, [.bluesky]) // only landed Mastodon de-selected
     }
 
-    /// Intended behavior: the lock keys on text + image identity, so editing only a
-    /// post's alt text must NOT release a landed target's lock — re-posting the same
-    /// text and images would duplicate it. (Guards against a regression that folds
-    /// alt text into the content signature.)
-    func testEditingOnlyAltTextKeepsTheLock() {
+    /// The landed signature keys on text + image identity, so editing only a post's
+    /// alt text must NOT mark an already-published prefix as edited — the live post
+    /// is unchanged. (Guards against folding alt text into the signature.)
+    func testEditingOnlyAltTextKeepsTheLandedPrefixIntact() {
         let model = makeModel()
         model.thread[0].text = "with image"
         model.thread[0].attachments = [Attachment(imageData: Data([0x1]), altText: "old")]
-        model.addPost(); model.thread[1].text = "second"
-        model.handleCompletion([result(.bluesky, .partial(posted: posted, failedIndex: 1, message: "x"))])
-        XCTAssertTrue(model.isLocked(.bluesky))
+        // Bluesky fully landed the post; Mastodon failed so the draft is kept.
+        model.handleCompletion([
+            result(.bluesky, .success(posted: posted)),
+            result(.mastodon, .failure(message: "no account")),
+        ])
+        XCTAssertEqual(model.lockReason(.bluesky), .fullySent)
 
         model.thread[0].attachments[0].altText = "new alt text"   // same image id
-        XCTAssertTrue(model.isLocked(.bluesky))
+        XCTAssertEqual(model.lockReason(.bluesky), .fullySent)    // not .prefixEdited
+    }
+
+    func testSubmitIgnoresReentrantCallWhileposting() async {
+        let recorder = PosterRecorder()
+        let model = model(with: recorder)
+        model.thread[0].text = "hi"
+        model.isPosting = true   // simulate a submit already in flight
+
+        await model.submit()
+
+        XCTAssertTrue(recorder.requestedTargets.isEmpty, "a reentrant submit must not post again")
+    }
+
+    func testSubmitDoesNothingWithNoSelectedTargets() async {
+        let recorder = PosterRecorder()
+        let model = model(with: recorder)
+        model.thread[0].text = "hi"
+        model.toggle(.mastodon); model.toggle(.bluesky)   // deselect both
+        XCTAssertTrue(model.selectedTargets.isEmpty)
+
+        await model.submit()
+
+        XCTAssertTrue(recorder.requestedTargets.isEmpty)
+        XCTAssertFalse(model.thread[0].isEmpty, "an empty-target submit must not clear the draft")
+    }
+
+    func testRetryResumesOnlyTheUnsentSuffix() async {
+        let recorder = PosterRecorder()
+        let bluesky = FakePoster(target: .bluesky)
+        // First attempt: post 1 lands, post 2 fails mid-thread. Retry: the suffix succeeds.
+        let landed1 = PostedItem(url: "https://x/1",
+                                 ref: .bluesky(uri: "at://1", cid: "c1", rootURI: "at://1", rootCID: "c1"))
+        bluesky.resultQueue = [
+            .failure(ThreadPostError(posted: [landed1], failedIndex: 1, underlying: FakePostError.boom)),
+            .success([PostedItem(url: "https://x/2",
+                                 ref: .bluesky(uri: "at://2", cid: "c2", rootURI: "at://1", rootCID: "c1"))]),
+        ]
+        recorder.postersByTarget = [.bluesky: bluesky]
+        let model = model(with: recorder)
+        model.toggle(.mastodon)   // Bluesky only
+        model.thread = [DraftPost(text: "first"), DraftPost(text: "second")]
+
+        await model.submit()   // first attempt → partial, Bluesky stays selected
+        XCTAssertTrue(model.selectedTargets.contains(.bluesky))
+        XCTAssertFalse(model.isLocked(.bluesky))
+
+        await model.submit()   // retry → resumes the suffix
+
+        XCTAssertEqual(bluesky.postedThreads.count, 2)
+        XCTAssertEqual(bluesky.postedThreads[0].map(\.text), ["first", "second"])  // fresh: whole thread
+        XCTAssertEqual(bluesky.postedThreads[1].map(\.text), ["second"])           // retry: only the unsent post
+        XCTAssertNil(bluesky.continuedFrom[0])                                     // fresh: no resume ref
+        XCTAssertEqual(bluesky.continuedFrom[1], landed1.ref)                      // retry: threads onto post 1
+        XCTAssertNil(model.errorMessage)
+        XCTAssertTrue(model.thread[0].isEmpty)   // clean run after resume → box cleared
+    }
+
+    func testSubmitRefusesATargetWhosePublishedPrefixWasEdited() async {
+        let recorder = PosterRecorder()
+        let bluesky = FakePoster(target: .bluesky)
+        let landed1 = PostedItem(url: "https://x/1",
+                                 ref: .bluesky(uri: "at://1", cid: "c1", rootURI: "at://1", rootCID: "c1"))
+        bluesky.result = .failure(
+            ThreadPostError(posted: [landed1], failedIndex: 1, underlying: FakePostError.boom))
+        recorder.postersByTarget = [.bluesky: bluesky]
+        let model = model(with: recorder)
+        model.toggle(.mastodon)   // Bluesky only
+        model.thread = [DraftPost(text: "first"), DraftPost(text: "second")]
+
+        await model.submit()   // post 1 lands, post 2 fails
+        XCTAssertEqual(bluesky.postedThreads.count, 1)
+
+        model.thread[0].text = "first, edited"   // edit the already-published post
+        await model.submit()                     // must refuse, not resend
+
+        XCTAssertEqual(bluesky.postedThreads.count, 1, "an edited published prefix must not be resent")
+        XCTAssertNotNil(model.errorMessage)
     }
 }

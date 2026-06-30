@@ -98,13 +98,15 @@ struct SettingsView: View {
     private func verifyMastodon() async {
         verifyingMastodon = true
         defer { verifyingMastodon = false }
+        // Snapshot the fields the user verified: they stay editable during the await,
+        // so saving the live fields could persist a pair that was never verified.
+        let instanceURL = mastodonInstanceURL
+        let token = mastodonToken
         do {
-            let verified = try await PosterFactory.makeMastodon(
-                instanceURL: mastodonInstanceURL,
-                token: mastodonToken)
+            let verified = try await PosterFactory.makeMastodon(instanceURL: instanceURL, token: token)
             try store.saveMastodon(
-                instanceURL: mastodonInstanceURL,
-                token: mastodonToken,
+                instanceURL: instanceURL,
+                token: token,
                 maxChars: verified.maxCharacters,
                 username: verified.username)
             statusIsError = false
@@ -119,11 +121,14 @@ struct SettingsView: View {
     private func verifyBluesky() async {
         verifyingBluesky = true
         defer { verifyingBluesky = false }
+        // Snapshot the verified credentials (the fields stay editable during the await).
+        let handle = blueskyHandle
+        let password = blueskyPassword
         do {
-            _ = try await PosterFactory.makeBluesky(handle: blueskyHandle, appPassword: blueskyPassword)
-            try store.saveBluesky(handle: blueskyHandle, appPassword: blueskyPassword)
+            _ = try await PosterFactory.makeBluesky(handle: handle, appPassword: password)
+            try store.saveBluesky(handle: handle, appPassword: password)
             statusIsError = false
-            status = "Bluesky verified for @\(blueskyHandle.trimmingCharacters(in: .whitespacesAndNewlines))."
+            status = "Bluesky verified for @\(handle.trimmingCharacters(in: .whitespacesAndNewlines))."
             credentialsChanged(.bluesky)
         } catch {
             statusIsError = true

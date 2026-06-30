@@ -93,10 +93,7 @@ struct ProfileView: View {
             .clipped()
             .contentShape(Rectangle())
             .onTapGesture { if let url = profile?.bannerURL { lightbox.present(url) } }
-            .onHover { hovering in
-                guard profile?.bannerURL != nil else { return }
-                if hovering { NSCursor.pointingHand.push() } else { NSCursor.pop() }
-            }
+            .pointingHandCursor(enabled: profile?.bannerURL != nil)
             .help(profile?.bannerURL != nil ? "View banner" : "")
 
             VStack(alignment: .leading, spacing: 8) {
@@ -114,9 +111,7 @@ struct ProfileView: View {
                     .padding(.bottom, -34)
                     .contentShape(Circle())
                     .onTapGesture { popOutAvatar() }
-                    .onHover { hovering in
-                        if hovering { NSCursor.pointingHand.push() } else { NSCursor.pop() }
-                    }
+                    .pointingHandCursor()
                     .help("View profile photo")
 
                     Spacer()
@@ -225,7 +220,7 @@ struct ProfileView: View {
             onQuote: { text, visibility in
                 _ = try await panel.quote(post: row, text: text, visibility: visibility)
             },
-            onEdit: postEditActions(for: row, panel),
+            onEdit: postEditActions(for: row, panel, onUpdated: { list.replace($0) }),
             onCopyLink: { panel.copyLink(row) })
     }
 

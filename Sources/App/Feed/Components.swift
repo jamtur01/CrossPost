@@ -52,6 +52,36 @@ extension View {
     func hoverHighlight() -> some View { modifier(HoverHighlight()) }
 }
 
+/// Shows the pointing-hand cursor while hovering a clickable element, popping it
+/// back even if the view disappears mid-hover (navigating away / a refresh that
+/// removes the element) — a bare `onHover` push/pop leaves the cursor stuck then.
+private struct PointingHandCursor: ViewModifier {
+    var enabled: Bool
+    @State private var pushed = false
+
+    func body(content: Content) -> some View {
+        content
+            .onHover { hovering in
+                if hovering, enabled {
+                    if !pushed { NSCursor.pointingHand.push(); pushed = true }
+                } else if pushed {
+                    NSCursor.pop(); pushed = false
+                }
+            }
+            .onDisappear {
+                if pushed { NSCursor.pop(); pushed = false }
+            }
+    }
+}
+
+extension View {
+    /// Pointing-hand cursor on hover, balanced across view teardown. `enabled` gates
+    /// it (e.g. only when there's an image to open).
+    func pointingHandCursor(enabled: Bool = true) -> some View {
+        modifier(PointingHandCursor(enabled: enabled))
+    }
+}
+
 /// A circular avatar with the shared placeholder + ring, used everywhere an
 /// account image appears so sizing and the hairline ring stay consistent.
 struct AvatarView: View {

@@ -185,7 +185,10 @@ struct BlueskyFeedService: FeedService {
         }
         let ref = try await bluesky.createPostRecord(text: text, replyTo: replyRef, embed: embed)
         let rkey = ref.recordURI.split(separator: "/").last.map(String.init) ?? ""
-        return PostedItem(url: "https://bsky.app/profile/\(handle)/post/\(rkey)")
+        // The reply keeps the parent's thread root, so a continuation threads correctly.
+        let nativeRef = NativeRef.bluesky(uri: ref.recordURI, cid: ref.recordCID,
+                                          rootURI: rootURI, rootCID: rootCID)
+        return PostedItem(url: "https://bsky.app/profile/\(handle)/post/\(rkey)", ref: nativeRef)
     }
 
     func quote(post: FeedPost, text: String, visibility _: PostVisibility) async throws -> PostedItem {
@@ -194,7 +197,10 @@ struct BlueskyFeedService: FeedService {
             text: text,
             embed: .record(strongReference: .init(recordURI: uri, cidHash: cid)))
         let rkey = ref.recordURI.split(separator: "/").last.map(String.init) ?? ""
-        return PostedItem(url: "https://bsky.app/profile/\(handle)/post/\(rkey)")
+        // A quote is a fresh top-level post, so it is its own thread root.
+        let nativeRef = NativeRef.bluesky(uri: ref.recordURI, cid: ref.recordCID,
+                                          rootURI: ref.recordURI, rootCID: ref.recordCID)
+        return PostedItem(url: "https://bsky.app/profile/\(handle)/post/\(rkey)", ref: nativeRef)
     }
 
     func thread(of post: FeedPost) async throws -> PostThread {
@@ -344,18 +350,29 @@ struct BlueskyFeedService: FeedService {
 
     func likedBy(_ post: FeedPost) async throws -> [Profile] {
         guard case .bluesky(let uri, _, _, _) = post.nativeRef else { return [] }
-        return try await kit.getLikes(from: uri).likes.map { Self.profile(fromBasic: $0.actor) }
+        let likes = try await paged(target: 200, maxPages: 3) {
+            let output = try await kit.getLikes(from: uri, limit: 100, cursor: $0)
+            return (output.likes, output.cursor)
+        }
+        return likes.map { Self.profile(fromBasic: $0.actor) }
     }
 
     func repostedBy(_ post: FeedPost) async throws -> [Profile] {
         guard case .bluesky(let uri, _, _, _) = post.nativeRef else { return [] }
-        return try await kit.getRepostedBy(uri).repostedBy.map { Self.profile(fromBasic: $0) }
+        let actors = try await paged(target: 200, maxPages: 3) {
+            let output = try await kit.getRepostedBy(uri, limit: 100, cursor: $0)
+            return (output.repostedBy, output.cursor)
+        }
+        return actors.map { Self.profile(fromBasic: $0) }
     }
 
     func conversations() async throws -> [Conversation] {
         let myDID = try await ownDID()
-        let output = try await chat.listConversations()
-        return output.conversations.compactMap { convo in
+        let convos = try await paged(target: 200, maxPages: 3) {
+            let output = try await chat.listConversations(limit: 100, cursor: $0)
+            return (output.conversations, output.cursor)
+        }
+        return convos.compactMap { convo in
             // Fall back to the first member for a self-conversation (DM to yourself).
             guard let other = convo.members.first(where: { $0.actorDID != myDID }) ?? convo.members.first
             else { return nil }
@@ -371,7 +388,9 @@ struct BlueskyFeedService: FeedService {
 
     func messages(in conversationID: String) async throws -> [DirectMessage] {
         let myDID = try await ownDID()
-        let output = try await chat.getMessages(from: conversationID)
+        // ATProtoKit's getMessages exposes no cursor, so fetch its max page (100).
+        // Deep DM history beyond one page isn't reachable until the SDK adds a cursor.
+        let output = try await chat.getMessages(from: conversationID, limit: 100)
         let messages = output.messages.compactMap { message -> DirectMessage? in
             guard case .messageView(let m) = message else { return nil }
             return DirectMessage(id: m.messageID, text: m.text, date: m.sentAt,
@@ -463,11 +482,19 @@ struct BlueskyFeedService: FeedService {
     }
 
     func followers(of id: String) async throws -> [Profile] {
-        try await kit.getFollowers(by: id).followers.map { Self.profile(fromBasic: $0) }
+        let actors = try await paged(target: 200, maxPages: 3) {
+            let output = try await kit.getFollowers(by: id, limit: 100, cursor: $0)
+            return (output.followers, output.cursor)
+        }
+        return actors.map { Self.profile(fromBasic: $0) }
     }
 
     func following(of id: String) async throws -> [Profile] {
-        try await kit.getFollows(from: id).follows.map { Self.profile(fromBasic: $0) }
+        let actors = try await paged(target: 200, maxPages: 3) {
+            let output = try await kit.getFollows(from: id, limit: 100, cursor: $0)
+            return (output.follows, output.cursor)
+        }
+        return actors.map { Self.profile(fromBasic: $0) }
     }
 
     static func profile(fromBasic p: AppBskyLexicon.Actor.ProfileViewDefinition) -> Profile {

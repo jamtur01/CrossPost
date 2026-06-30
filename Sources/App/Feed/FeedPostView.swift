@@ -200,10 +200,7 @@ struct FeedPostView: View {
         }
         // Tap pops the image out; takes precedence over the row's open-thread tap.
         .onTapGesture { lightbox?.present(url) }
-        .onHover { hovering in
-            guard lightbox != nil else { return }
-            if hovering { NSCursor.pointingHand.push() } else { NSCursor.pop() }
-        }
+        .pointingHandCursor(enabled: lightbox != nil)
     }
 
     private var actionBar: some View {

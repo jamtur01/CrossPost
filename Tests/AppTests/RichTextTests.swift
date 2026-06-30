@@ -71,4 +71,26 @@ final class RichTextTests: XCTestCase {
         XCTAssertTrue(links(styled).isEmpty)
         XCTAssertTrue(colored(styled).isEmpty)
     }
+
+    /// Same cache key, different body must not serve the stale render: an edited
+    /// Mastodon post keeps its id, so the cache must key on content too.
+    func testSameCacheKeyDifferentTextRecomputes() {
+        let first = RichText.styled(AttributedString("original text"), accent: accent, cacheKey: "mastodon:1")
+        XCTAssertEqual(String(first.characters), "original text")
+        let second = RichText.styled(AttributedString("edited text"), accent: accent, cacheKey: "mastodon:1")
+        XCTAssertEqual(String(second.characters), "edited text")
+    }
+
+    /// A facet whose URL changed under the same visible label must miss the cache.
+    func testSameLabelDifferentLinkRecomputes() {
+        var first = AttributedString("profile")
+        first.link = URL(string: "https://x.com/a")
+        let a = RichText.styled(first, accent: accent, cacheKey: "bluesky:1")
+        XCTAssertEqual(links(a).first?.url, URL(string: "https://x.com/a"))
+
+        var second = AttributedString("profile")
+        second.link = URL(string: "https://x.com/b")
+        let b = RichText.styled(second, accent: accent, cacheKey: "bluesky:1")
+        XCTAssertEqual(links(b).first?.url, URL(string: "https://x.com/b"))
+    }
 }

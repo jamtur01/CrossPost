@@ -51,7 +51,7 @@ struct ThreadView: View {
                         onQuote: { text, visibility in
                             _ = try await panel.quote(post: row, text: text, visibility: visibility)
                         },
-                        onEdit: postEditActions(for: row, panel),
+                        onEdit: postEditActions(for: row, panel, onUpdated: { list.replace($0) }),
                         onCopyLink: { panel.copyLink(row) },
                         inTimeline: !isFocused,
                         expanded: isFocused)
@@ -78,17 +78,18 @@ struct ThreadView: View {
     private func load() async {
         loading = true
         loadError = nil
-        // Read the focused post after the fetch so a poll during loading can't
-        // leave it showing stale counts.
-        let live = panel.posts.first { $0.id == focusedPost.id } ?? focusedPost
         do {
             let thread = try await panel.thread(of: focusedPost)
+            // Read the focused post after the fetch so a poll/like during loading is
+            // reflected (freshest counts and like/repost state win).
+            let live = panel.posts.first { $0.id == focusedPost.id } ?? focusedPost
             // Guard against a service returning the focused post inside its own
             // context, which would duplicate its id in the ForEach.
             let ancestors = thread.ancestors.filter { $0.id != focusedPost.id }
             let descendants = thread.descendants.filter { $0.id != focusedPost.id }
             list.posts = ancestors + [live] + descendants
         } catch {
+            let live = panel.posts.first { $0.id == focusedPost.id } ?? focusedPost
             list.posts = [live]   // keep the focused post; surface the context failure
             loadError = error.userMessage
         }

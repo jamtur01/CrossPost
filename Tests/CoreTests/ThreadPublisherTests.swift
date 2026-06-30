@@ -22,6 +22,12 @@ private actor FakePublisher: ThreadPublisher {
     }
 
     func recordedCalls() -> [Call] { calls }
+
+    // Map a Mastodon statusID ("5") to Int refs so resume can be exercised here.
+    nonisolated func resumeRefs(from ref: NativeRef) -> (root: Int, parent: Int)? {
+        guard case .mastodon(let statusID) = ref, let value = Int(statusID) else { return nil }
+        return (root: value, parent: value)
+    }
 }
 
 final class ThreadPublisherTests: XCTestCase {
@@ -59,5 +65,20 @@ final class ThreadPublisherTests: XCTestCase {
         } catch {
             XCTFail("wrong error: \(error)")
         }
+    }
+
+    func testContinuingFromSeedsRootAndParentFromLandedPost() async throws {
+        let pub = FakePublisher()
+        // Resume from a landed post whose ref maps to Int 5: the first new post must
+        // reply to it (root=5, parent=5), the next chains onto the freshly posted ref.
+        let drafts = [DraftPost(text: "b"), DraftPost(text: "c")]
+        let posted = try await runThread(drafts, using: pub, continuingFrom: .mastodon(statusID: "5"))
+
+        XCTAssertEqual(posted.map(\.url), ["url-1", "url-2"])
+        let calls = await pub.recordedCalls()
+        XCTAssertEqual(calls, [
+            .init(root: 5, parent: 5),   // first new post replies to the landed post
+            .init(root: 5, parent: 1),   // next keeps the landed root, parents on the new post
+        ])
     }
 }

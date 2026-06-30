@@ -111,6 +111,12 @@ final class PostList {
         }
     }
 
+    /// Replace a row in place after an edit (same id, new content), so a thread/
+    /// profile/search/saved route shows the edit without a full reload.
+    func replace(_ post: FeedPost) {
+        if let index = posts.firstIndex(where: { $0.id == post.id }) { posts[index] = post }
+    }
+
     /// Optimistically remove a row, deleting it on the server and re-inserting it
     /// at its original position (with an error banner) if the delete fails.
     func delete(_ post: FeedPost) {

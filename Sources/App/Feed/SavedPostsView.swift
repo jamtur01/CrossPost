@@ -50,7 +50,7 @@ struct SavedPostsView: View {
                         onQuote: { text, visibility in
                             _ = try await panel.quote(post: row, text: text, visibility: visibility)
                         },
-                        onEdit: postEditActions(for: row, panel),
+                        onEdit: postEditActions(for: row, panel, onUpdated: { list.replace($0) }),
                         onCopyLink: { panel.copyLink(row) })
                 }
             }

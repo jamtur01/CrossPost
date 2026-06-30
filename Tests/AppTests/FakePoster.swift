@@ -3,17 +3,22 @@ import Foundation
 
 enum FakePostError: Error { case boom }
 
-/// A `Poster` that records the threads it's asked to post and returns a canned
-/// result (success, full failure, or a mid-thread `ThreadPostError`).
+/// A `Poster` that records the threads (and resume refs) it's asked to post and
+/// returns canned results — a single `result`, or a per-call `resultQueue` so one
+/// test can model a first-attempt partial followed by a successful retry.
 final class FakePoster: Poster, @unchecked Sendable {
     let target: PostTarget
     var result: Result<[PostedItem], Error> = .success([PostedItem(url: "https://example/1")])
+    var resultQueue: [Result<[PostedItem], Error>] = []
     private(set) var postedThreads: [[DraftPost]] = []
+    private(set) var continuedFrom: [NativeRef?] = []
 
     init(target: PostTarget) { self.target = target }
 
-    func post(thread: [DraftPost]) async throws -> [PostedItem] {
+    func post(thread: [DraftPost], continuingFrom ref: NativeRef?) async throws -> [PostedItem] {
         postedThreads.append(thread)
+        continuedFrom.append(ref)
+        if !resultQueue.isEmpty { return try resultQueue.removeFirst().get() }
         return try result.get()
     }
 }

@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.12] - 2026-06-30
+
+### Fixed
+
+- Pressing Post or Send twice quickly (or with Cmd-Return) no longer publishes
+  the same post or reply more than once.
+- After a cross-post that failed partway through a thread, retrying now sends
+  only the posts that didn't go through, instead of re-sending ones that already
+  landed. Editing an already-published post is refused rather than duplicating it.
+- An edited Mastodon post now shows its new text immediately everywhere it
+  appears, instead of continuing to show the old text until relaunch.
+- Verifying account credentials in Settings now saves exactly the values that
+  were checked, even if you keep typing in the fields while it verifies.
+- Search no longer briefly shows an error or spinner left over from a previous
+  query after you've typed a new one.
+- Opening a thread shows the focused post's latest like and repost counts when
+  they changed while the thread was loading.
+- The pointing-hand cursor no longer occasionally stays stuck after navigating
+  away from a profile or image while hovering it.
+
+### Changed
+
+- Followers, following, who-liked, and who-reposted lists (both networks) and
+  Bluesky direct-message conversations now load several pages deep instead of
+  stopping at the first page.
+
 ## [0.4.11] - 2026-06-30
 
 ### Fixed

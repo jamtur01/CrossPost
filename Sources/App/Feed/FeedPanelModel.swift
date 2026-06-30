@@ -47,11 +47,13 @@ final class FeedPanelModel {
         target == .mastodon ? store.hasMastodon : store.hasBluesky
     }
 
-    /// (Re)start the panel. Drops any cached service so credential changes take effect.
+    /// (Re)start the panel. Drops any cached service so credential changes take effect,
+    /// and cancels every running task first so a credential change that clears or
+    /// invalidates the account can't leave the old account's poll/live/unread/load
+    /// tasks running (the live stream would otherwise retry-loop forever).
     func start() {
+        stop()
         service = nil
-        serviceTask?.cancel()
-        serviceTask = nil
         guard hasCredentials else { needsCredentials = true; return }
         needsCredentials = false
         enqueueLoad(reset: true, userInitiated: false)
@@ -330,6 +332,9 @@ final class FeedPanelModel {
 
     func edit(post: FeedPost, text: String, spoiler: String) async throws -> FeedPost {
         let updated = try await resolveService().edit(post: post, text: text, spoiler: spoiler)
+        // Update this panel's timeline row immediately; also refresh so the rest of
+        // the platform's surfaces (and counts) catch up.
+        updatePost(post.id) { $0 = updated }
         NotificationCenter.default.post(name: .crossPostDidPost, object: nil,
                                         userInfo: [crossPostTargetsKey: Set([post.target])])
         return updated

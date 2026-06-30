@@ -14,8 +14,16 @@ struct BlueskyPoster: Poster, ThreadPublisher {
         self.handle = handle
     }
 
-    func post(thread: [DraftPost]) async throws -> [PostedItem] {
-        try await runThread(thread, using: self)
+    func post(thread: [DraftPost], continuingFrom ref: NativeRef?) async throws -> [PostedItem] {
+        try await runThread(thread, using: self, continuingFrom: ref)
+    }
+
+    /// Rebuild the StrongReferences to resume a thread: parent is the landed post,
+    /// root is its stored thread root, so the next post threads under the same root.
+    func resumeRefs(from ref: NativeRef) -> (root: Ref, parent: Ref)? {
+        guard case .bluesky(let uri, let cid, let rootURI, let rootCID) = ref else { return nil }
+        return (root: .init(recordURI: rootURI, cidHash: rootCID),
+                parent: .init(recordURI: uri, cidHash: cid))
     }
 
     func publishOne(
@@ -47,7 +55,13 @@ struct BlueskyPoster: Poster, ThreadPublisher {
         }
 
         let ref = try await bluesky.createPostRecord(text: draft.text, replyTo: replyRef, embed: embed)
-        return (ref: ref, item: PostedItem(url: Self.webURL(recordURI: ref.recordURI, handle: handle)))
+        // The thread root is the existing root (replies) or this post itself (top-level),
+        // captured so a later post can resume the thread under the same root.
+        let rootRef = root ?? ref
+        let nativeRef = NativeRef.bluesky(uri: ref.recordURI, cid: ref.recordCID,
+                                          rootURI: rootRef.recordURI, rootCID: rootRef.recordCID)
+        return (ref: ref, item: PostedItem(url: Self.webURL(recordURI: ref.recordURI, handle: handle),
+                                           ref: nativeRef))
     }
 
     /// Build a bsky.app web URL from the at:// record URI's record key.

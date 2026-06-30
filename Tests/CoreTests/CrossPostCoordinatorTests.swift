@@ -1,15 +1,23 @@
 import XCTest
 @testable import CrossPost
 
-private struct StubPoster: Poster {
+private final class StubPoster: Poster, @unchecked Sendable {
     let target: PostTarget
     let behavior: Behavior
+    private(set) var continuedFrom: NativeRef?
+    private(set) var postedThread: [DraftPost] = []
     enum Behavior {
         case ok([PostedItem])
         case partial(ThreadPostError)
         case fail(Error)
     }
-    func post(thread: [DraftPost]) async throws -> [PostedItem] {
+    init(target: PostTarget, behavior: Behavior) {
+        self.target = target
+        self.behavior = behavior
+    }
+    func post(thread: [DraftPost], continuingFrom ref: NativeRef?) async throws -> [PostedItem] {
+        continuedFrom = ref
+        postedThread = thread
         switch behavior {
         case .ok(let items): return items
         case .partial(let e): throw e
@@ -30,7 +38,7 @@ private actor EventLog {
 private struct SlowPoster: Poster {
     let target: PostTarget
     let log: EventLog
-    func post(thread: [DraftPost]) async throws -> [PostedItem] {
+    func post(thread: [DraftPost], continuingFrom ref: NativeRef?) async throws -> [PostedItem] {
         await log.add("\(target.rawValue) begin")
         try await Task.sleep(nanoseconds: 300_000_000)
         await log.add("\(target.rawValue) end")
@@ -114,5 +122,65 @@ final class CrossPostCoordinatorTests: XCTestCase {
               case .failure(let msg) = results[0].outcome
         else { return XCTFail("expected failure") }
         XCTAssertTrue(msg.contains("Bluesky"))
+    }
+
+    func testResumePostsOnlyTheUnsentSuffix() async {
+        let thread = [DraftPost(text: "a"), DraftPost(text: "b"), DraftPost(text: "c")]
+        let landed = [PostedItem(url: "m1", ref: .mastodon(statusID: "1"))]
+        let poster = StubPoster(target: .mastodon,
+                                behavior: .ok([PostedItem(url: "m2", ref: .mastodon(statusID: "2")),
+                                               PostedItem(url: "m3", ref: .mastodon(statusID: "3"))]))
+        let outcome = await coordinator.publish(thread: thread, to: [.mastodon], using: [poster],
+                                                limits: limits, resuming: [.mastodon: landed])
+        guard case .completed(let results) = outcome,
+              case .success(let posted) = results[0].outcome
+        else { return XCTFail("expected success") }
+        // Only the unsent suffix is published, threaded onto the landed post.
+        XCTAssertEqual(poster.postedThread.map(\.text), ["b", "c"])
+        XCTAssertEqual(poster.continuedFrom, .mastodon(statusID: "1"))
+        // The reported result spans the whole thread: landed prefix + new posts.
+        XCTAssertEqual(posted.map(\.url), ["m1", "m2", "m3"])
+    }
+
+    func testResumeWithFullyLandedThreadPostsNothing() async {
+        let thread = [DraftPost(text: "a")]
+        let landed = [PostedItem(url: "m1", ref: .mastodon(statusID: "1"))]
+        let poster = StubPoster(target: .mastodon, behavior: .fail(Boom()))  // must not be called
+        let outcome = await coordinator.publish(thread: thread, to: [.mastodon], using: [poster],
+                                                limits: limits, resuming: [.mastodon: landed])
+        guard case .completed(let results) = outcome,
+              case .success(let posted) = results[0].outcome
+        else { return XCTFail("expected success") }
+        XCTAssertEqual(posted.map(\.url), ["m1"])
+        XCTAssertTrue(poster.postedThread.isEmpty, "nothing left to send must not call the poster")
+    }
+
+    func testResumeMidThreadFailureReportsAbsoluteIndex() async {
+        let thread = [DraftPost(text: "a"), DraftPost(text: "b"), DraftPost(text: "c")]
+        let landed = [PostedItem(url: "m1", ref: .mastodon(statusID: "1"))]
+        // Resuming [b, c]; b (absolute index 1) fails immediately, nothing new posted.
+        let err = ThreadPostError(posted: [], failedIndex: 0, underlying: Boom())
+        let poster = StubPoster(target: .mastodon, behavior: .partial(err))
+        let outcome = await coordinator.publish(thread: thread, to: [.mastodon], using: [poster],
+                                                limits: limits, resuming: [.mastodon: landed])
+        guard case .completed(let results) = outcome,
+              case .partial(let posted, let failedIndex, _) = results[0].outcome
+        else { return XCTFail("expected partial") }
+        XCTAssertEqual(posted.map(\.url), ["m1"])      // landed prefix preserved
+        XCTAssertEqual(failedIndex, 1)                 // absolute over the full thread
+    }
+
+    func testResumeRefusedWhenLandedRefMissing() async {
+        let thread = [DraftPost(text: "a"), DraftPost(text: "b")]
+        let landed = [PostedItem(url: "m1")]   // no native ref → can't thread onto it
+        let poster = StubPoster(target: .mastodon, behavior: .ok([PostedItem(url: "m2")]))
+        let outcome = await coordinator.publish(thread: thread, to: [.mastodon], using: [poster],
+                                                limits: limits, resuming: [.mastodon: landed])
+        guard case .completed(let results) = outcome,
+              case .partial(let posted, let failedIndex, _) = results[0].outcome
+        else { return XCTFail("expected partial") }
+        XCTAssertEqual(posted.map(\.url), ["m1"])
+        XCTAssertEqual(failedIndex, 1)
+        XCTAssertTrue(poster.postedThread.isEmpty, "must not post an unthreaded suffix")
     }
 }

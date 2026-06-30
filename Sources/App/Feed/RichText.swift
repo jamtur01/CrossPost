@@ -19,12 +19,26 @@ enum RichText {
 
     /// `cacheKey` (e.g. the post id, which is platform-prefixed so it captures the
     /// accent too) memoises the result so the NSDataDetector pass doesn't re-run on
-    /// every `body` evaluation while scrolling.
+    /// every `body` evaluation while scrolling. The post's text is folded into the
+    /// key so an edit (same id, new body) recomputes instead of serving stale text.
     static func styled(_ input: AttributedString, accent: Color, cacheKey: String? = nil) -> AttributedString {
-        if let cacheKey, let hit = cache.object(forKey: cacheKey as NSString) { return hit.value }
+        let key = cacheKey.map { "\($0)#\(fingerprint(input))" as NSString }
+        if let key, let hit = cache.object(forKey: key) { return hit.value }
         let result = compute(input, accent: accent)
-        if let cacheKey { cache.setObject(Box(result), forKey: cacheKey as NSString) }
+        if let key { cache.setObject(Box(result), forKey: key) }
         return result
+    }
+
+    /// Identity of the rendered input: its text plus every link run's href, so an
+    /// edit that changes the body — or a facet whose URL changed under the same
+    /// visible label — misses the cache instead of serving a stale render.
+    private static func fingerprint(_ input: AttributedString) -> Int {
+        var hasher = Hasher()
+        hasher.combine(String(input.characters))
+        for run in input.runs where run.link != nil {
+            hasher.combine(run.link?.absoluteString)
+        }
+        return hasher.finalize()
     }
 
     private static func compute(_ input: AttributedString, accent: Color) -> AttributedString {

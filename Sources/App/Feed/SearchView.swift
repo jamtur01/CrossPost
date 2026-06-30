@@ -123,7 +123,7 @@ struct SearchView: View {
             onQuote: { text, visibility in
                 _ = try await panel.quote(post: row, text: text, visibility: visibility)
             },
-            onEdit: postEditActions(for: row, panel),
+            onEdit: postEditActions(for: row, panel, onUpdated: { postList.replace($0) }),
             onCopyLink: { panel.copyLink(row) })
     }
 
@@ -149,15 +149,22 @@ struct SearchView: View {
     private func runSearch(_ trimmed: String) async {
         searching = true
         errorMessage = nil
-        defer { searching = false }
+        // Only the search for the current query owns the spinner/error/results: a
+        // superseded search must not clear a newer one's spinner or replace the
+        // current UI with its stale success or failure.
+        defer { if isCurrent(trimmed) { searching = false } }
         do {
             let found = try await panel.search(trimmed)
-            // Ignore a result that arrived after the query moved on.
-            guard trimmed == query.trimmingCharacters(in: .whitespaces) else { return }
+            guard isCurrent(trimmed) else { return }
             results = found
             postList.posts = found.posts
         } catch {
+            guard isCurrent(trimmed) else { return }
             errorMessage = error.userMessage
         }
+    }
+
+    private func isCurrent(_ trimmed: String) -> Bool {
+        trimmed == query.trimmingCharacters(in: .whitespaces)
     }
 }

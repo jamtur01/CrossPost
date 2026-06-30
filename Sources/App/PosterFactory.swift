@@ -80,7 +80,7 @@ enum PosterFactory {
         let target: PostTarget
         let message: String
 
-        func post(thread: [DraftPost]) async throws -> [PostedItem] {
+        func post(thread: [DraftPost], continuingFrom ref: NativeRef?) async throws -> [PostedItem] {
             throw ConfigError.message(message)
         }
     }

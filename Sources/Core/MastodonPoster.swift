@@ -13,8 +13,14 @@ struct MastodonPoster: Poster, ThreadPublisher {
         self.client = client
     }
 
-    func post(thread: [DraftPost]) async throws -> [PostedItem] {
-        try await runThread(thread, using: self)
+    func post(thread: [DraftPost], continuingFrom ref: NativeRef?) async throws -> [PostedItem] {
+        try await runThread(thread, using: self, continuingFrom: ref)
+    }
+
+    /// Mastodon threads by parent chain only, so root and parent are both the status id.
+    func resumeRefs(from ref: NativeRef) -> (root: String, parent: String)? {
+        guard case .mastodon(let statusID) = ref else { return nil }
+        return (root: statusID, parent: statusID)
     }
 
     func publishOne(_ draft: DraftPost, root: String?, parent: String?) async throws -> (ref: String, item: PostedItem) {
@@ -31,7 +37,7 @@ struct MastodonPoster: Poster, ThreadPublisher {
         if let parent { params.inReplyToId = parent } // Mastodon threads by parent chain only
 
         let post = try await client.publishPost(params)
-        return (ref: post.id, item: PostedItem(url: post.url))
+        return (ref: post.id, item: PostedItem(url: post.url, ref: .mastodon(statusID: post.id)))
     }
 }
 

@@ -111,7 +111,7 @@ struct MastodonFeedService: FeedService {
         params.inReplyToId = id
         params.sensitive = post.isSensitive
         let posted = try await client.publishPost(params)
-        return PostedItem(url: posted.url)
+        return PostedItem(url: posted.url, ref: .mastodon(statusID: posted.id))
     }
 
     func quote(post: FeedPost, text: String, visibility: PostVisibility) async throws -> PostedItem {
@@ -119,7 +119,7 @@ struct MastodonFeedService: FeedService {
         var params = PostParams(post: text, visibility: visibility.tootVisibility)
         params.quotedId = id   // honored on instances that support quote posts (Mastodon 4.4+)
         let posted = try await client.publishPost(params)
-        return PostedItem(url: posted.url)
+        return PostedItem(url: posted.url, ref: .mastodon(statusID: posted.id))
     }
 
     func thread(of post: FeedPost) async throws -> PostThread {
@@ -230,12 +230,16 @@ struct MastodonFeedService: FeedService {
 
     func likedBy(_ post: FeedPost) async throws -> [Profile] {
         guard case .mastodon(let id) = post.nativeRef else { return [] }
-        return try await client.getAccountsFavourited(id: id).result.map { Self.profile(from: $0) }
+        return try await paged(target: 200, maxPages: 3) {
+            try await client.getAccountsFavourited(id: id, $0, limit: 80)
+        }.map { Self.profile(from: $0) }
     }
 
     func repostedBy(_ post: FeedPost) async throws -> [Profile] {
         guard case .mastodon(let id) = post.nativeRef else { return [] }
-        return try await client.getAccountsBoosted(id: id).result.map { Self.profile(from: $0) }
+        return try await paged(target: 200, maxPages: 3) {
+            try await client.getAccountsBoosted(id: id, $0, limit: 80)
+        }.map { Self.profile(from: $0) }
     }
 
     func conversations() async throws -> [Conversation] {
@@ -316,11 +320,15 @@ struct MastodonFeedService: FeedService {
     }
 
     func followers(of id: String) async throws -> [Profile] {
-        try await client.getFollowers(for: id).result.map { Self.profile(from: $0) }
+        try await paged(target: 200, maxPages: 3) {
+            try await client.getFollowers(for: id, $0, limit: 80)
+        }.map { Self.profile(from: $0) }
     }
 
     func following(of id: String) async throws -> [Profile] {
-        try await client.getFollowing(for: id).result.map { Self.profile(from: $0) }
+        try await paged(target: 200, maxPages: 3) {
+            try await client.getFollowing(for: id, $0, limit: 80)
+        }.map { Self.profile(from: $0) }
     }
 
     func profile(forURL url: URL) async throws -> Profile? {
