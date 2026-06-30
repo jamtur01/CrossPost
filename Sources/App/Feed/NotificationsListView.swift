@@ -71,18 +71,11 @@ private struct NotificationRow: View {
                 }
 
                 if let post = livePost, !post.text.characters.isEmpty {
-                    Text(RichText.styled(post.text, accent: accent, cacheKey: post.id))
-                        .font(Theme.content)
-                        .foregroundStyle(bodyIsPrimary ? .primary : .secondary)
-                        .tint(accent)
-                        .lineSpacing(Theme.bodyLineSpacing)
-                        .lineLimit(3)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        // Route mention/URL taps through the app so profiles open
-                        // in-app, matching the timeline body.
-                        .environment(\.openURL, OpenURLAction { url in
-                            model.openLink(url, push: push); return .handled
-                        })
+                    PostBody(text: post.text, accent: accent, cacheKey: post.id,
+                             color: bodyIsPrimary ? AnyShapeStyle(.primary)
+                                                  : AnyShapeStyle(.secondary),
+                             lineLimit: 3,
+                             onOpenURL: { model.openLink($0, push: push) })
                 }
 
                 actionBar

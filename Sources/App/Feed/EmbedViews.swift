@@ -82,11 +82,8 @@ struct QuoteCardView: View {
                             .lineLimit(1)
                     }
                     if hasText {
-                        Text(RichText.styled(quote.text, accent: accent, cacheKey: quote.id))
-                            .font(.system(size: 13))
-                            .tint(accent)
-                            .lineLimit(6)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                        PostBody(text: quote.text, accent: accent, cacheKey: quote.id,
+                                 font: .system(size: 13), lineLimit: 6, onOpenURL: onOpen)
                     }
                     if let imageURL = quote.imageURL {
                         AsyncImage(url: imageURL) { img in
