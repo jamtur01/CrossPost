@@ -208,14 +208,14 @@ struct FeedPostView: View {
 
     private var actionBar: some View {
         HStack(spacing: Theme.actionGap) {
-            countAction("bubble", count: post.replyCount, active: false,
-                        tint: accent, help: "Reply", action: onReply)
-            countAction("arrow.2.squarepath", count: post.repostCount, active: post.isReposted,
-                        tint: .green, help: "Repost", action: onRepost)
-            countAction(post.isLiked ? "heart.fill" : "heart", count: post.likeCount,
-                        active: post.isLiked, tint: .pink, help: "Like", action: onLike)
+            postActionButton("bubble", count: post.replyCount, active: false,
+                             tint: accent, help: "Reply", action: onReply)
+            postActionButton("arrow.2.squarepath", count: post.repostCount, active: post.isReposted,
+                             tint: .green, help: "Repost", action: onRepost)
+            postActionButton(post.isLiked ? "heart.fill" : "heart", count: post.likeCount,
+                             active: post.isLiked, tint: .pink, help: "Like", action: onLike)
             Spacer(minLength: 0)
-            iconAction("square.and.arrow.up", help: "Open in browser", action: onOpen)
+            postActionButton("square.and.arrow.up", tint: accent, help: "Open in browser", action: onOpen)
             moreMenu
         }
         .padding(.top, 4)
@@ -271,42 +271,6 @@ struct FeedPostView: View {
         .menuIndicator(.hidden)
         .fixedSize()
         .help("More")
-    }
-
-    private func countAction(_ symbol: String, count: Int, active: Bool, tint: Color,
-                             help: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack(spacing: 5) {
-                Image(systemName: symbol)
-                    .font(Theme.action)
-                    .contentTransition(.symbolEffect(.replace))
-                    .foregroundStyle(active ? tint : Color.secondary)
-                if count > 0 {
-                    Text(count.formatted(.number.notation(.compactName)))
-                        .font(Theme.count)
-                        .foregroundStyle(active ? tint : Color.secondary)
-                }
-            }
-            .padding(.vertical, 5)
-            .padding(.horizontal, 3)
-            .contentShape(Rectangle())
-            .animation(.snappy, value: active)
-        }
-        .buttonStyle(.plain)
-        .help(help)
-    }
-
-    private func iconAction(_ symbol: String, help: String,
-                            action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: symbol)
-                .font(Theme.action)
-                .foregroundStyle(.secondary)
-                .padding(.vertical, 4).padding(.horizontal, 5)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .help(help)
     }
 
     private var rowBackground: some View {

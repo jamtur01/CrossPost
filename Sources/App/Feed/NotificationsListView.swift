@@ -108,29 +108,20 @@ private struct NotificationRow: View {
     private var actionBar: some View {
         HStack(spacing: 18) {
             if let post = livePost {
-                actionButton("arrowshape.turn.up.left", tint: accent, help: "Reply") { onReply(post) }
-                actionButton("arrow.2.squarepath", active: post.isReposted, tint: .green,
-                             help: post.isReposted ? "Undo repost" : "Repost", action: toggleRepost)
-                actionButton(post.isLiked ? "heart.fill" : "heart", active: post.isLiked, tint: .pink,
-                             help: post.isLiked ? "Unlike" : "Like", action: toggleLike)
+                postActionButton("arrowshape.turn.up.left", tint: accent, help: "Reply",
+                                compact: true) { onReply(post) }
+                postActionButton("arrow.2.squarepath", active: post.isReposted, tint: .green,
+                                 help: post.isReposted ? "Undo repost" : "Repost",
+                                 compact: true, action: toggleRepost)
+                postActionButton(post.isLiked ? "heart.fill" : "heart", active: post.isLiked,
+                                 tint: .pink, help: post.isLiked ? "Unlike" : "Like",
+                                 compact: true, action: toggleLike)
             }
             followButton
             Spacer(minLength: 0)
         }
         .padding(.top, 3)
         .buttonStyle(.plain)
-    }
-
-    private func actionButton(_ symbol: String, active: Bool = false, tint: Color,
-                              help: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: symbol)
-                .font(.system(size: 13))
-                .foregroundStyle(active ? tint : .secondary)
-                .frame(width: 22, height: 18)
-                .contentShape(Rectangle())
-        }
-        .help(help)
     }
 
     @ViewBuilder
