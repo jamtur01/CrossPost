@@ -74,7 +74,12 @@ struct SearchView: View {
                 LazyVStack(alignment: .leading, spacing: 0) {
                     if !results.accounts.isEmpty {
                         sectionHeader("People")
-                        ForEach(results.accounts) { profile in personRow(profile) }
+                        ForEach(results.accounts) { profile in
+                            ProfileRowView(profile: profile) {
+                                push(.profile(ProfileRef(id: profile.id, handle: profile.handle,
+                                                         name: profile.name, avatar: profile.avatarURL)))
+                            }
+                        }
                     }
                     if !postList.posts.isEmpty {
                         sectionHeader("Posts")
@@ -92,30 +97,6 @@ struct SearchView: View {
             .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, Theme.rowPaddingH).padding(.top, 10).padding(.bottom, 3)
-    }
-
-    private func personRow(_ profile: Profile) -> some View {
-        Button {
-            push(.profile(ProfileRef(id: profile.id, handle: profile.handle,
-                                     name: profile.name, avatar: profile.avatarURL)))
-        } label: {
-            HStack(alignment: .top, spacing: Theme.gutter) {
-                AvatarView(url: profile.avatarURL, size: Theme.avatarSmall)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(profile.name).font(Theme.name).lineLimit(1)
-                    Text(profile.handle).font(Theme.handle).foregroundStyle(.secondary).lineLimit(1)
-                    if !profile.bio.characters.isEmpty {
-                        Text(profile.bio).font(Theme.meta).foregroundStyle(.secondary).lineLimit(2)
-                    }
-                }
-                Spacer(minLength: 0)
-            }
-            .padding(.horizontal, Theme.rowPaddingH).padding(.vertical, 10)
-            .contentShape(Rectangle())
-            .hoverHighlight()
-        }
-        .buttonStyle(.plain)
     }
 
     private func postRow(_ row: FeedPost) -> some View {

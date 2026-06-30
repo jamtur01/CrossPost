@@ -16,7 +16,10 @@ struct ProfileListView: View {
             LazyVStack(spacing: 0) {
                 ForEach(Array(profiles.enumerated()), id: \.element.id) { index, profile in
                     if index > 0 { Divider().opacity(0.5) }
-                    row(profile)
+                    ProfileRowView(profile: profile) {
+                        push(.profile(ProfileRef(id: profile.id, handle: profile.handle,
+                                                 name: profile.name, avatar: profile.avatarURL)))
+                    }
                 }
                 if loading {
                     ProgressView().controlSize(.small)
@@ -47,29 +50,5 @@ struct ProfileListView: View {
             loadError = error.userMessage
         }
         loading = false
-    }
-
-    private func row(_ profile: Profile) -> some View {
-        Button {
-            push(.profile(ProfileRef(id: profile.id, handle: profile.handle,
-                                     name: profile.name, avatar: profile.avatarURL)))
-        } label: {
-            HStack(alignment: .top, spacing: Theme.gutter) {
-                AvatarView(url: profile.avatarURL, size: Theme.avatarSmall)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(profile.name).font(Theme.name).lineLimit(1)
-                    Text(profile.handle).font(Theme.handle).foregroundStyle(.secondary).lineLimit(1)
-                    if !profile.bio.characters.isEmpty {
-                        Text(profile.bio).font(Theme.meta).foregroundStyle(.secondary).lineLimit(2)
-                    }
-                }
-                Spacer(minLength: 0)
-            }
-            .padding(.horizontal, Theme.rowPaddingH).padding(.vertical, 10)
-            .contentShape(Rectangle())
-            .hoverHighlight()
-        }
-        .buttonStyle(.plain)
     }
 }
