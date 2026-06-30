@@ -109,7 +109,7 @@ private struct NotificationRow: View {
         HStack(spacing: 18) {
             if let post = livePost {
                 postActionButton("arrowshape.turn.up.left", tint: accent, help: "Reply",
-                                compact: true) { onReply(post) }
+                                 compact: true) { onReply(post) }
                 postActionButton("arrow.2.squarepath", active: post.isReposted, tint: .green,
                                  help: post.isReposted ? "Undo repost" : "Repost",
                                  compact: true, action: toggleRepost)

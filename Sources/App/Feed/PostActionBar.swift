@@ -12,7 +12,6 @@ import SwiftUI
 ///   - compact: When true, uses notification-row sizing: `.system(size: 13)` font
 ///     and a fixed `22×18` frame instead of `Theme.action` font with padding.
 ///   - action: Callback invoked on tap.
-@ViewBuilder
 func postActionButton(
     _ symbol: String,
     count: Int? = nil,
