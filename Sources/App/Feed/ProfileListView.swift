@@ -55,14 +55,7 @@ struct ProfileListView: View {
                                      name: profile.name, avatar: profile.avatarURL)))
         } label: {
             HStack(alignment: .top, spacing: Theme.gutter) {
-                AsyncImage(url: profile.avatarURL) { img in
-                    img.resizable().scaledToFill()
-                } placeholder: {
-                    Circle().fill(.quaternary)
-                }
-                .frame(width: Theme.avatarSmall, height: Theme.avatarSmall)
-                .clipShape(Circle())
-                .overlay(Circle().strokeBorder(Theme.avatarRing, lineWidth: 0.5))
+                AvatarView(url: profile.avatarURL, size: Theme.avatarSmall)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(profile.name).font(Theme.name).lineLimit(1)

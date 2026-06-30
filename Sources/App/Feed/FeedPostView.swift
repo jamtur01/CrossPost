@@ -120,15 +120,7 @@ struct FeedPostView: View {
         HStack(alignment: .top, spacing: 10) {
             Button(action: onOpenProfile) {
                 HStack(alignment: .top, spacing: 10) {
-                    AsyncImage(url: post.avatarURL) { image in
-                        image.resizable().scaledToFill()
-                    } placeholder: {
-                        Circle().fill(.quaternary)
-                    }
-                    .frame(width: expanded ? Theme.avatarLarge : Theme.avatar,
-                           height: expanded ? Theme.avatarLarge : Theme.avatar)
-                    .clipShape(Circle())
-                    .overlay(Circle().strokeBorder(Theme.avatarRing, lineWidth: 0.5))
+                    AvatarView(url: post.avatarURL, size: expanded ? Theme.avatarLarge : Theme.avatar)
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text(post.authorName)
@@ -153,10 +145,7 @@ struct FeedPostView: View {
                     .help(visibility.label)
                     .accessibilityLabel(visibility.label)
             }
-            Text(post.date, format: .relative(presentation: .numeric))
-                .font(Theme.meta)
-                .foregroundStyle(.tertiary)
-                .fixedSize()
+            relativeTimestamp(post.date)
         }
     }
 

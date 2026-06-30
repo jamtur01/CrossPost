@@ -72,13 +72,7 @@ struct QuoteCardView: View {
             Capsule().fill(accent.opacity(0.55)).frame(width: 3)
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(spacing: 6) {
-                        AsyncImage(url: quote.avatarURL) { img in
-                            img.resizable().scaledToFill()
-                        } placeholder: {
-                            Circle().fill(.quaternary)
-                        }
-                        .frame(width: 20, height: 20)
-                        .clipShape(Circle())
+                        AvatarView(url: quote.avatarURL, size: 20, ring: false)
                         Text(quote.authorName)
                             .font(.system(size: 12.5, weight: .semibold))
                             .lineLimit(1)

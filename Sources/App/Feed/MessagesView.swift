@@ -35,22 +35,14 @@ struct MessagesListView: View {
     private func row(_ convo: Conversation) -> some View {
         Button { push(.conversation(convo)) } label: {
             HStack(spacing: Theme.gutter) {
-                AsyncImage(url: convo.otherAvatarURL) { img in
-                    img.resizable().scaledToFill()
-                } placeholder: {
-                    Circle().fill(.quaternary)
-                }
-                .frame(width: 44, height: 44)
-                .clipShape(Circle())
-                .overlay(Circle().strokeBorder(Theme.avatarRing, lineWidth: 0.5))
+                AvatarView(url: convo.otherAvatarURL, size: 44)
 
                 VStack(alignment: .leading, spacing: 2) {
                     HStack {
                         Text(convo.otherName).font(Theme.name).lineLimit(1)
                         Spacer()
                         if let date = convo.lastDate {
-                            Text(date, format: .relative(presentation: .numeric))
-                                .font(Theme.meta).foregroundStyle(.tertiary).fixedSize()
+                            relativeTimestamp(date)
                         }
                     }
                     Text(convo.lastMessage ?? "")
@@ -121,13 +113,7 @@ struct ConversationView: View {
     private var header: some View {
         Button { push(.profile(otherProfile)) } label: {
             HStack(spacing: 8) {
-                AsyncImage(url: conversation.otherAvatarURL) { img in
-                    img.resizable().scaledToFill()
-                } placeholder: {
-                    Circle().fill(.quaternary)
-                }
-                .frame(width: 30, height: 30)
-                .clipShape(Circle())
+                AvatarView(url: conversation.otherAvatarURL, size: 30, ring: false)
                 VStack(alignment: .leading, spacing: 0) {
                     Text(conversation.otherName).font(Theme.name).lineLimit(1)
                     Text(conversation.otherHandle).font(Theme.meta).foregroundStyle(.secondary).lineLimit(1)

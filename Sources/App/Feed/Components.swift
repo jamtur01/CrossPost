@@ -51,3 +51,31 @@ private struct HoverHighlight: ViewModifier {
 extension View {
     func hoverHighlight() -> some View { modifier(HoverHighlight()) }
 }
+
+/// A circular avatar with the shared placeholder + ring, used everywhere an
+/// account image appears so sizing and the hairline ring stay consistent.
+struct AvatarView: View {
+    let url: URL?
+    var size: CGFloat
+    var ring = true
+
+    var body: some View {
+        AsyncImage(url: url) { image in
+            image.resizable().scaledToFill()
+        } placeholder: {
+            Circle().fill(.quaternary)
+        }
+        .frame(width: size, height: size)
+        .clipShape(Circle())
+        .overlay {
+            if ring { Circle().strokeBorder(Theme.avatarRing, lineWidth: 0.5) }
+        }
+    }
+}
+
+/// A relative ("2m", "1h") timestamp in the shared meta styling.
+@ViewBuilder
+func relativeTimestamp(_ date: Date) -> some View {
+    Text(date, format: .relative(presentation: .numeric))
+        .font(Theme.meta).foregroundStyle(.tertiary).fixedSize()
+}

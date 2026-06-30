@@ -57,13 +57,7 @@ private struct NotificationRow: View {
                     // Avatar + name open the actor's profile; the rest opens the post.
                     Button(action: openProfile) {
                         HStack(spacing: 7) {
-                            AsyncImage(url: notification.avatarURL) { img in
-                                img.resizable().scaledToFill()
-                            } placeholder: {
-                                Circle().fill(.quaternary)
-                            }
-                            .frame(width: 26, height: 26)
-                            .clipShape(Circle())
+                            AvatarView(url: notification.avatarURL, size: 26, ring: false)
 
                             Text(notification.actorName).font(Theme.name).lineLimit(1)
                         }
@@ -73,8 +67,7 @@ private struct NotificationRow: View {
 
                     Text(actionText).font(Theme.handle).foregroundStyle(.secondary).lineLimit(1)
                     Spacer(minLength: 4)
-                    Text(notification.date, format: .relative(presentation: .numeric))
-                        .font(Theme.meta).foregroundStyle(.tertiary).fixedSize()
+                    relativeTimestamp(notification.date)
                 }
 
                 if let post = livePost, !post.text.characters.isEmpty {
