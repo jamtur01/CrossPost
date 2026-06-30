@@ -91,7 +91,7 @@ a feed.
   modeled, so the check is slightly stricter than Mastodon requires.
 - Threads link automatically (each post replies to the previous).
 - Networks are independent — if a post fails on one, the other still goes through.
-- Bluesky images are re-encoded to JPEG under the 1 MB per-image limit (max 4);
+- Bluesky images are re-encoded to JPEG under the 2 MB per-image limit (max 4);
   Mastodon allows up to 10 MB.
 - Feeds, profiles, and notifications are fetched several pages deep at each
   platform's maximum page size.
@@ -110,7 +110,7 @@ a feed.
   helpers.
 - `Sources/App` — SwiftUI: the three-column `MainView`, feed panels with in-place
   navigation (post cards, threads, profiles, notifications, messages, media players),
-  reply sheet, the compose column, settings, and the
+  the reply/quote/edit/report sheets, the compose column, settings, and the
   `AccountStore`/`PosterFactory`/`FeedServiceFactory` glue.
 
 The app runs in the App Sandbox (`CrossPost.entitlements`). Built on
