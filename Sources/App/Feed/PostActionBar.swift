@@ -33,17 +33,20 @@ func postActionButton(
                 Image(systemName: symbol)
                     .font(Theme.action)
                     .contentTransition(.symbolEffect(.replace))
+                    .symbolEffect(.bounce, value: active)
                     .foregroundStyle(active ? tint : Color.secondary)
                 if count > 0 {
                     Text(count.formatted(.number.notation(.compactName)))
                         .font(Theme.count)
                         .foregroundStyle(active ? tint : Color.secondary)
+                        .contentTransition(.numericText(value: Double(count)))
                 }
             }
             .padding(.vertical, 5)
             .padding(.horizontal, 3)
             .contentShape(Rectangle())
             .animation(.snappy, value: active)
+            .animation(.snappy, value: count)
         } else {
             Image(systemName: symbol)
                 .font(Theme.action)

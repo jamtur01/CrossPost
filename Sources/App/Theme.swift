@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 extension PostTarget {
@@ -76,5 +77,13 @@ private struct CardSurface: ViewModifier {
 extension View {
     func cardSurface(corner: CGFloat = Theme.cardCorner) -> some View {
         modifier(CardSurface(corner: corner))
+    }
+}
+
+/// Trackpad haptic feedback for engagement actions (like, repost), matching the
+/// subtle tick Apple's own apps give. No-op on Macs without a Force Touch trackpad.
+enum Haptics {
+    static func tap() {
+        NSHapticFeedbackManager.defaultPerformer.perform(.generic, performanceTime: .now)
     }
 }

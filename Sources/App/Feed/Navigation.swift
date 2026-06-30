@@ -82,6 +82,7 @@ final class PostList {
     init(panel: FeedPanelModel) { self.panel = panel }
 
     func toggleLike(_ post: FeedPost) {
+        Haptics.tap()
         mutate(post, optimistic: {
             $0.isLiked.toggle()
             $0.likeCount = max(0, $0.likeCount + ($0.isLiked ? 1 : -1))
@@ -91,6 +92,7 @@ final class PostList {
     }
 
     func toggleRepost(_ post: FeedPost) {
+        Haptics.tap()
         mutate(post, optimistic: {
             $0.isReposted.toggle()
             $0.repostCount = max(0, $0.repostCount + ($0.isReposted ? 1 : -1))

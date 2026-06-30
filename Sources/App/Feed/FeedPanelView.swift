@@ -18,12 +18,6 @@ struct FeedPanelView: View {
     var body: some View {
         VStack(spacing: 0) {
             if routes.isEmpty { platformHeader } else { navHeader }
-            // Transient errors (failed refresh, like, follow, …) surface here under
-            // whichever header is showing, so they're visible inside thread/profile
-            // routes too — and they auto-dismiss or can be tapped away.
-            if let actionError = model.actionError {
-                errorBanner(actionError)
-            }
             if routes.isEmpty {
                 timeline
             } else {
@@ -32,6 +26,17 @@ struct FeedPanelView: View {
                 routeContent.id(routes.last?.id)
             }
         }
+        // Transient errors (failed refresh, like, follow, …) float as a toast over
+        // the content so they never shift the layout; they auto-dismiss or tap away.
+        .overlay(alignment: .bottom) {
+            if let actionError = model.actionError {
+                errorBanner(actionError)
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 12)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: model.actionError)
         .background(Color(nsColor: .textBackgroundColor))
         .sheet(item: $replyTarget) { post in
             ReplySheet(model: ReplyModel(post: post, store: store)) { replyTarget = nil }
@@ -243,19 +248,25 @@ struct FeedPanelView: View {
 
     private func errorBanner(_ text: String) -> some View {
         HStack(spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 12))
+                .foregroundStyle(.orange)
             Text(text)
                 .font(.caption)
-                .foregroundStyle(.red)
+                .foregroundStyle(.primary)
                 .lineLimit(2)
-                .frame(maxWidth: .infinity, alignment: .leading)
             Image(systemName: "xmark.circle.fill")
-                .font(.system(size: 12))
-                .foregroundStyle(.red.opacity(0.6))
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 6)
-        .background(Color.red.opacity(0.08))
-        .contentShape(Rectangle())
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(
+            Capsule(style: .continuous)
+                .fill(.regularMaterial)
+                .overlay(Capsule(style: .continuous).strokeBorder(Theme.hairline, lineWidth: 0.75)))
+        .shadow(color: .black.opacity(0.18), radius: 10, y: 3)
+        .contentShape(Capsule())
         .onTapGesture { model.dismissActionError() }
         .help("Dismiss")
     }
