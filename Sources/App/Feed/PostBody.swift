@@ -2,8 +2,9 @@ import SwiftUI
 
 /// The canonical reading treatment for a post body: tappable, accent-coloured
 /// mentions/links, shared line spacing, in-app link routing, and text selection.
-/// Every reading surface (timeline, thread, notifications, quote embed, search,
-/// profile) renders through this so they stay consistent.
+/// Every post body renders through this — directly here and via `FeedPostView`
+/// (timeline, thread, search, profile) — so they stay consistent. (Profile bios
+/// are not post bodies and style their text separately.)
 struct PostBody: View {
     let text: AttributedString
     let accent: Color
