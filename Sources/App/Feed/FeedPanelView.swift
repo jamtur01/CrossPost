@@ -64,6 +64,14 @@ struct FeedPanelView: View {
         .onReceive(NotificationCenter.default.publisher(for: .refreshAllFeeds)) { _ in
             model.refresh()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .switchFeedKind)) { note in
+            // Switch this column's tab only if it offers that kind (Mastodon has no
+            // Messages), and pop any in-place navigation so the feed is visible.
+            guard let kind = note.userInfo?[feedKindKey] as? FeedKind,
+                  availableKinds.contains(kind) else { return }
+            routes.removeAll()
+            model.switchTo(kind)
+        }
     }
 
     // MARK: Headers

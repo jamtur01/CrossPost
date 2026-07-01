@@ -43,7 +43,8 @@ struct MainView: View {
                 } label: {
                     Label("Refresh All", systemImage: "arrow.clockwise")
                 }
-                .help("Refresh both feeds")
+                .help("Refresh both feeds (⌘R)")
+                .keyboardShortcut("r", modifiers: .command)
 
                 SettingsLink {
                     Label("Settings", systemImage: "gearshape")
@@ -73,4 +74,9 @@ struct MainView: View {
 extension Notification.Name {
     /// Posted by the toolbar to refresh every feed panel at once.
     static let refreshAllFeeds = Notification.Name("refreshAllFeeds")
+    /// Posted by the View menu to switch both feeds' tab; userInfo carries the FeedKind.
+    static let switchFeedKind = Notification.Name("switchFeedKind")
 }
+
+/// userInfo key carrying the target `FeedKind` for `switchFeedKind`.
+let feedKindKey = "feedKind"

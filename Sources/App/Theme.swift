@@ -62,6 +62,7 @@ enum Theme {
 /// edge + soft shadow, no heavy border). Used for the compose card and previews.
 private struct CardSurface: ViewModifier {
     var corner: CGFloat = Theme.cardCorner
+    @Environment(\.colorScheme) private var colorScheme
     func body(content: Content) -> some View {
         content
             .background(
@@ -70,7 +71,8 @@ private struct CardSurface: ViewModifier {
             .overlay(
                 RoundedRectangle(cornerRadius: corner, style: .continuous)
                     .strokeBorder(Theme.hairline, lineWidth: 0.75))
-            .shadow(color: .black.opacity(0.05), radius: 6, y: 2)
+            // Shadows read weaker on dark backgrounds, so deepen them there.
+            .shadow(color: .black.opacity(colorScheme == .dark ? 0.22 : 0.06), radius: 6, y: 2)
     }
 }
 
