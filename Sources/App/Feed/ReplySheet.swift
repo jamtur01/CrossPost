@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct ReplySheet: View {
     @State var model: ReplyModel
@@ -33,10 +34,10 @@ struct ReplySheet: View {
                 }
                 .overlay(RoundedRectangle(cornerRadius: 8).stroke(.quaternary))
 
-            if !model.attachments.isEmpty { attachments }
+            if !model.attachments.isEmpty { AttachmentBar(attachments: $model.attachments) }
 
             HStack {
-                Button(action: addImage) {
+                Button { ImageAttaching.pick(into: $model.attachments) { model.errorMessage = $0 } } label: {
                     Image(systemName: "photo.badge.plus").font(.system(size: 15))
                 }
                 .buttonStyle(.borderless)
@@ -84,73 +85,13 @@ struct ReplySheet: View {
                     }
                 })
         }
-        .sheetContainer()
-    }
-
-    private var attachments: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(alignment: .top, spacing: 12) {
-                ForEach(model.attachments) { attachment in
-                    VStack(spacing: 6) {
-                        ZStack(alignment: .topTrailing) {
-                            if let img = NSImage(data: attachment.imageData) {
-                                Image(nsImage: img)
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(width: 80, height: 80)
-                                    .clipped()
-                                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                            }
-                            Button(role: .destructive) {
-                                removeAttachment(id: attachment.id)
-                            } label: {
-                                Image(systemName: "xmark.circle.fill")
-                                    .font(.system(size: 14))
-                                    .symbolRenderingMode(.hierarchical)
-                            }
-                            .buttonStyle(.plain)
-                            .help("Remove image")
-                        }
-                        TextField("Alt text", text: bindingForAltText(id: attachment.id))
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 120)
-                            .font(.caption)
-                    }
-                }
-            }
-            .padding(.vertical, 2)
+        .onDrop(of: [.image, .fileURL], isTargeted: nil) { providers in
+            ImageAttaching.load(providers, into: $model.attachments) { model.errorMessage = $0 }
+            return true
         }
-    }
-
-    private func bindingForAltText(id: UUID) -> Binding<String> {
-        Binding {
-            model.attachments.first { $0.id == id }?.altText ?? ""
-        } set: { newValue in
-            guard let index = model.attachments.firstIndex(where: { $0.id == id }) else { return }
-            model.attachments[index].altText = newValue
+        .onPasteCommand(of: [.image, .fileURL]) {
+            ImageAttaching.load($0, into: $model.attachments) { model.errorMessage = $0 }
         }
-    }
-
-    private func addImage() {
-        guard model.attachments.count < TargetLimits.imageMax else { return }
-        let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.png, .jpeg, .heic, .tiff]
-        panel.allowsMultipleSelection = true
-        guard panel.runModal() == .OK else { return }
-        let remaining = TargetLimits.imageMax - model.attachments.count
-        var failed: [String] = []
-        for url in panel.urls.prefix(remaining) {
-            if let data = try? Data(contentsOf: url) {
-                model.attachments.append(Attachment(imageData: data))
-            } else {
-                failed.append(url.lastPathComponent)
-            }
-        }
-        if !failed.isEmpty { model.errorMessage = "Couldn't read \(failed.joined(separator: ", "))." }
-    }
-
-    private func removeAttachment(id: UUID) {
-        model.attachments.removeAll { $0.id == id }
     }
 
     private func validationMessage(_ issue: ValidationIssue) -> String {

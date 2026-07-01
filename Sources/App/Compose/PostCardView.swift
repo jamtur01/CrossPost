@@ -46,10 +46,10 @@ struct PostCardView: View {
 
             editor
 
-            if !post.attachments.isEmpty { attachments }
+            if !post.attachments.isEmpty { AttachmentBar(attachments: $post.attachments) }
 
             HStack(spacing: 12) {
-                Button(action: addImage) {
+                Button { ImageAttaching.pick(into: $post.attachments, onError: onError) } label: {
                     Image(systemName: "photo.badge.plus").font(.system(size: 15))
                 }
                 .buttonStyle(.borderless)
@@ -78,10 +78,12 @@ struct PostCardView: View {
         }
         .animation(.easeOut(duration: 0.12), value: isDropTarget)
         .onDrop(of: [.image, .fileURL], isTargeted: $isDropTarget) { providers in
-            loadProviders(providers)
+            ImageAttaching.load(providers, into: $post.attachments, onError: onError)
             return true
         }
-        .onPasteCommand(of: [.image, .fileURL]) { loadProviders($0) }
+        .onPasteCommand(of: [.image, .fileURL]) {
+            ImageAttaching.load($0, into: $post.attachments, onError: onError)
+        }
     }
 
     private var editor: some View {
@@ -95,102 +97,5 @@ struct PostCardView: View {
                         .allowsHitTesting(false)
                 }
             }
-    }
-
-    private var attachments: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(alignment: .top, spacing: 12) {
-                ForEach($post.attachments) { $attachment in
-                    VStack(spacing: 6) {
-                        ZStack(alignment: .topTrailing) {
-                            if let img = NSImage(data: attachment.imageData) {
-                                Image(nsImage: img)
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(width: 80, height: 80)
-                                    .clipped()
-                                    .clipShape(RoundedRectangle(cornerRadius: Theme.mediaCorner, style: .continuous))
-                            }
-                            Button(role: .destructive) {
-                                removeAttachment(id: attachment.id)
-                            } label: {
-                                Image(systemName: "xmark.circle.fill")
-                                    .font(.system(size: 14))
-                                    .symbolRenderingMode(.hierarchical)
-                            }
-                            .buttonStyle(.plain)
-                            .help("Remove image")
-                        }
-                        TextField("Alt text", text: $attachment.altText)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 120)
-                            .font(.caption)
-                    }
-                }
-            }
-            .padding(.vertical, 2)
-        }
-    }
-
-    private func addImage() {
-        guard canAddImages else { return }
-        let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.png, .jpeg, .heic, .tiff]
-        panel.allowsMultipleSelection = true
-        guard panel.runModal() == .OK else { return }
-        var datas: [Data] = []
-        var failed: [String] = []
-        for url in panel.urls {
-            if let data = try? Data(contentsOf: url) { datas.append(data) }
-            else { failed.append(url.lastPathComponent) }
-        }
-        appendImages(datas)
-        if !failed.isEmpty { onError("Couldn't read \(failed.joined(separator: ", ")).") }
-    }
-
-    /// Append decodable images up to the per-post limit. Shared by the file picker,
-    /// drag-and-drop, and paste; rejects undecodable data and over-limit drops with
-    /// a message instead of silently dropping them.
-    private func appendImages(_ datas: [Data]) {
-        guard !datas.isEmpty else { return }
-        let remaining = TargetLimits.imageMax - post.attachments.count
-        guard remaining > 0 else {
-            onError("Maximum \(TargetLimits.imageMax) images per post.")
-            return
-        }
-        var added = 0
-        var rejected = false
-        for data in datas where added < remaining {
-            if ImageProcessor.canDecode(data) {
-                post.attachments.append(Attachment(imageData: data))
-                added += 1
-            } else {
-                rejected = true
-            }
-        }
-        if rejected { onError("That image couldn't be read.") }
-        else if datas.count > remaining { onError("Maximum \(TargetLimits.imageMax) images per post.") }
-    }
-
-    /// Load images dropped or pasted as item providers (file URLs from Finder, or
-    /// raw image data from a browser/Photos), appending each as it resolves.
-    private func loadProviders(_ providers: [NSItemProvider]) {
-        for provider in providers {
-            if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
-                _ = provider.loadObject(ofClass: URL.self) { url, _ in
-                    guard let url, let data = try? Data(contentsOf: url) else { return }
-                    Task { @MainActor in appendImages([data]) }
-                }
-            } else if provider.canLoadObject(ofClass: NSImage.self) {
-                provider.loadDataRepresentation(forTypeIdentifier: UTType.image.identifier) { data, _ in
-                    guard let data else { return }
-                    Task { @MainActor in appendImages([data]) }
-                }
-            }
-        }
-    }
-
-    private func removeAttachment(id: UUID) {
-        post.attachments.removeAll { $0.id == id }
     }
 }
