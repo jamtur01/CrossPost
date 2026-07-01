@@ -201,7 +201,9 @@ struct FeedPanelView: View {
         } else if let error = model.errorMessage, model.posts.isEmpty {
             emptyState(error, systemImage: "exclamationmark.triangle")
         } else if model.posts.isEmpty && model.isLoading {
-            Spacer(); ProgressView(); Spacer()
+            skeletonList
+        } else if model.posts.isEmpty {
+            emptyState("No posts yet.", systemImage: "text.bubble")
         } else {
             ScrollViewReader { proxy in
                 ScrollView {
@@ -244,6 +246,21 @@ struct FeedPanelView: View {
                 }
             }
         }
+    }
+
+    /// First-load placeholder: a short column of shimmering rows, so the pane reads
+    /// as content arriving rather than a lone spinner on emptiness.
+    private var skeletonList: some View {
+        ScrollView {
+            LazyVStack(spacing: 0) {
+                ForEach(0..<7, id: \.self) { _ in
+                    SkeletonRow()
+                    Divider().opacity(0.5)
+                }
+            }
+        }
+        .scrollContentBackground(.hidden)
+        .scrollDisabled(true)
     }
 
     private func errorBanner(_ text: String) -> some View {

@@ -196,7 +196,10 @@ struct FeedPostView: View {
         AsyncImage(url: url) { img in
             img.resizable().aspectRatio(contentMode: fit ? .fit : .fill)
         } placeholder: {
-            RoundedRectangle(cornerRadius: Theme.mediaCorner).fill(.quaternary).frame(height: 120)
+            RoundedRectangle(cornerRadius: Theme.mediaCorner, style: .continuous)
+                .fill(Color.primary.opacity(0.06))
+                .frame(height: 120)
+                .shimmering()
         }
         // Tap pops the image out; takes precedence over the row's open-thread tap.
         .onTapGesture { lightbox?.present(url) }

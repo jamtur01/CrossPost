@@ -82,6 +82,46 @@ extension View {
     }
 }
 
+/// A soft left-to-right sheen that sweeps across a placeholder while content
+/// loads, so a loading avatar/image/row reads as "loading" rather than "broken".
+/// Respects Reduce Motion (falls back to a static fill).
+private struct Shimmer: ViewModifier {
+    @State private var phase: CGFloat = -1
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        if reduceMotion {
+            content
+        } else {
+            content
+                .overlay(
+                    LinearGradient(
+                        colors: [.clear, Color.primary.opacity(0.08), .clear],
+                        startPoint: .leading, endPoint: .trailing)
+                        .scaleEffect(x: 0.4, anchor: .leading)
+                        .offset(x: phase * 260)
+                        .blendMode(.plusLighter))
+                .clipped()
+                .onAppear {
+                    withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) {
+                        phase = 2
+                    }
+                }
+        }
+    }
+}
+
+extension View {
+    /// Animated loading sheen for placeholder surfaces.
+    func shimmering() -> some View { modifier(Shimmer()) }
+
+    /// The neutral fill used under a shimmer for skeleton placeholders.
+    func skeletonFill(_ corner: CGFloat = 6) -> some View {
+        clipShape(RoundedRectangle(cornerRadius: corner, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: corner, style: .continuous).fill(Color.primary.opacity(0.06)))
+    }
+}
+
 /// A circular avatar with the shared placeholder + ring, used everywhere an
 /// account image appears so sizing and the hairline ring stay consistent.
 struct AvatarView: View {
@@ -93,13 +133,44 @@ struct AvatarView: View {
         AsyncImage(url: url) { image in
             image.resizable().scaledToFill()
         } placeholder: {
-            Circle().fill(.quaternary)
+            Circle().fill(Color.primary.opacity(0.06)).shimmering()
         }
         .frame(width: size, height: size)
         .clipShape(Circle())
         .overlay {
             if ring { Circle().strokeBorder(Theme.avatarRing, lineWidth: 0.5) }
         }
+    }
+}
+
+/// A placeholder post row shown while a feed's first page loads — an avatar,
+/// two name lines, and body lines, all shimmering. Reads as content arriving
+/// rather than an empty pane behind a lone spinner.
+struct SkeletonRow: View {
+    var body: some View {
+        HStack(alignment: .top, spacing: Theme.gutter) {
+            Circle().fill(Color.primary.opacity(0.06)).frame(width: Theme.avatar, height: Theme.avatar)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    bar(width: 120, height: 11)
+                    bar(width: 70, height: 11)
+                }
+                bar(width: .infinity, height: 10)
+                bar(width: .infinity, height: 10)
+                bar(width: 180, height: 10)
+            }
+        }
+        .padding(.horizontal, Theme.rowPaddingH)
+        .padding(.vertical, Theme.rowPaddingV)
+        .shimmering()
+        .accessibilityHidden(true)
+    }
+
+    private func bar(width: CGFloat, height: CGFloat) -> some View {
+        RoundedRectangle(cornerRadius: 4, style: .continuous)
+            .fill(Color.primary.opacity(0.06))
+            .frame(maxWidth: width == .infinity ? .infinity : nil)
+            .frame(width: width == .infinity ? nil : width, height: height)
     }
 }
 
