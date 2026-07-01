@@ -33,7 +33,9 @@ final class FakeFeedService: FeedService, @unchecked Sendable {
         return feed
     }
 
+    private(set) var likeSetCalls: [Bool] = []
     func setLiked(_ liked: Bool, on post: FeedPost) async throws -> FeedPost {
+        likeSetCalls.append(liked)
         if failLike { throw FakeError.boom }
         var copy = post
         copy.isLiked = liked
