@@ -58,7 +58,7 @@ struct ImageLightboxOverlay: View {
         } else {
             AsyncImage(url: item.url) { phase in phaseContent(phase, fill: false) }
                 .frame(maxWidth: size.width * 0.92, maxHeight: size.height * 0.92)
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: Theme.cardCorner, style: .continuous))
         }
     }
 

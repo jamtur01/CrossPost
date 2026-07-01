@@ -6,6 +6,7 @@ struct FeedPanelView: View {
     @EnvironmentObject var store: AccountStore
     @State private var replyTarget: FeedPost?
     @State private var routes: [FeedRoute] = []
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var accent: Color { model.target.accent }
     private static let topAnchor = "feed-top"
@@ -36,7 +37,7 @@ struct FeedPanelView: View {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
-        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: model.actionError)
+        .animation(reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 0.8), value: model.actionError)
         .background(Color(nsColor: .textBackgroundColor))
         .sheet(item: $replyTarget) { post in
             ReplySheet(model: ReplyModel(post: post, store: store)) { replyTarget = nil }
@@ -98,12 +99,8 @@ struct FeedPanelView: View {
                 .pickerStyle(.segmented).labelsHidden()
                 .tint(accent)
                 .fixedSize()
-                if model.unreadCount > 0 && model.kind != .notifications {
-                    Text(model.unreadCount > 99 ? "99+" : "\(model.unreadCount)")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 5).padding(.vertical, 1.5)
-                        .background(Capsule().fill(.red))
+                if model.kind != .notifications {
+                    UnreadBadge(count: model.unreadCount)
                 }
                 Spacer()
             }
@@ -248,7 +245,7 @@ struct FeedPanelView: View {
                 }
                 .scrollContentBackground(.hidden)
                 .onChange(of: model.scrollToTopToken) {
-                    withAnimation(.easeOut(duration: 0.25)) {
+                    withAnimation(reduceMotion ? nil : .easeOut(duration: 0.25)) {
                         proxy.scrollTo(Self.topAnchor, anchor: .top)
                     }
                 }

@@ -9,6 +9,8 @@ struct CrossPostApp: App {
             MainView().environmentObject(store)
         }
         .defaultSize(width: 1180, height: 720)
+        .windowResizability(.contentMinSize)
+        .windowToolbarStyle(.unified)
         .commands {
             CommandGroup(after: .toolbar) {
                 Button("Refresh All Feeds") {

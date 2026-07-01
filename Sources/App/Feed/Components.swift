@@ -179,3 +179,21 @@ func relativeTimestamp(_ date: Date) -> some View {
     Text(date, format: .relative(presentation: .numeric))
         .font(Theme.meta).foregroundStyle(.tertiary).fixedSize()
 }
+
+/// An unread-count pill in the system style: red, bold white text, circular for a
+/// single digit and capsule for more, capped at "99+". Matches the dock badge.
+struct UnreadBadge: View {
+    let count: Int
+
+    var body: some View {
+        if count > 0 {
+            Text(count > 99 ? "99+" : "\(count)")
+                .font(.system(size: 10, weight: .bold))
+                .monospacedDigit()
+                .foregroundStyle(.white)
+                .padding(.horizontal, 5)
+                .frame(minWidth: 16, minHeight: 16)
+                .background(Capsule().fill(.red))
+        }
+    }
+}

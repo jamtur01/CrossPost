@@ -22,9 +22,10 @@ struct MainView: View {
                 Divider()
                 feedColumn(bluesky)
             }
-            .frame(minWidth: 480)
+            // Each feed stays legible: ~290pt min per column side-by-side.
+            .frame(minWidth: 580)
         }
-        .frame(minWidth: 760, minHeight: 540)
+        .frame(minWidth: 840, minHeight: 560)
         .environment(lightbox)
         .overlay { ImageLightboxOverlay(lightbox: lightbox) }
         .onAppear {
