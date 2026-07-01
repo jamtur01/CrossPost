@@ -31,13 +31,9 @@ struct SavedPostsView: View {
                             push: push, onReply: { replyTarget = $0 })
                 }
             }
-            if loading {
-                ProgressView().controlSize(.small)
-                    .frame(maxWidth: .infinity).padding(.vertical, 24)
-            } else if let loadError, list.posts.isEmpty {
-                ErrorStateView(message: loadError, fills: false) { Task { await load() } }
-            } else if list.posts.isEmpty {
-                emptyState
+            listLoadFooter(loading: loading, error: loadError, isEmpty: list.posts.isEmpty,
+                           emptyText: "No \(kind.title.lowercased()) yet", emptyImage: kind.icon) {
+                Task { await load() }
             }
         }
         .scrollContentBackground(.hidden)
@@ -59,9 +55,5 @@ struct SavedPostsView: View {
             loadError = error.userMessage
         }
         loading = false
-    }
-
-    private var emptyState: some View {
-        EmptyStateView(text: "No \(kind.title.lowercased()) yet", systemImage: kind.icon, fills: false)
     }
 }

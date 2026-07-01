@@ -110,11 +110,17 @@ struct BlueskyFeedService: FeedService {
         return result
     }
 
+    /// Build a StrongReference (the uri+cid pair the write APIs take) tersely.
+    private static func strongRef(_ uri: String, _ cid: String)
+        -> ComAtprotoLexicon.Repository.StrongReference {
+        .init(recordURI: uri, cidHash: cid)
+    }
+
     func setLiked(_ liked: Bool, on post: FeedPost) async throws -> FeedPost {
         guard case .bluesky(let uri, let cid, _, _) = post.nativeRef else { throw FeedError.wrongPlatform }
         var copy = post
         if liked {
-            let ref = ComAtprotoLexicon.Repository.StrongReference(recordURI: uri, cidHash: cid)
+            let ref = Self.strongRef(uri, cid)
             let likeRef = try await bluesky.createLikeRecord(ref)
             copy.isLiked = true
             copy.likeRecordURI = likeRef.recordURI
@@ -130,7 +136,7 @@ struct BlueskyFeedService: FeedService {
         guard case .bluesky(let uri, let cid, _, _) = post.nativeRef else { throw FeedError.wrongPlatform }
         var copy = post
         if reposted {
-            let ref = ComAtprotoLexicon.Repository.StrongReference(recordURI: uri, cidHash: cid)
+            let ref = Self.strongRef(uri, cid)
             let repostRef = try await bluesky.createRepostRecord(ref)
             copy.isReposted = true
             copy.repostRecordURI = repostRef.recordURI
@@ -147,8 +153,8 @@ struct BlueskyFeedService: FeedService {
         guard case .bluesky(let uri, let cid, let rootURI, let rootCID) = post.nativeRef else {
             throw FeedError.wrongPlatform
         }
-        let parent = ComAtprotoLexicon.Repository.StrongReference(recordURI: uri, cidHash: cid)
-        let root = ComAtprotoLexicon.Repository.StrongReference(recordURI: rootURI, cidHash: rootCID)
+        let parent = Self.strongRef(uri, cid)
+        let root = Self.strongRef(rootURI, rootCID)
         let replyRef = AppBskyLexicon.Feed.PostRecord.ReplyReference(root: root, parent: parent)
 
         let embed = try BlueskyPoster.imagesEmbed(from: images)

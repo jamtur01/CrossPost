@@ -197,3 +197,31 @@ struct UnreadBadge: View {
         }
     }
 }
+
+extension View {
+    /// A `.bar`-material strip with a hairline `Divider` on one edge — the shared
+    /// look of every column header/footer. Padding stays at the call site since it
+    /// genuinely varies per header.
+    func barSurface(divider edge: Alignment = .bottom) -> some View {
+        background(.bar).overlay(alignment: edge) { Divider() }
+    }
+}
+
+/// The trailing state row inside a loading list: a spinner while loading, a
+/// retryable error when the load failed with nothing to show, or an empty-state
+/// once loaded and still empty. Shared by the account and saved-post lists, which
+/// present these three states identically. (Thread/profile keep their own, since
+/// they show errors alongside already-visible content.)
+@ViewBuilder
+func listLoadFooter(loading: Bool, error: String?, isEmpty: Bool,
+                    emptyText: String, emptyImage: String,
+                    retry: @escaping () -> Void) -> some View {
+    if loading {
+        ProgressView().controlSize(.small)
+            .frame(maxWidth: .infinity).padding(.vertical, 24)
+    } else if let error, isEmpty {
+        ErrorStateView(message: error, fills: false, retry: retry)
+    } else if isEmpty {
+        EmptyStateView(text: emptyText, systemImage: emptyImage, fills: false)
+    }
+}

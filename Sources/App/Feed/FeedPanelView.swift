@@ -106,8 +106,7 @@ struct FeedPanelView: View {
             }
         }
         .padding(.horizontal, Theme.headerPaddingH).padding(.top, 10).padding(.bottom, 9)
-        .background(.bar)
-        .overlay(alignment: .bottom) { Divider() }
+        .barSurface()
     }
 
     /// Bookmarks (Mastodon only) and Likes for the signed-in user.
@@ -151,8 +150,7 @@ struct FeedPanelView: View {
             Spacer()
         }
         .padding(.horizontal, Theme.headerPaddingH).padding(.vertical, 11)
-        .background(.bar)
-        .overlay(alignment: .bottom) { Divider() }
+        .barSurface()
     }
 
     private var navTitle: String {

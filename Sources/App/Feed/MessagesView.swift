@@ -125,8 +125,7 @@ struct ConversationView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .background(.bar)
-        .overlay(alignment: .bottom) { Divider() }
+        .barSurface()
     }
 
     private func bubble(_ message: DirectMessage) -> some View {

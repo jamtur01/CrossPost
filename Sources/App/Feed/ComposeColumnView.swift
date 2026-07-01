@@ -119,8 +119,7 @@ struct ComposeColumnView: View {
         }
         .padding(.horizontal, 14).padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.bar)
-        .overlay(alignment: .top) { Divider() }
+        .barSurface(divider: .top)
     }
 
     private func targetPill(_ target: PostTarget, selected: Bool, posted: Bool = false,

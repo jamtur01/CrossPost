@@ -21,13 +21,9 @@ struct ProfileListView: View {
                                                  name: profile.name, avatar: profile.avatarURL)))
                     }
                 }
-                if loading {
-                    ProgressView().controlSize(.small)
-                        .frame(maxWidth: .infinity).padding(.vertical, 24)
-                } else if let loadError, profiles.isEmpty {
-                    ErrorStateView(message: loadError, fills: false) { Task { await load() } }
-                } else if profiles.isEmpty {
-                    EmptyStateView(text: "No one here yet", systemImage: "person.2", fills: false)
+                listLoadFooter(loading: loading, error: loadError, isEmpty: profiles.isEmpty,
+                               emptyText: "No one here yet", emptyImage: "person.2") {
+                    Task { await load() }
                 }
             }
         }
