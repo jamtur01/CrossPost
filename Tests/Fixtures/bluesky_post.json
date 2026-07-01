@@ -1,0 +1,43 @@
+{
+  "post": {
+    "uri": "at://did:plc:alice/app.bsky.feed.post/aaa111",
+    "cid": "bafypost1",
+    "author": {
+      "did": "did:plc:alice",
+      "handle": "alice.bsky.social",
+      "displayName": "Alice"
+    },
+    "record": {
+      "$type": "app.bsky.feed.post",
+      "text": "hello @alice.bsky.social",
+      "createdAt": "2024-06-01T12:00:00.000Z",
+      "facets": [
+        {
+          "index": { "byteStart": 6, "byteEnd": 24 },
+          "features": [
+            { "$type": "app.bsky.richtext.facet#mention", "did": "did:plc:alice" }
+          ]
+        }
+      ]
+    },
+    "embed": {
+      "$type": "app.bsky.embed.images#view",
+      "images": [
+        {
+          "thumb": "https://cdn.bsky.app/img/thumb/aaa.jpg",
+          "fullsize": "https://cdn.bsky.app/img/full/aaa.jpg",
+          "alt": "a sunset over the sea",
+          "aspectRatio": { "width": 1000, "height": 500 }
+        }
+      ]
+    },
+    "replyCount": 3,
+    "repostCount": 5,
+    "likeCount": 9,
+    "indexedAt": "2024-06-01T12:05:00.000Z",
+    "viewer": {
+      "like": "at://did:plc:me/app.bsky.feed.like/like123",
+      "repost": "at://did:plc:me/app.bsky.feed.repost/repost123"
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "post": {
+    "uri": "at://did:plc:alice/app.bsky.feed.post/gif444",
+    "cid": "bafygif",
+    "author": {
+      "did": "did:plc:alice",
+      "handle": "alice.bsky.social",
+      "displayName": "Alice"
+    },
+    "record": {
+      "$type": "app.bsky.feed.post",
+      "text": "reaction",
+      "createdAt": "2024-06-06T10:00:00.000Z"
+    },
+    "embed": {
+      "$type": "app.bsky.embed.external#view",
+      "external": {
+        "$type": "app.bsky.embed.external#viewExternal",
+        "uri": "https://media.tenor.com/celebrate.gif?hh=200",
+        "title": "celebrate",
+        "description": "a celebratory gif",
+        "thumb": "https://media.tenor.com/celebrate-thumb.jpg"
+      }
+    },
+    "indexedAt": "2024-06-06T10:01:00.000Z"
+  }
+}

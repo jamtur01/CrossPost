@@ -1,0 +1,48 @@
+{
+  "post": {
+    "uri": "at://did:plc:alice/app.bsky.feed.post/quote777",
+    "cid": "bafyquote",
+    "author": {
+      "did": "did:plc:alice",
+      "handle": "alice.bsky.social",
+      "displayName": "Alice"
+    },
+    "record": {
+      "$type": "app.bsky.feed.post",
+      "text": "look at this",
+      "createdAt": "2024-06-04T10:00:00.000Z"
+    },
+    "embed": {
+      "$type": "app.bsky.embed.record#view",
+      "record": {
+        "$type": "app.bsky.embed.record#viewRecord",
+        "uri": "at://did:plc:dave/app.bsky.feed.post/orig555",
+        "cid": "bafyorig",
+        "author": {
+          "did": "did:plc:dave",
+          "handle": "dave.bsky.social",
+          "displayName": "Dave"
+        },
+        "value": {
+          "$type": "app.bsky.feed.post",
+          "text": "the quoted words",
+          "createdAt": "2024-06-04T09:00:00.000Z"
+        },
+        "indexedAt": "2024-06-04T09:00:00.000Z",
+        "embeds": [
+          {
+            "$type": "app.bsky.embed.images#view",
+            "images": [
+              {
+                "thumb": "https://cdn.bsky.app/img/thumb/qqq.jpg",
+                "fullsize": "https://cdn.bsky.app/img/full/qqq.jpg",
+                "alt": "quoted image"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "indexedAt": "2024-06-04T10:01:00.000Z"
+  }
+}
