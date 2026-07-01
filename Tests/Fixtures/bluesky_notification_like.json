@@ -1,0 +1,18 @@
+{
+  "uri": "at://did:plc:bob/app.bsky.feed.like/like999",
+  "cid": "bafynotelike",
+  "author": {
+    "did": "did:plc:bob",
+    "handle": "bob.bsky.social",
+    "displayName": "Bob Liker",
+    "avatar": "https://cdn.bsky.app/img/avatar/bob.jpg"
+  },
+  "reason": "like",
+  "reasonSubject": "at://did:plc:alice/app.bsky.feed.post/aaa111",
+  "record": {
+    "$type": "app.bsky.feed.like",
+    "createdAt": "2024-06-02T09:30:00.000Z"
+  },
+  "isRead": false,
+  "indexedAt": "2024-06-02T09:30:00.000Z"
+}

@@ -1,0 +1,18 @@
+{
+  "uri": "at://did:plc:carol/app.bsky.graph.follow/follow888",
+  "cid": "bafynotefollow",
+  "author": {
+    "did": "did:plc:carol",
+    "handle": "carol.bsky.social",
+    "displayName": "",
+    "avatar": "https://cdn.bsky.app/img/avatar/carol.jpg"
+  },
+  "reason": "follow",
+  "record": {
+    "$type": "app.bsky.graph.follow",
+    "subject": "did:plc:me",
+    "createdAt": "2024-06-03T10:00:00.000Z"
+  },
+  "isRead": true,
+  "indexedAt": "2024-06-03T10:00:00.000Z"
+}

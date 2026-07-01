@@ -42,42 +42,42 @@ struct BlueskyFeedService: FeedService {
             let output = try await kit.listNotifications(limit: 100, cursor: $0)
             return (output.notifications, output.cursor)
         }
-        // Hydrate the related posts: the mention/reply/quote itself, and the liked/
-        // reposted subject. Fetching full post views gives us embeds and counts.
-        var uris = Set<String>()
-        for n in notes {
-            switch n.reason {
-            case .mention, .reply, .quote: uris.insert(n.uri)
-            case .like, .likeViaRepost, .repost, .repostViaRepost:
-                if let subject = n.reasonSubjectURI { uris.insert(subject) }
-            default: break
-            }
-        }
+        // Hydrate the related posts (the mention/reply/quote itself, or the liked/
+        // reposted subject) so notifications carry embeds and counts.
+        let uris = Set(notes.compactMap(Self.referencedURI))
         let hydrated = try await hydratePosts(Array(uris))
-        return notes.map { n in
-            let kind: FeedNotification.Kind
-            switch n.reason {
-            case .mention: kind = .mention
-            case .reply: kind = .reply
-            case .like, .likeViaRepost: kind = .like
-            case .repost, .repostViaRepost: kind = .repost
-            case .follow: kind = .follow
-            case .quote: kind = .quote
-            default: kind = .other
-            }
-            let postURI: String?
-            switch kind {
-            case .mention, .reply, .quote: postURI = n.uri
-            case .like, .repost: postURI = n.reasonSubjectURI
-            default: postURI = nil
-            }
-            let post = postURI.flatMap { hydrated[$0] }.map { Self.feedPost(fromPostView: $0) }
-            return FeedNotification(
-                id: n.uri, kind: kind,
-                actorName: displayOrHandle(n.author.displayName, n.author.actorHandle),
-                actorHandle: "@\(n.author.actorHandle)", actorID: n.author.actorDID,
-                avatarURL: n.author.avatarImageURL, post: post, date: n.indexedAt)
+        return notes.map { Self.notification(from: $0, hydrated: hydrated) }
+    }
+
+    /// The post URI a notification refers to, if any: the mention/reply/quote
+    /// itself, or the liked/reposted subject. Single source of truth used both to
+    /// decide what to hydrate and which hydrated post to attach - keep them in sync.
+    static func referencedURI(_ n: AppBskyLexicon.Notification.Notification) -> String? {
+        switch n.reason {
+        case .mention, .reply, .quote: return n.uri
+        case .like, .likeViaRepost, .repost, .repostViaRepost: return n.reasonSubjectURI
+        default: return nil
         }
+    }
+
+    static func notification(from n: AppBskyLexicon.Notification.Notification,
+                             hydrated: [String: AppBskyLexicon.Feed.PostViewDefinition]) -> FeedNotification {
+        let kind: FeedNotification.Kind
+        switch n.reason {
+        case .mention: kind = .mention
+        case .reply: kind = .reply
+        case .like, .likeViaRepost: kind = .like
+        case .repost, .repostViaRepost: kind = .repost
+        case .follow: kind = .follow
+        case .quote: kind = .quote
+        default: kind = .other
+        }
+        let post = referencedURI(n).flatMap { hydrated[$0] }.map { feedPost(fromPostView: $0) }
+        return FeedNotification(
+            id: n.uri, kind: kind,
+            actorName: displayOrHandle(n.author.displayName, n.author.actorHandle),
+            actorHandle: "@\(n.author.actorHandle)", actorID: n.author.actorDID,
+            avatarURL: n.author.avatarImageURL, post: post, date: n.indexedAt)
     }
 
     func unreadNotificationCount() async throws -> Int {

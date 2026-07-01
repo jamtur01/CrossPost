@@ -267,4 +267,139 @@ final class BlueskyMappingTests: XCTestCase {
         XCTAssertEqual(BlueskyFeedService.aspect(.init(width: 100, height: 50)), 2.0)
         XCTAssertNil(BlueskyFeedService.aspect(nil))
     }
+
+    // MARK: - Notification mapping (referencedURI + notification(from:hydrated:))
+
+    private func notification(_ name: String) throws -> AppBskyLexicon.Notification.Notification {
+        try Self.decoder.decode(AppBskyLexicon.Notification.Notification.self, from: fixtureData(name))
+    }
+
+    /// Decode a minimal notification with a chosen reason and (optional) subject —
+    /// lets the routing/kind tables cover every reason without a fixture apiece.
+    private func inlineNotification(reason: String, reasonSubject: String?) throws
+        -> AppBskyLexicon.Notification.Notification {
+        let subjectField = reasonSubject.map { "\"reasonSubject\": \"\($0)\"," } ?? ""
+        let json = """
+        {
+          "uri": "at://did:plc:actor/app.bsky.feed.post/self123",
+          "cid": "bafyinline",
+          "author": { "did": "did:plc:actor", "handle": "actor.bsky.social" },
+          "reason": "\(reason)",
+          \(subjectField)
+          "record": { "$type": "app.bsky.feed.like", "createdAt": "2024-06-01T00:00:00.000Z" },
+          "isRead": false,
+          "indexedAt": "2024-06-01T00:00:00.000Z"
+        }
+        """
+        return try Self.decoder.decode(AppBskyLexicon.Notification.Notification.self, from: Data(json.utf8))
+    }
+
+    /// The hydrated-post dict keyed exactly as the mapper keys it — by post uri — so
+    /// a notification's referencedURI can select it. Built from the shared post fixture.
+    private func hydratedPosts() throws -> [String: AppBskyLexicon.Feed.PostViewDefinition] {
+        let post = try feedItem("bluesky_post").post
+        return [post.uri: post]
+    }
+
+    func testReferencedURIRoutesByReason() throws {
+        // reasonSubject is present for EVERY case, so nil results prove the reason
+        // gates routing (not mere presence) and mention/reply/quote use uri, not it.
+        let subject = "at://did:plc:alice/app.bsky.feed.post/aaa111"
+        let selfURI = "at://did:plc:actor/app.bsky.feed.post/self123"
+        let cases: [(reason: String, expected: String?)] = [
+            ("mention", selfURI),
+            ("reply", selfURI),
+            ("quote", selfURI),
+            ("like", subject),
+            ("repost", subject),
+            ("like-via-repost", subject),
+            ("repost-via-repost", subject),
+            ("follow", nil),
+            ("starterpack-joined", nil),
+            ("subscribed-post", nil),
+            ("totally-new-reason", nil),
+        ]
+        for c in cases {
+            let n = try inlineNotification(reason: c.reason, reasonSubject: subject)
+            XCTAssertEqual(BlueskyFeedService.referencedURI(n), c.expected,
+                           "\(c.reason) must route to \(c.expected ?? "nil")")
+        }
+    }
+
+    func testKindMapsReasonFoldingViaRepostVariants() throws {
+        // The -via-repost variants fold into their base kind; unknowns -> .other.
+        let cases: [(reason: String, kind: FeedNotification.Kind)] = [
+            ("mention", .mention),
+            ("reply", .reply),
+            ("quote", .quote),
+            ("like", .like),
+            ("like-via-repost", .like),
+            ("repost", .repost),
+            ("repost-via-repost", .repost),
+            ("follow", .follow),
+            ("starterpack-joined", .other),
+            ("subscribed-post", .other),
+            ("totally-new-reason", .other),
+        ]
+        for c in cases {
+            let n = try inlineNotification(reason: c.reason, reasonSubject: nil)
+            let mapped = BlueskyFeedService.notification(from: n, hydrated: [:])
+            XCTAssertEqual(mapped.kind, c.kind, "\(c.reason) must map to \(c.kind)")
+        }
+    }
+
+    func testLikeAttachesHydratedSubjectPostViaReferencedURI() throws {
+        // The point of the refactor: the SAME referencedURI that decides what to
+        // hydrate also selects which hydrated post to attach. The like's subject is
+        // the post fixture's uri, so its mapped post (text included) rides along.
+        let n = try notification("bluesky_notification_like")
+        let mapped = BlueskyFeedService.notification(from: n, hydrated: try hydratedPosts())
+        let post = try XCTUnwrap(mapped.post, "hydrated subject must attach")
+        XCTAssertEqual(String(post.text.characters), "hello @alice.bsky.social")
+    }
+
+    func testFollowHasNoReferencedPostEvenWhenPostsExist() throws {
+        // referencedURI is nil for a follow, so nothing attaches (no crash) even
+        // though the hydrated dict is non-empty.
+        let n = try notification("bluesky_notification_follow")
+        let mapped = BlueskyFeedService.notification(from: n, hydrated: try hydratedPosts())
+        XCTAssertNil(mapped.post)
+    }
+
+    func testLikeWithMissingHydratedSubjectHasNilPost() throws {
+        // Graceful miss: the subject wasn't hydrated (e.g. deleted), so post is nil.
+        let n = try notification("bluesky_notification_like")
+        let mapped = BlueskyFeedService.notification(from: n, hydrated: [:])
+        XCTAssertNil(mapped.post)
+    }
+
+    func testNotificationCarriesActorIdentityIdAndDate() throws {
+        let n = try notification("bluesky_notification_like")
+        let mapped = BlueskyFeedService.notification(from: n, hydrated: [:])
+        XCTAssertEqual(mapped.id, "at://did:plc:bob/app.bsky.feed.like/like999")
+        XCTAssertEqual(mapped.actorHandle, "@bob.bsky.social")
+        XCTAssertEqual(mapped.actorName, "Bob Liker")
+        XCTAssertEqual(mapped.actorID, "did:plc:bob")
+        XCTAssertEqual(mapped.avatarURL, URL(string: "https://cdn.bsky.app/img/avatar/bob.jpg"))
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        XCTAssertEqual(mapped.date, iso.date(from: "2024-06-02T09:30:00.000Z"))
+    }
+
+    func testActorNameFallsBackToHandleWhenDisplayNameBlank() throws {
+        // displayName is "" on the follow fixture; displayOrHandle uses the handle.
+        let n = try notification("bluesky_notification_follow")
+        let mapped = BlueskyFeedService.notification(from: n, hydrated: [:])
+        XCTAssertEqual(mapped.actorName, "carol.bsky.social")
+        XCTAssertEqual(mapped.actorHandle, "@carol.bsky.social")
+    }
+
+    func testLikeViaRepostFoldsToLikeAndAttachesSubject() throws {
+        // Fixture parity for the folded variant: kind collapses to .like and the
+        // subject still routes through referencedURI to attach the hydrated post.
+        let n = try notification("bluesky_notification_like_via_repost")
+        let mapped = BlueskyFeedService.notification(from: n, hydrated: try hydratedPosts())
+        XCTAssertEqual(mapped.kind, .like)
+        XCTAssertEqual(String(try XCTUnwrap(mapped.post).text.characters), "hello @alice.bsky.social")
+    }
 }

@@ -1,0 +1,18 @@
+{
+  "uri": "at://did:plc:dave/app.bsky.feed.like/likevia777",
+  "cid": "bafynotelikevia",
+  "author": {
+    "did": "did:plc:dave",
+    "handle": "dave.bsky.social",
+    "displayName": "Dave",
+    "avatar": "https://cdn.bsky.app/img/avatar/dave.jpg"
+  },
+  "reason": "like-via-repost",
+  "reasonSubject": "at://did:plc:alice/app.bsky.feed.post/aaa111",
+  "record": {
+    "$type": "app.bsky.feed.like",
+    "createdAt": "2024-06-04T11:00:00.000Z"
+  },
+  "isRead": false,
+  "indexedAt": "2024-06-04T11:00:00.000Z"
+}
