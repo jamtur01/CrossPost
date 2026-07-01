@@ -13,7 +13,7 @@ struct PostedItem: Equatable, Sendable {
 }
 
 /// Thrown when a thread fails partway through; carries what already landed.
-struct ThreadPostError: Error {
+struct ThreadPostError: Error, CustomStringConvertible, LocalizedError {
     let posted: [PostedItem]
     let failedIndex: Int
     let underlying: Error
@@ -23,6 +23,9 @@ struct ThreadPostError: Error {
         self.failedIndex = failedIndex
         self.underlying = underlying
     }
+
+    var description: String { underlying.userMessage }
+    var errorDescription: String? { description }
 }
 
 /// Publishes a whole thread to one target. Throws `ThreadPostError` on mid-thread failure.

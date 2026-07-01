@@ -284,7 +284,7 @@ struct BlueskyFeedService: FeedService {
     }
 
     func profile(id: String) async throws -> Profile {
-        Self.profile(from: try await kit.getProfile(for: id))
+        Self.profile(fromDetailed: try await kit.getProfile(for: id))
     }
 
     func profile(forURL url: URL) async throws -> Profile? {
@@ -479,7 +479,7 @@ struct BlueskyFeedService: FeedService {
     }
 
     func myProfile() async throws -> Profile {
-        Self.profile(from: try await kit.getProfile(for: handle))
+        Self.profile(fromDetailed: try await kit.getProfile(for: handle))
     }
 
     func authorPosts(id: String) async throws -> [FeedPost] {
@@ -543,7 +543,7 @@ struct BlueskyFeedService: FeedService {
             ComAtprotoLexicon.Moderation.CreateReportRequestBody.SubjectUnion.self, from: json)
     }
 
-    static func profile(from p: AppBskyLexicon.Actor.ProfileViewDetailedDefinition) -> Profile {
+    static func profile(fromDetailed p: AppBskyLexicon.Actor.ProfileViewDetailedDefinition) -> Profile {
         Profile(
             id: p.actorDID,   // the stable id; follow/block records require the DID, not the handle
             name: displayOrHandle(p.displayName, p.actorHandle),
