@@ -70,96 +70,34 @@ extension FeedPost {
     }
 }
 
-/// Holds a list of posts (a thread or a profile's feed) with optimistic
-/// like/repost backed by the panel's service.
+/// Holds a list of posts (a thread or a profile's feed). Optimistic like/repost/
+/// bookmark/pin/delete come from the shared `OptimisticPostHost` engine; this type
+/// only supplies the remote calls (routed through the panel's service) and the
+/// error sink.
 @MainActor
 @Observable
-final class PostList {
+final class PostList: OptimisticPostHost {
     var posts: [FeedPost] = []
+    var inFlight: Set<String> = []
     private let panel: FeedPanelModel
-    private var mutating: Set<String> = []
 
     init(panel: FeedPanelModel) { self.panel = panel }
 
-    func toggleLike(_ post: FeedPost) {
-        Haptics.tap()
-        mutate(post, optimistic: {
-            $0.isLiked.toggle()
-            $0.likeCount = max(0, $0.likeCount + ($0.isLiked ? 1 : -1))
-        }) { [panel] in
-            try await panel.serviceSetLiked($0.isLiked, on: $0)
-        }
-    }
+    func reportError(_ message: String) { panel.reportError(message) }
 
-    func toggleRepost(_ post: FeedPost) {
-        Haptics.tap()
-        mutate(post, optimistic: {
-            $0.isReposted.toggle()
-            $0.repostCount = max(0, $0.repostCount + ($0.isReposted ? 1 : -1))
-        }) { [panel] in
-            try await panel.serviceSetReposted($0.isReposted, on: $0)
-        }
+    func remoteSetLiked(_ liked: Bool, on post: FeedPost) async throws -> FeedPost {
+        try await panel.remoteSetLiked(liked, on: post)
     }
-
-    func setBookmarked(_ bookmarked: Bool, _ post: FeedPost) {
-        mutate(post, optimistic: { $0.isBookmarked = bookmarked }) { [panel] in
-            try await panel.serviceSetBookmarked(bookmarked, on: $0)
-        }
+    func remoteSetReposted(_ reposted: Bool, on post: FeedPost) async throws -> FeedPost {
+        try await panel.remoteSetReposted(reposted, on: post)
     }
-
-    func setPinned(_ pinned: Bool, _ post: FeedPost) {
-        mutate(post, optimistic: { $0.isPinned = pinned }) { [panel] in
-            try await panel.serviceSetPinned(pinned, on: $0)
-        }
+    func remoteSetBookmarked(_ bookmarked: Bool, on post: FeedPost) async throws -> FeedPost {
+        try await panel.remoteSetBookmarked(bookmarked, on: post)
     }
-
-    /// Replace a row in place after an edit (same id, new content), so a thread/
-    /// profile/search/saved route shows the edit without a full reload.
-    func replace(_ post: FeedPost) {
-        if let index = posts.firstIndex(where: { $0.id == post.id }) { posts[index] = post }
+    func remoteSetPinned(_ pinned: Bool, on post: FeedPost) async throws -> FeedPost {
+        try await panel.remoteSetPinned(pinned, on: post)
     }
-
-    /// Optimistically remove a row, deleting it on the server and re-inserting it
-    /// at its original position (with an error banner) if the delete fails.
-    func delete(_ post: FeedPost) {
-        guard let index = posts.firstIndex(where: { $0.id == post.id }) else { return }
-        let removed = posts.remove(at: index)
-        Task { [panel] in
-            do { try await panel.serviceDeletePost(post) }
-            catch {
-                if !posts.contains(where: { $0.id == post.id }) {
-                    posts.insert(removed, at: min(index, posts.count))
-                }
-                panel.reportActionError(error.userMessage)
-            }
-        }
-    }
-
-    private func mutate(_ post: FeedPost,
-                        optimistic: (inout FeedPost) -> Void,
-                        action: @escaping (FeedPost) async throws -> FeedPost) {
-        guard !mutating.contains(post.id),
-              let index = posts.firstIndex(where: { $0.id == post.id }) else { return }
-        mutating.insert(post.id)
-        let original = posts[index]
-        var optimisticPost = original
-        optimistic(&optimisticPost)
-        posts[index] = optimisticPost
-        Task {
-            defer { mutating.remove(post.id) }
-            do {
-                let updated = try await action(optimisticPost)
-                if let i = posts.firstIndex(where: { $0.id == post.id }), posts[i] == optimisticPost {
-                    posts[i] = updated
-                }
-            } catch {
-                // Always revert a failed action by id (a concurrent refresh may have
-                // touched the row) so the optimistic state never sticks.
-                if let i = posts.firstIndex(where: { $0.id == post.id }) {
-                    posts[i] = original
-                }
-                panel.reportActionError(error.userMessage)
-            }
-        }
+    func remoteDelete(_ post: FeedPost) async throws {
+        try await panel.remoteDelete(post)
     }
 }

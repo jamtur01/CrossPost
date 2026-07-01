@@ -226,7 +226,7 @@ struct FeedPanelView: View {
                                 onOpenURL: { model.openLink($0) { routes.append($0) } },
                                 isMine: model.isMine(post),
                                 onBookmark: { model.setBookmarked(!post.isBookmarked, on: post) },
-                                onDelete: { model.deletePost(post) },
+                                onDelete: { model.delete(post) },
                                 onPin: { model.setPinned(!post.isPinned, on: post) },
                                 onLikedBy: { routes.append(.profileList(ProfileListRef(kind: .likedBy, post: post))) },
                                 onRepostedBy: { routes.append(.profileList(ProfileListRef(kind: .repostedBy, post: post))) },

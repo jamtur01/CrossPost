@@ -4,7 +4,7 @@ import AppKit
 
 @MainActor
 @Observable
-final class FeedPanelModel {
+final class FeedPanelModel: OptimisticPostHost {
     let target: PostTarget
     var kind: FeedKind = .home
     var posts: [FeedPost] = []
@@ -29,7 +29,7 @@ final class FeedPanelModel {
     private var liveTask: Task<Void, Never>?
     private var unreadTask: Task<Void, Never>?
     private var followStateTask: Task<Void, Never>?
-    private var mutating: Set<String> = []   // post ids with an in-flight like/repost
+    var inFlight: Set<String> = []   // post ids with an in-flight like/repost/etc.
     // 30s active-only poll. Well within both platforms' limits: Mastodon allows 300
     // requests / 5 min per account (~8/min here, well under), Bluesky 3000 / 5 min per
     // IP. Bluesky has no live stream, so this poll is its only passive freshness path.
@@ -163,7 +163,7 @@ final class FeedPanelModel {
                 errorMessage = nil
                 posts = reset
                     ? fetched
-                    : FeedMerge.merge(existing: posts, fetched: fetched, preservingIDs: mutating)
+                    : FeedMerge.merge(existing: posts, fetched: fetched, preservingIDs: inFlight)
             }
         } catch {
             if Task.isCancelled { return }
@@ -173,7 +173,7 @@ final class FeedPanelModel {
             } else if userInitiated {
                 // We already have content; the user asked for a refresh, so give brief
                 // feedback that auto-dismisses instead of a banner that sticks forever.
-                showActionError(error.userMessage)
+                reportError(error.userMessage)
             }
             // A background poll/live failure with content present stays silent — the
             // stale content stands and the next poll will quietly recover.
@@ -225,26 +225,6 @@ final class FeedPanelModel {
             // serviceTask — only a plain failure should clear it for retry.
             if !task.isCancelled { serviceTask = nil }
             throw error
-        }
-    }
-
-    func toggleLike(_ post: FeedPost) {
-        Haptics.tap()
-        mutate(post, optimistic: {
-            $0.isLiked.toggle()
-            $0.likeCount = max(0, $0.likeCount + ($0.isLiked ? 1 : -1))
-        }) { svc, p in
-            try await svc.setLiked(p.isLiked, on: p)
-        }
-    }
-
-    func toggleRepost(_ post: FeedPost) {
-        Haptics.tap()
-        mutate(post, optimistic: {
-            $0.isReposted.toggle()
-            $0.repostCount = max(0, $0.repostCount + ($0.isReposted ? 1 : -1))
-        }) { svc, p in
-            try await svc.setReposted(p.isReposted, on: p)
         }
     }
 
@@ -384,7 +364,7 @@ final class FeedPanelModel {
         let current = await relationship(with: actorID)
         if current.isFollowing { followedActorIDs.insert(actorID); return }
         do { _ = try await setFollowing(true, for: actorID, current: current) }
-        catch { showActionError(error.userMessage) }
+        catch { reportError(error.userMessage) }
     }
 
     /// Resolve follow state for a page of notification actors in one round-trip
@@ -429,61 +409,6 @@ final class FeedPanelModel {
         return !mine.isEmpty && post.authorHandle.lowercased() == "@\(mine.lowercased())"
     }
 
-    func deletePost(_ post: FeedPost) {
-        guard let index = posts.firstIndex(where: { $0.id == post.id }) else {
-            // Not in this timeline (thread/profile lists remove their own row and
-            // call serviceDeletePost); just perform the server-side delete.
-            Task {
-                do { try await serviceDeletePost(post) }
-                catch { showActionError(error.userMessage) }
-            }
-            return
-        }
-        let removed = posts.remove(at: index)
-        Task {
-            do { try await serviceDeletePost(post) }
-            catch {
-                if !posts.contains(where: { $0.id == post.id }) {
-                    posts.insert(removed, at: min(index, posts.count))
-                }
-                showActionError(error.userMessage)
-            }
-        }
-    }
-
-    /// Server-side delete only — used by thread/profile lists that manage their
-    /// own optimistic row removal and rollback.
-    func serviceDeletePost(_ post: FeedPost) async throws {
-        try await resolveService().deletePost(post)
-    }
-
-    /// Surface a transient error banner from a list outside this panel's timeline.
-    func reportActionError(_ message: String) {
-        showActionError(message)
-    }
-
-    func setBookmarked(_ bookmarked: Bool, on post: FeedPost) {
-        updatePost(post.id) { $0.isBookmarked = bookmarked }
-        Task {
-            do {
-                let updated = try await resolveService().setBookmarked(bookmarked, on: post)
-                updatePost(post.id) { $0.isBookmarked = updated.isBookmarked }
-            } catch {
-                updatePost(post.id) { $0.isBookmarked = !bookmarked }
-                showActionError(error.userMessage)
-            }
-        }
-    }
-
-    func setPinned(_ pinned: Bool, on post: FeedPost) {
-        Task {
-            do {
-                let updated = try await resolveService().setPinned(pinned, on: post)
-                updatePost(post.id) { $0.isPinned = updated.isPinned }
-            } catch { showActionError(error.userMessage) }
-        }
-    }
-
     func messages(in conversationID: String) async -> [DirectMessage] {
         (try? await resolveService().messages(in: conversationID)) ?? []
     }
@@ -516,59 +441,28 @@ final class FeedPanelModel {
         if let index = posts.firstIndex(where: { $0.id == id }) { mutate(&posts[index]) }
     }
 
-    /// Service-backed like/repost for posts not held in this panel's timeline
-    /// (used by thread and profile lists).
-    func serviceSetLiked(_ liked: Bool, on post: FeedPost) async throws -> FeedPost {
+    // MARK: OptimisticPostHost — the remote calls the shared engine drives.
+    // Also the service bridge PostList uses for its own rows.
+
+    func remoteSetLiked(_ liked: Bool, on post: FeedPost) async throws -> FeedPost {
         try await resolveService().setLiked(liked, on: post)
     }
-
-    func serviceSetReposted(_ reposted: Bool, on post: FeedPost) async throws -> FeedPost {
+    func remoteSetReposted(_ reposted: Bool, on post: FeedPost) async throws -> FeedPost {
         try await resolveService().setReposted(reposted, on: post)
     }
-
-    /// Service-backed bookmark/pin for posts not held in this panel's timeline
-    /// (thread and profile lists manage their own optimistic row state).
-    func serviceSetBookmarked(_ bookmarked: Bool, on post: FeedPost) async throws -> FeedPost {
+    func remoteSetBookmarked(_ bookmarked: Bool, on post: FeedPost) async throws -> FeedPost {
         try await resolveService().setBookmarked(bookmarked, on: post)
     }
-
-    func serviceSetPinned(_ pinned: Bool, on post: FeedPost) async throws -> FeedPost {
+    func remoteSetPinned(_ pinned: Bool, on post: FeedPost) async throws -> FeedPost {
         try await resolveService().setPinned(pinned, on: post)
     }
-
-    /// Flip the UI immediately, call the service, reconcile or revert on failure.
-    /// Ignores a second toggle for the same post while one is already in flight.
-    private func mutate(_ post: FeedPost,
-                        optimistic: (inout FeedPost) -> Void,
-                        action: @escaping (FeedService, FeedPost) async throws -> FeedPost) {
-        guard !mutating.contains(post.id),
-              let index = posts.firstIndex(where: { $0.id == post.id }) else { return }
-        mutating.insert(post.id)
-        let original = posts[index]
-        var optimisticPost = original
-        optimistic(&optimisticPost)
-        posts[index] = optimisticPost
-        Task {
-            defer { mutating.remove(post.id) }
-            do {
-                let svc = try await resolveService()
-                let updated = try await action(svc, optimisticPost)
-                // Only reconcile if a reset-load hasn't replaced this post meanwhile.
-                if let i = posts.firstIndex(where: { $0.id == post.id }), posts[i] == optimisticPost {
-                    posts[i] = updated
-                }
-            } catch {
-                // Always revert a failed action by id, even if a concurrent merge
-                // touched the post meanwhile — otherwise the optimistic state sticks.
-                if let i = posts.firstIndex(where: { $0.id == post.id }) {
-                    posts[i] = original
-                }
-                showActionError(error.userMessage)
-            }
-        }
+    func remoteDelete(_ post: FeedPost) async throws {
+        try await resolveService().deletePost(post)
     }
 
-    private func showActionError(_ message: String) {
+    /// Surface a transient error banner (failed like/repost/follow/…) that
+    /// auto-dismisses. The shared engine and external lists both report through this.
+    func reportError(_ message: String) {
         actionError = message
         Task {
             try? await Task.sleep(nanoseconds: 4_000_000_000)

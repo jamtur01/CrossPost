@@ -152,8 +152,8 @@ private struct NotificationRow: View {
         post = optimistic
         Task {
             defer { mutating = false }
-            do { post = try await model.serviceSetLiked(optimistic.isLiked, on: optimistic) }
-            catch { post = original; model.reportActionError(error.userMessage) }
+            do { post = try await model.remoteSetLiked(optimistic.isLiked, on: optimistic) }
+            catch { post = original; model.reportError(error.userMessage) }
         }
     }
 
@@ -166,8 +166,8 @@ private struct NotificationRow: View {
         post = optimistic
         Task {
             defer { mutating = false }
-            do { post = try await model.serviceSetReposted(optimistic.isReposted, on: optimistic) }
-            catch { post = original; model.reportActionError(error.userMessage) }
+            do { post = try await model.remoteSetReposted(optimistic.isReposted, on: optimistic) }
+            catch { post = original; model.reportError(error.userMessage) }
         }
     }
 

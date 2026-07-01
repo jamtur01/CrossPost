@@ -306,7 +306,7 @@ final class FeedPanelModelTests: XCTestCase {
         let posts = ["a", "b", "c"].map { TestFactory.feedPost(id: $0) }
         model.posts = posts
 
-        model.deletePost(posts[1])
+        model.delete(posts[1])
         XCTAssertEqual(model.posts.map(\.id), ["a", "c"])       // optimistic removal
 
         await waitUntil { model.actionError != nil }
@@ -319,7 +319,7 @@ final class FeedPanelModelTests: XCTestCase {
         let posts = ["a", "b"].map { TestFactory.feedPost(id: $0) }
         model.posts = posts
 
-        model.deletePost(posts[0])
+        model.delete(posts[0])
         XCTAssertEqual(model.posts.map(\.id), ["b"])
 
         await waitUntil { fake.deletedIDs.contains("a") }

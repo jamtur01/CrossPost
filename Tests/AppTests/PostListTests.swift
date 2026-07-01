@@ -96,7 +96,7 @@ final class PostListTests: XCTestCase {
         let post = TestFactory.feedPost(target: .bluesky)
         list.posts = [post]
 
-        list.setPinned(true, post)
+        list.setPinned(true, on: post)
         XCTAssertTrue(list.posts[0].isPinned)           // optimistic
 
         await waitUntil { fake.pinSetCalls == [true] }
@@ -136,7 +136,7 @@ final class PostListTests: XCTestCase {
         let post = TestFactory.feedPost(target: .bluesky)
         list.posts = [post]
 
-        list.setBookmarked(true, post)
+        list.setBookmarked(true, on: post)
         XCTAssertTrue(list.posts[0].isBookmarked)               // optimistic, synchronous
 
         await waitUntil { fake.bookmarkSetCalls == [true] }      // reconcile ran

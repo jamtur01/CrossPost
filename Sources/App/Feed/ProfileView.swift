@@ -207,9 +207,9 @@ struct ProfileView: View {
             onOpenProfile: { push(.profile(row.profileRef())) },
             onOpenURL: { panel.openLink($0, push: push) },
             isMine: panel.isMine(row),
-            onBookmark: { list.setBookmarked(!row.isBookmarked, row) },
+            onBookmark: { list.setBookmarked(!row.isBookmarked, on: row) },
             onDelete: { list.delete(row) },
-            onPin: { list.setPinned(!row.isPinned, row) },
+            onPin: { list.setPinned(!row.isPinned, on: row) },
             onLikedBy: { push(.profileList(ProfileListRef(kind: .likedBy, post: row))) },
             onRepostedBy: { push(.profileList(ProfileListRef(kind: .repostedBy, post: row))) },
             onShowParent: row.isReply ? { push(.thread(row)) } : nil,
@@ -294,7 +294,7 @@ struct ProfileView: View {
         catch {
             relationship = previous
             profile?.followers = max(0, (profile?.followers ?? 0) + (target ? -1 : 1))
-            panel.reportActionError(error.userMessage)
+            panel.reportError(error.userMessage)
         }
     }
 
@@ -306,7 +306,7 @@ struct ProfileView: View {
         let previous = relationship
         relationship.isMuting = target
         do { relationship = try await panel.setMuted(target, for: accountID, current: previous) }
-        catch { relationship = previous; panel.reportActionError(error.userMessage) }
+        catch { relationship = previous; panel.reportError(error.userMessage) }
     }
 
     private func toggleBlock() async {
@@ -317,6 +317,6 @@ struct ProfileView: View {
         let previous = relationship
         relationship.isBlocking = target
         do { relationship = try await panel.setBlocked(target, for: accountID, current: previous) }
-        catch { relationship = previous; panel.reportActionError(error.userMessage) }
+        catch { relationship = previous; panel.reportError(error.userMessage) }
     }
 }
