@@ -161,16 +161,63 @@ struct FeedPostView: View {
                     }
                 }
             } else {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 6) {
-                        ForEach(post.images) { media in
-                            mediaView(media, fit: false)
-                                .frame(width: 156, height: 116)
-                                .clipShape(RoundedRectangle(cornerRadius: Theme.mediaCorner, style: .continuous))
-                        }
+                timelineMedia
+            }
+        }
+    }
+
+    /// Timeline media mosaic: one image fills the column at a capped height; two to
+    /// four tile into a grid with hairline gaps and rounded outer corners; a fifth+
+    /// collapses into a "+N" overlay on the last tile.
+    @ViewBuilder
+    private var timelineMedia: some View {
+        let imgs = post.images
+        Group {
+            switch imgs.count {
+            case 1:
+                mediaView(imgs[0], fit: true)
+                    .frame(maxWidth: .infinity)
+                    .frame(maxHeight: 340)
+            case 2:
+                HStack(spacing: 3) { gridTile(imgs[0]); gridTile(imgs[1]) }
+                    .frame(height: 200)
+            case 3:
+                HStack(spacing: 3) {
+                    gridTile(imgs[0])
+                    VStack(spacing: 3) { gridTile(imgs[1]); gridTile(imgs[2]) }
+                }
+                .frame(height: 240)
+            default:
+                VStack(spacing: 3) {
+                    HStack(spacing: 3) { gridTile(imgs[0]); gridTile(imgs[1]) }
+                    HStack(spacing: 3) {
+                        gridTile(imgs[2])
+                        gridTile(imgs[3]).overlay { overflowBadge(extra: imgs.count - 4) }
                     }
                 }
+                .frame(height: 280)
             }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: Theme.mediaCorner, style: .continuous))
+    }
+
+    /// A single equal-weight mosaic cell that fills its slot.
+    private func gridTile(_ media: FeedImage) -> some View {
+        mediaView(media, fit: false)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .clipped()
+            .contentShape(Rectangle())
+    }
+
+    /// "+N" scrim on the last tile when a post carries more images than the grid shows.
+    @ViewBuilder
+    private func overflowBadge(extra: Int) -> some View {
+        if extra > 0 {
+            ZStack {
+                Color.black.opacity(0.45)
+                Text("+\(extra)").font(.system(size: 22, weight: .semibold)).foregroundStyle(.white)
+            }
+            .allowsHitTesting(false)
         }
     }
 
