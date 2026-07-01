@@ -70,6 +70,12 @@ extension FeedPost {
     }
 }
 
+extension Profile {
+    func profileRef() -> ProfileRef {
+        ProfileRef(id: id, handle: handle, name: name, avatar: avatarURL)
+    }
+}
+
 /// Holds a list of posts (a thread or a profile's feed). Optimistic like/repost/
 /// bookmark/pin/delete come from the shared `OptimisticPostHost` engine; this type
 /// only supplies the remote calls (routed through the panel's service) and the

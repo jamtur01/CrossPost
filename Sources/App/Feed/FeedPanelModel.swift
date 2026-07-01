@@ -269,7 +269,7 @@ final class FeedPanelModel: OptimisticPostHost {
 
     private func profileRef(forURL url: URL) async -> ProfileRef? {
         guard let profile = try? await resolveService().profile(forURL: url) else { return nil }
-        return ProfileRef(id: profile.id, handle: profile.handle, name: profile.name, avatar: profile.avatarURL)
+        return profile.profileRef()
     }
 
     /// Fetch the surrounding thread (ancestors + replies) for the detail view.

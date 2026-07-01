@@ -159,11 +159,10 @@ struct BlueskyFeedService: FeedService {
 
         let embed = try BlueskyPoster.imagesEmbed(from: images)
         let ref = try await bluesky.createPostRecord(text: text, replyTo: replyRef, embed: embed)
-        let rkey = ref.recordURI.split(separator: "/").last.map(String.init) ?? ""
         // The reply keeps the parent's thread root, so a continuation threads correctly.
         let nativeRef = NativeRef.bluesky(uri: ref.recordURI, cid: ref.recordCID,
                                           rootURI: rootURI, rootCID: rootCID)
-        return PostedItem(url: "https://bsky.app/profile/\(handle)/post/\(rkey)", ref: nativeRef)
+        return PostedItem(url: BlueskyURL.post(recordURI: ref.recordURI, handle: handle), ref: nativeRef)
     }
 
     func quote(post: FeedPost, text: String, visibility _: PostVisibility) async throws -> PostedItem {
@@ -171,11 +170,10 @@ struct BlueskyFeedService: FeedService {
         let ref = try await bluesky.createPostRecord(
             text: text,
             embed: .record(strongReference: .init(recordURI: uri, cidHash: cid)))
-        let rkey = ref.recordURI.split(separator: "/").last.map(String.init) ?? ""
         // A quote is a fresh top-level post, so it is its own thread root.
         let nativeRef = NativeRef.bluesky(uri: ref.recordURI, cid: ref.recordCID,
                                           rootURI: ref.recordURI, rootCID: ref.recordCID)
-        return PostedItem(url: "https://bsky.app/profile/\(handle)/post/\(rkey)", ref: nativeRef)
+        return PostedItem(url: BlueskyURL.post(recordURI: ref.recordURI, handle: handle), ref: nativeRef)
     }
 
     func thread(of post: FeedPost) async throws -> PostThread {
@@ -255,9 +253,9 @@ struct BlueskyFeedService: FeedService {
     private static func facetURL(_ features: [AppBskyLexicon.RichText.Facet.FeaturesUnion]) -> URL? {
         for feature in features {
             switch feature {
-            case .mention(let mention): return URL(string: "https://bsky.app/profile/\(mention.did)")
+            case .mention(let mention): return URL(string: BlueskyURL.profile(mention.did))
             case .link(let link): return URL(string: link.uri)
-            case .tag(let tag): return URL(string: "https://bsky.app/hashtag/\(tag.tag)")
+            case .tag(let tag): return URL(string: BlueskyURL.hashtag(tag.tag))
             case .unknown: continue
             }
         }
@@ -267,7 +265,6 @@ struct BlueskyFeedService: FeedService {
     static func quotedPost(fromRecordView view: AppBskyLexicon.Embed.RecordDefinition.View) -> QuotedPost? {
         guard case .viewRecord(let vr) = view.record else { return nil }
         let record = vr.value.getRecord(ofType: AppBskyLexicon.Feed.PostRecord.self)
-        let rkey = vr.uri.split(separator: "/").last.map(String.init) ?? ""
         var imageURL: URL?
         for embed in vr.embeds ?? [] {
             if case .embedImagesView(let v) = embed, let first = v.images.first {
@@ -282,7 +279,8 @@ struct BlueskyFeedService: FeedService {
             avatarURL: vr.author.avatarImageURL,
             text: Self.attributedText(record),
             imageURL: imageURL,
-            webURL: URL(string: "https://bsky.app/profile/\(vr.author.actorHandle)/post/\(rkey)"))
+            webURL: BlueskyURL.post(recordURI: vr.uri, handle: vr.author.actorHandle)
+                .flatMap(URL.init(string:)))
     }
 
     func profile(id: String) async throws -> Profile {
@@ -477,7 +475,7 @@ struct BlueskyFeedService: FeedService {
                 name: displayOrHandle(p.displayName, p.actorHandle),
                 handle: "@\(p.actorHandle)", avatarURL: p.avatarImageURL, bannerURL: nil,
                 bio: AttributedString(p.description ?? ""), followers: 0, following: 0, posts: 0,
-                webURL: URL(string: "https://bsky.app/profile/\(p.actorHandle)"))
+                webURL: URL(string: BlueskyURL.profile(p.actorHandle)))
     }
 
     func myProfile() async throws -> Profile {
@@ -556,7 +554,7 @@ struct BlueskyFeedService: FeedService {
             followers: p.followerCount ?? 0,
             following: p.followCount ?? 0,
             posts: p.postCount ?? 0,
-            webURL: URL(string: "https://bsky.app/profile/\(p.actorHandle)"))
+            webURL: URL(string: BlueskyURL.profile(p.actorHandle)))
     }
 
     static func feedPost(
@@ -626,7 +624,6 @@ struct BlueskyFeedService: FeedService {
         let resolvedReplyRoot = replyRoot
             ?? record?.reply.map { ($0.root.recordURI, $0.root.recordCID) }
         let root = BlueskyThreadRef.root(postURI: p.uri, postCID: p.cid, replyRoot: resolvedReplyRoot)
-        let rkey = p.uri.split(separator: "/").last.map(String.init) ?? ""
         return FeedPost(
             id: boostKey.map { "bluesky:\($0):\(p.uri)" } ?? "bluesky:\(p.uri)",
             target: .bluesky,
@@ -639,7 +636,7 @@ struct BlueskyFeedService: FeedService {
             images: images,
             card: card,
             quoted: quoted,
-            webURL: URL(string: "https://bsky.app/profile/\(p.author.actorHandle)/post/\(rkey)"),
+            webURL: BlueskyURL.post(recordURI: p.uri, handle: p.author.actorHandle).flatMap(URL.init(string:)),
             isLiked: p.viewer?.likeURI != nil,
             isReposted: p.viewer?.repostURI != nil,
             isBookmarked: p.viewer?.isBookmarked ?? false,

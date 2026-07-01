@@ -44,14 +44,8 @@ struct BlueskyPoster: Poster, ThreadPublisher {
         let rootRef = root ?? ref
         let nativeRef = NativeRef.bluesky(uri: ref.recordURI, cid: ref.recordCID,
                                           rootURI: rootRef.recordURI, rootCID: rootRef.recordCID)
-        return (ref: ref, item: PostedItem(url: Self.webURL(recordURI: ref.recordURI, handle: handle),
+        return (ref: ref, item: PostedItem(url: BlueskyURL.post(recordURI: ref.recordURI, handle: handle),
                                            ref: nativeRef))
-    }
-
-    /// Build a bsky.app web URL from the at:// record URI's record key.
-    static func webURL(recordURI: String, handle: String) -> String? {
-        guard let rkey = recordURI.split(separator: "/").last else { return nil }
-        return "https://bsky.app/profile/\(handle)/post/\(rkey)"
     }
 
     /// Build the images embed for a Bluesky post from attachments: enforce the

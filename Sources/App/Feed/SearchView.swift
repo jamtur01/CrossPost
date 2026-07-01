@@ -76,8 +76,7 @@ struct SearchView: View {
                         sectionHeader("People")
                         ForEach(results.accounts) { profile in
                             ProfileRowView(profile: profile) {
-                                push(.profile(ProfileRef(id: profile.id, handle: profile.handle,
-                                                         name: profile.name, avatar: profile.avatarURL)))
+                                push(.profile(profile.profileRef()))
                             }
                         }
                     }

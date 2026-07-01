@@ -17,8 +17,7 @@ struct ProfileListView: View {
                 ForEach(Array(profiles.enumerated()), id: \.element.id) { index, profile in
                     if index > 0 { Divider().opacity(0.5) }
                     ProfileRowView(profile: profile) {
-                        push(.profile(ProfileRef(id: profile.id, handle: profile.handle,
-                                                 name: profile.name, avatar: profile.avatarURL)))
+                        push(.profile(profile.profileRef()))
                     }
                 }
                 listLoadFooter(loading: loading, error: loadError, isEmpty: profiles.isEmpty,
