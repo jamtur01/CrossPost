@@ -71,27 +71,18 @@ struct ReplySheet: View {
                 Text(error).font(.caption).foregroundStyle(.red)
             }
 
-            HStack {
-                if justSent {
-                    Label("Reply sent", systemImage: "checkmark.circle.fill")
-                        .font(.callout).foregroundStyle(.green)
-                }
-                Spacer()
-                Button("Cancel", action: onClose)
-                    .keyboardShortcut(.cancelAction)
-                    .disabled(justSent || model.isSending)
-                Button(model.isSending ? "Sending…" : "Reply") {
+            SheetFooter(
+                sending: model.isSending, sent: justSent,
+                successLabel: "Reply sent", submitLabel: "Reply", submittingLabel: "Sending…",
+                canSubmit: model.canSend, onCancel: onClose,
+                onSubmit: {
                     Task {
                         guard await model.send() else { return }
                         justSent = true
                         try? await Task.sleep(nanoseconds: 800_000_000)
                         onClose()
                     }
-                }
-                .buttonStyle(.borderedProminent)
-                .keyboardShortcut(.return, modifiers: .command)
-                .disabled(!model.canSend || justSent)
-            }
+                })
         }
         .sheetContainer()
     }

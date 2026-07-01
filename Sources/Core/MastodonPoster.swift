@@ -86,7 +86,7 @@ extension TootClient {
                     let params = UploadMediaAttachmentParams(
                         file: item.jpeg,
                         thumbnail: nil,
-                        description: item.altText.isEmpty ? nil : item.altText,
+                        description: item.altText.nilIfBlank,
                         focus: nil)
                     return (index, try await self.uploadMedia(params, mimeType: "image/jpeg").id)
                 }

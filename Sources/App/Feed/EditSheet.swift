@@ -70,20 +70,10 @@ struct EditSheet: View {
                 Text(errorMessage).font(.caption).foregroundStyle(.red)
             }
 
-            HStack {
-                if sent {
-                    Label("Saved", systemImage: "checkmark.circle.fill")
-                        .font(.callout).foregroundStyle(.green)
-                }
-                Spacer()
-                Button("Cancel", action: onClose)
-                    .keyboardShortcut(.cancelAction)
-                    .disabled(sending || sent)
-                Button(sending ? "Saving…" : "Save") { save() }
-                    .buttonStyle(.borderedProminent)
-                    .keyboardShortcut(.return, modifiers: .command)
-                    .disabled(!canSave)
-            }
+            SheetFooter(
+                sending: sending, sent: sent,
+                successLabel: "Saved", submitLabel: "Save", submittingLabel: "Saving…",
+                canSubmit: canSave, onCancel: onClose, onSubmit: save)
         }
         .sheetContainer()
         .task {

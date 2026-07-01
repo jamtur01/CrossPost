@@ -42,13 +42,13 @@ private func atProtoUserMessage(for error: any Error) -> String? {
     case ATAPIError.badGateway, ATAPIError.serviceUnavailable, ATAPIError.gatewayTimeout:
         return "The server is temporarily unavailable. Please try again."
     case let ATAPIError.unknown(message, _, _, _):
-        return message?.nonBlank ?? "An unexpected server error occurred."
+        return message?.nilIfBlank ?? "An unexpected server error occurred."
     case ATProtoBluesky.ATBlueskyError.imageTooLarge:
         return "That image is too large to upload."
     case let ATProtoBluesky.ATProtoBlueskyError.recordNotFound(message),
          let ATProtoBluesky.ATProtoBlueskyError.invalidReplyReference(message),
          let ATProtoBluesky.ATProtoBlueskyError.emptyReplaceArray(message):
-        return message.nonBlank ?? "Couldn't reach the server. Please try again."
+        return message.nilIfBlank ?? "Couldn't reach the server. Please try again."
     case ATProtocolConfiguration.ATProtocolConfigurationError.tokensExpired,
          ATProtocolConfiguration.ATProtocolConfigurationError.noSessionToken:
         return "Your session expired. Reconnect the account in Settings."
@@ -62,11 +62,5 @@ private func atProtoUserMessage(for error: any Error) -> String? {
 }
 
 private func serverMessage(_ payload: APIClientService.ATHTTPResponseError) -> String {
-    payload.message.nonBlank ?? payload.error.nonBlank ?? "The server rejected the request."
-}
-
-private extension String {
-    var nonBlank: String? {
-        trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : self
-    }
+    payload.message.nilIfBlank ?? payload.error.nilIfBlank ?? "The server rejected the request."
 }

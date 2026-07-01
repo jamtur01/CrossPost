@@ -38,20 +38,10 @@ struct ReportSheet: View {
                 Text(errorMessage).font(.caption).foregroundStyle(.red)
             }
 
-            HStack {
-                if sent {
-                    Label("Report sent", systemImage: "checkmark.circle.fill")
-                        .font(.callout).foregroundStyle(.green)
-                }
-                Spacer()
-                Button("Cancel", action: onClose)
-                    .keyboardShortcut(.cancelAction)
-                    .disabled(sending || sent)
-                Button(sending ? "Reporting…" : "Report", role: .destructive) { send() }
-                    .buttonStyle(.borderedProminent)
-                    .keyboardShortcut(.return, modifiers: .command)
-                    .disabled(sending || sent)
-            }
+            SheetFooter(
+                sending: sending, sent: sent,
+                successLabel: "Report sent", submitLabel: "Report", submittingLabel: "Reporting…",
+                role: .destructive, canSubmit: true, onCancel: onClose, onSubmit: send)
         }
         .sheetContainer()
     }

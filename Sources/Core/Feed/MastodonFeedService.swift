@@ -54,7 +54,7 @@ struct MastodonFeedService: FeedService {
         }
         return FeedNotification(
             id: n.id, kind: kind,
-            actorName: n.account.displayName?.isEmpty == false ? n.account.displayName! : n.account.acct,
+            actorName: displayOrHandle(n.account.displayName, n.account.acct),
             actorHandle: "@\(n.account.acct)", actorID: n.account.id,
             avatarURL: URL(string: n.account.avatar),
             post: n.post.map { Self.feedPost(from: $0) }, date: n.createdAt)
@@ -139,13 +139,13 @@ struct MastodonFeedService: FeedService {
         guard case .mastodon(let statusID) = post.nativeRef else { throw FeedError.wrongPlatform }
         try await client.report(ReportParams(
             accountId: post.authorID, category: reason.mastodonCategory,
-            postIds: [statusID], comment: comment.isEmpty ? nil : comment))
+            postIds: [statusID], comment: comment.nilIfBlank))
     }
 
     func report(accountID id: String, reason: ReportReason, comment: String) async throws {
         try await client.report(ReportParams(
             accountId: id, category: reason.mastodonCategory,
-            comment: comment.isEmpty ? nil : comment))
+            comment: comment.nilIfBlank))
     }
 
     func pinnedPosts(of id: String) async throws -> [FeedPost] {
@@ -191,7 +191,7 @@ struct MastodonFeedService: FeedService {
         // edit to the text alone never drops the images.
         let current = try await client.getPost(id: id)
         var params = EditPostParams(post: text)
-        params.spoilerText = spoiler.isEmpty ? nil : spoiler
+        params.spoilerText = spoiler.nilIfBlank
         params.sensitive = post.isSensitive
         let mediaIds = current.mediaAttachments.map(\.id)
         if !mediaIds.isEmpty { params.mediaIds = mediaIds }
@@ -334,7 +334,7 @@ struct MastodonFeedService: FeedService {
     static func profile(from account: Account) -> Profile {
         Profile(
             id: account.id,
-            name: account.displayName?.isEmpty == false ? account.displayName! : account.acct,
+            name: displayOrHandle(account.displayName, account.acct),
             handle: "@\(account.acct)",
             avatarURL: URL(string: account.avatar),
             bannerURL: URL(string: account.header),
@@ -376,7 +376,7 @@ struct MastodonFeedService: FeedService {
         let image = q.mediaAttachments.first { $0.type.value == .image }
         return QuotedPost(
             id: "mastodon:\(q.id)",
-            authorName: q.account.displayName?.isEmpty == false ? q.account.displayName! : q.account.acct,
+            authorName: displayOrHandle(q.account.displayName, q.account.acct),
             authorHandle: "@\(q.account.acct)",
             avatarURL: URL(string: q.account.avatar),
             text: HTMLRenderer.renderAttributed(q.content ?? ""),
@@ -389,7 +389,7 @@ struct MastodonFeedService: FeedService {
         // render that, and attribute it to the booster.
         let display = post.displayPost
         let boostedBy = post.displayingRepost
-            ? (post.account.displayName?.isEmpty == false ? post.account.displayName! : post.account.acct)
+            ? displayOrHandle(post.account.displayName, post.account.acct)
             : nil
         let images = display.mediaAttachments.compactMap { Self.media(from: $0) }
         return FeedPost(
@@ -398,9 +398,7 @@ struct MastodonFeedService: FeedService {
             // and FeedMerge drops boosts). `nativeRef` still targets `display.id`.
             id: "mastodon:\(post.id)",
             target: .mastodon,
-            authorName: display.account.displayName?.isEmpty == false
-                ? display.account.displayName!
-                : display.account.acct,
+            authorName: displayOrHandle(display.account.displayName, display.account.acct),
             authorHandle: "@\(display.account.acct)",
             authorID: display.account.id,
             avatarURL: URL(string: display.account.avatar),
@@ -420,7 +418,7 @@ struct MastodonFeedService: FeedService {
             boostedBy: boostedBy,
             mentionHandles: display.mentions.map { "@\($0.acct)" },
             visibility: display.visibility.rawValue,
-            spoilerText: display.spoilerText.isEmpty ? nil : display.spoilerText,
+            spoilerText: display.spoilerText.nilIfBlank,
             isSensitive: display.sensitive,
             isReply: display.inReplyToId != nil,
             nativeRef: .mastodon(statusID: display.id))

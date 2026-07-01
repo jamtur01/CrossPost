@@ -59,20 +59,10 @@ struct QuoteSheet: View {
                 Text(errorMessage).font(.caption).foregroundStyle(.red)
             }
 
-            HStack {
-                if sent {
-                    Label("Quote posted", systemImage: "checkmark.circle.fill")
-                        .font(.callout).foregroundStyle(.green)
-                }
-                Spacer()
-                Button("Cancel", action: onClose)
-                    .keyboardShortcut(.cancelAction)
-                    .disabled(sending || sent)
-                Button(sending ? "Posting…" : "Quote") { send() }
-                    .buttonStyle(.borderedProminent)
-                    .keyboardShortcut(.return, modifiers: .command)
-                    .disabled(sending || sent || count > limit)
-            }
+            SheetFooter(
+                sending: sending, sent: sent,
+                successLabel: "Quote posted", submitLabel: "Quote", submittingLabel: "Posting…",
+                canSubmit: count <= limit, onCancel: onClose, onSubmit: send)
         }
         .sheetContainer()
     }

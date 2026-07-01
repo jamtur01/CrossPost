@@ -36,23 +36,7 @@ struct BlueskyPoster: Poster, ThreadPublisher {
             replyRef = .init(root: root, parent: parent)
         }
 
-        var embed: ATProtoBluesky.EmbedIdentifier?
-        if !draft.attachments.isEmpty {
-            guard draft.attachments.count <= TargetLimits.imageMax else {
-                throw MediaValidationError.tooManyImages(target: .bluesky,
-                                                         count: draft.attachments.count,
-                                                         limit: TargetLimits.imageMax)
-            }
-            let images = try draft.attachments.map { attachment in
-                let jpeg = try ImageProcessor.jpegUnderBudget(attachment.imageData)
-                return ATProtoTools.ImageQuery(
-                    imageData: jpeg,
-                    fileName: "\(attachment.id.uuidString).jpg",
-                    altText: attachment.altText.isEmpty ? nil : attachment.altText,
-                    aspectRatio: nil)
-            }
-            embed = .images(images: Array(images))
-        }
+        let embed = try Self.imagesEmbed(from: draft.attachments)
 
         let ref = try await bluesky.createPostRecord(text: draft.text, replyTo: replyRef, embed: embed)
         // The thread root is the existing root (replies) or this post itself (top-level),
@@ -68,5 +52,25 @@ struct BlueskyPoster: Poster, ThreadPublisher {
     static func webURL(recordURI: String, handle: String) -> String? {
         guard let rkey = recordURI.split(separator: "/").last else { return nil }
         return "https://bsky.app/profile/\(handle)/post/\(rkey)"
+    }
+
+    /// Build the images embed for a Bluesky post from attachments: enforce the
+    /// per-post cap, transcode each to a budget JPEG, and drop blank alt text.
+    /// Returns nil when there are no attachments. Shared by posting and replies.
+    static func imagesEmbed(from attachments: [Attachment]) throws -> ATProtoBluesky.EmbedIdentifier? {
+        guard !attachments.isEmpty else { return nil }
+        guard attachments.count <= TargetLimits.imageMax else {
+            throw MediaValidationError.tooManyImages(target: .bluesky,
+                                                     count: attachments.count,
+                                                     limit: TargetLimits.imageMax)
+        }
+        let queries = try attachments.map { attachment in
+            ATProtoTools.ImageQuery(
+                imageData: try ImageProcessor.jpegUnderBudget(attachment.imageData),
+                fileName: "\(attachment.id.uuidString).jpg",
+                altText: attachment.altText.nilIfBlank,
+                aspectRatio: nil)
+        }
+        return .images(images: queries)
     }
 }

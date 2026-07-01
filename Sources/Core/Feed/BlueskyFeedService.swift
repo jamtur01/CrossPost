@@ -74,7 +74,7 @@ struct BlueskyFeedService: FeedService {
             let post = postURI.flatMap { hydrated[$0] }.map { Self.feedPost(fromPostView: $0) }
             return FeedNotification(
                 id: n.uri, kind: kind,
-                actorName: n.author.displayName?.isEmpty == false ? n.author.displayName! : n.author.actorHandle,
+                actorName: displayOrHandle(n.author.displayName, n.author.actorHandle),
                 actorHandle: "@\(n.author.actorHandle)", actorID: n.author.actorDID,
                 avatarURL: n.author.avatarImageURL, post: post, date: n.indexedAt)
         }
@@ -151,23 +151,7 @@ struct BlueskyFeedService: FeedService {
         let root = ComAtprotoLexicon.Repository.StrongReference(recordURI: rootURI, cidHash: rootCID)
         let replyRef = AppBskyLexicon.Feed.PostRecord.ReplyReference(root: root, parent: parent)
 
-        var embed: ATProtoBluesky.EmbedIdentifier?
-        if !images.isEmpty {
-            guard images.count <= TargetLimits.imageMax else {
-                throw MediaValidationError.tooManyImages(target: .bluesky,
-                                                         count: images.count,
-                                                         limit: TargetLimits.imageMax)
-            }
-            let queries = try images.map { image in
-                let jpeg = try ImageProcessor.jpegUnderBudget(image.imageData)
-                return ATProtoTools.ImageQuery(
-                    imageData: jpeg,
-                    fileName: "\(image.id.uuidString).jpg",
-                    altText: image.altText.isEmpty ? nil : image.altText,
-                    aspectRatio: nil)
-            }
-            embed = .images(images: Array(queries))
-        }
+        let embed = try BlueskyPoster.imagesEmbed(from: images)
         let ref = try await bluesky.createPostRecord(text: text, replyTo: replyRef, embed: embed)
         let rkey = ref.recordURI.split(separator: "/").last.map(String.init) ?? ""
         // The reply keeps the parent's thread root, so a continuation threads correctly.
@@ -287,7 +271,7 @@ struct BlueskyFeedService: FeedService {
         }
         return QuotedPost(
             id: "bluesky:\(vr.uri)",
-            authorName: vr.author.displayName?.isEmpty == false ? vr.author.displayName! : vr.author.actorHandle,
+            authorName: displayOrHandle(vr.author.displayName, vr.author.actorHandle),
             authorHandle: "@\(vr.author.actorHandle)",
             avatarURL: vr.author.avatarImageURL,
             text: Self.attributedText(record),
@@ -364,7 +348,7 @@ struct BlueskyFeedService: FeedService {
             let last = Self.lastMessage(convo.lastMessage)
             return Conversation(
                 id: convo.conversationID,
-                otherName: other.displayName?.isEmpty == false ? other.displayName! : other.actorHandle,
+                otherName: displayOrHandle(other.displayName, other.actorHandle),
                 otherHandle: "@\(other.actorHandle)", otherID: other.actorDID,
                 otherAvatarURL: other.avatarImageURL,
                 lastMessage: last.text, lastDate: last.date, unreadCount: convo.unreadCount)
@@ -484,7 +468,7 @@ struct BlueskyFeedService: FeedService {
 
     static func profile(fromBasic p: AppBskyLexicon.Actor.ProfileViewDefinition) -> Profile {
         Profile(id: p.actorDID,
-                name: p.displayName?.isEmpty == false ? p.displayName! : p.actorHandle,
+                name: displayOrHandle(p.displayName, p.actorHandle),
                 handle: "@\(p.actorHandle)", avatarURL: p.avatarImageURL, bannerURL: nil,
                 bio: AttributedString(p.description ?? ""), followers: 0, following: 0, posts: 0,
                 webURL: URL(string: "https://bsky.app/profile/\(p.actorHandle)"))
@@ -533,13 +517,13 @@ struct BlueskyFeedService: FeedService {
         let subject = ComAtprotoLexicon.Moderation.CreateReportRequestBody.SubjectUnion
             .strongReference(.init(recordURI: uri, cidHash: cid))
         _ = try await kit.createReport(with: reason.blueskyReason,
-                                       andContextof: comment.isEmpty ? nil : comment,
+                                       andContextof: comment.nilIfBlank,
                                        subject: subject)
     }
 
     func report(accountID id: String, reason: ReportReason, comment: String) async throws {
         _ = try await kit.createReport(with: reason.blueskyReason,
-                                       andContextof: comment.isEmpty ? nil : comment,
+                                       andContextof: comment.nilIfBlank,
                                        subject: Self.accountReportSubject(did: id))
     }
 
@@ -558,7 +542,7 @@ struct BlueskyFeedService: FeedService {
     static func profile(from p: AppBskyLexicon.Actor.ProfileViewDetailedDefinition) -> Profile {
         Profile(
             id: p.actorDID,   // the stable id; follow/block records require the DID, not the handle
-            name: p.displayName?.isEmpty == false ? p.displayName! : p.actorHandle,
+            name: displayOrHandle(p.displayName, p.actorHandle),
             handle: "@\(p.actorHandle)",
             avatarURL: p.avatarImageURL,
             bannerURL: p.bannerImageURL,
@@ -585,8 +569,7 @@ struct BlueskyFeedService: FeedService {
         var boostedBy: String?
         var boostKey: String?
         if case .reasonRepost(let repost)? = item.reason {
-            boostedBy = repost.by.displayName?.isEmpty == false
-                ? repost.by.displayName! : repost.by.actorHandle
+            boostedBy = displayOrHandle(repost.by.displayName, repost.by.actorHandle)
             boostKey = repost.by.actorDID
         }
         return feedPost(fromPostView: item.post, replyRoot: replyRoot, isReply: item.reply != nil,
@@ -641,9 +624,7 @@ struct BlueskyFeedService: FeedService {
         return FeedPost(
             id: boostKey.map { "bluesky:\($0):\(p.uri)" } ?? "bluesky:\(p.uri)",
             target: .bluesky,
-            authorName: p.author.displayName?.isEmpty == false
-                ? p.author.displayName!
-                : p.author.actorHandle,
+            authorName: displayOrHandle(p.author.displayName, p.author.actorHandle),
             authorHandle: "@\(p.author.actorHandle)",
             authorID: p.author.actorDID,   // stable id; profile + author-feed lookups accept the DID
             avatarURL: p.author.avatarImageURL,
