@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.14] - 2026-07-01
+
+### Fixed
+
+- A post with two or more images no longer renders wider than its feed column
+  (which clipped the author name, avatar, and text off the left edge).
+
 ## [0.4.13] - 2026-06-30
 
 ### Added
