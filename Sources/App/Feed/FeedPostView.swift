@@ -201,6 +201,12 @@ struct FeedPostView: View {
         // Tap pops the image out; takes precedence over the row's open-thread tap.
         .onTapGesture { lightbox?.present(url) }
         .pointingHandCursor(enabled: lightbox != nil)
+        // Drag the image URL out to Finder, another app, or a compose card.
+        .draggable(url) {
+            AsyncImage(url: url) { $0.resizable().scaledToFill() } placeholder: { Color.clear }
+                .frame(width: 80, height: 80)
+                .clipShape(RoundedRectangle(cornerRadius: Theme.mediaCorner, style: .continuous))
+        }
     }
 
     private var actionBar: some View {
