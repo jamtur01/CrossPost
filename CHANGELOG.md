@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.13] - 2026-06-30
+
+### Added
+
+- Drag image files or drag/paste image data straight into a compose post, and
+  drag a post's image out to Finder or another app.
+- Keyboard shortcuts to refresh both feeds (Cmd-R) and switch both feeds to
+  Home, Notifications, or Messages (Cmd-1/2/3), also in a new View menu.
+
+### Changed
+
+- Like, repost, and reply counts roll when they change, the like/repost glyph
+  gives a small bounce, and engagement actions add a trackpad haptic tick.
+- Timeline photos lay out as a mosaic grid (one large image, or a two-to-four
+  tile grid with a "+N" overflow) instead of a row of fixed thumbnails.
+- Feeds show shimmering placeholder rows while the first page loads, and an
+  empty feed shows a clear "No posts yet" state.
+- Transient errors appear as a floating toast that doesn't shift the layout.
+- Wider minimum window size so both feed columns stay legible; unified toolbar
+  for a more integrated top bar; deeper card shadows in dark mode.
+- Motion-driven effects (toast, scroll-to-top, shimmer) respect the system
+  Reduce Motion setting.
+
 ## [0.4.12] - 2026-06-30
 
 ### Fixed
