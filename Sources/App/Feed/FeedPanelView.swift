@@ -215,31 +215,8 @@ struct FeedPanelView: View {
                     LazyVStack(spacing: 0) {
                         Color.clear.frame(height: 0).id(Self.topAnchor)
                         ForEach(model.posts) { post in
-                            FeedPostView(
-                                post: post,
-                                accent: accent,
-                                onReply: { replyTarget = post },
-                                onLike: { model.toggleLike(post) },
-                                onRepost: { model.toggleRepost(post) },
-                                onOpen: { model.openInBrowser(post) },
-                                onOpenProfile: { routes.append(.profile(post.profileRef())) },
-                                onOpenURL: { model.openLink($0) { routes.append($0) } },
-                                isMine: model.isMine(post),
-                                onBookmark: { model.setBookmarked(!post.isBookmarked, on: post) },
-                                onDelete: { model.delete(post) },
-                                onPin: { model.setPinned(!post.isPinned, on: post) },
-                                onLikedBy: { routes.append(.profileList(ProfileListRef(kind: .likedBy, post: post))) },
-                                onRepostedBy: { routes.append(.profileList(ProfileListRef(kind: .repostedBy, post: post))) },
-                                onShowParent: post.isReply ? { routes.append(.thread(post)) } : nil,
-                                onOpenDetail: { routes.append(.thread(post)) },
-                                onReport: model.isMine(post) ? nil : { reason, comment in
-                                    try await model.report(post: post, reason: reason, comment: comment)
-                                },
-                                onQuote: { text, visibility in
-                                    _ = try await model.quote(post: post, text: text, visibility: visibility)
-                                },
-                                onEdit: postEditActions(for: post, model),
-                                onCopyLink: { model.copyLink(post) })
+                            FeedRow(post: post, host: model, panel: model, accent: accent,
+                                    push: { routes.append($0) }, onReply: { replyTarget = $0 })
                         }
                     }
                 }

@@ -28,35 +28,9 @@ struct ThreadView: View {
         ScrollView {
             LazyVStack(spacing: 0) {
                 ForEach(list.posts) { row in
-                    let isFocused = row.id == focusedPost.id
-                    FeedPostView(
-                        post: row,
-                        accent: accent,
-                        onReply: { replyTarget = row },
-                        onLike: { list.toggleLike(row) },
-                        onRepost: { list.toggleRepost(row) },
-                        onOpen: { panel.openInBrowser(row) },
-                        onOpenProfile: { push(.profile(row.profileRef())) },
-                        onOpenURL: { panel.openLink($0, push: push) },
-                        isMine: panel.isMine(row),
-                        onBookmark: { list.setBookmarked(!row.isBookmarked, on: row) },
-                        onDelete: { list.delete(row) },
-                        onPin: { list.setPinned(!row.isPinned, on: row) },
-                        onLikedBy: { push(.profileList(ProfileListRef(kind: .likedBy, post: row))) },
-                        onRepostedBy: { push(.profileList(ProfileListRef(kind: .repostedBy, post: row))) },
-                        onOpenDetail: isFocused ? nil : { push(.thread(row)) },
-                        onReport: panel.isMine(row) ? nil : { reason, comment in
-                            try await panel.report(post: row, reason: reason, comment: comment)
-                        },
-                        onQuote: { text, visibility in
-                            _ = try await panel.quote(post: row, text: text, visibility: visibility)
-                        },
-                        onEdit: postEditActions(for: row, panel, onUpdated: { list.replace($0) }),
-                        onCopyLink: { panel.copyLink(row) },
-                        inTimeline: !isFocused,
-                        expanded: isFocused)
-                        .padding(isFocused ? 16 : 0)
-                        .background(isFocused ? accent.opacity(0.06) : .clear)
+                    FeedRow(post: row, host: list, panel: panel, accent: accent,
+                            push: push, onReply: { replyTarget = $0 },
+                            focused: row.id == focusedPost.id, showsParentLink: false)
                 }
                 if loading {
                     ProgressView().controlSize(.small)
