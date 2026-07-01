@@ -24,21 +24,6 @@ struct BlueskyFeedService: FeedService {
         return did
     }
 
-    /// Fetch up to ~`target` items by following the Bluesky cursor a few pages
-    /// deep (the per-page max is 100).
-    private func paged<T>(target: Int, maxPages: Int,
-                          _ fetch: (String?) async throws -> (items: [T], cursor: String?)) async throws -> [T] {
-        var collected: [T] = []
-        var cursor: String?
-        for _ in 0..<maxPages {
-            let (items, next) = try await fetch(cursor)
-            collected += items
-            guard collected.count < target, !items.isEmpty, let next else { break }
-            cursor = next
-        }
-        return collected
-    }
-
     func loadFeed(_ kind: FeedKind) async throws -> [FeedPost] {
         switch kind {
         case .home:

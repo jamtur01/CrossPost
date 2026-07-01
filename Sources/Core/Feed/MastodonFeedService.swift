@@ -1,33 +1,22 @@
 import Foundation
 import TootSDK
 
+extension PagedResult {
+    /// Adapt TootSDK's `PagedResult` to the shared `paged(…)` helper's tuple form:
+    /// the page's items plus the cursor for the next (older) page.
+    var page: (items: T, cursor: PagedInfo?) { (result, previousPage) }
+}
+
 struct MastodonFeedService: FeedService {
     private let client: TootClient
 
     init(client: TootClient) { self.client = client }
 
-    /// Fetch up to ~`target` items by following the older-results page cursor.
-    /// Mastodon's per-page maxima are small (40 for timelines, 30 for
-    /// notifications), so a single page is a thin feed.
-    private func paged<T>(target: Int, maxPages: Int,
-                          _ fetch: (PagedInfo?) async throws -> PagedResult<[T]>) async throws -> [T] {
-        var collected: [T] = []
-        var page: PagedInfo?
-        for _ in 0..<maxPages {
-            let result = try await fetch(page)
-            collected += result.result
-            guard collected.count < target, !result.result.isEmpty,
-                  let older = result.previousPage else { break }
-            page = older
-        }
-        return collected
-    }
-
     func loadFeed(_ kind: FeedKind) async throws -> [FeedPost] {
         switch kind {
         case .home:
             let posts = try await paged(target: 80, maxPages: 2) {
-                try await client.getTimeline(.home, pageInfo: $0, limit: 40)
+                try await client.getTimeline(.home, pageInfo: $0, limit: 40).page
             }
             return posts.map { Self.feedPost(from: $0) }
         case .notifications, .messages:
@@ -38,7 +27,7 @@ struct MastodonFeedService: FeedService {
     func notifications() async throws -> [FeedNotification] {
         // 30 is Mastodon's documented per-page max for notifications.
         let notes = try await paged(target: 80, maxPages: 3) {
-            try await client.getNotifications(params: .init(), $0, limit: 30)
+            try await client.getNotifications(params: .init(), $0, limit: 30).page
         }
         return notes.map { Self.notification(from: $0) }
     }
@@ -142,7 +131,7 @@ struct MastodonFeedService: FeedService {
 
     func authorPosts(id: String) async throws -> [FeedPost] {
         try await paged(target: 80, maxPages: 2) {
-            try await client.getTimeline(.user(userID: id), pageInfo: $0, limit: 40)
+            try await client.getTimeline(.user(userID: id), pageInfo: $0, limit: 40).page
         }.map { Self.feedPost(from: $0) }
     }
 
@@ -175,13 +164,13 @@ struct MastodonFeedService: FeedService {
 
     func bookmarkedPosts() async throws -> [FeedPost] {
         try await paged(target: 80, maxPages: 2) {
-            try await client.getTimeline(.bookmarks, pageInfo: $0, limit: 40)
+            try await client.getTimeline(.bookmarks, pageInfo: $0, limit: 40).page
         }.map { Self.feedPost(from: $0) }
     }
 
     func likedPosts() async throws -> [FeedPost] {
         try await paged(target: 80, maxPages: 2) {
-            try await client.getTimeline(.favourites, pageInfo: $0, limit: 40)
+            try await client.getTimeline(.favourites, pageInfo: $0, limit: 40).page
         }.map { Self.feedPost(from: $0) }
     }
 
@@ -231,14 +220,14 @@ struct MastodonFeedService: FeedService {
     func likedBy(_ post: FeedPost) async throws -> [Profile] {
         guard case .mastodon(let id) = post.nativeRef else { return [] }
         return try await paged(target: 200, maxPages: 3) {
-            try await client.getAccountsFavourited(id: id, $0, limit: 80)
+            try await client.getAccountsFavourited(id: id, $0, limit: 80).page
         }.map { Self.profile(from: $0) }
     }
 
     func repostedBy(_ post: FeedPost) async throws -> [Profile] {
         guard case .mastodon(let id) = post.nativeRef else { return [] }
         return try await paged(target: 200, maxPages: 3) {
-            try await client.getAccountsBoosted(id: id, $0, limit: 80)
+            try await client.getAccountsBoosted(id: id, $0, limit: 80).page
         }.map { Self.profile(from: $0) }
     }
 
@@ -321,13 +310,13 @@ struct MastodonFeedService: FeedService {
 
     func followers(of id: String) async throws -> [Profile] {
         try await paged(target: 200, maxPages: 3) {
-            try await client.getFollowers(for: id, $0, limit: 80)
+            try await client.getFollowers(for: id, $0, limit: 80).page
         }.map { Self.profile(from: $0) }
     }
 
     func following(of id: String) async throws -> [Profile] {
         try await paged(target: 200, maxPages: 3) {
-            try await client.getFollowing(for: id, $0, limit: 80)
+            try await client.getFollowing(for: id, $0, limit: 80).page
         }.map { Self.profile(from: $0) }
     }
 
