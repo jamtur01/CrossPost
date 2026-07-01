@@ -84,6 +84,7 @@ final class FeedPanelModel: OptimisticPostHost {
                 }
                 // Stream ended (socket dropped) or failed to open — back off and retry.
                 if Task.isCancelled { break }
+                Log.feed.debug("mastodon live stream dropped; reconnecting in \(backoff / 1_000_000_000, privacy: .public)s")
                 try? await Task.sleep(nanoseconds: backoff)
                 backoff = min(backoff * 2, 60_000_000_000)
             }
@@ -175,8 +176,10 @@ final class FeedPanelModel: OptimisticPostHost {
                 // feedback that auto-dismisses instead of a banner that sticks forever.
                 reportError(error.userMessage)
             }
-            // A background poll/live failure with content present stays silent — the
-            // stale content stands and the next poll will quietly recover.
+            // A background poll/live failure with content present stays silent for the
+            // user — the stale content stands and the next poll recovers — but log it
+            // so the otherwise-invisible failure is diagnosable.
+            Log.feed.error("\(self.target.rawValue, privacy: .public) \(self.kind.rawValue, privacy: .public) load failed: \(error)")
         }
     }
 
