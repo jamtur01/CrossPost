@@ -39,8 +39,8 @@ private struct NotificationRow: View {
     // Optimistic like/repost state for the referenced post (nil → use the
     // notification's snapshot). Held so repeated toggles keep the record URIs.
     @State private var post: FeedPost?
-    @State private var mutating = false
-    @State private var followWorking = false
+    @State private var isMutating = false
+    @State private var isFollowInFlight = false
 
     private var livePost: FeedPost? { post ?? notification.post }
 
@@ -140,41 +140,41 @@ private struct NotificationRow: View {
             .contentShape(Rectangle())
         }
         .help(isFollowing ? "Following \(notification.actorName)" : "Follow \(notification.actorName)")
-        .disabled(followWorking || isFollowing)
+        .disabled(isFollowInFlight || isFollowing)
     }
 
     private func toggleLike() {
-        guard !mutating, var optimistic = livePost else { return }
-        mutating = true
+        guard !isMutating, var optimistic = livePost else { return }
+        isMutating = true
         let original = optimistic
         optimistic.isLiked.toggle()
         optimistic.likeCount = max(0, optimistic.likeCount + (optimistic.isLiked ? 1 : -1))
         post = optimistic
         Task {
-            defer { mutating = false }
+            defer { isMutating = false }
             do { post = try await model.remoteSetLiked(optimistic.isLiked, on: optimistic) }
             catch { post = original; model.reportError(error.userMessage) }
         }
     }
 
     private func toggleRepost() {
-        guard !mutating, var optimistic = livePost else { return }
-        mutating = true
+        guard !isMutating, var optimistic = livePost else { return }
+        isMutating = true
         let original = optimistic
         optimistic.isReposted.toggle()
         optimistic.repostCount = max(0, optimistic.repostCount + (optimistic.isReposted ? 1 : -1))
         post = optimistic
         Task {
-            defer { mutating = false }
+            defer { isMutating = false }
             do { post = try await model.remoteSetReposted(optimistic.isReposted, on: optimistic) }
             catch { post = original; model.reportError(error.userMessage) }
         }
     }
 
     private func follow() async {
-        guard !followWorking, !model.isFollowing(notification.actorID) else { return }
-        followWorking = true
-        defer { followWorking = false }
+        guard !isFollowInFlight, !model.isFollowing(notification.actorID) else { return }
+        isFollowInFlight = true
+        defer { isFollowInFlight = false }
         await model.follow(actorID: notification.actorID)
     }
 

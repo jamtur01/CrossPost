@@ -37,7 +37,7 @@ struct EditSheet: View {
     @State private var spoiler = ""
     @State private var hasSpoiler = false
     @State private var loading = true
-    @State private var sending = false
+    @State private var isSending = false
     @State private var sent = false
     @State private var errorMessage: String?
 
@@ -51,7 +51,7 @@ struct EditSheet: View {
         return .secondary
     }
     private var canSave: Bool {
-        !sending && !sent && count <= limit
+        !isSending && !sent && count <= limit
             && (!text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !post.images.isEmpty)
     }
 
@@ -71,7 +71,7 @@ struct EditSheet: View {
             }
 
             SheetFooter(
-                sending: sending, sent: sent,
+                sending: isSending, sent: sent,
                 successLabel: "Saved", submitLabel: "Save", submittingLabel: "Saving…",
                 canSubmit: canSave, onCancel: onClose, onSubmit: save)
         }
@@ -122,10 +122,10 @@ struct EditSheet: View {
     }
 
     private func save() {
-        sending = true
+        isSending = true
         errorMessage = nil
         Task {
-            defer { sending = false }
+            defer { isSending = false }
             do {
                 try await actions.submit(text, hasSpoiler ? spoiler : "")
                 sent = true

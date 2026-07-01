@@ -20,7 +20,7 @@ struct ProfileListView: View {
                         push(.profile(profile.profileRef()))
                     }
                 }
-                listLoadFooter(loading: loading, error: loadError, isEmpty: profiles.isEmpty,
+                listLoadFooter(loading: loading, loadError: loadError, isEmpty: profiles.isEmpty,
                                emptyText: "No one here yet", emptyImage: "person.2") {
                     Task { await load() }
                 }

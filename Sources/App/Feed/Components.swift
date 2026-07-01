@@ -213,14 +213,14 @@ extension View {
 /// present these three states identically. (Thread/profile keep their own, since
 /// they show errors alongside already-visible content.)
 @ViewBuilder
-func listLoadFooter(loading: Bool, error: String?, isEmpty: Bool,
+func listLoadFooter(loading: Bool, loadError: String?, isEmpty: Bool,
                     emptyText: String, emptyImage: String,
                     retry: @escaping () -> Void) -> some View {
     if loading {
         ProgressView().controlSize(.small)
             .frame(maxWidth: .infinity).padding(.vertical, 24)
-    } else if let error, isEmpty {
-        ErrorStateView(message: error, fills: false, retry: retry)
+    } else if let loadError, isEmpty {
+        ErrorStateView(message: loadError, fills: false, retry: retry)
     } else if isEmpty {
         EmptyStateView(text: emptyText, systemImage: emptyImage, fills: false)
     }

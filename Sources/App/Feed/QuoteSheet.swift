@@ -11,7 +11,7 @@ struct QuoteSheet: View {
 
     @State private var text = ""
     @State private var visibility: PostVisibility = .public
-    @State private var sending = false
+    @State private var isSending = false
     @State private var sent = false
     @State private var errorMessage: String?
 
@@ -60,7 +60,7 @@ struct QuoteSheet: View {
             }
 
             SheetFooter(
-                sending: sending, sent: sent,
+                sending: isSending, sent: sent,
                 successLabel: "Quote posted", submitLabel: "Quote", submittingLabel: "Posting…",
                 canSubmit: count <= limit, onCancel: onClose, onSubmit: send)
         }
@@ -72,10 +72,10 @@ struct QuoteSheet: View {
     }
 
     private func send() {
-        sending = true
+        isSending = true
         errorMessage = nil
         Task {
-            defer { sending = false }
+            defer { isSending = false }
             do {
                 try await submit(text, visibility)
                 sent = true

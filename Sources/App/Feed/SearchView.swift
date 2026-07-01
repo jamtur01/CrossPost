@@ -11,7 +11,7 @@ struct SearchView: View {
     @State private var results = SearchResults()
     @State private var postList: PostList
     @State private var replyTarget: FeedPost?
-    @State private var searching = false
+    @State private var isSearching = false
     @State private var errorMessage: String?
     @State private var searchTask: Task<Void, Never>?
     @FocusState private var fieldFocused: Bool
@@ -52,7 +52,7 @@ struct SearchView: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel("Clear search")
             }
-            if searching { ProgressView().controlSize(.small).scaleEffect(0.7) }
+            if isSearching { ProgressView().controlSize(.small).scaleEffect(0.7) }
         }
         .padding(.horizontal, 10).padding(.vertical, 7)
         .padding(.horizontal, 6).padding(.vertical, 4)
@@ -64,7 +64,7 @@ struct SearchView: View {
             message(errorMessage, systemImage: "exclamationmark.triangle")
         } else if results.isEmpty {
             let trimmed = query.trimmingCharacters(in: .whitespaces)
-            if trimmed.count >= 2 && !searching {
+            if trimmed.count >= 2 && !isSearching {
                 message("No results for “\(trimmed)”", systemImage: "magnifyingglass")
             } else {
                 message("Search for people and posts", systemImage: "magnifyingglass")
@@ -112,7 +112,7 @@ struct SearchView: View {
         searchTask?.cancel()
         let trimmed = text.trimmingCharacters(in: .whitespaces)
         guard trimmed.count >= 2 else {
-            results = SearchResults(); postList.posts = []; searching = false; errorMessage = nil
+            results = SearchResults(); postList.posts = []; isSearching = false; errorMessage = nil
             return
         }
         searchTask = Task {
@@ -123,12 +123,12 @@ struct SearchView: View {
     }
 
     private func runSearch(_ trimmed: String) async {
-        searching = true
+        isSearching = true
         errorMessage = nil
         // Only the search for the current query owns the spinner/error/results: a
         // superseded search must not clear a newer one's spinner or replace the
         // current UI with its stale success or failure.
-        defer { if isCurrent(trimmed) { searching = false } }
+        defer { if isCurrent(trimmed) { isSearching = false } }
         do {
             let found = try await panel.search(trimmed)
             guard isCurrent(trimmed) else { return }

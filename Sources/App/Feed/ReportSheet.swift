@@ -10,7 +10,7 @@ struct ReportSheet: View {
 
     @State private var reason: ReportReason = .spam
     @State private var comment = ""
-    @State private var sending = false
+    @State private var isSending = false
     @State private var sent = false
     @State private var errorMessage: String?
 
@@ -39,7 +39,7 @@ struct ReportSheet: View {
             }
 
             SheetFooter(
-                sending: sending, sent: sent,
+                sending: isSending, sent: sent,
                 successLabel: "Report sent", submitLabel: "Report", submittingLabel: "Reporting…",
                 role: .destructive, canSubmit: true, onCancel: onClose, onSubmit: send)
         }
@@ -47,10 +47,10 @@ struct ReportSheet: View {
     }
 
     private func send() {
-        sending = true
+        isSending = true
         errorMessage = nil
         Task {
-            defer { sending = false }
+            defer { isSending = false }
             do {
                 try await submit(reason, comment.trimmingCharacters(in: .whitespacesAndNewlines))
                 sent = true

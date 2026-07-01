@@ -70,8 +70,8 @@ struct ConversationView: View {
     @State private var messages: [DirectMessage] = []
     @State private var draft = ""
     @State private var loading = true
-    @State private var sending = false
-    @State private var sendError: String?
+    @State private var isSending = false
+    @State private var errorMessage: String?
 
     private var accent: Color { panel.target.accent }
 
@@ -147,8 +147,8 @@ struct ConversationView: View {
 
     private var composer: some View {
         VStack(spacing: 0) {
-            if let sendError {
-                Text(sendError)
+            if let errorMessage {
+                Text(errorMessage)
                     .font(.caption).foregroundStyle(.red).lineLimit(2)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 12).padding(.top, 6)
@@ -167,7 +167,7 @@ struct ConversationView: View {
                 .buttonStyle(.plain)
                 .foregroundStyle(accent)
                 .accessibilityLabel("Send message")
-                .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || sending)
+                .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSending)
             }
             .padding(10)
         }
@@ -182,18 +182,18 @@ struct ConversationView: View {
 
     private func send() async {
         let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty, !sending else { return }
-        sending = true
-        sendError = nil
+        guard !text.isEmpty, !isSending else { return }
+        isSending = true
+        errorMessage = nil
         draft = ""
-        defer { sending = false }
+        defer { isSending = false }
         do {
             try await panel.sendMessage(text, to: conversation.id)
             await reload()
             await panel.reloadConversations()
         } catch {
             draft = text   // restore the text so it isn't lost
-            sendError = error.userMessage
+            errorMessage = error.userMessage
         }
     }
 }

@@ -15,7 +15,7 @@ struct ProfileView: View {
     @State private var pinnedList: PostList
     @State private var replyTarget: FeedPost?
     @State private var relationship = AccountRelationship()
-    @State private var updatingRelationship = false
+    @State private var isUpdatingRelationship = false
     @State private var loading = true
     @State private var loadError: String?
     @State private var reportingAccount = false
@@ -240,7 +240,7 @@ struct ProfileView: View {
                 }
             }
             .font(.system(size: 13, weight: .semibold))
-            .disabled(updatingRelationship)
+            .disabled(isUpdatingRelationship)
 
             Menu {
                 Button(relationship.isMuting ? "Unmute" : "Mute") { Task { await toggleMute() } }
@@ -259,9 +259,9 @@ struct ProfileView: View {
     }
 
     private func toggleFollow() async {
-        guard !updatingRelationship else { return }
-        updatingRelationship = true
-        defer { updatingRelationship = false }
+        guard !isUpdatingRelationship else { return }
+        isUpdatingRelationship = true
+        defer { isUpdatingRelationship = false }
         let target = !relationship.isFollowing
         let previous = relationship
         relationship.isFollowing = target
@@ -275,9 +275,9 @@ struct ProfileView: View {
     }
 
     private func toggleMute() async {
-        guard !updatingRelationship else { return }
-        updatingRelationship = true
-        defer { updatingRelationship = false }
+        guard !isUpdatingRelationship else { return }
+        isUpdatingRelationship = true
+        defer { isUpdatingRelationship = false }
         let target = !relationship.isMuting
         let previous = relationship
         relationship.isMuting = target
@@ -286,9 +286,9 @@ struct ProfileView: View {
     }
 
     private func toggleBlock() async {
-        guard !updatingRelationship else { return }
-        updatingRelationship = true
-        defer { updatingRelationship = false }
+        guard !isUpdatingRelationship else { return }
+        isUpdatingRelationship = true
+        defer { isUpdatingRelationship = false }
         let target = !relationship.isBlocking
         let previous = relationship
         relationship.isBlocking = target

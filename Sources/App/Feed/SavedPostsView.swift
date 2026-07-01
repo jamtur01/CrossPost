@@ -31,7 +31,7 @@ struct SavedPostsView: View {
                             push: push, onReply: { replyTarget = $0 })
                 }
             }
-            listLoadFooter(loading: loading, error: loadError, isEmpty: list.posts.isEmpty,
+            listLoadFooter(loading: loading, loadError: loadError, isEmpty: list.posts.isEmpty,
                            emptyText: "No \(kind.title.lowercased()) yet", emptyImage: kind.icon) {
                 Task { await load() }
             }
