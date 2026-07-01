@@ -1,5 +1,4 @@
 import SwiftUI
-import AppKit
 
 struct FeedPostView: View {
     let post: FeedPost
