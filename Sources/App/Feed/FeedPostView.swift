@@ -200,10 +200,14 @@ struct FeedPostView: View {
         .clipShape(RoundedRectangle(cornerRadius: Theme.mediaCorner, style: .continuous))
     }
 
-    /// A single equal-weight mosaic cell that fills its slot.
+    /// A single equal-weight mosaic cell that fills its slot. The image rides as an
+    /// overlay on a size-neutral `Color.clear`, so an aspect-fill image (whose ideal
+    /// size exceeds the slot to cover it) fills and clips without widening the tile —
+    /// otherwise that oversized ideal propagates up and makes the card exceed its column.
     private func gridTile(_ media: FeedImage) -> some View {
-        mediaView(media, fit: false)
+        Color.clear
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .overlay { mediaView(media, fit: false) }
             .clipped()
             .contentShape(Rectangle())
     }
