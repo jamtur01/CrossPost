@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.15] - 2026-07-06
+
 ### Fixed
 
 - The unread notification badge clears when you open the Notifications tab and
@@ -422,6 +424,7 @@ Initial release.
 - Keychain-backed credential storage.
 - Signed and notarized Developer ID release builds produced by CI.
 
+[0.4.15]: https://github.com/jamtur01/CrossPost/releases/tag/v0.4.15
 [0.4.8]: https://github.com/jamtur01/CrossPost/releases/tag/v0.4.8
 [0.4.7]: https://github.com/jamtur01/CrossPost/releases/tag/v0.4.7
 [0.4.6]: https://github.com/jamtur01/CrossPost/releases/tag/v0.4.6
