@@ -93,15 +93,9 @@ struct FeedPanelView: View {
             }
 
             HStack(spacing: 8) {
-                Picker("Feed", selection: Binding(get: { model.kind }, set: { model.switchTo($0) })) {
-                    ForEach(availableKinds) { kind in Text(kind.title).tag(kind) }
-                }
-                .pickerStyle(.segmented).labelsHidden()
-                .tint(accent)
-                .fixedSize()
-                if model.kind != .notifications {
-                    UnreadBadge(count: model.unreadCount)
-                }
+                FeedTabBar(kinds: availableKinds,
+                           selection: Binding(get: { model.kind }, set: { model.switchTo($0) }),
+                           accent: accent, unreadCount: model.unreadCount)
                 Spacer()
             }
         }

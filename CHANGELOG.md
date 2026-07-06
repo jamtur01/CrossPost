@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- The unread notification badge clears when you open the Notifications tab and
+  stays cleared, instead of reappearing the moment you switch away. Opening the
+  tab now marks notifications seen as of that moment, matching the Bluesky app.
+- The unread count sits on the Notifications tab itself rather than floating
+  beside the tab strip, where it looked like it belonged to Messages.
+
 ## [0.4.14] - 2026-07-01
 
 ### Fixed

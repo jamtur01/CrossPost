@@ -198,6 +198,52 @@ struct UnreadBadge: View {
     }
 }
 
+/// A segmented tab selector that can badge an individual tab — the reason it exists
+/// instead of `Picker(.segmented)`, which can't attach a view to a segment. The
+/// selected tab fills with the column accent (matching the app's tinted-segment
+/// look); the Notifications tab carries its unread count inline so the badge is
+/// unambiguously its own, not the neighbouring tab's.
+struct FeedTabBar: View {
+    let kinds: [FeedKind]
+    @Binding var selection: FeedKind
+    let accent: Color
+    let unreadCount: Int
+
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach(kinds) { tab($0) }
+        }
+        .padding(2)
+        .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
+            .fill(Color.primary.opacity(0.06)))
+        .fixedSize()
+    }
+
+    private func tab(_ kind: FeedKind) -> some View {
+        let selected = kind == selection
+        return Button { selection = kind } label: {
+            HStack(spacing: 5) {
+                Text(kind.title)
+                    .font(.system(size: 12, weight: selected ? .semibold : .medium))
+                if kind == .notifications { UnreadBadge(count: unreadCount) }
+            }
+            .foregroundStyle(selected ? Color.white : Color.primary.opacity(0.8))
+            .padding(.horizontal, 11)
+            .padding(.vertical, 4)
+            .contentShape(Rectangle())
+            .background {
+                if selected {
+                    RoundedRectangle(cornerRadius: 6, style: .continuous).fill(accent)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(kind == .notifications && unreadCount > 0
+                            ? "\(kind.title), \(unreadCount) unread" : kind.title)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+}
+
 extension View {
     /// A `.bar`-material strip with a hairline `Divider` on one edge — the shared
     /// look of every column header/footer. Padding stays at the call site since it

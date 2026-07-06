@@ -85,10 +85,16 @@ struct BlueskyFeedService: FeedService {
     }
 
     func markNotificationsRead(upTo latest: FeedNotification?) async throws {
-        // Bluesky marks read by timestamp; bound it to the newest notification we
-        // actually loaded so one arriving mid-fetch isn't marked read while unseen.
-        guard let latest else { return }
-        try await kit.updateSeen(seenAt: latest.date)
+        // Mark everything seen as of now, matching the official Bluesky client, which
+        // sends its sync time rather than a notification's timestamp. The server only
+        // clears a notification when the stored seen time is strictly past it, and it
+        // also counts notifications that listNotifications hides (muted, needs-review,
+        // etc.) - so echoing the newest *shown* notification's timestamp can leave a
+        // hidden or same-millisecond one counted forever. "Now" is strictly past every
+        // notification the server has indexed. `latest` gates the call so an empty list
+        // doesn't fire a pointless write.
+        guard latest != nil else { return }
+        try await kit.updateSeen(seenAt: Date())
     }
 
     /// Hydrate posts by AT-URI. getPosts accepts up to 25 at a time, so the
