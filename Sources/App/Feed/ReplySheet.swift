@@ -92,6 +92,7 @@ struct ReplySheet: View {
         .onPasteCommand(of: [.image, .fileURL]) {
             ImageAttaching.load($0, into: $model.attachments) { model.errorMessage = $0 }
         }
+        .sheetContainer()
     }
 
     private func validationMessage(_ issue: ValidationIssue) -> String {
