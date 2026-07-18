@@ -177,10 +177,34 @@ final class CrossPostCoordinatorTests: XCTestCase {
         let outcome = await coordinator.publish(thread: thread, to: [.mastodon], using: [poster],
                                                 limits: limits, resuming: [.mastodon: landed])
         guard case .completed(let results) = outcome,
-              case .partial(let posted, let failedIndex, _) = results[0].outcome
+              case .partial(let posted, let failedIndex, let message) = results[0].outcome
         else { return XCTFail("expected partial") }
         XCTAssertEqual(posted.map(\.url), ["m1"])
         XCTAssertEqual(failedIndex, 1)
         XCTAssertTrue(poster.postedThread.isEmpty, "must not post an unthreaded suffix")
+        // Retrying can never recover the missing ref, so the message must say
+        // what landed and that resumption is manual — not suggest a retry.
+        XCTAssertTrue(message.contains("partially posted"), message)
+        XCTAssertTrue(message.contains("1 of 2"), message)
+        XCTAssertTrue(message.contains("m1"), message)
+        XCTAssertFalse(message.lowercased().contains("retry"), message)
+    }
+
+    func testResumeWithMissingPosterKeepsLandedPrefix() async {
+        // The account vanished between the interrupted attempt and the retry: the
+        // landed prefix must be carried in the result (so a later resume doesn't
+        // re-send it), with an actionable message — not a bare failure.
+        let thread = [DraftPost(text: "a"), DraftPost(text: "b")]
+        let landed = [PostedItem(url: "m1", ref: .mastodon(statusID: "1"))]
+        let outcome = await coordinator.publish(thread: thread, to: [.mastodon], using: [],
+                                                limits: limits, resuming: [.mastodon: landed])
+        guard case .completed(let results) = outcome,
+              case .partial(let posted, let failedIndex, let message) = results[0].outcome
+        else { return XCTFail("expected partial") }
+        XCTAssertEqual(posted.map(\.url), ["m1"])
+        XCTAssertEqual(failedIndex, 1)
+        XCTAssertTrue(message.contains("No account configured for Mastodon"), message)
+        XCTAssertTrue(message.contains("already landed"), message)
+        XCTAssertTrue(message.contains("Reconnect"), message)
     }
 }

@@ -33,18 +33,38 @@ struct CrossPostCoordinator: Sendable {
     private static func publish(thread: [DraftPost], to target: PostTarget,
                                 using poster: Poster?, landed: [PostedItem]) async -> PostResult {
         guard let poster else {
+            if landed.isEmpty {
+                return PostResult(target: target,
+                                  outcome: .failure(message: "No account configured for \(target.displayName)"))
+            }
+            // The landed prefix must survive into the result: a plain failure would
+            // discard it and a later retry would re-send the whole thread.
+            let remaining = thread.count - landed.count
             return PostResult(target: target,
-                              outcome: .failure(message: "No account configured for \(target.displayName)"))
+                              outcome: .partial(posted: landed, failedIndex: landed.count,
+                                                message: "No account configured for \(target.displayName), "
+                                                    + "but \(landed.count) of \(thread.count) posts from the "
+                                                    + "interrupted attempt already landed there. Reconnect the "
+                                                    + "account, then retry to post the remaining \(remaining) "
+                                                    + "without re-sending."))
         }
         // Skip the posts that already landed; resume the rest onto the last one.
         let suffix = Array(thread.dropFirst(landed.count))
         guard !suffix.isEmpty else { return PostResult(target: target, outcome: .success(posted: landed)) }
         // Resuming needs the last landed post's native ref to thread onto; without it
-        // the suffix would post as a fresh, unthreaded thread. Refuse rather than do that.
+        // the suffix would post as a fresh, unthreaded thread. Retrying can never
+        // supply the missing ref, so tell the user exactly what landed instead of
+        // suggesting a retry that cannot succeed.
         if !landed.isEmpty, landed.last?.ref == nil {
+            let urls = landed.compactMap(\.url)
+            let landedList = urls.isEmpty ? "" : " Landed so far: \(urls.joined(separator: ", "))."
             return PostResult(target: target,
                               outcome: .partial(posted: landed, failedIndex: landed.count,
-                                                message: "Couldn't resume the thread; please retry."))
+                                                message: "The thread partially posted to \(target.displayName): "
+                                                    + "\(landed.count) of \(thread.count) posts landed, but the last "
+                                                    + "one's reference is missing, so the remaining \(suffix.count) "
+                                                    + "can't be resumed automatically.\(landedList) "
+                                                    + "Post the rest manually as replies."))
         }
         do {
             let resumeRef = landed.last?.ref
