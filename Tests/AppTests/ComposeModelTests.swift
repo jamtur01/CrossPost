@@ -290,6 +290,24 @@ final class ComposeModelTests: XCTestCase {
         XCTAssertEqual(model.lockReason(.bluesky), .fullySent)    // not .prefixEdited
     }
 
+    /// The signature captures attachment identity, not just text: swapping a landed
+    /// post's image for a different one (same bytes, new id) must lock the target.
+    func testReplacingALandedPostsImageLocksTheTarget() {
+        let model = makeModel()
+        model.thread[0].text = "with image"
+        model.thread[0].attachments = [Attachment(imageData: Data([0x1]), altText: "alt")]
+        // Bluesky fully landed the post; Mastodon failed so the draft (and lock) persist.
+        model.handleCompletion([
+            result(.bluesky, .success(posted: posted)),
+            result(.mastodon, .failure(message: "no account")),
+        ])
+        XCTAssertEqual(model.lockReason(.bluesky), .fullySent)
+
+        model.thread[0].attachments = [Attachment(imageData: Data([0x1]), altText: "alt")]
+        XCTAssertEqual(model.lockReason(.bluesky), .prefixEdited,
+                       "a replaced image changes the live post's content identity")
+    }
+
     func testSubmitIgnoresReentrantCallWhileposting() async {
         let recorder = PosterRecorder()
         let model = model(with: recorder)

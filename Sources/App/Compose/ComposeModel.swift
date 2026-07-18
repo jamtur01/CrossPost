@@ -22,7 +22,7 @@ final class ComposeModel {
     /// is detected and never silently re-sent.
     private struct LandedThread {
         let items: [PostedItem]
-        let signatures: [Int]
+        let signatures: [PostSignature]
     }
     private var landedByTarget: [PostTarget: LandedThread] = [:]
 
@@ -54,13 +54,19 @@ final class ComposeModel {
         return thread.count <= landed.items.count ? .fullySent : nil
     }
 
-    /// Signature of one post by its content identity (text + image ids); visibility
-    /// and alt text are excluded so they don't spuriously release a lock.
-    private func postSignature(_ post: DraftPost) -> Int {
-        var hasher = Hasher()
-        hasher.combine(post.text.trimmingCharacters(in: .whitespacesAndNewlines))
-        hasher.combine(post.attachments.map(\.id))
-        return hasher.finalize()
+    /// Content identity of one post: the trimmed text plus attachment identities.
+    /// A full value rather than a `Hasher` Int — a hash collision would silently
+    /// defeat the edited-prefix lock and re-send or mis-thread a changed post.
+    /// Visibility and alt text are deliberately excluded so changing them doesn't
+    /// spuriously mark an intact prefix as edited.
+    private struct PostSignature: Equatable {
+        let text: String
+        let attachmentIDs: [UUID]
+
+        init(_ post: DraftPost) {
+            text = post.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            attachmentIDs = post.attachments.map(\.id)
+        }
     }
 
     /// Whether the current thread still begins with every landed post unchanged, so
@@ -69,7 +75,7 @@ final class ComposeModel {
     private func prefixIntact(_ landed: LandedThread) -> Bool {
         guard thread.count >= landed.signatures.count else { return false }
         for (index, signature) in landed.signatures.enumerated()
-        where postSignature(thread[index]) != signature {
+        where PostSignature(thread[index]) != signature {
             return false
         }
         return true
@@ -184,7 +190,7 @@ final class ComposeModel {
             guard !items.isEmpty else { continue }
             anyLanded.append(result.target)
             let count = min(items.count, published.count)
-            let signatures = (0..<count).map { postSignature(published[$0]) }
+            let signatures = (0..<count).map { PostSignature(published[$0]) }
             landedByTarget[result.target] = LandedThread(items: items, signatures: signatures)
             if complete { fullySent.append(result.target) }
         }

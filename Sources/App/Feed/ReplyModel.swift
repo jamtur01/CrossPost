@@ -13,7 +13,11 @@ final class ReplyModel {
     var isSending = false
     var blockedIssues: [ValidationIssue]?
     var errorMessage: String?
-    var postedURL: String?
+    /// True once the reply has landed; the sheet's success state keys off this.
+    private(set) var didPost = false
+    /// Permalink of the posted reply when the platform returned one. Optional and
+    /// URL-typed — no sentinel string stands in for "sent but no link".
+    private(set) var postedURL: URL?
 
     private let store: AccountStore
     private let makeService: @MainActor (PostTarget, AccountStore) async throws -> FeedService
@@ -82,7 +86,8 @@ final class ReplyModel {
             let service = try await makeService(post.target, store)
             let item = try await service.reply(to: post, text: text, images: attachments,
                                                visibility: visibility)
-            postedURL = item.url ?? "Sent."
+            didPost = true
+            postedURL = item.url.flatMap(URL.init(string:))
             // Refresh the panel for this platform so the reply shows up.
             NotificationCenter.default.post(name: .crossPostDidPost, object: nil,
                                             userInfo: [crossPostTargetsKey: Set([post.target])])

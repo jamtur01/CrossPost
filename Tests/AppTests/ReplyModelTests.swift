@@ -77,6 +77,7 @@ final class ReplyModelTests: XCTestCase {
         XCTAssertFalse(posted)                       // must NOT report success
         XCTAssertNotNil(model.blockedIssues)
         XCTAssertNil(model.errorMessage)
+        XCTAssertFalse(model.didPost)
         XCTAssertNil(model.postedURL)
     }
 
@@ -91,6 +92,7 @@ final class ReplyModelTests: XCTestCase {
 
         XCTAssertFalse(posted)
         XCTAssertNotNil(model.errorMessage)
+        XCTAssertFalse(model.didPost)
         XCTAssertNil(model.postedURL)
     }
 
@@ -110,7 +112,9 @@ final class ReplyModelTests: XCTestCase {
 
         XCTAssertTrue(posted)                             // image-only reply is allowed
         XCTAssertNil(model.blockedIssues)
-        XCTAssertNotNil(model.postedURL)
+        XCTAssertTrue(model.didPost)
+        XCTAssertEqual(model.postedURL, URL(string: "https://example/reply"),
+                       "the permalink is a real URL now, never a sentinel string")
         XCTAssertEqual(refreshCount, 1)
     }
 

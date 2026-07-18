@@ -1,18 +1,11 @@
-import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 
 struct ReplySheet: View {
     @State var model: ReplyModel
     let onClose: () -> Void
-    @State private var justSent = false
 
     private var accent: Color { model.post.target.accent }
-    private var counterColor: Color {
-        if model.count > model.limit { return .red }
-        if model.count >= model.limit - 20 { return .orange }
-        return .secondary
-    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -20,19 +13,7 @@ struct ReplySheet: View {
 
             QuotedPreviewBlock(post: model.post, accent: accent)
 
-            PlainTextEditor(text: $model.text)
-                .frame(minHeight: 96)
-                .padding(8)
-                .background(RoundedRectangle(cornerRadius: 8).fill(Color(nsColor: .textBackgroundColor)))
-                .overlay(alignment: .topLeading) {
-                    if model.text.isEmpty {
-                        Text("Write your reply…")
-                            .font(Theme.content).foregroundStyle(.tertiary)
-                            .padding(.horizontal, 13).padding(.vertical, 15)
-                            .allowsHitTesting(false)
-                    }
-                }
-                .overlay(RoundedRectangle(cornerRadius: 8).stroke(.quaternary))
+            SheetTextEditor(text: $model.text, minHeight: 96, placeholder: "Write your reply…")
 
             if !model.attachments.isEmpty { AttachmentBar(attachments: $model.attachments) }
 
@@ -55,13 +36,13 @@ struct ReplySheet: View {
 
                 Text("\(model.count)/\(model.limit)")
                     .font(.caption.monospacedDigit())
-                    .foregroundStyle(counterColor)
+                    .foregroundStyle(counterColor(count: model.count, limit: model.limit))
             }
 
             if let issues = model.blockedIssues, !issues.isEmpty {
                 VStack(alignment: .leading, spacing: 3) {
                     ForEach(Array(issues.enumerated()), id: \.offset) { _, issue in
-                        Text(validationMessage(issue))
+                        Text(validationMessage(issue) { _ in "Reply" })
                             .font(.caption)
                             .foregroundStyle(.red)
                     }
@@ -73,15 +54,13 @@ struct ReplySheet: View {
             }
 
             SheetFooter(
-                sending: model.isSending, sent: justSent,
+                sending: model.isSending, sent: model.didPost,
                 successLabel: "Reply sent", submitLabel: "Reply", submittingLabel: "Sending…",
                 canSubmit: model.canSend, onCancel: onClose,
                 onSubmit: {
                     Task {
                         guard await model.send() else { return }
-                        justSent = true
-                        try? await Task.sleep(nanoseconds: 800_000_000)
-                        onClose()
+                        await flashSentThenClose(onClose: onClose)
                     }
                 })
         }
@@ -93,21 +72,5 @@ struct ReplySheet: View {
             ImageAttaching.load($0, into: $model.attachments) { model.errorMessage = $0 }
         }
         .sheetContainer()
-    }
-
-    private func validationMessage(_ issue: ValidationIssue) -> String {
-        switch issue {
-        case .empty:
-            return "Reply is empty."
-        case .tooLong(_, let target, let count, let limit):
-            return "Reply is too long for \(target.displayName): \(count)/\(limit)."
-        case .tooLongBytes(_, let target, let count, let limit):
-            return "Reply is too long for \(target.displayName): \(count)/\(limit) bytes."
-        case .tooManyImages(_, let target, let count, let limit):
-            return "Reply has too many images for \(target.displayName): \(count)/\(limit)."
-        case .altTextTooLong(_, let imageIndex, let target, let count, let limit):
-            return "Reply image \(imageIndex + 1) alt text is too long for "
-                + "\(target.displayName): \(count)/\(limit)."
-        }
     }
 }
