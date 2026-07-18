@@ -7,15 +7,9 @@ enum FeedServiceFactory {
     static func make(for target: PostTarget, store: AccountStore) async throws -> FeedService {
         switch target {
         case .mastodon:
-            guard let url = store.mastodonBaseURL else {
-                throw PosterFactory.ConfigError.message("Invalid Mastodon instance URL")
-            }
-            let client = TootClient(instanceURL: url, accessToken: store.mastodonToken)
-            try await client.connect()
-            if let account = try? await client.verifyCredentials(),
-               store.mastodonUsername != account.acct {
-                store.mastodonUsername = account.acct   // remember self to skip self-mentions in replies
-            }
+            // Shared verify + username write-back; verification failures now
+            // propagate instead of being swallowed (see makeVerifiedMastodonClient).
+            let client = try await PosterFactory.makeVerifiedMastodonClient(store)
             return MastodonFeedService(client: client)
         case .bluesky:
             let clients = try await PosterFactory.makeBlueskyClients(store)
