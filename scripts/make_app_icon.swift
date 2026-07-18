@@ -8,7 +8,12 @@ import AppKit
 let outDir = CommandLine.arguments.count > 1
     ? CommandLine.arguments[1]
     : "Sources/App/Assets.xcassets/AppIcon.appiconset"
-try? FileManager.default.createDirectory(atPath: outDir, withIntermediateDirectories: true)
+do {
+    try FileManager.default.createDirectory(atPath: outDir, withIntermediateDirectories: true)
+} catch {
+    FileHandle.standardError.write(Data("failed to create \(outDir): \(error)\n".utf8))
+    exit(1)
+}
 
 func srgb(_ r: Int, _ g: Int, _ b: Int) -> NSColor {
     NSColor(srgbRed: CGFloat(r) / 255, green: CGFloat(g) / 255, blue: CGFloat(b) / 255, alpha: 1)
@@ -52,10 +57,15 @@ func renderIcon(_ n: CGFloat) -> NSBitmapImageRep {
 for px in [16, 32, 64, 128, 256, 512, 1024] {
     let rep = renderIcon(CGFloat(px))
     guard let data = rep.representation(using: .png, properties: [:]) else {
-        FileHandle.standardError.write(Data("failed to encode \(px)\n".utf8))
-        continue
+        FileHandle.standardError.write(Data("failed to encode \(px)px icon as PNG\n".utf8))
+        exit(1)
     }
     let path = "\(outDir)/icon_\(px).png"
-    try? data.write(to: URL(fileURLWithPath: path))
+    do {
+        try data.write(to: URL(fileURLWithPath: path))
+    } catch {
+        FileHandle.standardError.write(Data("failed to write \(path): \(error)\n".utf8))
+        exit(1)
+    }
     print("wrote \(path)")
 }
