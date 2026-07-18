@@ -12,4 +12,15 @@ final class BlueskyReportSubjectTests: XCTestCase {
         }
         XCTAssertEqual(ref.repositoryDID, "did:plc:abc123")
     }
+
+    func testAccountReportSubjectSurvivesDIDWithQuoteAndBackslash() throws {
+        // The subject is built through JSONEncoder, so characters that would
+        // break naive string-interpolated JSON must round-trip intact.
+        let hostile = #"did:plc:a"b\c"#
+        let subject = try BlueskyFeedService.accountReportSubject(did: hostile)
+        guard case .repositoryReference(let ref) = subject else {
+            return XCTFail("expected a repository reference subject")
+        }
+        XCTAssertEqual(ref.repositoryDID, hostile)
+    }
 }

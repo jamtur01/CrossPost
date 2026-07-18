@@ -17,11 +17,12 @@ struct BlueskyFeedService: FeedService {
 
     /// The signed-in user's DID. Constant for the session, so it's fetched once and
     /// cached — the chat endpoints would otherwise pay a getProfile call each time.
+    /// The cache actor owns the in-flight fetch, so concurrent first callers share
+    /// one getProfile round-trip instead of racing check-then-act.
     private func ownDID() async throws -> String {
-        if let cached = await didCache.get() { return cached }
-        let did = try await kit.getProfile(for: handle).actorDID
-        await didCache.set(did)
-        return did
+        let kit = self.kit
+        let handle = self.handle
+        return try await didCache.did { try await kit.getProfile(for: handle).actorDID }
     }
 
     func loadFeed(_ kind: FeedKind) async throws -> [FeedPost] {
@@ -126,8 +127,15 @@ struct BlueskyFeedService: FeedService {
         guard case .bluesky(let uri, let cid, _, _) = post.nativeRef else { throw FeedError.wrongPlatform }
         var copy = post
         if liked {
-            let ref = Self.strongRef(uri, cid)
-            let likeRef = try await bluesky.createLikeRecord(ref)
+            // Already liked with a known record: creating a second like would
+            // orphan the first server-side (only the newest URI would be kept
+            // for undo), so a repeated like is a no-op.
+            if let existing = post.likeRecordURI {
+                copy.isLiked = true
+                copy.likeRecordURI = existing
+                return copy
+            }
+            let likeRef = try await bluesky.createLikeRecord(Self.strongRef(uri, cid))
             copy.isLiked = true
             copy.likeRecordURI = likeRef.recordURI
         } else if let likeURI = post.likeRecordURI {
@@ -142,8 +150,13 @@ struct BlueskyFeedService: FeedService {
         guard case .bluesky(let uri, let cid, _, _) = post.nativeRef else { throw FeedError.wrongPlatform }
         var copy = post
         if reposted {
-            let ref = Self.strongRef(uri, cid)
-            let repostRef = try await bluesky.createRepostRecord(ref)
+            // Same idempotency guard as setLiked: never create a duplicate record.
+            if let existing = post.repostRecordURI {
+                copy.isReposted = true
+                copy.repostRecordURI = existing
+                return copy
+            }
+            let repostRef = try await bluesky.createRepostRecord(Self.strongRef(uri, cid))
             copy.isReposted = true
             copy.repostRecordURI = repostRef.recordURI
         } else if let repostURI = post.repostRecordURI {
@@ -233,7 +246,7 @@ struct BlueskyFeedService: FeedService {
     /// the link is a direct `.gif`, otherwise they fall back to a link card.
     static func gifMedia(from external: AppBskyLexicon.Embed.ExternalDefinition.ViewExternal) -> FeedImage? {
         guard let url = URL(string: external.uri),
-              url.absoluteString.split(separator: "?").first?.lowercased().hasSuffix(".gif") == true
+              url.path.lowercased().hasSuffix(".gif")
         else { return nil }
         return FeedImage(url: url, altText: external.title, kind: .gif)
     }
@@ -409,7 +422,8 @@ struct BlueskyFeedService: FeedService {
                 result[profile.actorHandle] = relationship
             }
         }
-        return result.filter { ids.contains($0.key) }
+        let requested = Set(ids)
+        return result.filter { requested.contains($0.key) }
     }
 
     static func relationship(from viewer: AppBskyLexicon.Actor.ViewerStateDefinition?) -> AccountRelationship {
@@ -538,15 +552,32 @@ struct BlueskyFeedService: FeedService {
     }
 
     /// The report subject for an account. ATProtoKit's repoRef type exposes no
-    /// public initializer across the module boundary, so it's built by decoding
-    /// the lexicon's own JSON shape (the union keys off `$type`). Static and
-    /// internal so the construction can be unit-tested without the network.
+    /// public initializer across the module boundary, so it's built by encoding
+    /// the lexicon's own JSON shape (the union keys off `$type`) and decoding it
+    /// back — JSONEncoder handles escaping, so a hostile DID can't break the
+    /// payload. Static and internal so it can be unit-tested without the network.
     static func accountReportSubject(
         did: String
     ) throws -> ComAtprotoLexicon.Moderation.CreateReportRequestBody.SubjectUnion {
-        let json = Data(#"{"$type":"com.atproto.admin.defs#repoRef","did":"\#(did)"}"#.utf8)
+        let json = try JSONEncoder().encode(RepoRefSubject(did: did))
         return try JSONDecoder().decode(
             ComAtprotoLexicon.Moderation.CreateReportRequestBody.SubjectUnion.self, from: json)
+    }
+
+    /// The lexicon wire shape of a `com.atproto.admin.defs#repoRef` subject.
+    private struct RepoRefSubject: Encodable {
+        let did: String
+
+        private enum CodingKeys: String, CodingKey {
+            case type = "$type"
+            case did
+        }
+
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode("com.atproto.admin.defs#repoRef", forKey: .type)
+            try container.encode(did, forKey: .did)
+        }
     }
 
     static func profile(fromDetailed p: AppBskyLexicon.Actor.ProfileViewDetailedDefinition) -> Profile {
@@ -673,9 +704,21 @@ extension ReportReason {
 }
 
 /// Session-scoped cache for the signed-in user's DID. A reference type so copies
-/// of the (struct) service share one resolved value.
+/// of the (struct) service share one resolved value. The actor stores the fetch
+/// Task itself, so every concurrent first caller awaits the same request and a
+/// failure is retried by the next caller rather than cached forever.
 private actor OwnDIDCache {
-    private var did: String?
-    func get() -> String? { did }
-    func set(_ value: String) { did = value }
+    private var inFlight: Task<String, Error>?
+
+    func did(fetch: @escaping @Sendable () async throws -> String) async throws -> String {
+        if let inFlight { return try await inFlight.value }
+        let task = Task { try await fetch() }
+        inFlight = task
+        do {
+            return try await task.value
+        } catch {
+            inFlight = nil
+            throw error
+        }
+    }
 }
