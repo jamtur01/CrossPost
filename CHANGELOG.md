@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Mastodon character counting now matches the server: links count as 23
+  characters and remote mentions count only their local part, so posts with
+  long URLs are no longer rejected locally (or stranded mid-thread) when the
+  server would accept them.
+- Photos with EXIF rotation (e.g. portrait iPhone shots) upload upright
+  instead of sideways, and transparent images get a white background instead
+  of black.
+- Deleting a post can no longer race a background refresh and reappear in the
+  feed for a moment before vanishing again.
+- The unread notifications badge no longer clears itself (or sticks) when you
+  switch tabs while notifications are still loading.
+- Posts containing literal HTML entity text such as `&#39;` now render it
+  as written instead of decoding it twice.
+- Quoting on a Mastodon server older than 4.4 now reports that quotes aren't
+  supported instead of silently publishing a plain post without the quote.
+- Editing a Mastodon post no longer reverts its sensitive-media flag if it
+  changed elsewhere since the feed loaded.
+- Rapidly toggling like or repost on Bluesky can no longer leave an orphaned
+  like/repost record stuck on the server.
+- The Messages tab shows the real error when conversations fail to load,
+  instead of always suggesting an app-password problem.
+- Relative timestamps in feeds now tick as time passes instead of freezing at
+  the moment the row rendered.
+- A search retyped with identical text can no longer show results from the
+  earlier, superseded request.
+- Keychain write failures when saving credentials are now surfaced instead of
+  silently ignored.
+
+### Changed
+
+- Feed, avatar, and preview images are cached in memory, so scrolling back
+  through a feed no longer re-downloads and re-decodes them; image placeholders
+  reserve the final image's aspect ratio, eliminating layout jumps.
+- Videos no longer start buffering while off screen; they load when they
+  become visible.
+- Release builds staple notarization tickets strictly, sign nested code
+  explicitly, and CI runs a single shared test workflow.
+
 ## [0.4.16] - 2026-07-09
 
 ### Fixed
