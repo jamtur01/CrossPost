@@ -10,21 +10,29 @@ enum ImageAttaching {
     /// File types the picker and drop accept (transcoded to JPEG on send).
     static let contentTypes: [UTType] = [.png, .jpeg, .heic, .tiff]
 
-    /// Open the system file picker and append the chosen images.
+    /// Open the system file picker and append the chosen images. Reading happens
+    /// off the main thread — Finder can hand back multi-MB files on slow network
+    /// volumes, and a synchronous read would beachball right after the panel closes.
+    @MainActor
     static func pick(into attachments: Binding<[Attachment]>, onError: @escaping (String) -> Void) {
         guard attachments.wrappedValue.count < TargetLimits.imageMax else { return }
         let panel = NSOpenPanel()
         panel.allowedContentTypes = contentTypes
         panel.allowsMultipleSelection = true
         guard panel.runModal() == .OK else { return }
-        var datas: [Data] = []
-        var failed: [String] = []
-        for url in panel.urls {
-            if let data = try? Data(contentsOf: url) { datas.append(data) }
-            else { failed.append(url.lastPathComponent) }
+        let urls = panel.urls
+        Task.detached(priority: .userInitiated) {
+            var datas: [Data] = []
+            var failed: [String] = []
+            for url in urls {
+                do { datas.append(try Data(contentsOf: url)) }
+                catch { failed.append(url.lastPathComponent) }
+            }
+            await MainActor.run {
+                append(datas, into: attachments, onError: onError)
+                if !failed.isEmpty { onError("Couldn't read \(failed.joined(separator: ", ")).") }
+            }
         }
-        append(datas, into: attachments, onError: onError)
-        if !failed.isEmpty { onError("Couldn't read \(failed.joined(separator: ", ")).") }
     }
 
     /// Append decodable images up to the per-post limit, rejecting undecodable data
@@ -77,13 +85,22 @@ enum ImageAttaching {
 struct AttachmentBar: View {
     @Binding var attachments: [Attachment]
 
+    // Decoded once per attachment: `body` re-evaluates on every alt-text
+    // keystroke, and re-running `NSImage(data:)` re-parses each multi-MB
+    // original just to draw an 80pt thumb.
+    private static let thumbnailCache: NSCache<NSUUID, NSImage> = {
+        let cache = NSCache<NSUUID, NSImage>()
+        cache.countLimit = 16
+        return cache
+    }()
+
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(alignment: .top, spacing: 12) {
                 ForEach($attachments) { $attachment in
                     VStack(spacing: 6) {
                         ZStack(alignment: .topTrailing) {
-                            if let img = NSImage(data: attachment.imageData) {
+                            if let img = thumbnail(for: attachment) {
                                 Image(nsImage: img)
                                     .resizable()
                                     .scaledToFill()
@@ -110,5 +127,13 @@ struct AttachmentBar: View {
             }
             .padding(.vertical, 2)
         }
+    }
+
+    private func thumbnail(for attachment: Attachment) -> NSImage? {
+        let key = attachment.id as NSUUID
+        if let hit = Self.thumbnailCache.object(forKey: key) { return hit }
+        guard let decoded = NSImage(data: attachment.imageData) else { return nil }
+        Self.thumbnailCache.setObject(decoded, forKey: key)
+        return decoded
     }
 }
