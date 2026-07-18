@@ -35,14 +35,30 @@ final class AccountStore: ObservableObject {
         ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
     }
 
+    /// The most recent Keychain write failure, for Settings to surface; cleared by
+    /// the next successful write. Secret writes must not fail silently — a token
+    /// that never landed in the Keychain would otherwise just "sign out" the user
+    /// at some later launch with no explanation.
+    @Published var keychainError: String?
+
     var mastodonToken: String {
         get { (try? credentials.load(account: "mastodon-token")) ?? "" }
-        set { try? persist(newValue, account: "mastodon-token") }
+        set { persistReportingFailure(newValue, account: "mastodon-token") }
     }
 
     var blueskyAppPassword: String {
         get { (try? credentials.load(account: "bluesky-app-password")) ?? "" }
-        set { try? persist(newValue, account: "bluesky-app-password") }
+        set { persistReportingFailure(newValue, account: "bluesky-app-password") }
+    }
+
+    private func persistReportingFailure(_ value: String, account: String) {
+        do {
+            try persist(value, account: account)
+            keychainError = nil
+        } catch {
+            keychainError = error.userMessage
+            Log.auth.error("keychain write for \(account, privacy: .public) failed: \(error)")
+        }
     }
 
     private func persist(_ value: String, account: String) throws {

@@ -91,4 +91,56 @@ final class AccountStoreCredentialTests: XCTestCase {
         XCTAssertEqual(store.blueskyHandle, "alice.bsky.social")
         XCTAssertTrue(store.hasBluesky)
     }
+
+    // MARK: Keychain failure surfacing
+
+    /// A SecretStoring whose writes fail on demand, standing in for a locked or
+    /// ACL-denied Keychain.
+    private final class FailingSecretStore: SecretStoring, @unchecked Sendable {
+        struct Failure: LocalizedError {
+            var errorDescription: String? { "Keychain denied the write" }
+        }
+        var failWrites = true
+        private var items: [String: String] = [:]
+
+        func save(_ value: String, account: String) throws {
+            if failWrites { throw Failure() }
+            items[account] = value
+        }
+        func load(account: String) throws -> String? { items[account] }
+        func delete(account: String) throws {
+            if failWrites { throw Failure() }
+            items[account] = nil
+        }
+    }
+
+    func testFailedTokenWriteSurfacesKeychainError() {
+        let store = AccountStore(credentials: FailingSecretStore())
+
+        store.mastodonToken = "abc"
+
+        XCTAssertNotNil(store.keychainError, "a swallowed Keychain failure would sign the user out later")
+        XCTAssertEqual(store.mastodonToken, "", "a failed write must not pretend the token landed")
+    }
+
+    func testFailedPasswordClearSurfacesKeychainError() {
+        let store = AccountStore(credentials: FailingSecretStore())
+
+        store.blueskyAppPassword = ""   // empty value routes through delete, which also fails
+
+        XCTAssertNotNil(store.keychainError)
+    }
+
+    func testSuccessfulWriteClearsKeychainError() {
+        let secrets = FailingSecretStore()
+        let store = AccountStore(credentials: secrets)
+        store.mastodonToken = "abc"
+        XCTAssertNotNil(store.keychainError)
+
+        secrets.failWrites = false
+        store.mastodonToken = "abc"
+
+        XCTAssertNil(store.keychainError, "a successful write must clear the stale failure")
+        XCTAssertEqual(store.mastodonToken, "abc")
+    }
 }
