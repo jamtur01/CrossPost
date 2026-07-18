@@ -52,11 +52,11 @@ struct ImageLightboxOverlay: View {
     private func image(_ item: ImageLightbox.Item, in size: CGSize) -> some View {
         if item.isCircular {
             let side = min(size.width, size.height) * 0.72
-            AsyncImage(url: item.url) { phase in phaseContent(phase, fill: true) }
+            CachedAsyncImage(url: item.url) { phase in phaseContent(phase, fill: true) }
                 .frame(width: side, height: side)
                 .clipShape(Circle())
         } else {
-            AsyncImage(url: item.url) { phase in phaseContent(phase, fill: false) }
+            CachedAsyncImage(url: item.url) { phase in phaseContent(phase, fill: false) }
                 .frame(maxWidth: size.width * 0.92, maxHeight: size.height * 0.92)
                 .clipShape(RoundedRectangle(cornerRadius: Theme.cardCorner, style: .continuous))
         }

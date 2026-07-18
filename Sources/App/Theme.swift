@@ -56,6 +56,10 @@ enum Theme {
     static let hairline = Color.primary.opacity(0.07)
     static let hoverFill = Color.primary.opacity(0.04)
     static let avatarRing = Color.primary.opacity(0.08)
+    // Action tints — shared by the timeline and notification action bars so
+    // like/repost read identically everywhere they appear.
+    static let likeTint = Color.pink
+    static let repostTint = Color.green
 }
 
 /// A layered, softly bordered surface — the macOS card look (hairline definition

@@ -114,12 +114,6 @@ private struct Shimmer: ViewModifier {
 extension View {
     /// Animated loading sheen for placeholder surfaces.
     func shimmering() -> some View { modifier(Shimmer()) }
-
-    /// The neutral fill used under a shimmer for skeleton placeholders.
-    func skeletonFill(_ corner: CGFloat = 6) -> some View {
-        clipShape(RoundedRectangle(cornerRadius: corner, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: corner, style: .continuous).fill(Color.primary.opacity(0.06)))
-    }
 }
 
 /// A circular avatar with the shared placeholder + ring, used everywhere an
@@ -130,7 +124,7 @@ struct AvatarView: View {
     var ring = true
 
     var body: some View {
-        AsyncImage(url: url) { image in
+        CachedAsyncImage(url: url) { image in
             image.resizable().scaledToFill()
         } placeholder: {
             Circle().fill(Color.primary.opacity(0.06)).shimmering()
@@ -174,9 +168,11 @@ struct SkeletonRow: View {
     }
 }
 
-/// A relative ("2m", "1h") timestamp in the shared meta styling.
+/// A relative ("2 minutes", "1 hour") timestamp in the shared meta styling. The
+/// `.relative` Text *style* self-updates as time passes; a one-shot formatted
+/// Text would render once and go stale in long-lived rows.
 func relativeTimestamp(_ date: Date) -> some View {
-    Text(date, format: .relative(presentation: .numeric))
+    Text(date, style: .relative)
         .font(Theme.meta).foregroundStyle(.tertiary).fixedSize()
 }
 

@@ -228,7 +228,7 @@ struct FeedPostView: View {
     private func mediaView(_ media: FeedImage, fit: Bool) -> some View {
         switch media.kind {
         case .image:
-            staticImage(media.url, fit: fit)
+            staticImage(media, fit: fit)
                 .accessibilityLabel(media.altText.isEmpty ? "Image" : media.altText)
         case .gif:
             MotionMedia(media: media, fit: fit, badge: "GIF") { active in
@@ -242,21 +242,31 @@ struct FeedPostView: View {
         }
     }
 
-    private func staticImage(_ url: URL, fit: Bool) -> some View {
-        AsyncImage(url: url) { img in
+    private func staticImage(_ media: FeedImage, fit: Bool) -> some View {
+        CachedAsyncImage(url: media.url) { img in
             img.resizable().aspectRatio(contentMode: fit ? .fit : .fill)
         } placeholder: {
-            RoundedRectangle(cornerRadius: Theme.mediaCorner, style: .continuous)
-                .fill(Color.primary.opacity(0.06))
-                .frame(height: 120)
-                .shimmering()
+            // Reserve the image's final aspect when the API provided one, so the
+            // row doesn't jump from a 120pt placeholder to the loaded height. Grid
+            // tiles (fit == false) sit in fixed-height slots and don't jump.
+            if fit, let aspect = media.aspectRatio {
+                RoundedRectangle(cornerRadius: Theme.mediaCorner, style: .continuous)
+                    .fill(Color.primary.opacity(0.06))
+                    .aspectRatio(aspect, contentMode: .fit)
+                    .shimmering()
+            } else {
+                RoundedRectangle(cornerRadius: Theme.mediaCorner, style: .continuous)
+                    .fill(Color.primary.opacity(0.06))
+                    .frame(height: 120)
+                    .shimmering()
+            }
         }
         // Tap pops the image out; takes precedence over the row's open-thread tap.
-        .onTapGesture { lightbox?.present(url) }
+        .onTapGesture { lightbox?.present(media.url) }
         .pointingHandCursor(enabled: lightbox != nil)
         // Drag the image URL out to Finder, another app, or a compose card.
-        .draggable(url) {
-            AsyncImage(url: url) { $0.resizable().scaledToFill() } placeholder: { Color.clear }
+        .draggable(media.url) {
+            CachedAsyncImage(url: media.url) { $0.resizable().scaledToFill() } placeholder: { Color.clear }
                 .frame(width: 80, height: 80)
                 .clipShape(RoundedRectangle(cornerRadius: Theme.mediaCorner, style: .continuous))
         }
@@ -267,9 +277,9 @@ struct FeedPostView: View {
             postActionButton("bubble", count: post.replyCount, active: false,
                              tint: accent, help: "Reply", action: onReply)
             postActionButton("arrow.2.squarepath", count: post.repostCount, active: post.isReposted,
-                             tint: .green, help: "Repost", action: onRepost)
+                             tint: Theme.repostTint, help: "Repost", action: onRepost)
             postActionButton(post.isLiked ? "heart.fill" : "heart", count: post.likeCount,
-                             active: post.isLiked, tint: .pink, help: "Like", action: onLike)
+                             active: post.isLiked, tint: Theme.likeTint, help: "Like", action: onLike)
             Spacer(minLength: 0)
             postActionButton("square.and.arrow.up", tint: accent, help: "Open in browser", action: onOpen)
             moreMenu

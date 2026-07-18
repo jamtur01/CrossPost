@@ -10,7 +10,7 @@ struct LinkCardView: View {
         Button { onOpen(card.url) } label: {
             HStack(spacing: 0) {
                 if let imageURL = card.imageURL {
-                    AsyncImage(url: imageURL) { img in
+                    CachedAsyncImage(url: imageURL) { img in
                         img.resizable().scaledToFill()
                     } placeholder: {
                         Rectangle().fill(.quaternary)
@@ -86,7 +86,7 @@ struct QuoteCardView: View {
                                  font: .system(size: 13), lineLimit: 6, onOpenURL: onOpen)
                     }
                     if let imageURL = quote.imageURL {
-                        AsyncImage(url: imageURL) { img in
+                        CachedAsyncImage(url: imageURL) { img in
                             img.resizable().scaledToFill()
                         } placeholder: {
                             Rectangle().fill(.quaternary)

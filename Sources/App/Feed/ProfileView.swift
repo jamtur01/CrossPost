@@ -8,7 +8,9 @@ struct ProfileView: View {
     let ref: ProfileRef
     let push: (FeedRoute) -> Void
 
-    @Environment(ImageLightbox.self) private var lightbox
+    // Optional, matching FeedPostView: contexts without a lightbox installed just
+    // leave the banner/avatar non-poppable rather than crashing on first tap.
+    @Environment(ImageLightbox.self) private var lightbox: ImageLightbox?
 
     @State private var profile: Profile?
     @State private var list: PostList
@@ -82,7 +84,7 @@ struct ProfileView: View {
 
     private var headerCard: some View {
         VStack(alignment: .leading, spacing: 0) {
-            AsyncImage(url: profile?.bannerURL) { img in
+            CachedAsyncImage(url: profile?.bannerURL) { img in
                 img.resizable().scaledToFill()
             } placeholder: {
                 LinearGradient(colors: [accent.opacity(0.5), accent.opacity(0.2)],
@@ -92,13 +94,13 @@ struct ProfileView: View {
             .frame(maxWidth: .infinity)
             .clipped()
             .contentShape(Rectangle())
-            .onTapGesture { if let url = profile?.bannerURL { lightbox.present(url) } }
-            .pointingHandCursor(enabled: profile?.bannerURL != nil)
+            .onTapGesture { if let url = profile?.bannerURL { lightbox?.present(url) } }
+            .pointingHandCursor(enabled: profile?.bannerURL != nil && lightbox != nil)
             .help(profile?.bannerURL != nil ? "View banner" : "")
 
             VStack(alignment: .leading, spacing: 8) {
                 HStack(alignment: .bottom) {
-                    AsyncImage(url: profile?.avatarURL ?? ref.avatar) { img in
+                    CachedAsyncImage(url: profile?.avatarURL ?? ref.avatar) { img in
                         img.resizable().scaledToFill()
                     } placeholder: {
                         Circle().fill(.quaternary)
@@ -111,7 +113,7 @@ struct ProfileView: View {
                     .padding(.bottom, -34)
                     .contentShape(Circle())
                     .onTapGesture { popOutAvatar() }
-                    .pointingHandCursor()
+                    .pointingHandCursor(enabled: lightbox != nil)
                     .help("View profile photo")
 
                     Spacer()
@@ -213,7 +215,7 @@ struct ProfileView: View {
 
     private func popOutAvatar() {
         if let url = profile?.avatarURL ?? ref.avatar {
-            lightbox.present(url, circular: true)
+            lightbox?.present(url, circular: true)
         }
     }
 
