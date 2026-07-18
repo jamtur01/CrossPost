@@ -75,35 +75,65 @@ enum HTMLRenderer {
         return AttributedString(attributed[start..<end])
     }
 
+    private static let namedEntities: [(String, String)] = [
+        ("&lt;", "<"), ("&gt;", ">"), ("&quot;", "\""),
+        ("&apos;", "'"), ("&nbsp;", " "), ("&amp;", "&"),
+    ]
+
+    /// Decode entities in one left-to-right pass: each `&` is inspected once and
+    /// the decoded (or literal) text appended, so already-decoded output is never
+    /// re-scanned. That keeps `&amp;#39;` literal (`&#39;`, not `'`) and the whole
+    /// pass O(n), where the old repeated `range(of:)` loops were O(n²).
     private static func decodeEntities(_ input: String) -> String {
-        var s = input
-        // `&amp;` is decoded last so "&amp;lt;" yields the literal "&lt;", not "<".
-        // (Dictionary order is unspecified, so use an ordered array.)
-        let named: [(String, String)] = [
-            ("&lt;", "<"), ("&gt;", ">"), ("&quot;", "\""),
-            ("&#39;", "'"), ("&apos;", "'"), ("&nbsp;", " "), ("&amp;", "&"),
-        ]
-        for (entity, value) in named {
-            s = s.replacingOccurrences(of: entity, with: value)
-        }
-        // Numeric decimal entities like &#233;
-        while let range = s.range(of: "&#[0-9]+;", options: .regularExpression) {
-            let digits = s[range].dropFirst(2).dropLast()
-            if let code = UInt32(digits), let scalar = Unicode.Scalar(code) {
-                s.replaceSubrange(range, with: String(scalar))
+        guard input.contains("&") else { return input }
+        var out = ""
+        out.reserveCapacity(input.count)
+        var i = input.startIndex
+        while i < input.endIndex {
+            let ch = input[i]
+            guard ch == "&" else {
+                out.append(ch)
+                i = input.index(after: i)
+                continue
+            }
+            if let (decoded, next) = decodeEntity(in: input, at: i) {
+                out.append(decoded)
+                i = next
             } else {
-                s.replaceSubrange(range, with: "")
+                out.append("&")
+                i = input.index(after: i)
             }
         }
-        // Numeric hex entities like &#x1F600;
-        while let range = s.range(of: "&#[xX][0-9A-Fa-f]+;", options: .regularExpression) {
-            let hex = s[range].dropFirst(3).dropLast()
-            if let code = UInt32(hex, radix: 16), let scalar = Unicode.Scalar(code) {
-                s.replaceSubrange(range, with: String(scalar))
-            } else {
-                s.replaceSubrange(range, with: "")
-            }
+        return out
+    }
+
+    /// The entity starting at `start` (an `&`): its decoded text and the index
+    /// just past it, or nil when what follows isn't a recognized entity. An
+    /// invalid numeric scalar (e.g. a lone surrogate) is consumed but decodes
+    /// to nothing, matching the previous behavior.
+    private static func decodeEntity(in s: String, at start: String.Index)
+        -> (String, String.Index)? {
+        for (entity, value) in namedEntities where s[start...].hasPrefix(entity) {
+            return (value, s.index(start, offsetBy: entity.count))
         }
-        return s
+        var j = s.index(after: start)
+        guard j < s.endIndex, s[j] == "#" else { return nil }
+        j = s.index(after: j)
+        let isHex = j < s.endIndex && (s[j] == "x" || s[j] == "X")
+        if isHex { j = s.index(after: j) }
+        let digitsStart = j
+        while j < s.endIndex, isEntityDigit(s[j], hex: isHex) { j = s.index(after: j) }
+        guard j > digitsStart, j < s.endIndex, s[j] == ";" else { return nil }
+        let end = s.index(after: j)
+        guard let code = UInt32(s[digitsStart..<j], radix: isHex ? 16 : 10),
+              let scalar = Unicode.Scalar(code) else { return ("", end) }
+        return (String(scalar), end)
+    }
+
+    // ASCII-only on purpose: `Character.isHexDigit` also accepts fullwidth
+    // compatibility forms, which UInt32(_:radix:) would then fail to parse.
+    private static func isEntityDigit(_ c: Character, hex: Bool) -> Bool {
+        if ("0"..."9").contains(c) { return true }
+        return hex && (("a"..."f").contains(c) || ("A"..."F").contains(c))
     }
 }

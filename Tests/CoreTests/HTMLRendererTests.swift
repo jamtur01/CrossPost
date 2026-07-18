@@ -49,6 +49,31 @@ final class HTMLRendererTests: XCTestCase {
         XCTAssertEqual(plain("smile &#x1F600; and caf&#xE9;"), "smile 😀 and café")
     }
 
+    func testEscapedNumericEntityStaysLiteral() {
+        // "&amp;#39;" escapes the literal text "&#39;" — decoding the numeric
+        // form afterwards would double-decode it to "'".
+        XCTAssertEqual(plain("&amp;#39;"), "&#39;")
+        XCTAssertEqual(plain("&amp;#x27;"), "&#x27;")
+    }
+
+    func testInvalidNumericScalarIsDropped() {
+        // 55296 (0xD800) is a lone surrogate — not a valid Unicode scalar.
+        XCTAssertEqual(plain("a&#55296;b"), "ab")
+        XCTAssertEqual(plain("a&#xD800;b"), "ab")
+    }
+
+    func testUnterminatedOrUnknownEntitiesStayLiteral() {
+        XCTAssertEqual(plain("AT&T"), "AT&T")
+        XCTAssertEqual(plain("&#39x"), "&#39x")
+        XCTAssertEqual(plain("&unknown;"), "&unknown;")
+    }
+
+    func testManyEntitiesDecodeCorrectly() {
+        let repeats = 500
+        let html = String(repeating: "&lt;&#39;&amp;&#x1F600;", count: repeats)
+        XCTAssertEqual(plain(html), String(repeating: "<'&😀", count: repeats))
+    }
+
     func testAnchorBecomesClickableLinkWithoutShowingURL() {
         let html = #"see <a href="https://x.com">x.com</a>"#
         XCTAssertEqual(plain(html), "see x.com")
