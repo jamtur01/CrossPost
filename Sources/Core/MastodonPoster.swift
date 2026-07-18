@@ -24,11 +24,6 @@ struct MastodonPoster: Poster, ThreadPublisher {
     }
 
     func publishOne(_ draft: DraftPost, root: String?, parent: String?) async throws -> (ref: String, item: PostedItem) {
-        guard draft.attachments.count <= TargetLimits.imageMax else {
-            throw MediaValidationError.tooManyImages(target: .mastodon,
-                                                     count: draft.attachments.count,
-                                                     limit: TargetLimits.imageMax)
-        }
         let maxBytes = draft.attachments.isEmpty ? 0 : await imageLimit.get(client)
         let mediaIds = try await client.uploadJPEGImages(draft.attachments, maxBytes: maxBytes)
 
@@ -42,8 +37,17 @@ struct MastodonPoster: Poster, ThreadPublisher {
 }
 
 extension PostVisibility {
-    /// Maps onto TootSDK's visibility type; the raw strings are identical.
-    var tootVisibility: Post.Visibility { Post.Visibility(rawValue: rawValue) ?? .public }
+    /// Maps onto TootSDK's visibility type case by case. Exhaustive on purpose:
+    /// a future visibility must fail to compile here rather than silently fall
+    /// back to .public and widen the post's audience.
+    var tootVisibility: Post.Visibility {
+        switch self {
+        case .public: return .public
+        case .unlisted: return .unlisted
+        case .private: return .private
+        case .direct: return .direct
+        }
+    }
 }
 
 extension ReportReason {
@@ -74,9 +78,11 @@ extension TootClient {
     /// accepts PNG/HEIC/GIF/TIFF), scaling down only past the instance's image size
     /// limit so a large photo can't fail mid-thread.
     func uploadJPEGImages(_ images: [Attachment], maxBytes: Int) async throws -> [String] {
-        // Transcode sequentially first: NSGraphicsContext/CoreGraphics drawing isn't
-        // safe to run concurrently. Then upload the encoded JPEGs in parallel — the
-        // network upload is what benefits from concurrency, not the CPU/AppKit encode.
+        // Encode sequentially: the pipeline is pure ImageIO/CoreGraphics and
+        // thread-safe (the coordinator already runs both posters' encodes
+        // concurrently), but parallelising the CPU-bound encodes within one post
+        // would only multiply peak memory — each holds a full decoded bitmap.
+        // The network uploads are what benefit from running concurrently.
         let encoded: [(jpeg: Data, altText: String)] = try images.map {
             (try ImageProcessor.jpegUnderBudget($0.imageData, maxBytes: maxBytes), $0.altText)
         }
@@ -99,9 +105,10 @@ extension TootClient {
 }
 
 /// Caches the instance image-size limit for the duration of one cross-post so a
-/// thread fetches instance info once instead of per post. Posting is sequential,
-/// so the unsynchronised access is safe.
-private final class ImageByteLimitCache: @unchecked Sendable {
+/// thread fetches instance info once instead of per post. An actor because the
+/// poster can be driven from concurrent tasks; two racing first reads at worst
+/// fetch the limit twice, which is harmless.
+private actor ImageByteLimitCache {
     private var value: Int?
     func get(_ client: TootClient) async -> Int {
         if let value { return value }

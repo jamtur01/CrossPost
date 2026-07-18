@@ -116,4 +116,68 @@ final class PostValidatorTests: XCTestCase {
         XCTAssertEqual(issues.count, 2) // post 1 over both targets
         XCTAssertTrue(issues.allSatisfy { if case .tooLong(let i, _, _, _) = $0 { return i == 1 } else { return false } })
     }
+
+    // MARK: - Mastodon countable text
+
+    func testMastodonCountableTextReplacesURLAndRemoteMention() {
+        XCTAssertEqual(PostValidator.mastodonCountableText("hi @alice@example.social"), "hi @alice")
+        XCTAssertEqual(
+            PostValidator.mastodonCountableText("see https://example.com/some/very/long/path?q=1."),
+            "see " + String(repeating: "x", count: 23) + ".")
+        // Emails and local mentions are not remote mentions.
+        XCTAssertEqual(PostValidator.mastodonCountableText("mail bob@example.com or @carol"),
+                       "mail bob@example.com or @carol")
+    }
+
+    func testLongURLCountsAs23AndPassesAtMastodonLimit() {
+        // 50-char URL counts as 23: 476 + 1 + 23 = exactly 500 countable
+        // (527 raw graphemes, which would fail without the transform).
+        let url = "https://example.com/" + String(repeating: "p", count: 30)
+        let text = String(repeating: "a", count: 476) + " " + url
+        XCTAssertEqual(PostValidator.graphemeCount(text), 527)
+        let issues = PostValidator.validate(thread: [DraftPost(text: text)],
+                                            targets: [.mastodon], limits: limits)
+        XCTAssertTrue(issues.isEmpty)
+    }
+
+    func testShortURLStillCountsAs23ForMastodon() {
+        // 12-char URL inflates to 23: raw 490 fits under 500, countable 501 does not.
+        let text = String(repeating: "a", count: 477) + " https://a.io"
+        let issues = PostValidator.validate(thread: [DraftPost(text: text)],
+                                            targets: [.mastodon], limits: limits)
+        XCTAssertEqual(issues, [.tooLong(postIndex: 0, target: .mastodon, count: 501, limit: 500)])
+    }
+
+    func testRemoteMentionCountsLocalPartOnlyForMastodon() {
+        // Raw 515 graphemes; @alice@example.social counts as @alice → exactly 500.
+        let text = String(repeating: "a", count: 493) + " @alice@example.social"
+        let issues = PostValidator.validate(thread: [DraftPost(text: text)],
+                                            targets: [.mastodon], limits: limits)
+        XCTAssertTrue(issues.isEmpty)
+    }
+
+    func testBlueskyCountsRawGraphemesIncludingFullURLs() {
+        // 301 raw graphemes: over Bluesky's 300 even though the Mastodon countable
+        // transform (250 + 1 + 23 = 274) is well under both limits.
+        let url = "https://example.com/" + String(repeating: "p", count: 30)
+        let text = String(repeating: "a", count: 250) + " " + url
+        let issues = PostValidator.validate(thread: [DraftPost(text: text)],
+                                            targets: [.mastodon, .bluesky], limits: limits)
+        XCTAssertEqual(issues, [.tooLong(postIndex: 0, target: .bluesky, count: 301, limit: 300)])
+    }
+
+    // MARK: - Image cap single path
+
+    func testImageCapViolationComesFromTargetLimits() {
+        XCTAssertNil(limits.imageCountViolation(count: 4, for: .bluesky))
+        guard case .tooManyImages(let target, let count, let limit)? =
+                limits.imageCountViolation(count: 5, for: .mastodon) else {
+            return XCTFail("expected a violation for 5 images")
+        }
+        XCTAssertEqual(target, .mastodon)
+        XCTAssertEqual(count, 5)
+        XCTAssertEqual(limit, 4)
+        XCTAssertThrowsError(try limits.checkImageCount(5, for: .bluesky))
+        XCTAssertNoThrow(try limits.checkImageCount(4, for: .bluesky))
+    }
 }

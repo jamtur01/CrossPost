@@ -49,15 +49,13 @@ struct BlueskyPoster: Poster, ThreadPublisher {
     }
 
     /// Build the images embed for a Bluesky post from attachments: enforce the
-    /// per-post cap, transcode each to a budget JPEG, and drop blank alt text.
-    /// Returns nil when there are no attachments. Shared by posting and replies.
-    static func imagesEmbed(from attachments: [Attachment]) throws -> ATProtoBluesky.EmbedIdentifier? {
+    /// per-post cap through TargetLimits (the reply flow calls this directly,
+    /// bypassing pre-flight thread validation), transcode each to a budget JPEG,
+    /// and drop blank alt text. Returns nil when there are no attachments.
+    static func imagesEmbed(from attachments: [Attachment],
+                            limits: TargetLimits = TargetLimits()) throws -> ATProtoBluesky.EmbedIdentifier? {
         guard !attachments.isEmpty else { return nil }
-        guard attachments.count <= TargetLimits.imageMax else {
-            throw MediaValidationError.tooManyImages(target: .bluesky,
-                                                     count: attachments.count,
-                                                     limit: TargetLimits.imageMax)
-        }
+        try limits.checkImageCount(attachments.count, for: .bluesky)
         let queries = try attachments.map { attachment in
             ATProtoTools.ImageQuery(
                 imageData: try ImageProcessor.jpegUnderBudget(attachment.imageData),

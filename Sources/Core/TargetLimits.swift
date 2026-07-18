@@ -38,4 +38,19 @@ struct TargetLimits: Sendable {
             .bluesky: TargetLimits.blueskyAltMax,
         ]
     }
+
+    /// The single place the per-post image cap is computed. Pre-flight validation
+    /// and the upload paths all funnel through here so the cap and its error text
+    /// can't drift apart between layers.
+    func imageCountViolation(count: Int, for target: PostTarget) -> MediaValidationError? {
+        guard let limit = maxImages[target], count > limit else { return nil }
+        return .tooManyImages(target: target, count: count, limit: limit)
+    }
+
+    /// Throwing form of `imageCountViolation` for the upload paths.
+    func checkImageCount(_ count: Int, for target: PostTarget) throws {
+        if let violation = imageCountViolation(count: count, for: target) {
+            throw violation
+        }
+    }
 }
