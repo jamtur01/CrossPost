@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.17] - 2026-07-18
+
 ### Fixed
 
 - Mastodon character counting now matches the server: links count as 23
@@ -471,6 +473,7 @@ Initial release.
 - Keychain-backed credential storage.
 - Signed and notarized Developer ID release builds produced by CI.
 
+[0.4.17]: https://github.com/jamtur01/CrossPost/releases/tag/v0.4.17
 [0.4.16]: https://github.com/jamtur01/CrossPost/releases/tag/v0.4.16
 [0.4.15]: https://github.com/jamtur01/CrossPost/releases/tag/v0.4.15
 [0.4.8]: https://github.com/jamtur01/CrossPost/releases/tag/v0.4.8
