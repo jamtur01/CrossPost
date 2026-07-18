@@ -15,6 +15,9 @@ struct LoopingVideoView: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: LoopingPlayerNSView, context: Context) {
+        // Lazy stacks recycle representables, so the same NSView can be handed a
+        // different clip; without the URL update it would keep looping the old one.
+        nsView.update(url: url)
         nsView.setActive(isActive)
     }
 
@@ -27,19 +30,70 @@ final class LoopingPlayerNSView: NSView {
     private let player = AVPlayer()
     private let playerLayer = AVPlayerLayer()
     private var endObserver: NSObjectProtocol?
+    private var url: URL
+    // Creating an AVPlayerItem starts buffering immediately, so item creation is
+    // deferred to the first activation (visibility) — a lazy list materialising
+    // offscreen rows must not kick off video downloads.
+    private var itemLoaded = false
+    private var isActive = false
 
     init(url: URL, gravity: AVLayerVideoGravity) {
+        self.url = url
         super.init(frame: .zero)
         wantsLayer = true
         layer = CALayer()
         playerLayer.videoGravity = gravity
         playerLayer.player = player
-        layer?.addSublayer(playerLayer)
-
-        let item = AVPlayerItem(url: url)
-        player.replaceCurrentItem(with: item)
         player.isMuted = true
         player.actionAtItemEnd = .none
+        layer?.addSublayer(playerLayer)
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
+
+    func update(url newURL: URL) {
+        guard newURL != url else { return }
+        url = newURL
+        // Nothing buffered yet: the next activation loads the new URL anyway.
+        guard itemLoaded else { return }
+        unloadItem()
+        if isActive {
+            loadItem()
+            player.play()
+        }
+    }
+
+    func setActive(_ active: Bool) {
+        isActive = active
+        if active {
+            if !itemLoaded { loadItem() }
+            player.play()
+        } else {
+            player.pause()
+        }
+    }
+
+    func stop() {
+        isActive = false
+        player.pause()
+        unloadItem()
+    }
+
+    deinit { stop() }
+
+    override func layout() {
+        super.layout()
+        // Core Animation implicit-animates layer frame changes by default, which
+        // smears the video during window resizes and row relayouts.
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        playerLayer.frame = bounds
+        CATransaction.commit()
+    }
+
+    private func loadItem() {
+        let item = AVPlayerItem(url: url)
+        player.replaceCurrentItem(with: item)
         // Seek-to-zero on end loops both file-based (MP4) and HLS items reliably.
         endObserver = NotificationCenter.default.addObserver(
             forName: .AVPlayerItemDidPlayToEndTime, object: item, queue: .main
@@ -47,25 +101,14 @@ final class LoopingPlayerNSView: NSView {
             player?.seek(to: .zero)
             player?.play()
         }
+        itemLoaded = true
     }
 
-    required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
-
-    func setActive(_ active: Bool) {
-        if active { player.play() } else { player.pause() }
-    }
-
-    func stop() {
-        player.pause()
+    private func unloadItem() {
         if let endObserver { NotificationCenter.default.removeObserver(endObserver) }
         endObserver = nil
-    }
-
-    deinit { stop() }
-
-    override func layout() {
-        super.layout()
-        playerLayer.frame = bounds
+        player.replaceCurrentItem(with: nil)
+        itemLoaded = false
     }
 }
 
@@ -86,6 +129,9 @@ struct AnimatedGIFView: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: NSImageView, context: Context) {
+        // Recycled by lazy stacks: reload when handed a different GIF's URL
+        // (no-op when the URL is unchanged).
+        context.coordinator.load(url, into: nsView)
         nsView.animates = isActive
     }
 
@@ -107,18 +153,27 @@ struct AnimatedGIFView: NSViewRepresentable {
             return cache
         }()
         private var task: URLSessionDataTask?
+        private var requestedURL: URL?
 
         func load(_ url: URL, into view: NSImageView) {
+            guard url != requestedURL else { return }
+            requestedURL = url
             if let cached = Self.cache.object(forKey: url as NSURL) {
                 view.image = cached
                 return
             }
             task?.cancel()
-            task = URLSession.shared.dataTask(with: url) { data, _, _ in
+            // Don't keep animating the previous GIF while the new one downloads.
+            view.image = nil
+            task = URLSession.shared.dataTask(with: url) { [weak self] data, _, _ in
                 guard let data, data.count <= Self.maxBytes,
                       let image = NSImage(data: data) else { return }
                 Self.cache.setObject(image, forKey: url as NSURL, cost: data.count)
-                DispatchQueue.main.async { view.image = image }
+                DispatchQueue.main.async {
+                    // A newer load superseded this one while it was in flight.
+                    guard self?.requestedURL == url else { return }
+                    view.image = image
+                }
             }
             task?.resume()
         }
