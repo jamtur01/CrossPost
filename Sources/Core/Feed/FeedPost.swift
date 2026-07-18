@@ -58,7 +58,7 @@ struct FeedPost: Identifiable, Equatable, Sendable {
     let target: PostTarget
     let authorName: String
     let authorHandle: String
-    let authorID: String     // Mastodon account.id / Bluesky handle (for profile + author feed)
+    let authorID: String     // Mastodon account.id / Bluesky DID (for profile + author feed)
     let avatarURL: URL?
     let date: Date
     let text: AttributedString
