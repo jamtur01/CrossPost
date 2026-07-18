@@ -44,8 +44,10 @@ struct ComposeColumnView: View {
             } else {
                 ScrollView {
                     VStack(spacing: 12) {
+                        let indexByID = Dictionary(uniqueKeysWithValues:
+                            model.thread.enumerated().map { ($1.id, $0) })
                         ForEach($model.thread) { $post in
-                            let index = model.thread.firstIndex(where: { $0.id == post.id }) ?? 0
+                            let index = threadIndex(of: post.id, in: indexByID)
                             PostCardView(post: $post, index: index, limit: limit,
                                          canRemove: true,
                                          onRemove: { model.removePost(at: index) },
@@ -77,7 +79,7 @@ struct ComposeColumnView: View {
             if let issues = model.blockedIssues, !issues.isEmpty {
                 VStack(alignment: .leading, spacing: 3) {
                     ForEach(Array(issues.enumerated()), id: \.offset) { _, issue in
-                        Text(validationMessage(issue))
+                        Text(validationMessage(issue) { "Post \($0 + 1)" })
                             .font(.caption)
                             .foregroundStyle(.red)
                     }
@@ -147,19 +149,14 @@ struct ComposeColumnView: View {
         .help(selected ? "Posting to \(target.displayName)" : "Not posting to \(target.displayName)")
     }
 
-    private func validationMessage(_ issue: ValidationIssue) -> String {
-        switch issue {
-        case .empty(let postIndex):
-            return "Post \(postIndex + 1) is empty."
-        case .tooLong(let postIndex, let target, let count, let limit):
-            return "Post \(postIndex + 1) is too long for \(target.displayName): \(count)/\(limit)."
-        case .tooLongBytes(let postIndex, let target, let count, let limit):
-            return "Post \(postIndex + 1) is too long for \(target.displayName): \(count)/\(limit) bytes."
-        case .tooManyImages(let postIndex, let target, let count, let limit):
-            return "Post \(postIndex + 1) has too many images for \(target.displayName): \(count)/\(limit)."
-        case .altTextTooLong(let postIndex, let imageIndex, let target, let count, let limit):
-            return "Post \(postIndex + 1) image \(imageIndex + 1) alt text is too long for "
-                + "\(target.displayName): \(count)/\(limit)."
+    /// A draft's position in the thread. The ForEach iterates the same array the
+    /// mapping was built from, so a miss means the thread mutated mid-render:
+    /// flag it in debug and fall back to the first slot rather than crash.
+    private func threadIndex(of id: UUID, in indexByID: [UUID: Int]) -> Int {
+        guard let index = indexByID[id] else {
+            assertionFailure("Draft post \(id) missing from compose thread during render")
+            return 0
         }
+        return index
     }
 }

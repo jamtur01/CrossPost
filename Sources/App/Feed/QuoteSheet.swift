@@ -19,29 +19,12 @@ struct QuoteSheet: View {
         post.target == .bluesky ? TargetLimits.blueskyMax : store.mastodonMaxChars
     }
     private var count: Int { PostValidator.graphemeCount(text) }
-    private var counterColor: Color {
-        if count > limit { return .red }
-        if count >= limit - 20 { return .orange }
-        return .secondary
-    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             sheetHeader(icon: nil, label: "Quote on \(post.target.displayName)", accent: accent)
 
-            PlainTextEditor(text: $text)
-                .frame(minHeight: 80)
-                .padding(8)
-                .background(RoundedRectangle(cornerRadius: 8).fill(Color(nsColor: .textBackgroundColor)))
-                .overlay(alignment: .topLeading) {
-                    if text.isEmpty {
-                        Text("Add a comment…")
-                            .font(Theme.content).foregroundStyle(.tertiary)
-                            .padding(.horizontal, 13).padding(.vertical, 15)
-                            .allowsHitTesting(false)
-                    }
-                }
-                .overlay(RoundedRectangle(cornerRadius: 8).stroke(.quaternary))
+            SheetTextEditor(text: $text, minHeight: 80, placeholder: "Add a comment…")
 
             quotedPreview
 
@@ -52,7 +35,7 @@ struct QuoteSheet: View {
                 Spacer()
                 Text("\(count)/\(limit)")
                     .font(.caption.monospacedDigit())
-                    .foregroundStyle(counterColor)
+                    .foregroundStyle(counterColor(count: count, limit: limit))
             }
 
             if let errorMessage {
@@ -72,18 +55,9 @@ struct QuoteSheet: View {
     }
 
     private func send() {
-        isSending = true
-        errorMessage = nil
-        Task {
-            defer { isSending = false }
-            do {
-                try await submit(text, visibility)
-                sent = true
-                try? await Task.sleep(nanoseconds: 800_000_000)
-                onClose()
-            } catch {
-                errorMessage = error.userMessage
-            }
+        submitSheet(isSending: $isSending, sent: $sent, errorMessage: $errorMessage,
+                    onClose: onClose) {
+            try await submit(text, visibility)
         }
     }
 }

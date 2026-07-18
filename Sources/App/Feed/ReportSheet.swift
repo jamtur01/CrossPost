@@ -28,11 +28,7 @@ struct ReportSheet: View {
             .labelsHidden()
 
             Text("Add context (optional)").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-            PlainTextEditor(text: $comment)
-                .frame(minHeight: 60)
-                .padding(8)
-                .background(RoundedRectangle(cornerRadius: 8).fill(Color(nsColor: .textBackgroundColor)))
-                .overlay(RoundedRectangle(cornerRadius: 8).stroke(.quaternary))
+            SheetTextEditor(text: $comment, minHeight: 60)
 
             if let errorMessage {
                 Text(errorMessage).font(.caption).foregroundStyle(.red)
@@ -47,18 +43,9 @@ struct ReportSheet: View {
     }
 
     private func send() {
-        isSending = true
-        errorMessage = nil
-        Task {
-            defer { isSending = false }
-            do {
-                try await submit(reason, comment.trimmingCharacters(in: .whitespacesAndNewlines))
-                sent = true
-                try? await Task.sleep(nanoseconds: 800_000_000)
-                onClose()
-            } catch {
-                errorMessage = error.userMessage
-            }
+        submitSheet(isSending: $isSending, sent: $sent, errorMessage: $errorMessage,
+                    onClose: onClose) {
+            try await submit(reason, comment.trimmingCharacters(in: .whitespacesAndNewlines))
         }
     }
 }

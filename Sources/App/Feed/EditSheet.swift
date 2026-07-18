@@ -41,15 +41,10 @@ struct EditSheet: View {
     @State private var sent = false
     @State private var errorMessage: String?
 
-    private var limit: Int {
-        post.target == .bluesky ? TargetLimits.blueskyMax : store.mastodonMaxChars
-    }
+    // Edits are Mastodon-only (postEditActions gates on it), so the connected
+    // instance's limit always applies.
+    private var limit: Int { store.mastodonMaxChars }
     private var count: Int { PostValidator.graphemeCount(text) }
-    private var counterColor: Color {
-        if count > limit { return .red }
-        if count >= limit - 20 { return .orange }
-        return .secondary
-    }
     private var canSave: Bool {
         !isSending && !sent && count <= limit
             && (!text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !post.images.isEmpty)
@@ -96,11 +91,7 @@ struct EditSheet: View {
                 .textFieldStyle(.roundedBorder)
         }
 
-        PlainTextEditor(text: $text)
-            .frame(minHeight: 110)
-            .padding(8)
-            .background(RoundedRectangle(cornerRadius: 8).fill(Color(nsColor: .textBackgroundColor)))
-            .overlay(RoundedRectangle(cornerRadius: 8).stroke(.quaternary))
+        SheetTextEditor(text: $text, minHeight: 110)
 
         HStack {
             Button {
@@ -117,23 +108,14 @@ struct EditSheet: View {
             Spacer()
             Text("\(count)/\(limit)")
                 .font(.caption.monospacedDigit())
-                .foregroundStyle(counterColor)
+                .foregroundStyle(counterColor(count: count, limit: limit))
         }
     }
 
     private func save() {
-        isSending = true
-        errorMessage = nil
-        Task {
-            defer { isSending = false }
-            do {
-                try await actions.submit(text, hasSpoiler ? spoiler : "")
-                sent = true
-                try? await Task.sleep(nanoseconds: 800_000_000)
-                onClose()
-            } catch {
-                errorMessage = error.userMessage
-            }
+        submitSheet(isSending: $isSending, sent: $sent, errorMessage: $errorMessage,
+                    onClose: onClose) {
+            try await actions.submit(text, hasSpoiler ? spoiler : "")
         }
     }
 }

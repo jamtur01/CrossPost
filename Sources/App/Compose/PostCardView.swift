@@ -13,17 +13,8 @@ struct PostCardView: View {
 
     @State private var isDropTarget = false
 
-    /// Warn (orange) once within this many graphemes of the limit.
-    private static let warnWithin = 20
-
     private var count: Int { PostValidator.graphemeCount(post.text) }
     private var canAddImages: Bool { post.attachments.count < TargetLimits.imageMax }
-
-    private var counterColor: Color {
-        if count > limit { return .red }
-        if count >= limit - Self.warnWithin { return .orange }
-        return .secondary
-    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -60,7 +51,7 @@ struct PostCardView: View {
 
                 Text("\(count)/\(limit)")
                     .font(.caption.monospacedDigit())
-                    .foregroundStyle(counterColor)
+                    .foregroundStyle(counterColor(count: count, limit: limit))
             }
         }
         .padding(14)
