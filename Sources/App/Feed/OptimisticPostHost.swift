@@ -53,16 +53,35 @@ extension OptimisticPostHost {
         }
     }
 
-    /// Optimistically remove a row, deleting it on the server and re-inserting it at
-    /// its original position (with an error banner) if the delete fails.
+    /// Optimistically remove a row, deleting it on the server and re-inserting it
+    /// next to its old neighbors (with an error banner) if the delete fails.
+    /// The id joins `inFlight` for the duration so a concurrent poll merge can't
+    /// resurrect the row (the timeline merge drops in-flight ids with no local row)
+    /// and a second delete of the same post is ignored while one is running.
     func delete(_ post: FeedPost) {
-        guard let index = posts.firstIndex(where: { $0.id == post.id }) else { return }
+        guard !inFlight.contains(post.id),
+              let index = posts.firstIndex(where: { $0.id == post.id }) else { return }
+        inFlight.insert(post.id)
+        let previousID = index > 0 ? posts[index - 1].id : nil
         let removed = posts.remove(at: index)
+        let nextID = index < posts.count ? posts[index].id : nil
         Task {
+            defer { inFlight.remove(post.id) }
             do { try await remoteDelete(post) }
             catch {
                 if !posts.contains(where: { $0.id == post.id }) {
-                    posts.insert(removed, at: min(index, posts.count))
+                    // A concurrent merge may have shifted rows, so the captured index
+                    // can displace the restore: anchor on the old neighbors instead,
+                    // falling back to the clamped index only when both are gone.
+                    if let previousID,
+                       let i = posts.firstIndex(where: { $0.id == previousID }) {
+                        posts.insert(removed, at: i + 1)
+                    } else if let nextID,
+                              let i = posts.firstIndex(where: { $0.id == nextID }) {
+                        posts.insert(removed, at: i)
+                    } else {
+                        posts.insert(removed, at: min(index, posts.count))
+                    }
                 }
                 reportError(error.userMessage)
             }

@@ -127,13 +127,21 @@ final class FakeFeedService: FeedService, @unchecked Sendable {
     func notifications() async throws -> [FeedNotification] { notificationsToReturn }
     func unreadNotificationCount() async throws -> Int { unread }
     var failMarkRead = false
+    /// Awaited after the call is recorded — lets a test suspend the read-mark
+    /// mid-flight to stage a tab-switch race deterministically.
+    var markReadDelay: (() async -> Void)?
     func markNotificationsRead(upTo latest: FeedNotification?) async throws {
         markedReadCalls.append(latest)
+        if let markReadDelay { await markReadDelay() }
         if failMarkRead { throw FakeError.boom }
     }
 
+    /// Awaited after the call is recorded — lets a test hold a delete in flight
+    /// while it simulates a concurrent poll merge.
+    var deleteDelay: (() async -> Void)?
     func deletePost(_ post: FeedPost) async throws {
         deletedIDs.append(post.id)
+        if let deleteDelay { await deleteDelay() }
         if failDelete { throw FakeError.boom }
     }
     private(set) var bookmarkSetCalls: [Bool] = []
@@ -153,7 +161,12 @@ final class FakeFeedService: FeedService, @unchecked Sendable {
     func messages(in conversationID: String) async throws -> [DirectMessage] { [] }
     func sendMessage(_ text: String, to conversationID: String) async throws {}
 
-    func liveUpdates() async -> AsyncStream<Void>? { nil }
+    var liveStream: AsyncStream<Void>?
+    private(set) var liveUpdatesCalls = 0
+    func liveUpdates() async -> AsyncStream<Void>? {
+        liveUpdatesCalls += 1
+        return liveStream
+    }
 
     private static func profile(_ id: String) -> Profile {
         Profile(id: id, name: id, handle: "@\(id)", avatarURL: nil, bannerURL: nil,
@@ -166,5 +179,21 @@ extension FeedNotification {
     static func fixture(id: String, date: Date, actorID: String = "a") -> FeedNotification {
         FeedNotification(id: id, kind: .like, actorName: "A", actorHandle: "@a", actorID: actorID,
                          avatarURL: nil, post: nil, date: date)
+    }
+}
+
+/// Suspends async work until the test releases it, so cancellation and delete/poll
+/// races can be staged deterministically.
+@MainActor
+final class TestGate {
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+    private(set) var arrivals = 0
+    func wait() async {
+        arrivals += 1
+        await withCheckedContinuation { waiters.append($0) }
+    }
+    func open() {
+        waiters.forEach { $0.resume() }
+        waiters = []
     }
 }

@@ -130,6 +130,76 @@ final class PostListTests: XCTestCase {
         XCTAssertEqual(list.posts.map(\.id), ["a", "b", "c"])
     }
 
+    /// Delete-vs-poll race: while a delete is in flight its id sits in `inFlight`
+    /// with no local row, and the timeline merge drops that id from the fetched
+    /// page — the row the user just removed must not be resurrected.
+    func testPollMergeDuringDeleteDoesNotResurrectRow() async {
+        let fake = FakeFeedService()
+        let gate = TestGate()
+        fake.deleteDelay = { await gate.wait() }
+        let list = PostList(panel: makeModel(fake))
+        let posts = ["a", "b"].map { TestFactory.feedPost(target: .bluesky, id: $0) }
+        list.posts = posts
+
+        list.delete(posts[0])
+        XCTAssertEqual(list.posts.map(\.id), ["b"])
+        XCTAssertTrue(list.inFlight.contains("a"), "a deleting id must be registered in-flight")
+
+        // A 30s poll returns a page fetched before the server applied the delete.
+        await waitUntil { gate.arrivals == 1 }
+        list.posts = FeedMerge.merge(existing: list.posts, fetched: posts,
+                                     preservingIDs: list.inFlight,
+                                     excludingIDs: list.inFlight.subtracting(list.posts.map(\.id)))
+        XCTAssertEqual(list.posts.map(\.id), ["b"], "the merge must not re-add the deleting row")
+
+        gate.open()
+        await waitUntil { list.inFlight.isEmpty }
+        XCTAssertEqual(list.posts.map(\.id), ["b"])   // still gone after the delete lands
+    }
+
+    /// A failed delete re-inserts next to its old neighbor even when a concurrent
+    /// merge shifted every index while the delete was in flight.
+    func testDeleteFailureReInsertsNextToOldNeighborAfterConcurrentMerge() async {
+        let fake = FakeFeedService()
+        fake.failDelete = true
+        let gate = TestGate()
+        fake.deleteDelay = { await gate.wait() }
+        let list = PostList(panel: makeModel(fake))
+        list.posts = ["a", "b", "c"].map { TestFactory.feedPost(target: .bluesky, id: $0) }
+
+        list.delete(list.posts[1])                            // remove "b" (index 1)
+        XCTAssertEqual(list.posts.map(\.id), ["a", "c"])
+
+        // A merge lands a new post on top while the delete is in flight, shifting
+        // every index down by one.
+        await waitUntil { gate.arrivals == 1 }
+        list.posts = [TestFactory.feedPost(target: .bluesky, id: "new")] + list.posts
+
+        gate.open()                                           // the delete now fails
+        await waitUntil { list.posts.count == 4 }
+        XCTAssertEqual(list.posts.map(\.id), ["new", "a", "b", "c"],
+                       "the restore must anchor on the old neighbor, not the stale index")
+    }
+
+    /// A second delete of the same post while one is in flight is ignored — the
+    /// remote delete runs exactly once.
+    func testConcurrentDeleteIsDedupedWhileInFlight() async {
+        let fake = FakeFeedService()
+        let gate = TestGate()
+        fake.deleteDelay = { await gate.wait() }
+        let list = PostList(panel: makeModel(fake))
+        let post = TestFactory.feedPost(target: .bluesky, id: "a")
+        list.posts = [post]
+
+        list.delete(post)
+        await waitUntil { gate.arrivals == 1 }
+        list.delete(post)                                     // same id already in flight
+        gate.open()
+        await waitUntil { list.inFlight.isEmpty }
+
+        XCTAssertEqual(fake.deletedIDs, ["a"], "the remote delete must run exactly once")
+    }
+
     func testSetBookmarkedUpdatesItsOwnRow() async {
         let fake = FakeFeedService()
         let list = PostList(panel: makeModel(fake))

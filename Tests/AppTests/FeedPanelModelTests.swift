@@ -35,21 +35,7 @@ final class FeedPanelModelTests: XCTestCase {
 
     // MARK: Service lifecycle
 
-    /// Suspends service builds until the test releases them, so cancellation
-    /// races can be staged deterministically.
-    @MainActor
-    private final class ServiceGate {
-        private var waiters: [CheckedContinuation<Void, Never>] = []
-        private(set) var arrivals = 0
-        func wait() async {
-            arrivals += 1
-            await withCheckedContinuation { waiters.append($0) }
-        }
-        func open() {
-            waiters.forEach { $0.resume() }
-            waiters = []
-        }
-    }
+    // Service-build and call gating uses the shared TestGate (FakeFeedService.swift).
 
     private func makeStore() -> AccountStore {
         let store = AccountStore()
@@ -65,7 +51,7 @@ final class FeedPanelModelTests: XCTestCase {
         stale.feed = [TestFactory.feedPost(id: "stale")]
         let fresh = FakeFeedService()
         fresh.feed = [TestFactory.feedPost(id: "fresh")]
-        let gate = ServiceGate()
+        let gate = TestGate()
         var builds = 0
         let model = FeedPanelModel(target: .bluesky, store: makeStore()) { _, _ in
             builds += 1
@@ -97,7 +83,7 @@ final class FeedPanelModelTests: XCTestCase {
 
     func testStopCancelsInFlightServiceBuild() async {
         let fake = FakeFeedService()
-        let gate = ServiceGate()
+        let gate = TestGate()
         let model = FeedPanelModel(target: .bluesky, store: makeStore()) { _, _ in
             await gate.wait()
             return fake
@@ -417,6 +403,59 @@ final class FeedPanelModelTests: XCTestCase {
 
         XCTAssertEqual(model.unreadCount, 3, "a failed read-mark must not falsely clear the badge")
         model.stop()
+    }
+
+    /// A notifications load superseded by a tab switch must not zero the badge or
+    /// cancel the successor's unread fetch once its read-mark finally returns.
+    func testSupersededNotificationsLoadDoesNotClearBadgeAfterTabSwitch() async {
+        let fake = FakeFeedService()
+        fake.notificationsToReturn = [.fixture(id: "n1", date: Date(timeIntervalSince1970: 1))]
+        fake.unread = 4
+        let gate = TestGate()
+        fake.markReadDelay = { await gate.wait() }
+        let model = makeModel(fake)
+
+        model.switchTo(.notifications)
+        await waitUntil { gate.arrivals == 1 }   // load is suspended inside the read-mark
+
+        model.switchTo(.home)                    // supersedes the load, refetches the badge
+        await waitUntil { model.unreadCount == 4 }
+
+        gate.open()                              // the stale load's read-mark returns now
+        try? await Task.sleep(nanoseconds: 100_000_000)
+        XCTAssertEqual(model.unreadCount, 4, "a superseded notifications load must not zero the badge")
+        model.stop()
+    }
+
+    /// The banner dismiss timer is keyed to the banner instance, not its text: a
+    /// renewed identical banner gets a fresh timeout instead of dying on the old timer.
+    func testRenewedIdenticalBannerGetsAFreshDismissTimer() async {
+        let model = makeModel(FakeFeedService())
+        model.actionErrorDismissDelay = 400_000_000
+
+        model.reportError("boom")
+        try? await Task.sleep(nanoseconds: 200_000_000)
+        model.reportError("boom")                          // renew with the identical message
+        try? await Task.sleep(nanoseconds: 300_000_000)    // the first timer has fired by now
+        XCTAssertEqual(model.actionError, "boom", "the old timer must not dismiss the renewed banner")
+
+        await waitUntil { model.actionError == nil }       // the renewed timer still dismisses it
+    }
+
+    /// The live-update loop re-acquires self weakly per iteration, so a model
+    /// discarded without stop() deallocates instead of being pinned by the open stream.
+    func testOpenLiveStreamDoesNotKeepDiscardedModelAlive() async {
+        let fake = FakeFeedService()
+        var continuation: AsyncStream<Void>.Continuation?
+        fake.liveStream = AsyncStream { continuation = $0 }   // stays open until test end
+        var model: FeedPanelModel? = makeModel(fake)          // .mastodon → live stream runs
+        model?.start()
+        await waitUntil { fake.liveUpdatesCalls == 1 }        // the loop is inside the stream
+
+        weak var weakModel = model
+        model = nil                                           // discarded without stop()
+        await waitUntil { weakModel == nil }
+        continuation?.finish()
     }
 
     // MARK: Search

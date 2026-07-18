@@ -49,4 +49,28 @@ final class FeedMergeTests: XCTestCase {
         let merged = FeedMerge.merge(existing: [], fetched: [post("1"), post("2"), post("1")])
         XCTAssertEqual(merged.map(\.id), ["1", "2"])
     }
+
+    // MARK: excludingIDs — deletion semantics
+
+    func testExcludedIDIsDroppedFromFetchedPage() {
+        // "1" was optimistically deleted locally; the server page still has it.
+        let merged = FeedMerge.merge(existing: [post("2")], fetched: [post("1"), post("2")],
+                                     excludingIDs: ["1"])
+        XCTAssertEqual(merged.map(\.id), ["2"], "a mid-delete id must not be resurrected")
+    }
+
+    func testExcludedIDIsDroppedFromExistingToo() {
+        // Deletion means absence everywhere, even if the local row somehow lingers.
+        let merged = FeedMerge.merge(existing: [post("1"), post("2")], fetched: [post("2")],
+                                     excludingIDs: ["1"])
+        XCTAssertEqual(merged.map(\.id), ["2"])
+    }
+
+    func testExclusionWinsOverPreservation() {
+        // The panel passes inFlight as preservingIDs and the mid-delete subset as
+        // excludingIDs, so a deleting id appears in both sets: absence must win.
+        let merged = FeedMerge.merge(existing: [], fetched: [post("1")],
+                                     preservingIDs: ["1"], excludingIDs: ["1"])
+        XCTAssertTrue(merged.isEmpty)
+    }
 }

@@ -29,7 +29,14 @@ final class FeedPanelModel: OptimisticPostHost {
     private var liveTask: Task<Void, Never>?
     private var unreadTask: Task<Void, Never>?
     private var followStateTask: Task<Void, Never>?
-    var inFlight: Set<String> = []   // post ids with an in-flight like/repost/etc.
+    var inFlight: Set<String> = []   // post ids with an in-flight like/repost/delete/etc.
+    /// Identity of the banner the running dismiss timer belongs to. Keyed by token,
+    /// not message text, so a renewed identical banner gets a fresh timeout instead
+    /// of being dismissed early by the previous banner's timer.
+    @ObservationIgnored private var actionErrorToken = UUID()
+    /// Injectable for tests only — the real 4s banner timeout would make the
+    /// renewed-banner timer test take multiple seconds.
+    @ObservationIgnored var actionErrorDismissDelay: UInt64 = 4_000_000_000
     // 30s active-only poll. Well within both platforms' limits: Mastodon allows 300
     // requests / 5 min per account (~8/min here, well under), Bluesky 3000 / 5 min per
     // IP. Bluesky has no live stream, so this poll is its only passive freshness path.
@@ -70,20 +77,26 @@ final class FeedPanelModel: OptimisticPostHost {
         liveTask = Task { [weak self] in
             var backoff: UInt64 = 2_000_000_000
             while !Task.isCancelled {
-                guard let self else { break }
-                if let service = try? await self.resolveService(),
-                   let stream = await service.liveUpdates() {
+                // Re-acquire self at every step: holding it across the unbounded
+                // stream iteration would keep a discarded model alive forever.
+                var stream: AsyncStream<Void>?
+                if let self, let service = try? await self.resolveService() {
+                    stream = await service.liveUpdates()
+                }
+                if let stream {
                     backoff = 2_000_000_000   // reset after a successful connection
                     for await _ in stream {
                         if Task.isCancelled { break }   // a cancelled stream mustn't keep driving loads
+                        guard let self else { break }
                         if NSApplication.shared.isActive {
                             self.enqueueLoad(reset: false, userInitiated: false)
                             self.refreshUnreadCount()
                         }
                     }
                 }
-                // Stream ended (socket dropped) or failed to open — back off and retry.
-                if Task.isCancelled { break }
+                // Stream ended (socket dropped) or failed to open — back off and retry,
+                // unless the model is gone and there is nothing left to update.
+                if Task.isCancelled || self == nil { break }
                 Log.feed.debug("mastodon live stream dropped; reconnecting in \(backoff / 1_000_000_000, privacy: .public)s")
                 try? await Task.sleep(nanoseconds: backoff)
                 backoff = min(backoff * 2, 60_000_000_000)
@@ -115,7 +128,7 @@ final class FeedPanelModel: OptimisticPostHost {
     /// Foreground wake (the app was re-activated): silently catch the feed and the
     /// unread badge up — the same work a poll tick does, but immediately rather than
     /// waiting up to a full interval, and without the scroll-to-top of a user refresh.
-    /// Bluesky has no live stream, so without this its badge only moves on the 60s poll.
+    /// Bluesky has no live stream, so without this its badge only moves on the 30s poll.
     func wake() {
         guard hasCredentials else { return }
         if pollTask == nil { startPolling() }
@@ -148,8 +161,11 @@ final class FeedPanelModel: OptimisticPostHost {
                 refreshFollowStates(for: fetched, service: svc)
                 // Only clear the badge once the server confirms the read; a failed
                 // mark must not falsely zero it. Cancel any in-flight unread fetch so
-                // a stale count can't resurrect the badge after we clear it.
-                if (try? await svc.markNotificationsRead(upTo: fetched.first)) != nil {
+                // a stale count can't resurrect the badge after we clear it. A load
+                // superseded by a tab switch must do neither — zeroing here would
+                // clobber the successor tab's badge state.
+                if (try? await svc.markNotificationsRead(upTo: fetched.first)) != nil,
+                   !Task.isCancelled {
                     unreadTask?.cancel()
                     unreadCount = 0
                 }
@@ -164,7 +180,11 @@ final class FeedPanelModel: OptimisticPostHost {
                 errorMessage = nil
                 posts = reset
                     ? fetched
-                    : FeedMerge.merge(existing: posts, fetched: fetched, preservingIDs: inFlight)
+                    // An in-flight id with no local row is mid-delete: exclude it so
+                    // this merge can't resurrect the row the user just removed.
+                    : FeedMerge.merge(existing: posts, fetched: fetched,
+                                      preservingIDs: inFlight,
+                                      excludingIDs: inFlight.subtracting(posts.lazy.map(\.id)))
             }
         } catch {
             if Task.isCancelled { return }
@@ -467,9 +487,11 @@ final class FeedPanelModel: OptimisticPostHost {
     /// auto-dismisses. The shared engine and external lists both report through this.
     func reportError(_ message: String) {
         actionError = message
+        let token = UUID()
+        actionErrorToken = token
         Task {
-            try? await Task.sleep(nanoseconds: 4_000_000_000)
-            if actionError == message { actionError = nil }
+            try? await Task.sleep(nanoseconds: actionErrorDismissDelay)
+            if actionErrorToken == token { actionError = nil }
         }
     }
 
@@ -480,12 +502,16 @@ final class FeedPanelModel: OptimisticPostHost {
         pollTask?.cancel()
         pollTask = Task { [weak self] in
             while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: self?.pollInterval ?? 60_000_000_000)
+                // A deallocated model means nobody owns this loop any more — end it
+                // rather than sleeping forever as a zombie.
+                guard let interval = self?.pollInterval else { break }
+                try? await Task.sleep(nanoseconds: interval)
                 if Task.isCancelled { break }
+                guard let self else { break }
                 // Only poll while the app is active, to avoid background churn.
                 if NSApplication.shared.isActive {
-                    self?.enqueueLoad(reset: false, userInitiated: false)
-                    self?.refreshUnreadCount()
+                    self.enqueueLoad(reset: false, userInitiated: false)
+                    self.refreshUnreadCount()
                 }
             }
         }
