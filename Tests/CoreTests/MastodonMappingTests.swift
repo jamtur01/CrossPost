@@ -68,4 +68,19 @@ final class MastodonMappingTests: XCTestCase {
         XCTAssertEqual(mapped.replyCount, 2)
         XCTAssertTrue(mapped.isSensitive)
     }
+
+    func testQuoteSupportRequiresMastodon44() {
+        XCTAssertEqual(MastodonFeedService.supportsQuotePosts(version: "4.4.0"), true)
+        XCTAssertEqual(MastodonFeedService.supportsQuotePosts(version: "4.5.1"), true)
+        XCTAssertEqual(MastodonFeedService.supportsQuotePosts(version: "5.0.0-alpha.1"), true)
+        XCTAssertEqual(MastodonFeedService.supportsQuotePosts(version: "4.4.0-nightly.2025-06-01"), true)
+        XCTAssertEqual(MastodonFeedService.supportsQuotePosts(version: "4.3.8"), false)
+        XCTAssertEqual(MastodonFeedService.supportsQuotePosts(version: "3.5.19"), false)
+    }
+
+    func testUnparseableVersionIsUndecided() {
+        // Forks report free-form versions; the caller proceeds best-effort on nil.
+        XCTAssertNil(MastodonFeedService.supportsQuotePosts(version: "compatible fork"))
+        XCTAssertNil(MastodonFeedService.supportsQuotePosts(version: ""))
+    }
 }

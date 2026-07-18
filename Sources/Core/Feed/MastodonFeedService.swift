@@ -9,6 +9,7 @@ extension PagedResult {
 
 struct MastodonFeedService: FeedService {
     private let client: TootClient
+    private let quoteSupport = QuoteSupportCache()
 
     init(client: TootClient) { self.client = client }
 
@@ -85,11 +86,7 @@ struct MastodonFeedService: FeedService {
         guard case .mastodon(let id) = post.nativeRef else {
             throw FeedError.wrongPlatform
         }
-        guard images.count <= TargetLimits.imageMax else {
-            throw MediaValidationError.tooManyImages(target: .mastodon,
-                                                     count: images.count,
-                                                     limit: TargetLimits.imageMax)
-        }
+        try TargetLimits().checkImageCount(images.count, for: .mastodon)
         let maxBytes = images.isEmpty ? 0 : await client.mastodonImageByteLimit()
         let mediaIds = try await client.uploadJPEGImages(images, maxBytes: maxBytes)
         // Carry the parent's content warning forward; the caller seeds visibility
@@ -105,10 +102,41 @@ struct MastodonFeedService: FeedService {
 
     func quote(post: FeedPost, text: String, visibility: PostVisibility) async throws -> PostedItem {
         guard case .mastodon(let id) = post.nativeRef else { throw FeedError.wrongPlatform }
+        // Pre-4.4 servers silently ignore `quotedId` and publish a plain status —
+        // the user believes they quoted. Refuse up front instead.
+        try await ensureQuoteSupport()
         var params = PostParams(post: text, visibility: visibility.tootVisibility)
-        params.quotedId = id   // honored on instances that support quote posts (Mastodon 4.4+)
+        params.quotedId = id
         let posted = try await client.publishPost(params)
         return PostedItem(url: posted.url, ref: .mastodon(statusID: posted.id))
+    }
+
+    /// Throw unless the instance advertises quote-post support (Mastodon 4.4+).
+    /// The verdict is cached per service instance — server version can't change
+    /// mid-session. An unparseable version (forks) proceeds best-effort.
+    private func ensureQuoteSupport() async throws {
+        let supported: Bool
+        if let cached = await quoteSupport.get() {
+            supported = cached
+        } else {
+            let version = try await client.getInstanceInfo().version
+            supported = Self.supportsQuotePosts(version: version) ?? true
+            await quoteSupport.set(supported)
+        }
+        guard supported else {
+            throw FeedError.notSupported("Quote posts require Mastodon 4.4 or later.")
+        }
+    }
+
+    /// Whether a server version string advertises quote-post support (4.4+),
+    /// or nil when no leading `major.minor` semver can be parsed (forks report
+    /// free-form versions; callers proceed best-effort for those).
+    static func supportsQuotePosts(version: String) -> Bool? {
+        let head = version.prefix { ("0"..."9").contains($0) || $0 == "." }
+        let parts = head.split(separator: ".")
+        guard let first = parts.first, let major = Int(first) else { return nil }
+        let minor = parts.count > 1 ? (Int(parts[1]) ?? 0) : 0
+        return major > 4 || (major == 4 && minor >= 4)
     }
 
     func thread(of post: FeedPost) async throws -> PostThread {
@@ -192,7 +220,9 @@ struct MastodonFeedService: FeedService {
         let current = try await client.getPost(id: id)
         var params = EditPostParams(post: text)
         params.spoilerText = spoiler.nilIfBlank
-        params.sensitive = post.isSensitive
+        // `current` was just fetched, so its sensitive flag is authoritative;
+        // the caller's post may be stale.
+        params.sensitive = current.sensitive
         let mediaIds = current.mediaAttachments.map(\.id)
         if !mediaIds.isEmpty { params.mediaIds = mediaIds }
         let updated = try await client.editPost(id: id, params)
@@ -437,4 +467,13 @@ enum FeedError: Error, CustomStringConvertible, LocalizedError {
     }
 
     var errorDescription: String? { description }
+}
+
+/// Session-scoped cache of the instance's quote-post capability. A reference
+/// type so copies of the (struct) service share one verdict, mirroring
+/// BlueskyFeedService's OwnDIDCache.
+private actor QuoteSupportCache {
+    private var supported: Bool?
+    func get() -> Bool? { supported }
+    func set(_ value: Bool) { supported = value }
 }
