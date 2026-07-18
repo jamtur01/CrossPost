@@ -22,29 +22,7 @@ jobs:
           set -euo pipefail
           for tag in $(gh release list --limit 100 --json tagName --jq '.[].tagName'); do
             version="${tag#v}"
-            asset="CrossPost-$tag.zip"
-            section=$(awk -v ver="$version" '
-              $0 ~ "^## \\[" ver "\\]" { grab = 1; next }
-              grab && /^## \[/ { exit }
-              grab { print }
-            ' CHANGELOG.md)
-            {
-              echo "A native macOS app for reading and posting to Mastodon and Bluesky side by side."
-              if [ -n "$(printf '%s' "$section" | tr -d '[:space:]')" ]; then
-                echo
-                echo "## What's changed"
-                printf '%s\n' "$section"
-              fi
-              echo
-              echo "## Installation"
-              echo
-              echo "1. Download \`$asset\`"
-              echo "2. Unzip it"
-              echo "3. Move \`CrossPost.app\` to your Applications folder"
-              echo "4. Open it"
-              echo
-              echo "This build is signed with a Developer ID and notarized by Apple."
-            } > release-notes.md
+            scripts/extract-release-notes.sh "$version" "$tag" > release-notes.md
             gh release edit "$tag" --notes-file release-notes.md
             echo "synced $tag"
           done
