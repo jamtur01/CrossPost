@@ -8,11 +8,25 @@ struct MessagesListView: View {
     var body: some View {
         if model.conversations.isEmpty && model.isLoading {
             VStack { Spacer(); ProgressView(); Spacer() }
-        } else if model.errorMessage != nil, model.conversations.isEmpty {
-            emptyState("exclamationmark.bubble",
-                       "Couldn't load messages. Bluesky DMs need an app password with "
-                       + "Direct Messages access — in Bluesky go to Settings → App Passwords "
-                       + "and create one with \"Allow access to your direct messages\" checked.")
+        } else if let error = model.errorMessage, model.conversations.isEmpty {
+            // The model exposes only user-facing error text, not the underlying
+            // error kind, so the real failure is shown and the most common Bluesky
+            // DM failure (an app password without DM scope) rides along as
+            // secondary guidance rather than being asserted as the cause.
+            VStack(spacing: 0) {
+                EmptyStateView(text: error, systemImage: "exclamationmark.bubble", fills: false)
+                if model.target == .bluesky {
+                    Text("If this is an authorization problem: Bluesky DMs need an app "
+                         + "password with Direct Messages access — in Bluesky go to Settings "
+                         + "→ App Passwords and create one with \"Allow access to your "
+                         + "direct messages\" checked.")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 28)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if model.conversations.isEmpty {
             emptyState("bubble.left.and.bubble.right", "No conversations yet")
         } else {
@@ -51,7 +65,7 @@ struct MessagesListView: View {
                         .lineLimit(2)
                 }
                 if convo.unreadCount > 0 {
-                    Circle().fill(.blue).frame(width: 8, height: 8)
+                    Circle().fill(model.target.accent).frame(width: 8, height: 8)
                 }
             }
             .padding(.horizontal, Theme.rowPaddingH).padding(.vertical, 10)

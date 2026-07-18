@@ -14,6 +14,10 @@ struct SearchView: View {
     @State private var isSearching = false
     @State private var errorMessage: String?
     @State private var searchTask: Task<Void, Never>?
+    // Monotonic guard: each (re)scheduled search gets a generation, and only the
+    // newest may apply its results — a string compare can't tell a stale response
+    // for an identical retyped query from the current one.
+    @State private var searchGeneration = 0
     @FocusState private var fieldFocused: Bool
 
     private var accent: Color { panel.target.accent }
@@ -33,6 +37,7 @@ struct SearchView: View {
         }
         .background(Color(nsColor: .textBackgroundColor))
         .onAppear { fieldFocused = true }
+        .onDisappear { searchTask?.cancel() }
         .sheet(item: $replyTarget) { target in
             ReplySheet(model: ReplyModel(post: target, store: store)) { replyTarget = nil }
         }
@@ -110,37 +115,35 @@ struct SearchView: View {
     /// Debounce: cancel any pending search and run a new one ~300ms after typing stops.
     private func scheduleSearch(_ text: String) {
         searchTask?.cancel()
+        searchGeneration += 1
         let trimmed = text.trimmingCharacters(in: .whitespaces)
         guard trimmed.count >= 2 else {
             results = SearchResults(); postList.posts = []; isSearching = false; errorMessage = nil
             return
         }
+        let generation = searchGeneration
         searchTask = Task {
             try? await Task.sleep(nanoseconds: 300_000_000)
             if Task.isCancelled { return }
-            await runSearch(trimmed)
+            await runSearch(trimmed, generation: generation)
         }
     }
 
-    private func runSearch(_ trimmed: String) async {
+    private func runSearch(_ trimmed: String, generation: Int) async {
         isSearching = true
         errorMessage = nil
-        // Only the search for the current query owns the spinner/error/results: a
+        // Only the newest scheduled search owns the spinner/error/results: a
         // superseded search must not clear a newer one's spinner or replace the
         // current UI with its stale success or failure.
-        defer { if isCurrent(trimmed) { isSearching = false } }
+        defer { if generation == searchGeneration { isSearching = false } }
         do {
             let found = try await panel.search(trimmed)
-            guard isCurrent(trimmed) else { return }
+            guard generation == searchGeneration else { return }
             results = found
             postList.posts = found.posts
         } catch {
-            guard isCurrent(trimmed) else { return }
+            guard generation == searchGeneration else { return }
             errorMessage = error.userMessage
         }
-    }
-
-    private func isCurrent(_ trimmed: String) -> Bool {
-        trimmed == query.trimmingCharacters(in: .whitespaces)
     }
 }

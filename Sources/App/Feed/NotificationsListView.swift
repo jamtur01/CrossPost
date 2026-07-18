@@ -41,6 +41,10 @@ private struct NotificationRow: View {
     @State private var post: FeedPost?
     @State private var isMutating = false
     @State private var isFollowInFlight = false
+    // Bumped whenever the notification's snapshot refreshes; in-flight optimistic
+    // like/repost tasks compare against it so a pre-refresh server response can't
+    // overwrite state a newer refresh already reconciled.
+    @State private var refreshGeneration = 0
 
     private var livePost: FeedPost? { post ?? notification.post }
 
@@ -88,7 +92,10 @@ private struct NotificationRow: View {
         .onHover { hovering = $0 }
         // Drop the optimistic copy when the underlying snapshot refreshes, so
         // server truth wins instead of a stale local like/repost shadowing it.
-        .onChange(of: notification.post) { post = nil }
+        .onChange(of: notification.post) {
+            refreshGeneration += 1
+            post = nil
+        }
     }
 
     private var actorRef: ProfileRef {
@@ -110,11 +117,11 @@ private struct NotificationRow: View {
             if let post = livePost {
                 postActionButton("arrowshape.turn.up.left", tint: accent, help: "Reply",
                                  compact: true) { onReply(post) }
-                postActionButton("arrow.2.squarepath", active: post.isReposted, tint: .green,
+                postActionButton("arrow.2.squarepath", active: post.isReposted, tint: Theme.repostTint,
                                  help: post.isReposted ? "Undo repost" : "Repost",
                                  compact: true, action: toggleRepost)
                 postActionButton(post.isLiked ? "heart.fill" : "heart", active: post.isLiked,
-                                 tint: .pink, help: post.isLiked ? "Unlike" : "Like",
+                                 tint: Theme.likeTint, help: post.isLiked ? "Unlike" : "Like",
                                  compact: true, action: toggleLike)
             }
             followButton
@@ -147,13 +154,21 @@ private struct NotificationRow: View {
         guard !isMutating, var optimistic = livePost else { return }
         isMutating = true
         let original = optimistic
+        let generation = refreshGeneration
         optimistic.isLiked.toggle()
         optimistic.likeCount = max(0, optimistic.likeCount + (optimistic.isLiked ? 1 : -1))
         post = optimistic
         Task {
             defer { isMutating = false }
-            do { post = try await model.remoteSetLiked(optimistic.isLiked, on: optimistic) }
-            catch { post = original; model.reportError(error.userMessage) }
+            do {
+                let updated = try await model.remoteSetLiked(optimistic.isLiked, on: optimistic)
+                guard generation == refreshGeneration else { return }
+                post = updated
+            } catch {
+                guard generation == refreshGeneration else { return }
+                post = original
+                model.reportError(error.userMessage)
+            }
         }
     }
 
@@ -161,13 +176,21 @@ private struct NotificationRow: View {
         guard !isMutating, var optimistic = livePost else { return }
         isMutating = true
         let original = optimistic
+        let generation = refreshGeneration
         optimistic.isReposted.toggle()
         optimistic.repostCount = max(0, optimistic.repostCount + (optimistic.isReposted ? 1 : -1))
         post = optimistic
         Task {
             defer { isMutating = false }
-            do { post = try await model.remoteSetReposted(optimistic.isReposted, on: optimistic) }
-            catch { post = original; model.reportError(error.userMessage) }
+            do {
+                let updated = try await model.remoteSetReposted(optimistic.isReposted, on: optimistic)
+                guard generation == refreshGeneration else { return }
+                post = updated
+            } catch {
+                guard generation == refreshGeneration else { return }
+                post = original
+                model.reportError(error.userMessage)
+            }
         }
     }
 
@@ -203,8 +226,8 @@ private struct NotificationRow: View {
 
     private var tint: Color {
         switch notification.kind {
-        case .like: return .pink
-        case .repost: return .green
+        case .like: return Theme.likeTint
+        case .repost: return Theme.repostTint
         default: return accent
         }
     }
