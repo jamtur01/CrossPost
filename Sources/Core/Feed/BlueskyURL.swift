@@ -6,8 +6,14 @@ enum BlueskyURL {
     private static let base = "https://bsky.app"
 
     /// The record key (last path component) of an at:// URI, or nil when absent.
+    /// Requires the full `at://authority/collection/rkey` shape: a rootless URI
+    /// (`at://did:plc:x`) has no record key, and returning its authority would
+    /// produce a bogus post URL.
     static func rkey(from atURI: String) -> String? {
-        atURI.split(separator: "/").last.map(String.init)
+        guard atURI.hasPrefix("at://") else { return nil }
+        let segments = atURI.dropFirst("at://".count).split(separator: "/")
+        guard segments.count >= 3, let last = segments.last else { return nil }
+        return String(last)
     }
 
     /// A profile page URL string for a handle or DID.
