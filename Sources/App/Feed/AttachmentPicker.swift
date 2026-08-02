@@ -21,16 +21,19 @@ enum ImageAttaching {
         panel.allowsMultipleSelection = true
         guard panel.runModal() == .OK else { return }
         let urls = panel.urls
-        Task.detached(priority: .userInitiated) {
-            var datas: [Data] = []
-            var failed: [String] = []
-            for url in urls {
-                do { datas.append(try Data(contentsOf: url)) }
-                catch { failed.append(url.lastPathComponent) }
-            }
-            await MainActor.run {
-                append(datas, into: attachments, onError: onError)
-                if !failed.isEmpty { onError("Couldn't read \(failed.joined(separator: ", ")).") }
+        Task { @MainActor in
+            let result = await Task.detached(priority: .userInitiated) {
+                var datas: [Data] = []
+                var failed: [String] = []
+                for url in urls {
+                    do { datas.append(try Data(contentsOf: url)) }
+                    catch { failed.append(url.lastPathComponent) }
+                }
+                return (datas, failed)
+            }.value
+            append(result.0, into: attachments, onError: onError)
+            if !result.1.isEmpty {
+                onError("Couldn't read \(result.1.joined(separator: ", ")).")
             }
         }
     }
