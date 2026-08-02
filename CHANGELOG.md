@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.18] - 2026-08-02
+
+### Changed
+
+- The main window now opens into a roomier balanced workspace, with a wider
+  composer and equal Mastodon and Bluesky feed columns.
+- Feed headers are now compact single rows: switch feeds from the title menu,
+  open notifications from the persistent bell and unread badge, and find
+  secondary feed actions in the overflow menu.
+- The composer stays top-anchored with a compact trailing Post button, while
+  denser timeline typography, spacing, avatars, and media show more posts
+  without changing expanded post views.
+
 ## [0.4.17] - 2026-07-18
 
 ### Fixed
@@ -473,6 +486,7 @@ Initial release.
 - Keychain-backed credential storage.
 - Signed and notarized Developer ID release builds produced by CI.
 
+[0.4.18]: https://github.com/jamtur01/CrossPost/releases/tag/v0.4.18
 [0.4.17]: https://github.com/jamtur01/CrossPost/releases/tag/v0.4.17
 [0.4.16]: https://github.com/jamtur01/CrossPost/releases/tag/v0.4.16
 [0.4.15]: https://github.com/jamtur01/CrossPost/releases/tag/v0.4.15
