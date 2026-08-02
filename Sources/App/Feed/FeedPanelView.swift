@@ -78,50 +78,141 @@ struct FeedPanelView: View {
     // MARK: Headers
 
     private var platformHeader: some View {
-        VStack(alignment: .leading, spacing: 9) {
-            HStack(spacing: 7) {
-                Image(systemName: model.target.glyph)
-                    .font(.system(size: 15))
-                    .foregroundStyle(accent)
-                Text(model.target.displayName).font(Theme.columnTitle)
-                Spacer()
-                if model.isLoading { ProgressView().controlSize(.small).scaleEffect(0.8) }
-                headerIcon("magnifyingglass", help: "Search") { routes.append(.search) }
-                savedMenu
-                headerIcon("person.crop.circle", help: "My profile") { routes.append(.profile(myRef)) }
-                headerIcon("arrow.clockwise", help: "Refresh") { model.refresh() }
+        HStack(spacing: 8) {
+            feedTitleMenu
+            notificationButton
+            Spacer(minLength: 8)
+            if model.isLoading {
+                ProgressView().controlSize(.small).scaleEffect(0.8)
             }
-
-            HStack(spacing: 8) {
-                FeedTabBar(kinds: availableKinds,
-                           selection: Binding(get: { model.kind }, set: { model.switchTo($0) }),
-                           accent: accent, unreadCount: model.unreadCount)
-                Spacer()
+            headerIcon("magnifyingglass", help: "Search") {
+                routes.append(.search)
             }
+            overflowMenu
         }
-        .padding(.horizontal, Theme.headerPaddingH).padding(.top, 10).padding(.bottom, 9)
+        .padding(.horizontal, Theme.headerPaddingH)
+        .frame(height: 40)
         .barSurface()
     }
 
-    /// Bookmarks (Mastodon only) and Likes for the signed-in user.
-    private var savedMenu: some View {
+    private var feedTitleMenu: some View {
+        Menu {
+            ForEach(availableKinds) { kind in
+                Button {
+                    model.switchTo(kind)
+                } label: {
+                    if kind == model.kind {
+                        Label(feedMenuTitle(for: kind), systemImage: "checkmark")
+                    } else {
+                        Text(feedMenuTitle(for: kind))
+                    }
+                }
+                .accessibilityLabel(feedMenuAccessibilityLabel(for: kind))
+                .accessibilityAddTraits(kind == model.kind ? .isSelected : [])
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: model.target.glyph)
+                    .font(.system(size: 15))
+                    .foregroundStyle(accent)
+                Text(model.kind.title)
+                    .font(Theme.columnTitle)
+                    .foregroundStyle(.primary)
+            }
+            .contentShape(Rectangle())
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.visible)
+        .fixedSize()
+        .accessibilityLabel(feedTitleAccessibilityLabel)
+        .accessibilityHint("Choose a feed")
+        .help("Switch feed")
+    }
+
+    private var notificationButton: some View {
+        Button {
+            model.switchTo(.notifications)
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: model.kind == .notifications ? "bell.fill" : "bell")
+                    .font(.system(size: 12, weight: .medium))
+                if model.unreadCount > 0 {
+                    UnreadBadge(count: model.unreadCount)
+                }
+            }
+            .foregroundStyle(model.kind == .notifications ? accent : .secondary)
+        }
+        .buttonStyle(.borderless)
+        .fixedSize()
+        .accessibilityLabel("Notifications")
+        .accessibilityValue(
+            model.unreadCount > 0
+                ? "\(model.unreadCount) unread"
+                : "No unread notifications"
+        )
+        .accessibilityAddTraits(model.kind == .notifications ? .isSelected : [])
+        .help(
+            model.unreadCount > 0
+                ? "Notifications (\(model.unreadCount) unread)"
+                : "Notifications"
+        )
+    }
+
+    private var feedTitleAccessibilityLabel: String {
+        let currentFeed = "\(model.target.displayName), current feed: \(model.kind.title)"
+        guard model.unreadCount > 0 else { return currentFeed }
+        return "\(currentFeed), \(model.unreadCount) unread notifications"
+    }
+
+    private func feedMenuTitle(for kind: FeedKind) -> String {
+        if kind == .notifications, model.unreadCount > 0 {
+            return "\(kind.title) (\(model.unreadCount))"
+        }
+        return kind.title
+    }
+
+    private func feedMenuAccessibilityLabel(for kind: FeedKind) -> String {
+        if kind == .notifications, model.unreadCount > 0 {
+            return "\(kind.title), \(model.unreadCount) unread"
+        }
+        return kind.title
+    }
+
+    private var overflowMenu: some View {
         Menu {
             if model.target == .mastodon {
-                Button { routes.append(.saved(.bookmarks)) } label: {
+                Button {
+                    routes.append(.saved(.bookmarks))
+                } label: {
                     Label("Bookmarks", systemImage: "bookmark")
                 }
             }
-            Button { routes.append(.saved(.likes)) } label: {
+            Button {
+                routes.append(.saved(.likes))
+            } label: {
                 Label("Likes", systemImage: "heart")
             }
+            Button {
+                routes.append(.profile(myRef))
+            } label: {
+                Label("My Profile", systemImage: "person.crop.circle")
+            }
+            Divider()
+            Button {
+                model.refresh()
+            } label: {
+                Label("Refresh", systemImage: "arrow.clockwise")
+            }
         } label: {
-            Image(systemName: "bookmark").font(.system(size: 13, weight: .medium))
+            Image(systemName: "ellipsis")
+                .font(.system(size: 13, weight: .medium))
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
         .fixedSize()
         .foregroundStyle(.secondary)
-        .help("Saved posts")
+        .accessibilityLabel("More feed actions")
+        .help("More feed actions")
     }
 
     private func headerIcon(_ symbol: String, help: String,
@@ -143,7 +234,8 @@ struct FeedPanelView: View {
             Text(navTitle).font(Theme.columnTitle).lineLimit(1)
             Spacer()
         }
-        .padding(.horizontal, Theme.headerPaddingH).padding(.vertical, 11)
+        .padding(.horizontal, Theme.headerPaddingH)
+        .frame(height: 40)
         .barSurface()
     }
 

@@ -143,7 +143,9 @@ struct AvatarView: View {
 struct SkeletonRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: Theme.gutter) {
-            Circle().fill(Color.primary.opacity(0.06)).frame(width: Theme.avatar, height: Theme.avatar)
+            Circle()
+                .fill(Color.primary.opacity(0.06))
+                .frame(width: Theme.timelineAvatar, height: Theme.timelineAvatar)
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 8) {
                     bar(width: 120, height: 11)
@@ -154,8 +156,8 @@ struct SkeletonRow: View {
                 bar(width: 180, height: 10)
             }
         }
-        .padding(.horizontal, Theme.rowPaddingH)
-        .padding(.vertical, Theme.rowPaddingV)
+        .padding(.horizontal, Theme.timelineRowPaddingH)
+        .padding(.vertical, Theme.timelineRowPaddingV)
         .shimmering()
         .accessibilityHidden(true)
     }
@@ -171,9 +173,9 @@ struct SkeletonRow: View {
 /// A relative ("2 minutes", "1 hour") timestamp in the shared meta styling. The
 /// `.relative` Text *style* self-updates as time passes; a one-shot formatted
 /// Text would render once and go stale in long-lived rows.
-func relativeTimestamp(_ date: Date) -> some View {
+func relativeTimestamp(_ date: Date, font: Font = Theme.meta) -> some View {
     Text(date, style: .relative)
-        .font(Theme.meta).foregroundStyle(.tertiary).fixedSize()
+        .font(font).foregroundStyle(.tertiary).fixedSize()
 }
 
 /// An unread-count pill in the system style: red, bold white text, circular for a
@@ -191,52 +193,6 @@ struct UnreadBadge: View {
                 .frame(minWidth: 16, minHeight: 16)
                 .background(Capsule().fill(.red))
         }
-    }
-}
-
-/// A segmented tab selector that can badge an individual tab — the reason it exists
-/// instead of `Picker(.segmented)`, which can't attach a view to a segment. The
-/// selected tab fills with the column accent (matching the app's tinted-segment
-/// look); the Notifications tab carries its unread count inline so the badge is
-/// unambiguously its own, not the neighbouring tab's.
-struct FeedTabBar: View {
-    let kinds: [FeedKind]
-    @Binding var selection: FeedKind
-    let accent: Color
-    let unreadCount: Int
-
-    var body: some View {
-        HStack(spacing: 2) {
-            ForEach(kinds) { tab($0) }
-        }
-        .padding(2)
-        .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
-            .fill(Color.primary.opacity(0.06)))
-        .fixedSize()
-    }
-
-    private func tab(_ kind: FeedKind) -> some View {
-        let selected = kind == selection
-        return Button { selection = kind } label: {
-            HStack(spacing: 5) {
-                Text(kind.title)
-                    .font(.system(size: 12, weight: selected ? .semibold : .medium))
-                if kind == .notifications { UnreadBadge(count: unreadCount) }
-            }
-            .foregroundStyle(selected ? Color.white : Color.primary.opacity(0.8))
-            .padding(.horizontal, 11)
-            .padding(.vertical, 4)
-            .contentShape(Rectangle())
-            .background {
-                if selected {
-                    RoundedRectangle(cornerRadius: 6, style: .continuous).fill(accent)
-                }
-            }
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(kind == .notifications && unreadCount > 0
-                            ? "\(kind.title), \(unreadCount) unread" : kind.title)
-        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }
 

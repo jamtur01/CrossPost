@@ -6,7 +6,6 @@ struct PostCardView: View {
     let index: Int
     let limit: Int
     var showLabel: Bool = true   // "Post N" + remove (thread mode)
-    var fills: Bool = false      // editor expands to fill available height
     let canRemove: Bool
     let onRemove: () -> Void
     var onError: (String) -> Void = { _ in }
@@ -55,7 +54,6 @@ struct PostCardView: View {
             }
         }
         .padding(14)
-        .frame(maxHeight: fills ? .infinity : nil)
         .cardSurface()
         .overlay {
             if isDropTarget {
@@ -78,7 +76,7 @@ struct PostCardView: View {
 
     private var editor: some View {
         PlainTextEditor(text: $post.text)
-            .frame(minHeight: fills ? 160 : 90, maxHeight: fills ? .infinity : 200)
+            .frame(minHeight: 90, maxHeight: 200)
             .overlay(alignment: .topLeading) {
                 if post.text.isEmpty {
                     Text("What's on your mind?")

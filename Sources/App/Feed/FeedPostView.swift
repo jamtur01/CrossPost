@@ -38,6 +38,33 @@ struct FeedPostView: View {
     // simply leaves images non-poppable rather than crashing.
     @Environment(ImageLightbox.self) private var lightbox: ImageLightbox?
 
+    private var bodyFont: Font {
+        if expanded { return Theme.contentLarge }
+        return inTimeline ? Theme.timelineContent : Theme.content
+    }
+
+    private var authorNameFont: Font {
+        if expanded { return Theme.nameLarge }
+        return inTimeline ? Theme.timelineName : Theme.name
+    }
+
+    private var authorHandleFont: Font {
+        inTimeline ? Theme.timelineHandle : Theme.handle
+    }
+
+    private var metadataFont: Font {
+        inTimeline ? Theme.timelineMeta : Theme.meta
+    }
+
+    private var contextFont: Font {
+        inTimeline ? Theme.timelineContext : Theme.context
+    }
+
+    private var avatarSize: CGFloat {
+        if expanded { return Theme.avatarLarge }
+        return inTimeline ? Theme.timelineAvatar : Theme.avatar
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.componentSpacing) {
             contextLine
@@ -52,8 +79,8 @@ struct FeedPostView: View {
             }
             if showActions { actionBar }
         }
-        .padding(.horizontal, inTimeline ? Theme.rowPaddingH : 0)
-        .padding(.vertical, inTimeline ? Theme.rowPaddingV : 0)
+        .padding(.horizontal, inTimeline ? Theme.timelineRowPaddingH : 0)
+        .padding(.vertical, inTimeline ? Theme.timelineRowPaddingV : 0)
         .background(rowBackground)
         .overlay(alignment: .bottom) {
             if inTimeline { Divider().opacity(0.5) }
@@ -83,8 +110,7 @@ struct FeedPostView: View {
     /// a drag selects text while a plain click still falls through to open the thread.
     private var bodyText: some View {
         PostBody(text: post.text, accent: accent, cacheKey: post.id,
-                 font: expanded ? Theme.contentLarge : Theme.content,
-                 onOpenURL: onOpenURL)
+                 font: bodyFont, onOpenURL: onOpenURL)
     }
 
     @ViewBuilder
@@ -92,14 +118,14 @@ struct FeedPostView: View {
         if post.isReply, let onShowParent {
             Button(action: onShowParent) {
                 Label("In reply to a post", systemImage: "arrowshape.turn.up.left.fill")
-                    .font(Theme.context)
+                    .font(contextFont)
                     .foregroundStyle(accent)
             }
             .buttonStyle(.plain)
         }
         if let boostedBy = post.boostedBy {
             Label("\(boostedBy) boosted", systemImage: "arrow.2.squarepath")
-                .font(Theme.context)
+                .font(contextFont)
                 .foregroundStyle(.secondary)
         }
     }
@@ -108,14 +134,14 @@ struct FeedPostView: View {
         HStack(alignment: .top, spacing: 10) {
             Button(action: onOpenProfile) {
                 HStack(alignment: .top, spacing: 10) {
-                    AvatarView(url: post.avatarURL, size: expanded ? Theme.avatarLarge : Theme.avatar)
+                    AvatarView(url: post.avatarURL, size: avatarSize)
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text(post.authorName)
-                            .font(expanded ? Theme.nameLarge : Theme.name)
+                            .font(authorNameFont)
                             .lineLimit(1)
                         Text(post.authorHandle)
-                            .font(Theme.handle)
+                            .font(authorHandleFont)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                     }
@@ -128,12 +154,12 @@ struct FeedPostView: View {
             Spacer(minLength: 6)
             if let visibility = visibilityBadge {
                 Image(systemName: visibility.symbol)
-                    .font(Theme.meta)
+                    .font(metadataFont)
                     .foregroundStyle(.tertiary)
                     .help(visibility.label)
                     .accessibilityLabel(visibility.label)
             }
-            relativeTimestamp(post.date)
+            relativeTimestamp(post.date, font: metadataFont)
         }
     }
 
@@ -176,16 +202,16 @@ struct FeedPostView: View {
             case 1:
                 mediaView(imgs[0], fit: true)
                     .frame(maxWidth: .infinity)
-                    .frame(maxHeight: 340)
+                    .frame(maxHeight: 300)
             case 2:
                 HStack(spacing: 3) { gridTile(imgs[0]); gridTile(imgs[1]) }
-                    .frame(height: 200)
+                    .frame(height: 180)
             case 3:
                 HStack(spacing: 3) {
                     gridTile(imgs[0])
                     VStack(spacing: 3) { gridTile(imgs[1]); gridTile(imgs[2]) }
                 }
-                .frame(height: 240)
+                .frame(height: 220)
             default:
                 VStack(spacing: 3) {
                     HStack(spacing: 3) { gridTile(imgs[0]); gridTile(imgs[1]) }
@@ -194,7 +220,7 @@ struct FeedPostView: View {
                         gridTile(imgs[3]).overlay { overflowBadge(extra: imgs.count - 4) }
                     }
                 }
-                .frame(height: 280)
+                .frame(height: 250)
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: Theme.mediaCorner, style: .continuous))

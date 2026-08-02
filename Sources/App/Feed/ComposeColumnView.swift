@@ -26,21 +26,19 @@ struct ComposeColumnView: View {
                 Text("New Post").font(Theme.columnTitle)
                 Spacer()
             }
-            .padding(.horizontal, Theme.headerPaddingH).padding(.top, 10).padding(.bottom, 9)
-            .background(.bar)
-
-            Divider()
+            .padding(.horizontal, Theme.headerPaddingH)
+            .frame(height: 40)
+            .barSurface()
 
             if model.thread.count == 1 {
                 VStack(spacing: 12) {
                     PostCardView(post: $model.thread[0], index: 0, limit: limit,
-                                 showLabel: false, fills: true,
-                                 canRemove: false, onRemove: {},
+                                 showLabel: false, canRemove: false, onRemove: {},
                                  onError: { model.errorMessage = $0 })
-                        .frame(maxHeight: .infinity)
                     addThreadButton(model)
                 }
                 .padding(14)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             } else {
                 ScrollView {
                     VStack(spacing: 12) {
@@ -89,35 +87,42 @@ struct ComposeColumnView: View {
                 Text(error).font(.caption).foregroundStyle(.red)
             }
 
-            if model.selectedTargets.contains(.mastodon) {
-                HStack(spacing: 6) {
-                    Image(systemName: PostTarget.mastodon.glyph)
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                    VisibilityMenu(visibility: $model.visibility, accent: PostTarget.mastodon.accent)
-                    Spacer()
-                }
-            }
-
             HStack(spacing: 8) {
                 Spacer(minLength: 0)
                 ForEach(PostTarget.allCases) { target in
                     let selected = model.selectedTargets.contains(target)
-                    targetPill(target, selected: selected, posted: !selected && model.isLocked(target)) {
+                    targetPill(
+                        target,
+                        selected: selected,
+                        posted: !selected && model.isLocked(target)
+                    ) {
                         model.toggle(target)
                     }
                 }
                 Spacer(minLength: 0)
             }
 
-            Button { Task { await model.submit() } } label: {
-                Text(model.isPosting ? "Posting…" : "Post")
-                    .frame(maxWidth: .infinity)
+            HStack(spacing: 6) {
+                if model.selectedTargets.contains(.mastodon) {
+                    Image(systemName: PostTarget.mastodon.glyph)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                    VisibilityMenu(
+                        visibility: $model.visibility,
+                        accent: PostTarget.mastodon.accent
+                    )
+                }
+
+                Spacer()
+
+                Button { Task { await model.submit() } } label: {
+                    Text(model.isPosting ? "Posting…" : "Post")
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .keyboardShortcut(.return, modifiers: .command)
+                .disabled(!model.canPost)
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .keyboardShortcut(.return, modifiers: .command)
-            .disabled(!model.canPost)
         }
         .padding(.horizontal, 14).padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -128,25 +133,34 @@ struct ComposeColumnView: View {
                             action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 5) {
-                Image(systemName: posted ? "checkmark.circle.fill" : target.glyph).font(.system(size: 12))
-                Text(target.displayName).font(.system(size: 12.5, weight: .medium))
+                Image(systemName: posted ? "checkmark.circle.fill" : target.glyph)
+                    .font(.system(size: 12))
+                Text(target.displayName)
+                    .font(.system(size: 12, weight: .medium))
             }
             .lineLimit(1)
             .fixedSize()
             .opacity(posted ? 0.55 : 1)
-            .padding(.horizontal, 10).padding(.vertical, 5)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
             .foregroundStyle(selected ? target.accent : .secondary)
             .background(
                 Capsule(style: .continuous)
-                    .fill(selected ? target.accent.opacity(0.14) : Color.primary.opacity(0.05)))
+                    .fill(selected ? target.accent.opacity(0.10) : Theme.hoverFill))
             .overlay(
                 Capsule(style: .continuous)
-                    .strokeBorder(selected ? target.accent.opacity(0.45) : Color.primary.opacity(0.08),
-                                  lineWidth: 1))
+                    .strokeBorder(
+                        selected ? target.accent.opacity(0.30) : Theme.hairline,
+                        lineWidth: 0.75
+                    ))
         }
         .buttonStyle(.plain)
         .animation(.snappy(duration: 0.15), value: selected)
-        .help(selected ? "Posting to \(target.displayName)" : "Not posting to \(target.displayName)")
+        .help(
+            selected
+                ? "Posting to \(target.displayName)"
+                : "Not posting to \(target.displayName)"
+        )
     }
 
     /// A draft's position in the thread. The ForEach iterates the same array the

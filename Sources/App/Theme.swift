@@ -26,6 +26,11 @@ extension PostTarget {
 enum Theme {
     // Typography
     static let columnTitle = Font.system(size: 15, weight: .semibold)
+    static let timelineContent = Font.system(size: 14)
+    static let timelineName = Font.system(size: 14, weight: .semibold)
+    static let timelineHandle = Font.system(size: 12.5)
+    static let timelineMeta = Font.system(size: 11.5)
+    static let timelineContext = Font.system(size: 11.5, weight: .medium)
     static let content = Font.system(size: 15)                        // post body
     static let contentLarge = Font.system(size: 18)                   // detail body
     static let name = Font.system(size: 14.5, weight: .semibold)
@@ -38,12 +43,15 @@ enum Theme {
     static let sectionHeader = Font.system(size: 11, weight: .semibold) // "People" / "Pinned"
 
     // Metrics (8pt-ish grid)
+    static let timelineRowPaddingH: CGFloat = 14
+    static let timelineRowPaddingV: CGFloat = 10
     static let rowPaddingH: CGFloat = 16
     static let rowPaddingV: CGFloat = 12
     static let headerPaddingH: CGFloat = 14
     static let componentSpacing: CGFloat = 6
     static let gutter: CGFloat = 10                                   // avatar → content
     static let actionGap: CGFloat = 20                               // between action buttons
+    static let timelineAvatar: CGFloat = 40
     static let avatar: CGFloat = 44
     static let avatarSmall: CGFloat = 42                              // list rows (search/followers)
     static let avatarLarge: CGFloat = 54
@@ -62,11 +70,10 @@ enum Theme {
     static let repostTint = Color.green
 }
 
-/// A layered, softly bordered surface — the macOS card look (hairline definition
-/// edge + soft shadow, no heavy border). Used for the compose card and previews.
+/// A softly bordered semantic surface used for the compose card and previews.
 private struct CardSurface: ViewModifier {
     var corner: CGFloat = Theme.cardCorner
-    @Environment(\.colorScheme) private var colorScheme
+
     func body(content: Content) -> some View {
         content
             .background(
@@ -75,8 +82,6 @@ private struct CardSurface: ViewModifier {
             .overlay(
                 RoundedRectangle(cornerRadius: corner, style: .continuous)
                     .strokeBorder(Theme.hairline, lineWidth: 0.75))
-            // Shadows read weaker on dark backgrounds, so deepen them there.
-            .shadow(color: .black.opacity(colorScheme == .dark ? 0.22 : 0.06), radius: 6, y: 2)
     }
 }
 

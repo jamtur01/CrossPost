@@ -8,7 +8,7 @@ struct CrossPostApp: App {
         WindowGroup("CrossPost") {
             MainView().environmentObject(store)
         }
-        .defaultSize(width: 1180, height: 720)
+        .defaultSize(width: 1480, height: 880)
         .windowResizability(.contentMinSize)
         .windowToolbarStyle(.unified)
         .commands {
