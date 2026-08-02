@@ -11,9 +11,11 @@ struct MainView: View {
 
     var body: some View {
         HSplitView {
+            // Keep the authoring surface useful on launch. The previous 240pt
+            // floor let the feed group consume surplus width and squash Compose.
             ComposeColumnView()
                 .environmentObject(store)
-                .frame(minWidth: 240, idealWidth: 320, maxWidth: 380)
+                .frame(minWidth: 390, idealWidth: 400, maxWidth: 480)
 
             // The two feeds share the remaining space equally (each maxWidth:
             // .infinity), so they are always exactly the same size.
@@ -25,7 +27,7 @@ struct MainView: View {
             // Each feed stays legible: ~290pt min per column side-by-side.
             .frame(minWidth: 580)
         }
-        .frame(minWidth: 840, minHeight: 560)
+        .frame(minWidth: 980, minHeight: 560)
         .environment(lightbox)
         .overlay { ImageLightboxOverlay(lightbox: lightbox) }
         .onAppear {
