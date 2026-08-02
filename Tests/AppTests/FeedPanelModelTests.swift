@@ -452,7 +452,8 @@ final class FeedPanelModelTests: XCTestCase {
         model?.start()
         await waitUntil { fake.liveUpdatesCalls == 1 }        // the loop is inside the stream
 
-        weak let weakModel = model
+        weak var weakModel: FeedPanelModel?
+        weakModel = model
         model = nil                                           // discarded without stop()
         await waitUntil { weakModel == nil }
         continuation?.finish()
