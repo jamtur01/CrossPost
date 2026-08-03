@@ -20,7 +20,12 @@ extension FeedPostView {
                     ForEach(post.images) { media in
                         mediaView(media, fit: true)
                             .frame(maxWidth: .infinity)
-                            .clipShape(RoundedRectangle(cornerRadius: Theme.mediaCorner, style: .continuous))
+                            .clipShape(
+                                RoundedRectangle(
+                                    cornerRadius: Theme.mediaCorner,
+                                    style: .continuous
+                                )
+                            )
                     }
                 }
             } else {
@@ -129,7 +134,9 @@ extension FeedPostView {
                     targetSize: CGSize(width: 160, height: 160)
                 ) { $0.resizable().scaledToFill() } placeholder: { Color.clear }
                     .frame(width: 80, height: 80)
-                    .clipShape(RoundedRectangle(cornerRadius: Theme.mediaCorner, style: .continuous))
+                    .clipShape(
+                        RoundedRectangle(cornerRadius: Theme.mediaCorner, style: .continuous)
+                    )
             }
     }
 
