@@ -5,7 +5,7 @@ struct CrossPostApp: App {
     @StateObject private var store = AccountStore()
 
     var body: some Scene {
-        WindowGroup("CrossPost") {
+        Window("CrossPost", id: "main") {
             MainView().environmentObject(store)
         }
         .defaultSize(width: 1480, height: 880)
