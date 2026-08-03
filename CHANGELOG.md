@@ -7,16 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.19] - 2026-08-03
+
+### Changed
+
+- Remote images now use a shared, bounded, downsampled cache; concurrent requests
+  are coalesced, attachment thumbnails are prepared off the main thread, and
+  animated images are decoded within display-sized limits.
+- Videos and animated media pause when their window is not visible, feed refresh
+  bursts are coalesced, and unchanged snapshots are no longer republished.
+- Long conversations reveal replies in bounded groups instead of rendering the
+  entire thread at once.
+- CrossPost now keeps one primary feed window so duplicate windows cannot run
+  competing polling and streaming sessions.
+
 ### Fixed
 
-- Switching feeds or credentials while loads, live reconnects, service creation,
-  or mutations are in flight no longer lets stale work overwrite the new view.
+- Switching feeds, credentials, routes, or searches while work is in flight no
+  longer lets stale loads, live reconnects, service creation, or mutations
+  overwrite the current view.
 - Notification follow, like, and repost actions are canceled when their row or
   account lifecycle ends, preventing late success, rollback, or error updates.
 - Profile sections, conversations, and notifications now preserve loaded data
   and show contextual retry errors when only part of a refresh fails.
 - Feed panels now release polling, streaming, transfer, and service-build work
   when their views close instead of retaining stale providers or models.
+- Mastodon quote cards now use the quoted post's media previews.
 
 ## [0.4.18] - 2026-08-02
 
@@ -497,6 +513,7 @@ Initial release.
 - Keychain-backed credential storage.
 - Signed and notarized Developer ID release builds produced by CI.
 
+[0.4.19]: https://github.com/jamtur01/CrossPost/releases/tag/v0.4.19
 [0.4.18]: https://github.com/jamtur01/CrossPost/releases/tag/v0.4.18
 [0.4.17]: https://github.com/jamtur01/CrossPost/releases/tag/v0.4.17
 [0.4.16]: https://github.com/jamtur01/CrossPost/releases/tag/v0.4.16
