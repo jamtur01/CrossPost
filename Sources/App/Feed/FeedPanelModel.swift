@@ -22,6 +22,9 @@ final class FeedPanelModel: OptimisticPostHost {
 
     private let store: AccountStore
     private let makeService: @MainActor (PostTarget, AccountStore) async throws -> FeedService
+    @ObservationIgnored var applicationIsActive: @MainActor () -> Bool = {
+        NSApplication.shared.isActive
+    }
     private var service: FeedService?
     private var serviceTask: Task<FeedService, Error>?
     private var loadTask: Task<Void, Never>?
@@ -29,6 +32,13 @@ final class FeedPanelModel: OptimisticPostHost {
     private var liveTask: Task<Void, Never>?
     private var unreadTask: Task<Void, Never>?
     private var followStateTask: Task<Void, Never>?
+    private var profileLinkTask: Task<Void, Never>?
+    private var actionErrorTask: Task<Void, Never>?
+    private var pendingLoad: LoadRequest?
+    private var activeLoadID: UUID?
+    private var unreadRefreshPending = false
+    private var unreadTaskID: UUID?
+    private var isLiveConnected = false
     var inFlight: Set<String> = []   // post ids with an in-flight like/repost/delete/etc.
     /// Identity of the banner the running dismiss timer belongs to. Keyed by token,
     /// not message text, so a renewed identical banner gets a fresh timeout instead
@@ -69,50 +79,62 @@ final class FeedPanelModel: OptimisticPostHost {
         startLiveUpdates()
     }
 
-    /// Subscribe to the platform's live stream (Mastodon); each signal refreshes the
-    /// current feed. enqueueLoad supersedes in-flight loads, so bursts coalesce.
+    /// Subscribe to Mastodon's live stream. Each event requests a refresh; the load
+    /// coordinator permits one active request and one trailing request for a burst.
     private func startLiveUpdates() {
         liveTask?.cancel()
-        guard target == .mastodon else { return }   // only Mastodon has a usable user stream
+        guard target == .mastodon else { return }
         liveTask = Task { [weak self] in
             var backoff: UInt64 = 2_000_000_000
             while !Task.isCancelled {
-                // Re-acquire self at every step: holding it across the unbounded
-                // stream iteration would keep a discarded model alive forever.
                 var stream: AsyncStream<Void>?
                 if let self, let service = try? await self.resolveService() {
                     stream = await service.liveUpdates()
                 }
                 if let stream {
-                    backoff = 2_000_000_000   // reset after a successful connection
+                    self?.isLiveConnected = true
+                    backoff = 2_000_000_000
                     for await _ in stream {
-                        if Task.isCancelled { break }   // a cancelled stream mustn't keep driving loads
+                        if Task.isCancelled { break }
                         guard let self else { break }
-                        if NSApplication.shared.isActive {
+                        if self.applicationIsActive() {
                             self.enqueueLoad(reset: false, userInitiated: false)
                             self.refreshUnreadCount()
                         }
                     }
+                    self?.isLiveConnected = false
                 }
-                // Stream ended (socket dropped) or failed to open — back off and retry,
-                // unless the model is gone and there is nothing left to update.
                 if Task.isCancelled || self == nil { break }
-                Log.feed.debug("mastodon live stream dropped; reconnecting in \(backoff / 1_000_000_000, privacy: .public)s")
+                let delay = "\(backoff / 1_000_000_000)s"
+                Log.feed.debug(
+                    "mastodon live stream dropped; reconnecting in \(delay, privacy: .public)"
+                )
                 try? await Task.sleep(nanoseconds: backoff)
                 backoff = min(backoff * 2, 60_000_000_000)
             }
         }
     }
 
+    private struct LoadRequest {
+        var reset: Bool
+        var userInitiated: Bool
+
+        mutating func merge(_ newer: LoadRequest) {
+            reset = reset || newer.reset
+            userInitiated = userInitiated || newer.userInitiated
+        }
+    }
     func switchTo(_ newKind: FeedKind) {
         guard newKind != kind else { return }
+        cancelUnreadRefresh()
+        cancelLoads()
         kind = newKind
         posts = []
         notifications = []
         conversations = []
         errorMessage = nil
         enqueueLoad(reset: true, userInitiated: false)
-        refreshUnreadCount()   // refresh the badge when leaving the notifications tab
+        refreshUnreadCount()
     }
 
     func refresh() {
@@ -136,71 +158,114 @@ final class FeedPanelModel: OptimisticPostHost {
         refreshUnreadCount()
     }
 
-    /// Start a load, superseding any in-flight one (so a user action isn't dropped
-    /// by a slow background poll). `userInitiated` distinguishes a refresh the user
-    /// asked for (worth a transient error banner) from a silent background poll.
+    /// Queue a load without allowing refresh bursts to fan out into parallel requests.
+    /// One active request may be followed by one merged trailing request.
     private func enqueueLoad(reset: Bool, userInitiated: Bool) {
+        let request = LoadRequest(reset: reset, userInitiated: userInitiated)
+        guard loadTask == nil else {
+            if pendingLoad == nil {
+                pendingLoad = request
+            } else {
+                pendingLoad?.merge(request)
+            }
+            return
+        }
+        startLoad(request)
+    }
+
+    private func startLoad(_ request: LoadRequest) {
+        let id = UUID()
+        activeLoadID = id
+        isLoading = true
+        loadTask = Task { [weak self] in
+            guard let self else { return }
+            await self.load(reset: request.reset, userInitiated: request.userInitiated)
+            self.finishLoad(id: id)
+        }
+    }
+
+    private func finishLoad(id: UUID) {
+        guard activeLoadID == id else { return }
+        loadTask = nil
+        activeLoadID = nil
+        if let pendingLoad {
+            self.pendingLoad = nil
+            startLoad(pendingLoad)
+        } else {
+            isLoading = false
+        }
+    }
+
+    private func cancelLoads() {
         loadTask?.cancel()
-        loadTask = Task { await load(reset: reset, userInitiated: userInitiated) }
+        loadTask = nil
+        activeLoadID = nil
+        pendingLoad = nil
+        isLoading = false
     }
 
     private func load(reset: Bool, userInitiated: Bool) async {
         guard hasCredentials else { needsCredentials = true; return }
         if Task.isCancelled { return }
         needsCredentials = false
-        isLoading = true
-        // A superseded load must not clear the spinner the live load owns.
-        defer { if !Task.isCancelled { isLoading = false } }
         do {
-            let svc = try await resolveService()
-            if kind == .notifications {
-                let fetched = try await svc.notifications()
-                if Task.isCancelled { return }
-                errorMessage = nil
-                notifications = fetched
-                refreshFollowStates(for: fetched, service: svc)
-                // Only clear the badge once the server confirms the read; a failed
-                // mark must not falsely zero it. Cancel any in-flight unread fetch so
-                // a stale count can't resurrect the badge after we clear it. A load
-                // superseded by a tab switch must do neither — zeroing here would
-                // clobber the successor tab's badge state.
-                if (try? await svc.markNotificationsRead(upTo: fetched.first)) != nil,
-                   !Task.isCancelled {
-                    unreadTask?.cancel()
-                    unreadCount = 0
-                }
-            } else if kind == .messages {
-                let fetched = try await svc.conversations()
-                if Task.isCancelled { return }
-                errorMessage = nil
-                conversations = fetched
-            } else {
-                let fetched = try await svc.loadFeed(kind)
-                if Task.isCancelled { return }   // a newer load superseded this one
-                errorMessage = nil
-                posts = reset
-                    ? fetched
-                    // An in-flight id with no local row is mid-delete: exclude it so
-                    // this merge can't resurrect the row the user just removed.
-                    : FeedMerge.merge(existing: posts, fetched: fetched,
-                                      preservingIDs: inFlight,
-                                      excludingIDs: inFlight.subtracting(posts.lazy.map(\.id)))
+            let service = try await resolveService()
+            switch kind {
+            case .notifications:
+                try await loadNotifications(from: service)
+            case .messages:
+                try await loadConversations(from: service)
+            case .home:
+                try await loadPosts(reset: reset, from: service)
             }
         } catch {
-            if Task.isCancelled { return }
-            if currentCollectionIsEmpty {
-                // Nothing to show: a sticky explanation in the empty state is right.
-                errorMessage = error.userMessage
-            } else if userInitiated {
-                // We already have content; the user asked for a refresh, so give brief
-                // feedback that auto-dismisses instead of a banner that sticks forever.
-                reportError(error.userMessage)
-            }
-            // A background poll/live failure with content present stays silent for the
-            // user — the stale content stands and the next poll recovers — but log it
-            // so the otherwise-invisible failure is diagnosable.
-            Log.feed.error("\(self.target.rawValue, privacy: .public) \(self.kind.rawValue, privacy: .public) load failed: \(error)")
+            handleLoadError(error, userInitiated: userInitiated)
         }
+    }
+
+    private func loadNotifications(from service: FeedService) async throws {
+        let fetched = try await service.notifications()
+        if Task.isCancelled { return }
+        if errorMessage != nil { errorMessage = nil }
+        if notifications != fetched { notifications = fetched }
+        refreshFollowStates(for: fetched, service: service)
+        guard (try? await service.markNotificationsRead(upTo: fetched.first)) != nil,
+              !Task.isCancelled else { return }
+        cancelUnreadRefresh()
+        if unreadCount != 0 { unreadCount = 0 }
+    }
+
+    private func loadConversations(from service: FeedService) async throws {
+        let fetched = try await service.conversations()
+        if Task.isCancelled { return }
+        if errorMessage != nil { errorMessage = nil }
+        if conversations != fetched { conversations = fetched }
+    }
+
+    private func loadPosts(reset: Bool, from service: FeedService) async throws {
+        let fetched = try await service.loadFeed(kind)
+        if Task.isCancelled { return }
+        if errorMessage != nil { errorMessage = nil }
+        let next = reset
+            ? fetched
+            : FeedMerge.merge(
+                existing: posts,
+                fetched: fetched,
+                preservingIDs: inFlight,
+                excludingIDs: inFlight.subtracting(posts.lazy.map(\.id))
+            )
+        if posts != next { posts = next }
+    }
+
+    private func handleLoadError(_ error: Error, userInitiated: Bool) {
+        if Task.isCancelled { return }
+        if currentCollectionIsEmpty {
+            errorMessage = error.userMessage
+        } else if userInitiated {
+            reportError(error.userMessage)
+        }
+        let context = "\(target.rawValue) \(kind.rawValue)"
+        Log.feed.error("\(context, privacy: .public) load failed: \(error)")
     }
 
     /// Whether the collection backing the current tab has nothing in it, used to
@@ -213,18 +278,42 @@ final class FeedPanelModel: OptimisticPostHost {
         }
     }
 
-    /// Refresh the unread-notification badge in the background (does not disturb the feed).
+    /// Refresh the unread-notification badge without allowing event bursts to fan
+    /// out into parallel requests. One active request may have one trailing request.
     func refreshUnreadCount() {
         guard hasCredentials, kind != .notifications else { return }
-        unreadTask?.cancel()
-        unreadTask = Task {
-            if let svc = try? await resolveService(),
-               let count = try? await svc.unreadNotificationCount(),
-               !Task.isCancelled,
-               kind != .notifications {   // re-check: don't overwrite a just-cleared count
-                unreadCount = count
-            }
+        guard unreadTask == nil else {
+            unreadRefreshPending = true
+            return
         }
+        let id = UUID()
+        unreadTaskID = id
+        unreadTask = Task { [weak self] in
+            guard let self else { return }
+            let service = try? await self.resolveService()
+            let count = try? await service?.unreadNotificationCount()
+            self.finishUnreadRefresh(id: id, count: count)
+        }
+    }
+
+    private func finishUnreadRefresh(id: UUID, count: Int?) {
+        guard unreadTaskID == id else { return }
+        unreadTask = nil
+        unreadTaskID = nil
+        if let count, kind != .notifications, unreadCount != count {
+            unreadCount = count
+        }
+        if unreadRefreshPending {
+            unreadRefreshPending = false
+            refreshUnreadCount()
+        }
+    }
+
+    private func cancelUnreadRefresh() {
+        unreadTask?.cancel()
+        unreadTask = nil
+        unreadTaskID = nil
+        unreadRefreshPending = false
     }
 
     private func resolveService() async throws -> FeedService {
@@ -277,8 +366,12 @@ final class FeedPanelModel: OptimisticPostHost {
     /// everything else (articles, hashtags, unresolvable profiles) opens in the browser.
     func openLink(_ url: URL, push: @escaping (FeedRoute) -> Void) {
         guard isProfileLink(url) else { open(url); return }
-        Task {
-            if let ref = await profileRef(forURL: url) { push(.profile(ref)) } else { open(url) }
+        profileLinkTask?.cancel()
+        profileLinkTask = Task { [weak self] in
+            guard let self else { return }
+            let ref = await self.profileRef(forURL: url)
+            guard !Task.isCancelled else { return }
+            if let ref { push(.profile(ref)) } else { self.open(url) }
         }
     }
 
@@ -442,7 +535,10 @@ final class FeedPanelModel: OptimisticPostHost {
 
     /// Refresh the conversation list (last-message previews, ordering) after activity.
     func reloadConversations() async {
-        if let fetched = try? await resolveService().conversations() { conversations = fetched }
+        if let fetched = try? await resolveService().conversations(),
+           conversations != fetched {
+            conversations = fetched
+        }
     }
 
     /// Optimistically clear a conversation's unread dot when it's opened.
@@ -489,14 +585,24 @@ final class FeedPanelModel: OptimisticPostHost {
         actionError = message
         let token = UUID()
         actionErrorToken = token
-        Task {
-            try? await Task.sleep(nanoseconds: actionErrorDismissDelay)
-            if actionErrorToken == token { actionError = nil }
+        actionErrorTask?.cancel()
+        actionErrorTask = Task { [weak self] in
+            guard let self else { return }
+            do {
+                try await Task.sleep(nanoseconds: self.actionErrorDismissDelay)
+            } catch {
+                return
+            }
+            if self.actionErrorToken == token { self.actionError = nil }
         }
     }
 
     /// Dismiss the transient error banner immediately (tapping it).
-    func dismissActionError() { actionError = nil }
+    func dismissActionError() {
+        actionErrorTask?.cancel()
+        actionErrorTask = nil
+        actionError = nil
+    }
 
     private func startPolling() {
         pollTask?.cancel()
@@ -508,9 +614,10 @@ final class FeedPanelModel: OptimisticPostHost {
                 try? await Task.sleep(nanoseconds: interval)
                 if Task.isCancelled { break }
                 guard let self else { break }
-                // Only poll while the app is active, to avoid background churn.
-                if NSApplication.shared.isActive {
-                    self.enqueueLoad(reset: false, userInitiated: false)
+                if self.applicationIsActive() {
+                    if self.target != .mastodon || !self.isLiveConnected {
+                        self.enqueueLoad(reset: false, userInitiated: false)
+                    }
                     self.refreshUnreadCount()
                 }
             }
@@ -519,11 +626,13 @@ final class FeedPanelModel: OptimisticPostHost {
 
     func stop() {
         pollTask?.cancel(); pollTask = nil
-        loadTask?.cancel(); loadTask = nil
+        cancelLoads()
         liveTask?.cancel(); liveTask = nil
-        unreadTask?.cancel(); unreadTask = nil
+        isLiveConnected = false
+        cancelUnreadRefresh()
         followStateTask?.cancel(); followStateTask = nil
+        profileLinkTask?.cancel(); profileLinkTask = nil
+        actionErrorTask?.cancel(); actionErrorTask = nil
         serviceTask?.cancel(); serviceTask = nil
-        isLoading = false
     }
 }

@@ -27,8 +27,10 @@ final class FakeFeedService: FeedService, @unchecked Sendable {
     private(set) var reportPostCalls: [(reason: ReportReason, comment: String)] = []
     private(set) var reportAccountCalls: [(id: String, reason: ReportReason, comment: String)] = []
 
+    var loadDelay: (() async -> Void)?
     func loadFeed(_ kind: FeedKind) async throws -> [FeedPost] {
         loadFeedCalls += 1
+        if let loadDelay { await loadDelay() }
         if failLoad { throw FakeError.boom }
         return feed
     }

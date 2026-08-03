@@ -19,7 +19,9 @@ final class FeedPanelModelTests: XCTestCase {
         store.mastodonToken = "tok"
         store.blueskyHandle = "me.bsky.social"
         store.blueskyAppPassword = "pw"
-        return FeedPanelModel(target: target, store: store) { _, _ in fake }
+        let model = FeedPanelModel(target: target, store: store) { _, _ in fake }
+        model.applicationIsActive = { true }
+        return model
     }
 
     /// Polls observable model state until `predicate` holds, since the model's
@@ -457,6 +459,52 @@ final class FeedPanelModelTests: XCTestCase {
         model = nil                                           // discarded without stop()
         await waitUntil { weakModel == nil }
         continuation?.finish()
+    }
+
+    func testLiveBurstRunsOneActiveAndOnePendingFeedLoad() async {
+        let fake = FakeFeedService()
+        let gate = TestGate()
+        var continuation: AsyncStream<Void>.Continuation?
+        fake.liveStream = AsyncStream { continuation = $0 }
+        fake.loadDelay = { await gate.wait() }
+        let model = makeModel(fake)
+        model.start()
+        await waitUntil { gate.arrivals == 1 && fake.liveUpdatesCalls == 1 }
+
+        continuation?.yield()
+        continuation?.yield()
+        continuation?.yield()
+        try? await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertEqual(fake.loadFeedCalls, 1, "stream bursts must not start parallel feed loads")
+
+        fake.loadDelay = nil
+        gate.open()
+        await waitUntil { fake.loadFeedCalls == 2 }
+        try? await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertEqual(fake.loadFeedCalls, 2, "a burst needs at most one trailing refresh")
+        model.stop()
+        continuation?.finish()
+    }
+
+    func testUnchangedFeedRefreshDoesNotPublishPostsAgain() async {
+        let fake = FakeFeedService()
+        fake.feed = [TestFactory.feedPost(id: "same")]
+        let model = makeModel(fake)
+        model.start()
+        await waitUntil { model.posts == fake.feed }
+
+        let publication = expectation(description: "posts publication")
+        publication.isInverted = true
+        withObservationTracking {
+            _ = model.posts
+        } onChange: {
+            publication.fulfill()
+        }
+
+        model.refresh()
+        await waitUntil { fake.loadFeedCalls == 2 }
+        await fulfillment(of: [publication], timeout: 0.1)
+        model.stop()
     }
 
     // MARK: Search
