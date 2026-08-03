@@ -5,7 +5,7 @@ side. It opens into three columns — a composer plus a live feed for each netwo
 so you can write once and publish to both, and reply to, like, or repost individual
 posts without leaving the window.
 
-<img width="2888" height="1816" alt="Screenshoot 2026-06-07 at 20 09 43@2x" src="https://github.com/user-attachments/assets/11017e4e-2ef0-49a9-8963-51cf14453dba" />
+<img width="2928" height="1758" alt="Screenshoot 2026-08-03 at 09 42 37@2x" src="https://github.com/user-attachments/assets/02623f42-899d-496f-bae4-26fb9cdd1b83" />
 
 ## Features
 
