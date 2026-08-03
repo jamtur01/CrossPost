@@ -13,6 +13,7 @@ struct ThreadView: View {
     @State private var loading = true
     @State private var loadError: String?
 
+    @State private var replyDisclosure = ThreadReplyDisclosure()
     private var accent: Color { panel.target.accent }
 
     init(panel: FeedPanelModel, store: AccountStore, post: FeedPost,
@@ -32,6 +33,12 @@ struct ThreadView: View {
                             push: push, onReply: { replyTarget = $0 },
                             focused: row.id == focusedPost.id, showsParentLink: false)
                 }
+                if !loading, loadError == nil, replyDisclosure.remainingCount > 0 {
+                    Button(disclosureButtonTitle) {
+                        list.posts.append(contentsOf: replyDisclosure.revealNext())
+                    }
+                    .padding(.vertical, 12)
+                }
                 if loading {
                     ProgressView().controlSize(.small)
                         .frame(maxWidth: .infinity).padding(.vertical, 16)
@@ -49,6 +56,12 @@ struct ThreadView: View {
         }
     }
 
+    private var disclosureButtonTitle: String {
+        let nextCount = min(ThreadReplyDisclosure.chunkSize, replyDisclosure.remainingCount)
+        let unit = nextCount == 1 ? "reply" : "replies"
+        return "Show \(nextCount) more \(unit) (\(replyDisclosure.remainingCount) remaining)"
+    }
+
     private func load() async {
         loading = true
         loadError = nil
@@ -59,14 +72,49 @@ struct ThreadView: View {
             let live = panel.posts.first { $0.id == focusedPost.id } ?? focusedPost
             // Guard against a service returning the focused post inside its own
             // context, which would duplicate its id in the ForEach.
-            let ancestors = thread.ancestors.filter { $0.id != focusedPost.id }
-            let descendants = thread.descendants.filter { $0.id != focusedPost.id }
-            list.posts = ancestors + [live] + descendants
+            list.posts = replyDisclosure.replace(
+                ancestors: thread.ancestors,
+                focused: live,
+                descendants: thread.descendants
+            )
         } catch {
             let live = panel.posts.first { $0.id == focusedPost.id } ?? focusedPost
+            replyDisclosure.reset()
             list.posts = [live]   // keep the focused post; surface the context failure
             loadError = error.userMessage
         }
         loading = false
+    }
+}
+
+struct ThreadReplyDisclosure {
+    static let chunkSize = 25
+
+    private var remaining: ArraySlice<FeedPost> = []
+
+    var remainingCount: Int {
+        remaining.count
+    }
+
+    mutating func replace(
+        ancestors: [FeedPost],
+        focused: FeedPost,
+        descendants: [FeedPost]
+    ) -> [FeedPost] {
+        let ancestors = ancestors.filter { $0.id != focused.id }
+        let descendants = descendants.filter { $0.id != focused.id }
+        let initiallyVisible = descendants.prefix(Self.chunkSize)
+        remaining = descendants.dropFirst(initiallyVisible.count)
+        return ancestors + [focused] + Array(initiallyVisible)
+    }
+
+    mutating func revealNext() -> [FeedPost] {
+        let next = remaining.prefix(Self.chunkSize)
+        remaining = remaining.dropFirst(next.count)
+        return Array(next)
+    }
+
+    mutating func reset() {
+        remaining = []
     }
 }
