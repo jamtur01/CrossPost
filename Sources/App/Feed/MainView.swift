@@ -8,6 +8,7 @@ struct MainView: View {
     @State private var mastodon: FeedPanelModel?
     @State private var bluesky: FeedPanelModel?
     @State private var lightbox = ImageLightbox()
+    @State private var relativeTimestampNow = Date()
 
     var body: some View {
         HSplitView {
@@ -29,6 +30,7 @@ struct MainView: View {
         }
         .frame(minWidth: 980, minHeight: 560)
         .environment(lightbox)
+        .environment(\.relativeTimestampNow, relativeTimestampNow)
         .overlay { ImageLightboxOverlay(lightbox: lightbox) }
         .onAppear {
             if mastodon == nil { mastodon = FeedPanelModel(target: .mastodon, store: store) }
@@ -36,6 +38,7 @@ struct MainView: View {
             updateDockBadge()
         }
         .onDisappear { NSApplication.shared.dockTile.badgeLabel = nil }
+        .task { await runRelativeTimestampClock() }
         // Mirror the total unread notifications (both networks) onto the dock badge.
         .onChange(of: mastodon?.unreadCount) { updateDockBadge() }
         .onChange(of: bluesky?.unreadCount) { updateDockBadge() }
@@ -54,6 +57,24 @@ struct MainView: View {
                 }
                 .help("Settings (⌘,)")
             }
+        }
+    }
+
+    @MainActor
+    private func runRelativeTimestampClock() async {
+        relativeTimestampNow = Date()
+
+        while !Task.isCancelled {
+            let elapsed = Date().timeIntervalSinceReferenceDate
+            let remainder = elapsed.truncatingRemainder(dividingBy: 60)
+
+            do {
+                try await ContinuousClock().sleep(for: .seconds(60 - remainder))
+            } catch {
+                return
+            }
+
+            relativeTimestampNow = Date()
         }
     }
 

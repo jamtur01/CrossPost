@@ -170,12 +170,62 @@ struct SkeletonRow: View {
     }
 }
 
-/// A relative ("2 minutes", "1 hour") timestamp in the shared meta styling. The
-/// `.relative` Text *style* self-updates as time passes; a one-shot formatted
-/// Text would render once and go stale in long-lived rows.
+private struct RelativeTimestampNowKey: EnvironmentKey {
+    static let defaultValue = Date()
+}
+
+extension EnvironmentValues {
+    var relativeTimestampNow: Date {
+        get { self[RelativeTimestampNowKey.self] }
+        set { self[RelativeTimestampNowKey.self] = newValue }
+    }
+}
+
+@MainActor
+private enum RelativeTimestampFormat {
+    static let formatter: RelativeDateTimeFormatter = {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.dateTimeStyle = .numeric
+        formatter.unitsStyle = .full
+        formatter.locale = .autoupdatingCurrent
+        return formatter
+    }()
+
+    static func string(for date: Date, relativeTo now: Date) -> String {
+        let interval = date.timeIntervalSince(now)
+        let magnitude = abs(interval)
+        let direction = interval < 0 ? -1 : 1
+        var components = DateComponents()
+
+        if magnitude < 60 {
+            components.minute = 0
+        } else if magnitude < 3_600 {
+            components.minute = direction * Int(magnitude / 60)
+        } else if magnitude < 86_400 {
+            components.hour = direction * Int(magnitude / 3_600)
+        } else {
+            components.day = direction * Int(magnitude / 86_400)
+        }
+
+        return formatter.localizedString(from: components)
+    }
+}
+
+private struct RelativeTimestampView: View {
+    let date: Date
+    let font: Font
+    @Environment(\.relativeTimestampNow) private var now
+
+    var body: some View {
+        Text(RelativeTimestampFormat.string(for: date, relativeTo: now))
+            .font(font).foregroundStyle(.tertiary).fixedSize()
+    }
+}
+
+/// A minute-, hour-, or day-bucketed relative timestamp driven by MainView's
+/// shared clock so long-lived rows stay current without creating row timers.
 func relativeTimestamp(_ date: Date, font: Font = Theme.meta) -> some View {
-    Text(date, style: .relative)
-        .font(font).foregroundStyle(.tertiary).fixedSize()
+    RelativeTimestampView(date: date, font: font)
 }
 
 /// An unread-count pill in the system style: red, bold white text, circular for a
