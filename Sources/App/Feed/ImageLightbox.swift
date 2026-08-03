@@ -1,3 +1,5 @@
+import AppKit
+import Foundation
 import SwiftUI
 
 /// Window-level state for the full-screen image popout. A single instance lives
@@ -52,27 +54,43 @@ struct ImageLightboxOverlay: View {
     private func image(_ item: ImageLightbox.Item, in size: CGSize) -> some View {
         if item.isCircular {
             let side = min(size.width, size.height) * 0.72
-            CachedAsyncImage(url: item.url) { phase in phaseContent(phase, fill: true) }
-                .frame(width: side, height: side)
-                .clipShape(Circle())
+            CachedAsyncImage(
+                url: item.url,
+                representation: .original,
+                targetSize: CGSize(width: side * 2, height: side * 2)
+            ) { phase in
+                phaseContent(phase, fill: true)
+            }
+            .frame(width: side, height: side)
+            .clipShape(Circle())
         } else {
-            CachedAsyncImage(url: item.url) { phase in phaseContent(phase, fill: false) }
-                .frame(maxWidth: size.width * 0.92, maxHeight: size.height * 0.92)
-                .clipShape(RoundedRectangle(cornerRadius: Theme.cardCorner, style: .continuous))
+            CachedAsyncImage(
+                url: item.url,
+                representation: .original,
+                targetSize: CGSize(width: size.width * 1.84, height: size.height * 1.84)
+            ) { phase in
+                phaseContent(phase, fill: false)
+            }
+            .frame(maxWidth: size.width * 0.92, maxHeight: size.height * 0.92)
+            .clipShape(RoundedRectangle(cornerRadius: Theme.cardCorner, style: .continuous))
         }
     }
 
     @ViewBuilder
-    private func phaseContent(_ phase: AsyncImagePhase, fill: Bool) -> some View {
+    private func phaseContent(_ phase: CachedAsyncImagePhase, fill: Bool) -> some View {
         switch phase {
-        case .success(let img):
-            img.resizable().aspectRatio(contentMode: fill ? .fill : .fit)
+        case let .success(image):
+            image.resizable().aspectRatio(contentMode: fill ? .fill : .fit)
+        case .loading:
+            ProgressView().controlSize(.large).tint(.white)
         case .failure:
             Image(systemName: "photo.badge.exclamationmark")
                 .font(.system(size: 40)).foregroundStyle(.white.opacity(0.7))
                 .accessibilityLabel("Image failed to load")
-        default:
-            ProgressView().controlSize(.large).tint(.white)
+        case .unavailable:
+            Image(systemName: "photo")
+                .font(.system(size: 40)).foregroundStyle(.white.opacity(0.5))
+                .accessibilityLabel("Image unavailable")
         }
     }
 }

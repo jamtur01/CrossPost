@@ -36,15 +36,19 @@ struct FeedPostView: View {
     @State private var editing = false
     // Optional: present where no lightbox is installed (e.g. preview/sheet contexts)
     // simply leaves images non-poppable rather than crashing.
-    @Environment(ImageLightbox.self) private var lightbox: ImageLightbox?
+    @Environment(ImageLightbox.self) var lightbox: ImageLightbox?
 
     private var bodyFont: Font {
-        if expanded { return Theme.contentLarge }
+        if expanded {
+            return Theme.contentLarge
+        }
         return inTimeline ? Theme.timelineContent : Theme.content
     }
 
     private var authorNameFont: Font {
-        if expanded { return Theme.nameLarge }
+        if expanded {
+            return Theme.nameLarge
+        }
         return inTimeline ? Theme.timelineName : Theme.name
     }
 
@@ -61,7 +65,9 @@ struct FeedPostView: View {
     }
 
     private var avatarSize: CGFloat {
-        if expanded { return Theme.avatarLarge }
+        if expanded {
+            return Theme.avatarLarge
+        }
         return inTimeline ? Theme.timelineAvatar : Theme.avatar
     }
 
@@ -77,13 +83,17 @@ struct FeedPostView: View {
             if let quoted = post.quoted {
                 QuoteCardView(quote: quoted, accent: accent, onOpen: onOpenURL)
             }
-            if showActions { actionBar }
+            if showActions {
+                actionBar
+            }
         }
         .padding(.horizontal, inTimeline ? Theme.timelineRowPaddingH : 0)
         .padding(.vertical, inTimeline ? Theme.timelineRowPaddingV : 0)
         .background(rowBackground)
         .overlay(alignment: .bottom) {
-            if inTimeline { Divider().opacity(0.5) }
+            if inTimeline {
+                Divider().opacity(0.5)
+            }
         }
         .contentShape(Rectangle())
         .onHover { hovering = $0 }
@@ -160,141 +170,6 @@ struct FeedPostView: View {
                     .accessibilityLabel(visibility.label)
             }
             relativeTimestamp(post.date, font: metadataFont)
-        }
-    }
-
-    /// Indicator for a non-public post (Mastodon visibility). Public posts and
-    /// Bluesky posts (which have no per-post visibility) show nothing.
-    private var visibilityBadge: (symbol: String, label: String)? {
-        switch post.visibility {
-        case "unlisted": return ("moon", "Unlisted")
-        case "private": return ("lock.fill", "Followers only")
-        case "direct": return ("envelope.fill", "Direct message")
-        default: return nil
-        }
-    }
-
-    @ViewBuilder
-    private var images: some View {
-        if !post.images.isEmpty {
-            if expanded {
-                VStack(spacing: 8) {
-                    ForEach(post.images) { media in
-                        mediaView(media, fit: true)
-                            .frame(maxWidth: .infinity)
-                            .clipShape(RoundedRectangle(cornerRadius: Theme.mediaCorner, style: .continuous))
-                    }
-                }
-            } else {
-                timelineMedia
-            }
-        }
-    }
-
-    /// Timeline media mosaic: one image fills the column at a capped height; two to
-    /// four tile into a grid with hairline gaps and rounded outer corners; a fifth+
-    /// collapses into a "+N" overlay on the last tile.
-    @ViewBuilder
-    private var timelineMedia: some View {
-        let imgs = post.images
-        Group {
-            switch imgs.count {
-            case 1:
-                mediaView(imgs[0], fit: true)
-                    .frame(maxWidth: .infinity)
-                    .frame(maxHeight: 300)
-            case 2:
-                HStack(spacing: 3) { gridTile(imgs[0]); gridTile(imgs[1]) }
-                    .frame(height: 180)
-            case 3:
-                HStack(spacing: 3) {
-                    gridTile(imgs[0])
-                    VStack(spacing: 3) { gridTile(imgs[1]); gridTile(imgs[2]) }
-                }
-                .frame(height: 220)
-            default:
-                VStack(spacing: 3) {
-                    HStack(spacing: 3) { gridTile(imgs[0]); gridTile(imgs[1]) }
-                    HStack(spacing: 3) {
-                        gridTile(imgs[2])
-                        gridTile(imgs[3]).overlay { overflowBadge(extra: imgs.count - 4) }
-                    }
-                }
-                .frame(height: 250)
-            }
-        }
-        .clipShape(RoundedRectangle(cornerRadius: Theme.mediaCorner, style: .continuous))
-    }
-
-    /// A single equal-weight mosaic cell that fills its slot. The image rides as an
-    /// overlay on a size-neutral `Color.clear`, so an aspect-fill image (whose ideal
-    /// size exceeds the slot to cover it) fills and clips without widening the tile —
-    /// otherwise that oversized ideal propagates up and makes the card exceed its column.
-    private func gridTile(_ media: FeedImage) -> some View {
-        Color.clear
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .overlay { mediaView(media, fit: false) }
-            .clipped()
-            .contentShape(Rectangle())
-    }
-
-    /// "+N" scrim on the last tile when a post carries more images than the grid shows.
-    @ViewBuilder
-    private func overflowBadge(extra: Int) -> some View {
-        if extra > 0 {
-            ZStack {
-                Color.black.opacity(0.45)
-                Text("+\(extra)").font(.system(size: 22, weight: .semibold)).foregroundStyle(.white)
-            }
-            .allowsHitTesting(false)
-        }
-    }
-
-    @ViewBuilder
-    private func mediaView(_ media: FeedImage, fit: Bool) -> some View {
-        switch media.kind {
-        case .image:
-            staticImage(media, fit: fit)
-                .accessibilityLabel(media.altText.isEmpty ? "Image" : media.altText)
-        case .gif:
-            MotionMedia(media: media, fit: fit, badge: "GIF") { active in
-                AnimatedGIFView(url: media.url, isActive: active)
-            }
-        case .video:
-            MotionMedia(media: media, fit: fit, badge: nil) { active in
-                LoopingVideoView(url: media.url,
-                                 gravity: fit ? .resizeAspect : .resizeAspectFill, isActive: active)
-            }
-        }
-    }
-
-    private func staticImage(_ media: FeedImage, fit: Bool) -> some View {
-        CachedAsyncImage(url: media.url) { img in
-            img.resizable().aspectRatio(contentMode: fit ? .fit : .fill)
-        } placeholder: {
-            // Reserve the image's final aspect when the API provided one, so the
-            // row doesn't jump from a 120pt placeholder to the loaded height. Grid
-            // tiles (fit == false) sit in fixed-height slots and don't jump.
-            if fit, let aspect = media.aspectRatio {
-                RoundedRectangle(cornerRadius: Theme.mediaCorner, style: .continuous)
-                    .fill(Color.primary.opacity(0.06))
-                    .aspectRatio(aspect, contentMode: .fit)
-                    .shimmering()
-            } else {
-                RoundedRectangle(cornerRadius: Theme.mediaCorner, style: .continuous)
-                    .fill(Color.primary.opacity(0.06))
-                    .frame(height: 120)
-                    .shimmering()
-            }
-        }
-        // Tap pops the image out; takes precedence over the row's open-thread tap.
-        .onTapGesture { lightbox?.present(media.url) }
-        .pointingHandCursor(enabled: lightbox != nil)
-        // Drag the image URL out to Finder, another app, or a compose card.
-        .draggable(media.url) {
-            CachedAsyncImage(url: media.url) { $0.resizable().scaledToFill() } placeholder: { Color.clear }
-                .frame(width: 80, height: 80)
-                .clipShape(RoundedRectangle(cornerRadius: Theme.mediaCorner, style: .continuous))
         }
     }
 

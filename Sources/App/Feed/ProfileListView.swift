@@ -16,13 +16,15 @@ struct ProfileListView: View {
         ScrollView {
             LazyVStack(spacing: 0) {
                 ForEach(Array(profiles.enumerated()), id: \.element.id) { index, profile in
-                    if index > 0 { Divider().opacity(0.5) }
+                    if index > 0 {
+                        Divider().opacity(0.5)
+                    }
                     ProfileRowView(profile: profile) {
                         push(.profile(profile.profileRef()))
                     }
                 }
                 listLoadFooter(loading: loading, loadError: loadError, isEmpty: profiles.isEmpty,
-                               emptyText: "No one here yet", emptyImage: "person.2") {
+                               emptyState: ("No one here yet", "person.2")) {
                     loadToken += 1
                 }
             }
@@ -36,17 +38,20 @@ struct ProfileListView: View {
         loading = true
         loadError = nil
         do {
-            let loaded: [Profile]
-            switch ref.kind {
-            case .followers: loaded = try await panel.followers(of: ref.accountID)
-            case .following: loaded = try await panel.following(of: ref.accountID)
+            let loaded: [Profile] = switch ref.kind {
+            case .followers: try await panel.followers(of: ref.accountID)
+            case .following: try await panel.following(of: ref.accountID)
             case .likedBy:
-                if let post = ref.post { loaded = try await panel.likedBy(post) } else { loaded = [] }
+                if let post = ref.post {
+                    try await panel.likedBy(post)
+                } else {
+                    []
+                }
             case .repostedBy:
                 if let post = ref.post {
-                    loaded = try await panel.repostedBy(post)
+                    try await panel.repostedBy(post)
                 } else {
-                    loaded = []
+                    []
                 }
             }
             guard !Task.isCancelled else { return }

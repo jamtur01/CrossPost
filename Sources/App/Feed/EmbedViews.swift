@@ -10,11 +10,10 @@ struct LinkCardView: View {
         Button { onOpen(card.url) } label: {
             HStack(spacing: 0) {
                 if let imageURL = card.imageURL {
-                    CachedAsyncImage(url: imageURL) { img in
-                        img.resizable().scaledToFill()
-                    } placeholder: {
-                        Rectangle().fill(.quaternary)
-                    }
+                    EmbedImage(
+                        url: imageURL,
+                        targetSize: CGSize(width: 184, height: 184)
+                    )
                     .frame(width: 92, height: 92)
                     .clipped()
                 }
@@ -42,7 +41,8 @@ struct LinkCardView: View {
             .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .strokeBorder(Color.primary.opacity(0.08)))
+                    .strokeBorder(Color.primary.opacity(0.08))
+            )
         }
         .buttonStyle(.plain)
         .help(card.url.absoluteString)
@@ -55,7 +55,9 @@ struct QuoteCardView: View {
     let accent: Color
     let onOpen: (URL) -> Void
 
-    private var hasText: Bool { !quote.text.characters.isEmpty }
+    private var hasText: Bool {
+        !quote.text.characters.isEmpty
+    }
 
     var body: some View {
         // Only present as tappable when there's a URL to open; otherwise it's a
@@ -70,40 +72,65 @@ struct QuoteCardView: View {
     private var card: some View {
         HStack(spacing: 0) {
             Capsule().fill(accent.opacity(0.55)).frame(width: 3)
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 6) {
-                        AvatarView(url: quote.avatarURL, size: 20, ring: false)
-                        Text(quote.authorName)
-                            .font(.system(size: 12.5, weight: .semibold))
-                            .lineLimit(1)
-                        Text(quote.authorHandle)
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-                    if hasText {
-                        PostBody(text: quote.text, accent: accent, cacheKey: quote.id,
-                                 font: .system(size: 13), lineLimit: 6, onOpenURL: onOpen)
-                    }
-                    if let imageURL = quote.imageURL {
-                        CachedAsyncImage(url: imageURL) { img in
-                            img.resizable().scaledToFill()
-                        } placeholder: {
-                            Rectangle().fill(.quaternary)
-                        }
-                        .frame(height: 120)
-                        .frame(maxWidth: .infinity)
-                        .clipShape(RoundedRectangle(cornerRadius: Theme.mediaCorner, style: .continuous))
-                    }
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 6) {
+                    AvatarView(url: quote.avatarURL, size: 20, ring: false)
+                    Text(quote.authorName)
+                        .font(.system(size: 12.5, weight: .semibold))
+                        .lineLimit(1)
+                    Text(quote.authorHandle)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
                 }
-                .padding(10)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                if hasText {
+                    PostBody(text: quote.text, accent: accent, cacheKey: quote.id,
+                             font: .system(size: 13), lineLimit: 6, onOpenURL: onOpen)
+                }
+                if let imageURL = quote.imageURL {
+                    EmbedImage(
+                        url: imageURL,
+                        targetSize: CGSize(width: 1000, height: 240)
+                    )
+                    .frame(height: 120)
+                    .frame(maxWidth: .infinity)
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.mediaCorner, style: .continuous))
+                }
             }
+            .padding(10)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.primary.opacity(0.035))
-            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .strokeBorder(Color.primary.opacity(0.08)))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.primary.opacity(0.035))
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.08))
+        )
+    }
+}
+
+private struct EmbedImage: View {
+    let url: URL
+    let targetSize: CGSize
+
+    var body: some View {
+        CachedAsyncImage(
+            url: url,
+            representation: .thumbnail,
+            targetSize: targetSize
+        ) { phase in
+            switch phase {
+            case let .success(image):
+                image.resizable().scaledToFill()
+            case .loading:
+                Rectangle().fill(.quaternary).shimmering()
+            case .failure:
+                Rectangle().fill(.quaternary)
+                    .overlay { Image(systemName: "photo.badge.exclamationmark") }
+            case .unavailable:
+                Rectangle().fill(.quaternary)
+            }
         }
     }
+}

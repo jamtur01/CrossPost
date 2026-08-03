@@ -13,10 +13,14 @@ struct SavedPostsView: View {
     @State private var loadError: String?
     @State private var loadToken = 0
 
-    private var accent: Color { panel.target.accent }
+    private var accent: Color {
+        panel.target.accent
+    }
 
-    init(panel: FeedPanelModel, store: AccountStore, kind: SavedKind,
-         push: @escaping (FeedRoute) -> Void) {
+    init(
+        panel: FeedPanelModel, store: AccountStore, kind: SavedKind,
+        push: @escaping (FeedRoute) -> Void
+    ) {
         self.panel = panel
         self.store = store
         self.kind = kind
@@ -33,7 +37,7 @@ struct SavedPostsView: View {
                 }
             }
             listLoadFooter(loading: loading, loadError: loadError, isEmpty: list.posts.isEmpty,
-                           emptyText: "No \(kind.title.lowercased()) yet", emptyImage: kind.icon) {
+                           emptyState: ("No \(kind.title.lowercased()) yet", kind.icon)) {
                 loadToken += 1
             }
         }

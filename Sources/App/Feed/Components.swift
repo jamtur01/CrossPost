@@ -49,7 +49,9 @@ private struct HoverHighlight: ViewModifier {
 }
 
 extension View {
-    func hoverHighlight() -> some View { modifier(HoverHighlight()) }
+    func hoverHighlight() -> some View {
+        modifier(HoverHighlight())
+    }
 }
 
 /// Shows the pointing-hand cursor while hovering a clickable element, popping it
@@ -63,13 +65,17 @@ private struct PointingHandCursor: ViewModifier {
         content
             .onHover { hovering in
                 if hovering, enabled {
-                    if !pushed { NSCursor.pointingHand.push(); pushed = true }
+                    if !pushed {
+                        NSCursor.pointingHand.push(); pushed = true
+                    }
                 } else if pushed {
                     NSCursor.pop(); pushed = false
                 }
             }
             .onDisappear {
-                if pushed { NSCursor.pop(); pushed = false }
+                if pushed {
+                    NSCursor.pop(); pushed = false
+                }
             }
     }
 }
@@ -97,10 +103,12 @@ private struct Shimmer: ViewModifier {
                 .overlay(
                     LinearGradient(
                         colors: [.clear, Color.primary.opacity(0.08), .clear],
-                        startPoint: .leading, endPoint: .trailing)
-                        .scaleEffect(x: 0.4, anchor: .leading)
-                        .offset(x: phase * 260)
-                        .blendMode(.plusLighter))
+                        startPoint: .leading, endPoint: .trailing
+                    )
+                    .scaleEffect(x: 0.4, anchor: .leading)
+                    .offset(x: phase * 260)
+                    .blendMode(.plusLighter)
+                )
                 .clipped()
                 .onAppear {
                     withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) {
@@ -113,7 +121,9 @@ private struct Shimmer: ViewModifier {
 
 extension View {
     /// Animated loading sheen for placeholder surfaces.
-    func shimmering() -> some View { modifier(Shimmer()) }
+    func shimmering() -> some View {
+        modifier(Shimmer())
+    }
 }
 
 /// A circular avatar with the shared placeholder + ring, used everywhere an
@@ -124,15 +134,34 @@ struct AvatarView: View {
     var ring = true
 
     var body: some View {
-        CachedAsyncImage(url: url) { image in
-            image.resizable().scaledToFill()
-        } placeholder: {
-            Circle().fill(Color.primary.opacity(0.06)).shimmering()
+        CachedAsyncImage(
+            url: url,
+            representation: .avatar,
+            targetSize: CGSize(width: size * 2, height: size * 2)
+        ) { phase in
+            avatarContent(phase)
         }
         .frame(width: size, height: size)
         .clipShape(Circle())
         .overlay {
-            if ring { Circle().strokeBorder(Theme.avatarRing, lineWidth: 0.5) }
+            if ring {
+                Circle().strokeBorder(Theme.avatarRing, lineWidth: 0.5)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func avatarContent(_ phase: CachedAsyncImagePhase) -> some View {
+        switch phase {
+        case let .success(image):
+            image.resizable().scaledToFill()
+        case .loading:
+            Circle().fill(Color.primary.opacity(0.06)).shimmering()
+        case .failure:
+            Circle().fill(Color.primary.opacity(0.06))
+                .overlay { Image(systemName: "person.crop.circle.badge.exclamationmark") }
+        case .unavailable:
+            Circle().fill(Color.primary.opacity(0.06))
         }
     }
 }
@@ -199,12 +228,12 @@ private enum RelativeTimestampFormat {
 
         if magnitude < 60 {
             components.minute = 0
-        } else if magnitude < 3_600 {
+        } else if magnitude < 3600 {
             components.minute = direction * Int(magnitude / 60)
-        } else if magnitude < 86_400 {
-            components.hour = direction * Int(magnitude / 3_600)
+        } else if magnitude < 86400 {
+            components.hour = direction * Int(magnitude / 3600)
         } else {
-            components.day = direction * Int(magnitude / 86_400)
+            components.day = direction * Int(magnitude / 86400)
         }
 
         return formatter.localizedString(from: components)
@@ -261,15 +290,19 @@ extension View {
 /// present these three states identically. (Thread/profile keep their own, since
 /// they show errors alongside already-visible content.)
 @ViewBuilder
-func listLoadFooter(loading: Bool, loadError: String?, isEmpty: Bool,
-                    emptyText: String, emptyImage: String,
-                    retry: @escaping () -> Void) -> some View {
+func listLoadFooter(
+    loading: Bool,
+    loadError: String?,
+    isEmpty: Bool,
+    emptyState: (text: String, image: String),
+    retry: @escaping () -> Void
+) -> some View {
     if loading {
         ProgressView().controlSize(.small)
             .frame(maxWidth: .infinity).padding(.vertical, 24)
     } else if let loadError, isEmpty {
         ErrorStateView(message: loadError, fills: false, retry: retry)
     } else if isEmpty {
-        EmptyStateView(text: emptyText, systemImage: emptyImage, fills: false)
+        EmptyStateView(text: emptyState.text, systemImage: emptyState.image, fills: false)
     }
 }

@@ -1,6 +1,6 @@
-import SwiftUI
-import AVKit
 import AppKit
+import AVKit
+import SwiftUI
 
 /// Autoplaying, muted, looping player for MP4/HLS clips — Mastodon `gifv` and
 /// video, and Bluesky video. Plays only while `isActive` (visible), to avoid
@@ -10,17 +10,17 @@ struct LoopingVideoView: NSViewRepresentable {
     var gravity: AVLayerVideoGravity = .resizeAspectFill
     var isActive: Bool = true
 
-    func makeNSView(context: Context) -> LoopingPlayerNSView {
+    func makeNSView(context _: Context) -> LoopingPlayerNSView {
         LoopingPlayerNSView(url: url, gravity: gravity)
     }
 
-    func updateNSView(_ nsView: LoopingPlayerNSView, context: Context) {
+    func updateNSView(_ nsView: LoopingPlayerNSView, context _: Context) {
         // Lazy stacks recycle representables, so URL and activity must update
         // atomically: an inactive recycled view must never load the new item.
         nsView.update(url: url, isActive: isActive)
     }
 
-    static func dismantleNSView(_ nsView: LoopingPlayerNSView, coordinator: ()) {
+    static func dismantleNSView(_ nsView: LoopingPlayerNSView, coordinator _: ()) {
         nsView.stop()
     }
 }
@@ -48,7 +48,10 @@ final class LoopingPlayerNSView: NSView {
         layer?.addSublayer(playerLayer)
     }
 
-    required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
+    @available(*, unavailable)
+    required init?(coder _: NSCoder) {
+        fatalError("init(coder:) is not used")
+    }
 
     func update(url newURL: URL, isActive active: Bool) {
         if newURL != url {
@@ -65,7 +68,9 @@ final class LoopingPlayerNSView: NSView {
             unloadItem()
             return
         }
-        if !itemLoaded { loadItem() }
+        if !itemLoaded {
+            loadItem()
+        }
         player.play()
     }
 
@@ -95,134 +100,128 @@ final class LoopingPlayerNSView: NSView {
         endObserver = NotificationCenter.default.addObserver(
             forName: .AVPlayerItemDidPlayToEndTime, object: item, queue: .main
         ) { [weak self, weak item] _ in
-            guard let self, self.isActive, self.player.currentItem === item else { return }
-            self.player.seek(to: .zero)
-            self.player.play()
+            guard let self, isActive, player.currentItem === item else { return }
+            player.seek(to: .zero)
+            player.play()
         }
         itemLoaded = true
     }
 
     private func unloadItem() {
-        if let endObserver { NotificationCenter.default.removeObserver(endObserver) }
+        if let endObserver {
+            NotificationCenter.default.removeObserver(endObserver)
+        }
         endObserver = nil
         player.replaceCurrentItem(with: nil)
         itemLoaded = false
     }
 }
 
-/// Plays an animated GIF file (Bluesky Tenor/Giphy external embeds) — AVPlayer
-/// can't decode GIFs, but NSImageView animates them natively. Decoded GIFs are
-/// cached, in-flight downloads are cancelled on teardown, and animation pauses
-/// when offscreen.
-struct AnimatedGIFView: NSViewRepresentable {
+/// Plays GIF data through the bounded shared image loader. NSImageView performs
+/// native frame animation, which pauses while the view is inactive.
+struct AnimatedGIFView: View {
+    private enum Phase {
+        case idle
+        case loading(URL)
+        case success(URL, NSImage)
+        case failure(URL)
+    }
+
+    private struct LoadIdentity: Hashable {
+        let url: URL
+        let isActive: Bool
+    }
+
     let url: URL
-    var isActive: Bool = true
+    let previewURL: URL?
+    let fit: Bool
+    var isActive = true
+
+    @State private var phase = Phase.idle
+
+    var body: some View {
+        content
+            .task(id: LoadIdentity(url: url, isActive: isActive)) {
+                await load()
+            }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        switch phase {
+        case let .success(loadedURL, image) where loadedURL == url:
+            AnimatedImageNSView(image: image, isActive: isActive)
+        case let .loading(loadingURL) where loadingURL == url:
+            Rectangle().fill(Color.primary.opacity(0.06)).shimmering()
+        case let .failure(failedURL) where failedURL == url:
+            preview
+                .overlay { Image(systemName: "photo.badge.exclamationmark") }
+        default:
+            preview
+        }
+    }
+
+    private func load() async {
+        guard isActive else {
+            phase = .idle
+            return
+        }
+        let request = ImageRequest(
+            url: url,
+            representation: .animated,
+            targetSize: CGSize(width: 1600, height: 1200)
+        )
+        if let image = BoundedImageLoader.shared.cachedImage(for: request) {
+            phase = .success(url, image)
+            return
+        }
+        phase = .loading(url)
+        do {
+            let image = try await BoundedImageLoader.shared.image(for: request)
+            guard !Task.isCancelled else { return }
+            phase = .success(url, image)
+        } catch {
+            guard !Task.isCancelled else { return }
+            phase = .failure(url)
+        }
+    }
+
+    private var preview: some View {
+        CachedAsyncImage(
+            url: previewURL,
+            representation: .thumbnail,
+            targetSize: CGSize(width: 1200, height: 1200)
+        ) { image in
+            if fit {
+                image.resizable().scaledToFit()
+            } else {
+                image.resizable().scaledToFill()
+            }
+        } placeholder: {
+            Rectangle().fill(Color.primary.opacity(0.06))
+        }
+    }
+}
+
+private struct AnimatedImageNSView: NSViewRepresentable {
+    let image: NSImage
+    let isActive: Bool
 
     func makeNSView(context: Context) -> NSImageView {
         let view = NSImageView()
         view.imageScaling = .scaleProportionallyUpOrDown
-        context.coordinator.update(url: url, isActive: isActive, in: view)
+        updateNSView(view, context: context)
         return view
     }
 
-    func updateNSView(_ nsView: NSImageView, context: Context) {
-        context.coordinator.update(url: url, isActive: isActive, in: nsView)
+    func updateNSView(_ nsView: NSImageView, context _: Context) {
+        nsView.image = image
+        nsView.animates = isActive
     }
 
-    static func dismantleNSView(_ nsView: NSImageView, coordinator: Coordinator) {
+    static func dismantleNSView(_ nsView: NSImageView, coordinator _: ()) {
         nsView.animates = false
         nsView.image = nil
-        coordinator.cancel()
-    }
-
-    func makeCoordinator() -> Coordinator { Coordinator() }
-
-    final class Coordinator {
-        // Animated GIFs keep every frame resident, so bound the cache and skip
-        // absurdly large downloads — otherwise a feed of big Tenor/Giphy GIFs
-        // (or a malicious external embed) can balloon memory unbounded.
-        private static let maxBytes = 32 * 1024 * 1024
-        private static let cache: NSCache<NSURL, NSImage> = {
-            let cache = NSCache<NSURL, NSImage>()
-            cache.countLimit = 40
-            cache.totalCostLimit = 128 * 1024 * 1024
-            return cache
-        }()
-        private let requestLock = NSLock()
-        private var requestGeneration = 0
-        private var task: URLSessionDataTask?
-        private var requestedURL: URL?
-        private var loadedURL: URL?
-        func update(url: URL, isActive: Bool, in view: NSImageView) {
-            if url != requestedURL {
-                cancelRequest()
-                requestedURL = url
-                loadedURL = nil
-                view.image = nil
-            }
-            view.animates = isActive
-            guard isActive else {
-                cancelRequest()
-                return
-            }
-            guard loadedURL != url else { return }
-            if let cached = Self.cache.object(forKey: url as NSURL) {
-                loadedURL = url
-                view.image = cached
-                return
-            }
-            guard task == nil else { return }
-            startRequest(url: url, view: view)
-        }
-        func cancel() {
-            cancelRequest()
-            requestedURL = nil
-            loadedURL = nil
-        }
-        deinit { task?.cancel() }
-        private func startRequest(url: URL, view: NSImageView) {
-            let generation = nextRequestGeneration()
-            task = URLSession.shared.dataTask(with: url) { [weak self, weak view] data, _, _ in
-                guard let self, self.isCurrentRequest(generation) else { return }
-                let image = data.flatMap {
-                    $0.count <= Self.maxBytes ? NSImage(data: $0) : nil
-                }
-                guard self.isCurrentRequest(generation) else { return }
-                if let data, let image {
-                    Self.cache.setObject(image, forKey: url as NSURL, cost: data.count)
-                }
-                DispatchQueue.main.async { [weak self, weak view] in
-                    guard let self, self.isCurrentRequest(generation),
-                          self.requestedURL == url else { return }
-                    self.task = nil
-                    guard let image else { return }
-                    self.loadedURL = url
-                    view?.image = image
-                }
-            }
-            task?.resume()
-        }
-        private func cancelRequest() {
-            task?.cancel()
-            task = nil
-            invalidateRequests()
-        }
-        private func nextRequestGeneration() -> Int {
-            requestLock.lock()
-            defer { requestLock.unlock() }
-            requestGeneration += 1
-            return requestGeneration
-        }
-        private func invalidateRequests() {
-            requestLock.lock()
-            requestGeneration += 1
-            requestLock.unlock()
-        }
-        private func isCurrentRequest(_ generation: Int) -> Bool {
-            requestLock.lock()
-            defer { requestLock.unlock() }
-            return requestGeneration == generation
-        }
     }
 }
 
