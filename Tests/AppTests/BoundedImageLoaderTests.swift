@@ -246,6 +246,27 @@ final class BoundedImageLoaderTests: XCTestCase {
             request: request
         )
     }
+
+    func testAcceptsPortraitAnimationWithinMaximumTargetDimension() async throws {
+        let url = uniqueURL()
+        try ImageURLProtocolStub.configure(
+            url: url,
+            statusCode: 200,
+            mimeType: "image/gif",
+            data: gifData(width: 12, height: 16)
+        )
+        let loader = makeLoader()
+        let request = ImageRequest(
+            url: url,
+            representation: .animated,
+            targetSize: CGSize(width: 16, height: 12)
+        )
+
+        let image = try await loader.image(for: request)
+        let representation = try XCTUnwrap(image.representations.first)
+        XCTAssertEqual(representation.pixelsWide, 12)
+        XCTAssertEqual(representation.pixelsHigh, 16)
+    }
 }
 
 private extension BoundedImageLoaderTests {

@@ -229,14 +229,13 @@ actor BoundedImageLoader {
     ) throws -> CachedImageEntry {
         let frameCount = max(1, CGImageSourceGetCount(source))
         let maximumCost = request.representation.maxDecodedBytes
+        let targetDimension = request.targetSize.maximumDimension
         let targetCost = decodedCost(
-            width: request.targetSize.width,
-            height: request.targetSize.height,
+            width: targetDimension,
+            height: targetDimension,
             frameCount: frameCount
         ) ?? maximumCost
-        guard dimensions.width <= request.targetSize.width,
-              dimensions.height <= request.targetSize.height
-        else {
+        guard max(dimensions.width, dimensions.height) <= targetDimension else {
             throw ImageLoadingError.decodedSizeExceeded(limit: min(targetCost, maximumCost))
         }
         guard let cost = decodedCost(
