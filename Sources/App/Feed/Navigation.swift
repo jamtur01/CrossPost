@@ -3,7 +3,7 @@ import SwiftUI
 /// A lightweight reference to a profile, enough to push a route and show a
 /// placeholder header while the full profile loads.
 struct ProfileRef: Identifiable, Equatable {
-    let id: String          // authorID (Mastodon account id / Bluesky handle)
+    let id: String // authorID (Mastodon account id / Bluesky handle)
     let handle: String
     let name: String
     let avatar: URL?
@@ -24,7 +24,10 @@ struct ProfileListRef: Identifiable {
         self.post = post
     }
 
-    var id: String { "\(kind.rawValue):\(post?.id ?? accountID)" }
+    var id: String {
+        "\(kind.rawValue):\(post?.id ?? accountID)"
+    }
+
     var title: String {
         switch kind {
         case .followers: return "Followers"
@@ -38,9 +41,17 @@ struct ProfileListRef: Identifiable {
 /// One of the signed-in user's saved-post collections.
 enum SavedKind: String, Identifiable {
     case bookmarks, likes
-    var id: String { rawValue }
-    var title: String { self == .bookmarks ? "Bookmarks" : "Likes" }
-    var icon: String { self == .bookmarks ? "bookmark" : "heart" }
+    var id: String {
+        rawValue
+    }
+
+    var title: String {
+        self == .bookmarks ? "Bookmarks" : "Likes"
+    }
+
+    var icon: String {
+        self == .bookmarks ? "bookmark" : "heart"
+    }
 }
 
 /// A destination within a feed column's in-place navigation stack.
@@ -54,11 +65,11 @@ enum FeedRoute: Identifiable {
 
     var id: String {
         switch self {
-        case .thread(let post): return "thread:\(post.id)"
-        case .profile(let ref): return "profile:\(ref.id):\(ref.isMe)"
-        case .profileList(let ref): return "list:\(ref.id)"
-        case .conversation(let convo): return "convo:\(convo.id)"
-        case .saved(let kind): return "saved:\(kind.rawValue)"
+        case let .thread(post): return "thread:\(post.id)"
+        case let .profile(ref): return "profile:\(ref.id):\(ref.isMe)"
+        case let .profileList(ref): return "list:\(ref.id)"
+        case let .conversation(convo): return "convo:\(convo.id)"
+        case let .saved(kind): return "saved:\(kind.rawValue)"
         case .search: return "search"
         }
     }
@@ -89,23 +100,51 @@ final class PostList: OptimisticPostHost {
     @ObservationIgnored var mutationGeneration: UInt = 0
     private let panel: FeedPanelModel
 
-    init(panel: FeedPanelModel) { self.panel = panel }
+    init(panel: FeedPanelModel) {
+        self.panel = panel
+    }
 
-    func reportError(_ message: String) { panel.reportError(message) }
+    func reportError(_ message: String) {
+        panel.reportError(message)
+    }
 
-    func remoteSetLiked(_ liked: Bool, on post: FeedPost) async throws -> FeedPost {
-        try await panel.remoteSetLiked(liked, on: post)
+    var remoteMutationGeneration: UInt {
+        panel.mutationGeneration
     }
-    func remoteSetReposted(_ reposted: Bool, on post: FeedPost) async throws -> FeedPost {
-        try await panel.remoteSetReposted(reposted, on: post)
+
+    func remoteSetLiked(
+        _ liked: Bool,
+        on post: FeedPost,
+        generation: UInt
+    ) async throws -> FeedPost {
+        try await panel.remoteSetLiked(liked, on: post, generation: generation)
     }
-    func remoteSetBookmarked(_ bookmarked: Bool, on post: FeedPost) async throws -> FeedPost {
-        try await panel.remoteSetBookmarked(bookmarked, on: post)
+
+    func remoteSetReposted(
+        _ reposted: Bool,
+        on post: FeedPost,
+        generation: UInt
+    ) async throws -> FeedPost {
+        try await panel.remoteSetReposted(reposted, on: post, generation: generation)
     }
-    func remoteSetPinned(_ pinned: Bool, on post: FeedPost) async throws -> FeedPost {
-        try await panel.remoteSetPinned(pinned, on: post)
+
+    func remoteSetBookmarked(
+        _ bookmarked: Bool,
+        on post: FeedPost,
+        generation: UInt
+    ) async throws -> FeedPost {
+        try await panel.remoteSetBookmarked(bookmarked, on: post, generation: generation)
     }
-    func remoteDelete(_ post: FeedPost) async throws {
-        try await panel.remoteDelete(post)
+
+    func remoteSetPinned(
+        _ pinned: Bool,
+        on post: FeedPost,
+        generation: UInt
+    ) async throws -> FeedPost {
+        try await panel.remoteSetPinned(pinned, on: post, generation: generation)
+    }
+
+    func remoteDelete(_ post: FeedPost, generation: UInt) async throws {
+        try await panel.remoteDelete(post, generation: generation)
     }
 }

@@ -1,5 +1,5 @@
-import SwiftUI
 import AppKit
+import SwiftUI
 
 /// A profile: banner, avatar, bio, counts, and the user's recent posts.
 struct ProfileView: View {
@@ -8,32 +8,25 @@ struct ProfileView: View {
     let ref: ProfileRef
     let push: (FeedRoute) -> Void
 
-    // Optional, matching FeedPostView: contexts without a lightbox installed just
-    // leave the banner/avatar non-poppable rather than crashing on first tap.
+    /// Optional, matching FeedPostView: contexts without a lightbox installed just
+    /// leave the banner/avatar non-poppable rather than crashing on first tap.
     @Environment(ImageLightbox.self) private var lightbox: ImageLightbox?
 
-    @State private var profile: Profile?
-    @State private var list: PostList
-    @State private var pinnedList: PostList
+    @State var profile: Profile?
+    @State var list: PostList
+    @State var pinnedList: PostList
     @State private var replyTarget: FeedPost?
-    @State private var relationship = AccountRelationship()
-    @State private var isUpdatingRelationship = false
-    @State private var relationshipTask: Task<Void, Never>?
-    @State private var relationshipGeneration: UInt = 0
-    @State private var loading = true
-    @State private var loadError: String?
-    @State private var reportingAccount = false
-    @State private var loadToken = 0
-
-    private var accent: Color { panel.target.accent }
-    private var accountID: String { profile?.id ?? ref.id }
-
-    /// The author's timeline minus any post already shown in the pinned section,
-    /// so the same id is never rendered twice in one container.
-    private var feedRows: [FeedPost] {
-        let pinnedIDs = Set(pinnedList.posts.map(\.id))
-        return list.posts.filter { !pinnedIDs.contains($0.id) }
-    }
+    @State var partialLoad = ProfilePartialLoadState()
+    @State var isUpdatingRelationship = false
+    @State var relationshipTask: Task<Void, Never>?
+    @State var relationshipGeneration: UInt = 0
+    @State var loading = true
+    @State var loadError: String?
+    @State var postsLoadError: String?
+    @State var reportingAccount = false
+    @State var loadToken = 0
+    @State var relationshipLoadToken = 0
+    @State var pinnedLoadToken = 0
 
     init(panel: FeedPanelModel, store: AccountStore, ref: ProfileRef,
          push: @escaping (FeedRoute) -> Void) {
@@ -49,12 +42,29 @@ struct ProfileView: View {
         ScrollView {
             VStack(spacing: 0) {
                 headerCard
+                if !ref.isMe, let error = partialLoad.relationshipError {
+                    partialErrorRow("Relationship", message: error) {
+                        relationshipLoadToken += 1
+                    }
+                }
                 Divider()
                 LazyVStack(spacing: 0) {
-                    if !pinnedList.posts.isEmpty {
+                    if !pinnedList.posts.isEmpty
+                        || partialLoad.isPinnedLoading
+                        || partialLoad.pinnedError != nil {
                         pinnedHeader
                         ForEach(pinnedList.posts) { row in
                             postRow(row, in: pinnedList)
+                        }
+                        if partialLoad.isPinnedLoading {
+                            ProgressView()
+                                .controlSize(.small)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                        } else if let error = partialLoad.pinnedError {
+                            partialErrorRow("Pinned posts", message: error) {
+                                pinnedLoadToken += 1
+                            }
                         }
                     }
                     ForEach(feedRows) { row in
@@ -64,9 +74,14 @@ struct ProfileView: View {
                 if loading {
                     ProgressView().controlSize(.small)
                         .frame(maxWidth: .infinity).padding(.vertical, 24)
-                } else if let loadError, pinnedList.posts.isEmpty && feedRows.isEmpty {
+                } else if let loadError {
                     ErrorStateView(message: loadError, fills: false) { loadToken += 1 }
-                } else if pinnedList.posts.isEmpty && feedRows.isEmpty {
+                } else if let postsLoadError {
+                    partialErrorRow("Recent posts", message: postsLoadError) { loadToken += 1 }
+                } else if pinnedList.posts.isEmpty
+                    && feedRows.isEmpty
+                    && partialLoad.pinnedError == nil
+                    && !partialLoad.isPinnedLoading {
                     EmptyStateView(text: "No posts yet", systemImage: "text.bubble", fills: false)
                 }
             }
@@ -74,20 +89,26 @@ struct ProfileView: View {
         .scrollContentBackground(.hidden)
         .background(Color(nsColor: .textBackgroundColor))
         .task(id: loadToken) { await load() }
+        .task(id: relationshipLoadToken) { await loadRelationship() }
+        .task(id: pinnedLoadToken) { await loadPinnedPosts() }
         .onDisappear {
             list.invalidateOptimisticMutations()
             pinnedList.invalidateOptimisticMutations()
             invalidateRelationshipAction()
         }
         .sheet(isPresented: $reportingAccount) {
-            ReportSheet(subjectLabel: profile?.handle ?? ref.handle, accent: accent,
-                        submit: { reason, comment in
-                            try await panel.report(
-                                accountID: accountID,
-                                reason: reason,
-                                comment: comment
-                            )
-                        }) { reportingAccount = false }
+            ReportSheet(
+                subjectLabel: profile?.handle ?? ref.handle,
+                accent: accent,
+                submit: { reason, comment in
+                    try await panel.report(
+                        accountID: accountID,
+                        reason: reason,
+                        comment: comment
+                    )
+                },
+                onClose: { reportingAccount = false }
+            )
         }
         .sheet(item: $replyTarget) { target in
             ReplySheet(model: ReplyModel(post: target, store: store)) { replyTarget = nil }
@@ -106,7 +127,11 @@ struct ProfileView: View {
             .frame(maxWidth: .infinity)
             .clipped()
             .contentShape(Rectangle())
-            .onTapGesture { if let url = profile?.bannerURL { lightbox?.present(url) } }
+            .onTapGesture {
+                if let url = profile?.bannerURL {
+                    lightbox?.present(url)
+                }
+            }
             .pointingHandCursor(enabled: profile?.bannerURL != nil && lightbox != nil)
             .help(profile?.bannerURL != nil ? "View banner" : "")
 
@@ -135,7 +160,9 @@ struct ProfileView: View {
 
                     Spacer()
 
-                    if !ref.isMe { relationshipControls }
+                    if !ref.isMe {
+                        relationshipControls
+                    }
                     if let url = profile?.webURL {
                         Button { panel.open(url) } label: {
                             Image(systemName: "safari").font(.system(size: 14))
@@ -161,7 +188,7 @@ struct ProfileView: View {
             Text(profile?.handle ?? ref.handle)
                 .font(Theme.meta)
                 .foregroundStyle(.secondary)
-            if relationship.isFollowedBy {
+            if partialLoad.relationship?.isFollowedBy == true {
                 Text("Follows you")
                     .font(.system(size: 10, weight: .medium))
                     .padding(.horizontal, 6).padding(.vertical, 1.5)
@@ -195,7 +222,7 @@ struct ProfileView: View {
                         )
                     )
                 } label: { stat(profile.following, "Following") }
-                .buttonStyle(.plain)
+                    .buttonStyle(.plain)
                 Button {
                     push(
                         .profileList(
@@ -206,40 +233,10 @@ struct ProfileView: View {
                         )
                     )
                 } label: { stat(profile.followers, "Followers") }
-                .buttonStyle(.plain)
+                    .buttonStyle(.plain)
             }
             .padding(.top, 2)
         }
-    }
-
-    private func load() async {
-        loading = true
-        loadError = nil
-        do {
-            let resolved = ref.isMe
-                ? try await panel.myProfile()
-                : try await panel.profile(id: ref.id)
-            guard !Task.isCancelled else { return }
-            profile = resolved
-
-            // Posts and pins only need the resolved id, so they run concurrently.
-            async let posts = panel.authorPosts(id: resolved.id)
-            async let pins = panel.pinnedPosts(id: resolved.id)
-            let resolvedRelationship = ref.isMe
-                ? AccountRelationship()
-                : await panel.relationship(with: resolved.id)
-            let loadedPosts = try await posts
-            let loadedPins = (try? await pins) ?? []
-            guard !Task.isCancelled else { return }
-
-            relationship = resolvedRelationship
-            list.posts = loadedPosts
-            pinnedList.posts = loadedPins
-        } catch {
-            guard !Task.isCancelled else { return }
-            loadError = error.userMessage
-        }
-        loading = false
     }
 
     private func postRow(_ row: FeedPost, in list: PostList) -> some View {
@@ -270,141 +267,5 @@ struct ProfileView: View {
                 .font(.system(size: 13, weight: .semibold).monospacedDigit())
             Text(label).font(.system(size: 13)).foregroundStyle(.secondary)
         }
-    }
-
-    @ViewBuilder
-    private var relationshipControls: some View {
-        HStack(spacing: 8) {
-            Group {
-                if relationship.isFollowing {
-                    Button("Following") { startRelationshipAction(.follow) }
-                        .buttonStyle(.bordered)
-                } else {
-                    Button(relationship.isFollowedBy ? "Follow back" : "Follow") {
-                        startRelationshipAction(.follow)
-                    }
-                    .buttonStyle(.borderedProminent).tint(accent)
-                }
-            }
-            .font(.system(size: 13, weight: .semibold))
-            .disabled(isUpdatingRelationship)
-
-            Menu {
-                Button(relationship.isMuting ? "Unmute" : "Mute") {
-                    startRelationshipAction(.mute)
-                }
-                Button(relationship.isBlocking ? "Unblock" : "Block", role: .destructive) {
-                    startRelationshipAction(.block)
-                }
-                Divider()
-                Button("Report…", role: .destructive) { reportingAccount = true }
-            } label: {
-                Image(systemName: "ellipsis").font(.system(size: 15, weight: .semibold))
-            }
-            .menuStyle(.borderlessButton)
-            .menuIndicator(.hidden)
-            .fixedSize()
-            .foregroundStyle(.secondary)
-            .disabled(isUpdatingRelationship)
-        }
-    }
-
-    private enum RelationshipAction {
-        case follow
-        case mute
-        case block
-    }
-
-    private func startRelationshipAction(_ action: RelationshipAction) {
-        relationshipTask?.cancel()
-        relationshipGeneration += 1
-        let generation = relationshipGeneration
-        isUpdatingRelationship = true
-        relationshipTask = Task {
-            guard relationshipGeneration == generation else { return }
-            switch action {
-            case .follow: await toggleFollow(generation: generation)
-            case .mute: await toggleMute(generation: generation)
-            case .block: await toggleBlock(generation: generation)
-            }
-        }
-    }
-
-    private func invalidateRelationshipAction() {
-        relationshipGeneration += 1
-        relationshipTask?.cancel()
-        relationshipTask = nil
-        isUpdatingRelationship = false
-    }
-
-    private func finishRelationshipAction(generation: UInt) {
-        guard relationshipGeneration == generation else { return }
-        relationshipTask = nil
-        isUpdatingRelationship = false
-    }
-
-    private func toggleFollow(generation: UInt) async {
-        let target = !relationship.isFollowing
-        let previous = relationship
-        relationship.isFollowing = target
-        profile?.followers = max(0, (profile?.followers ?? 0) + (target ? 1 : -1))
-        do {
-            let updated = try await panel.setFollowing(
-                target,
-                for: accountID,
-                current: previous
-            )
-            guard relationshipGeneration == generation else { return }
-            relationship = updated
-        } catch {
-            guard relationshipGeneration == generation else { return }
-            relationship = previous
-            profile?.followers = max(
-                0,
-                (profile?.followers ?? 0) + (target ? -1 : 1)
-            )
-            panel.reportError(error.userMessage)
-        }
-        finishRelationshipAction(generation: generation)
-    }
-
-    private func toggleMute(generation: UInt) async {
-        let target = !relationship.isMuting
-        let previous = relationship
-        relationship.isMuting = target
-        do {
-            let updated = try await panel.setMuted(
-                target,
-                for: accountID,
-                current: previous
-            )
-            guard relationshipGeneration == generation else { return }
-            relationship = updated
-        } catch {
-            guard relationshipGeneration == generation else { return }
-            relationship = previous
-            panel.reportError(error.userMessage)
-        }
-        finishRelationshipAction(generation: generation)
-    }
-
-    private func toggleBlock(generation: UInt) async {
-        let target = !relationship.isBlocking
-        let previous = relationship
-        relationship.isBlocking = target
-        do {
-            let updated = try await panel.setBlocked(
-                target,
-                for: accountID,
-                current: previous
-            )
-            guard relationshipGeneration == generation else { return }
-            relationship = updated
-        } catch {
-            guard relationshipGeneration == generation else { return }
-            relationship = previous
-            panel.reportError(error.userMessage)
-        }
-        finishRelationshipAction(generation: generation)
     }
 }

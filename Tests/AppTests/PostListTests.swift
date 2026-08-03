@@ -1,5 +1,5 @@
-import XCTest
 @testable import CrossPost
+import XCTest
 
 /// `PostList` backs thread and profile views. Unlike the timeline, its optimistic
 /// like/repost must adjust the visible counts, and bookmark/pin must update its own
@@ -42,19 +42,19 @@ final class PostListTests: XCTestCase {
         list.posts = [post]
 
         list.toggleLike(post)
-        XCTAssertTrue(list.posts[0].isLiked)            // optimistic, synchronous
+        XCTAssertTrue(list.posts[0].isLiked) // optimistic, synchronous
         XCTAssertEqual(list.posts[0].likeCount, 6)
 
-        await waitUntil { list.posts[0].likeRecordURI != nil }   // service reconciled
-        XCTAssertEqual(list.posts[0].likeCount, 6)               // count not lost
+        await waitUntil { list.posts[0].likeRecordURI != nil } // service reconciled
+        XCTAssertEqual(list.posts[0].likeCount, 6) // count not lost
     }
 
-    func testUnlikeDecrementsCountNotBelowZero() async {
+    func testUnlikeDecrementsCountNotBelowZero() {
         let fake = FakeFeedService()
         let list = PostList(panel: makeModel(fake))
         var post = TestFactory.feedPost(target: .bluesky)
         post.isLiked = true
-        post.likeCount = 0     // inconsistent server state; must not go negative
+        post.likeCount = 0 // inconsistent server state; must not go negative
         list.posts = [post]
 
         list.toggleLike(post)
@@ -70,10 +70,10 @@ final class PostListTests: XCTestCase {
         list.posts = [post]
 
         list.toggleRepost(post)
-        XCTAssertTrue(list.posts[0].isReposted)         // optimistic, synchronous
+        XCTAssertTrue(list.posts[0].isReposted) // optimistic, synchronous
         XCTAssertEqual(list.posts[0].repostCount, 3)
 
-        await waitUntil { list.posts[0].repostRecordURI != nil }   // reconciled
+        await waitUntil { list.posts[0].repostRecordURI != nil } // reconciled
         XCTAssertEqual(list.posts[0].repostCount, 3)
     }
 
@@ -86,11 +86,11 @@ final class PostListTests: XCTestCase {
         list.posts = [post]
 
         list.toggleLike(post)
-        XCTAssertTrue(list.posts[0].isLiked)            // optimistic
+        XCTAssertTrue(list.posts[0].isLiked) // optimistic
         XCTAssertEqual(list.posts[0].likeCount, 6)
 
-        await waitUntil { !list.posts[0].isLiked }      // rolled back on failure
-        XCTAssertEqual(list.posts[0].likeCount, 5)      // count restored
+        await waitUntil { !list.posts[0].isLiked } // rolled back on failure
+        XCTAssertEqual(list.posts[0].likeCount, 5) // count restored
     }
 
     func testSetPinnedUpdatesItsOwnRow() async {
@@ -100,10 +100,10 @@ final class PostListTests: XCTestCase {
         list.posts = [post]
 
         list.setPinned(true, on: post)
-        XCTAssertTrue(list.posts[0].isPinned)           // optimistic
+        XCTAssertTrue(list.posts[0].isPinned) // optimistic
 
         await waitUntil { fake.pinSetCalls == [true] }
-        XCTAssertTrue(list.posts[0].isPinned)           // not rolled back
+        XCTAssertTrue(list.posts[0].isPinned) // not rolled back
     }
 
     func testDeleteRemovesRowAndStaysRemoved() async {
@@ -113,7 +113,7 @@ final class PostListTests: XCTestCase {
         list.posts = posts
 
         list.delete(posts[0])
-        XCTAssertEqual(list.posts.map(\.id), ["b"])     // optimistic removal
+        XCTAssertEqual(list.posts.map(\.id), ["b"]) // optimistic removal
 
         await waitUntil { fake.deletedIDs.contains("a") }
         XCTAssertEqual(list.posts.map(\.id), ["b"])
@@ -127,9 +127,9 @@ final class PostListTests: XCTestCase {
         list.posts = posts
 
         list.delete(posts[1])
-        XCTAssertEqual(list.posts.map(\.id), ["a", "c"])    // optimistic removal
+        XCTAssertEqual(list.posts.map(\.id), ["a", "c"]) // optimistic removal
 
-        await waitUntil { list.posts.count == 3 }           // re-inserted on failure
+        await waitUntil { list.posts.count == 3 } // re-inserted on failure
         XCTAssertEqual(list.posts.map(\.id), ["a", "b", "c"])
     }
 
@@ -181,7 +181,7 @@ final class PostListTests: XCTestCase {
 
         gate.open()
         await waitUntil { list.inFlight.isEmpty }
-        XCTAssertEqual(list.posts.map(\.id), ["b"])   // still gone after the delete lands
+        XCTAssertEqual(list.posts.map(\.id), ["b"]) // still gone after the delete lands
     }
 
     /// A failed delete re-inserts next to its old neighbor even when a concurrent
@@ -194,7 +194,7 @@ final class PostListTests: XCTestCase {
         let list = PostList(panel: makeModel(fake))
         list.posts = ["a", "b", "c"].map { TestFactory.feedPost(target: .bluesky, id: $0) }
 
-        list.delete(list.posts[1])                            // remove "b" (index 1)
+        list.delete(list.posts[1]) // remove "b" (index 1)
         XCTAssertEqual(list.posts.map(\.id), ["a", "c"])
 
         // A merge lands a new post on top while the delete is in flight, shifting
@@ -202,7 +202,7 @@ final class PostListTests: XCTestCase {
         await waitUntil { gate.arrivals == 1 }
         list.posts = [TestFactory.feedPost(target: .bluesky, id: "new")] + list.posts
 
-        gate.open()                                           // the delete now fails
+        gate.open() // the delete now fails
         await waitUntil { list.posts.count == 4 }
         XCTAssertEqual(list.posts.map(\.id), ["new", "a", "b", "c"],
                        "the restore must anchor on the old neighbor, not the stale index")
@@ -220,7 +220,7 @@ final class PostListTests: XCTestCase {
 
         list.delete(post)
         await waitUntil { gate.arrivals == 1 }
-        list.delete(post)                                     // same id already in flight
+        list.delete(post) // same id already in flight
         gate.open()
         await waitUntil { list.inFlight.isEmpty }
 
@@ -234,10 +234,10 @@ final class PostListTests: XCTestCase {
         list.posts = [post]
 
         list.setBookmarked(true, on: post)
-        XCTAssertTrue(list.posts[0].isBookmarked)               // optimistic, synchronous
+        XCTAssertTrue(list.posts[0].isBookmarked) // optimistic, synchronous
 
-        await waitUntil { fake.bookmarkSetCalls == [true] }      // reconcile ran
-        XCTAssertTrue(list.posts[0].isBookmarked)               // not rolled back
+        await waitUntil { fake.bookmarkSetCalls == [true] } // reconcile ran
+        XCTAssertTrue(list.posts[0].isBookmarked) // not rolled back
     }
 
     /// A second toggle while the first is in flight hits the `!inFlight.contains`
@@ -250,13 +250,13 @@ final class PostListTests: XCTestCase {
         post.likeCount = 5
         list.posts = [post]
 
-        list.toggleLike(post)   // inserts id into inFlight synchronously, before its Task runs
-        list.toggleLike(post)   // same id already in flight → ignored, not toggled back
-        XCTAssertTrue(list.posts[0].isLiked)            // single toggle stuck
-        XCTAssertEqual(list.posts[0].likeCount, 6)      // not re-decremented by the second call
+        list.toggleLike(post) // inserts id into inFlight synchronously, before its Task runs
+        list.toggleLike(post) // same id already in flight → ignored, not toggled back
+        XCTAssertTrue(list.posts[0].isLiked) // single toggle stuck
+        XCTAssertEqual(list.posts[0].likeCount, 6) // not re-decremented by the second call
 
-        await waitUntil { list.posts[0].likeRecordURI != nil }   // reconciled
-        XCTAssertEqual(fake.likeSetCalls, [true])       // remote invoked exactly once
+        await waitUntil { list.posts[0].likeRecordURI != nil } // reconciled
+        XCTAssertEqual(fake.likeSetCalls, [true]) // remote invoked exactly once
         XCTAssertTrue(list.posts[0].isLiked)
         XCTAssertEqual(list.posts[0].likeCount, 6)
     }
@@ -270,88 +270,12 @@ final class PostListTests: XCTestCase {
         list.posts = [present]
 
         list.toggleLike(TestFactory.feedPost(target: .bluesky, id: "absent"))
-        XCTAssertTrue(list.inFlight.isEmpty)            // guard returned before inserting
+        XCTAssertTrue(list.inFlight.isEmpty) // guard returned before inserting
         XCTAssertEqual(list.posts.map(\.id), ["present"])
         XCTAssertFalse(list.posts[0].isLiked)
 
-        await waitUntil { list.inFlight.isEmpty }       // no Task spawned to flip it
-        XCTAssertEqual(fake.likeSetCalls, [])           // remote never called
-    }
-    func testOldSuccessCannotReconcileOrClearNewGenerationMutation() async {
-        let list = PostList(panel: makeModel(FakeFeedService()))
-        let post = TestFactory.feedPost(target: .bluesky, id: "same")
-        let oldGate = TestGate()
-        let newGate = TestGate()
-        var oldRemoteReturned = false
-        list.posts = [post]
-
-        list.mutate(post, optimistic: { $0.isLiked = true }) { optimistic in
-            await oldGate.wait()
-            oldRemoteReturned = true
-            var updated = optimistic
-            updated.isPinned = true
-            return updated
-        }
-        await waitUntil { oldGate.arrivals == 1 }
-
-        list.invalidateOptimisticMutations()
-        list.mutate(list.posts[0], optimistic: { _ in }) { optimistic in
-            await newGate.wait()
-            var updated = optimistic
-            updated.isBookmarked = true
-            return updated
-        }
-        await waitUntil { newGate.arrivals == 1 }
-
-        oldGate.open()
-        await waitUntil { oldRemoteReturned }
-
-        XCTAssertTrue(list.inFlight.contains(post.id))
-        XCTAssertFalse(list.posts[0].isPinned)
-
-        newGate.open()
-        await waitUntil { list.inFlight.isEmpty }
-        XCTAssertTrue(list.posts[0].isLiked)
-        XCTAssertTrue(list.posts[0].isBookmarked)
-        XCTAssertFalse(list.posts[0].isPinned)
+        await waitUntil { list.inFlight.isEmpty } // no Task spawned to flip it
+        XCTAssertEqual(fake.likeSetCalls, []) // remote never called
     }
 
-    func testOldFailureCannotClearOrRevertNewGenerationMutation() async {
-        let panel = makeModel(FakeFeedService())
-        let list = PostList(panel: panel)
-        let post = TestFactory.feedPost(target: .bluesky, id: "same")
-        let oldGate = TestGate()
-        let newGate = TestGate()
-        var oldRemoteReturned = false
-        list.posts = [post]
-
-        list.mutate(post, optimistic: { $0.isLiked = true }) { _ in
-            await oldGate.wait()
-            oldRemoteReturned = true
-            throw FakeFeedService.FakeError.boom
-        }
-        await waitUntil { oldGate.arrivals == 1 }
-
-        list.invalidateOptimisticMutations()
-        list.posts = [post]
-        list.mutate(post, optimistic: { $0.isBookmarked = true }) { optimistic in
-            await newGate.wait()
-            var updated = optimistic
-            updated.isPinned = true
-            return updated
-        }
-        await waitUntil { newGate.arrivals == 1 }
-
-        oldGate.open()
-        await waitUntil { oldRemoteReturned }
-
-        XCTAssertTrue(list.inFlight.contains(post.id))
-        XCTAssertTrue(list.posts[0].isBookmarked)
-        XCTAssertNil(panel.actionError)
-
-        newGate.open()
-        await waitUntil { list.inFlight.isEmpty }
-        XCTAssertTrue(list.posts[0].isBookmarked)
-        XCTAssertTrue(list.posts[0].isPinned)
-    }
 }

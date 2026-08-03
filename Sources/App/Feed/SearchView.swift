@@ -20,7 +20,9 @@ struct SearchView: View {
     @State private var searchGeneration = 0
     @FocusState private var fieldFocused: Bool
 
-    private var accent: Color { panel.target.accent }
+    private var accent: Color {
+        panel.target.accent
+    }
 
     init(panel: FeedPanelModel, store: AccountStore, push: @escaping (FeedRoute) -> Void) {
         self.panel = panel
@@ -37,7 +39,7 @@ struct SearchView: View {
         }
         .background(Color(nsColor: .textBackgroundColor))
         .onAppear { fieldFocused = true }
-        .onDisappear { searchTask?.cancel() }
+        .onDisappear { stop() }
         .sheet(item: $replyTarget) { target in
             ReplySheet(model: ReplyModel(post: target, store: store)) { replyTarget = nil }
         }
@@ -57,7 +59,9 @@ struct SearchView: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel("Clear search")
             }
-            if isSearching { ProgressView().controlSize(.small).scaleEffect(0.7) }
+            if isSearching {
+                ProgressView().controlSize(.small).scaleEffect(0.7)
+            }
         }
         .padding(.horizontal, 10).padding(.vertical, 7)
         .padding(.horizontal, 6).padding(.vertical, 4)
@@ -112,19 +116,34 @@ struct SearchView: View {
         EmptyStateView(text: text, systemImage: systemImage)
     }
 
+    private func stop() {
+        searchGeneration += 1
+        searchTask?.cancel()
+        searchTask = nil
+        isSearching = false
+        postList.invalidateOptimisticMutations()
+    }
+
     /// Debounce: cancel any pending search and run a new one ~300ms after typing stops.
     private func scheduleSearch(_ text: String) {
         searchTask?.cancel()
         searchGeneration += 1
+        postList.invalidateOptimisticMutations()
+        results = SearchResults()
+        postList.posts = []
+        errorMessage = nil
         let trimmed = text.trimmingCharacters(in: .whitespaces)
         guard trimmed.count >= 2 else {
-            results = SearchResults(); postList.posts = []; isSearching = false; errorMessage = nil
+            isSearching = false
             return
         }
+        isSearching = true
         let generation = searchGeneration
         searchTask = Task {
             try? await Task.sleep(nanoseconds: 300_000_000)
-            if Task.isCancelled { return }
+            if Task.isCancelled {
+                return
+            }
             await runSearch(trimmed, generation: generation)
         }
     }
@@ -135,7 +154,11 @@ struct SearchView: View {
         // Only the newest scheduled search owns the spinner/error/results: a
         // superseded search must not clear a newer one's spinner or replace the
         // current UI with its stale success or failure.
-        defer { if generation == searchGeneration { isSearching = false } }
+        defer {
+            if generation == searchGeneration {
+                isSearching = false
+            }
+        }
         do {
             let found = try await panel.search(trimmed)
             guard generation == searchGeneration else { return }

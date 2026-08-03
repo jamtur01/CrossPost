@@ -2,9 +2,9 @@ import Foundation
 
 @MainActor
 extension FeedPanelModel {
-    // Fetch the surrounding thread (ancestors + replies) for the detail view.
-    // These detail-view fetches propagate errors so the views can show a real
-    // error state with retry, rather than an empty pane that hides a failure.
+    /// Fetch the surrounding thread (ancestors + replies) for the detail view.
+    /// These detail-view fetches propagate errors so the views can show a real
+    /// error state with retry, rather than an empty pane that hides a failure.
     func thread(of post: FeedPost) async throws -> PostThread {
         try await resolveService().thread(of: post)
     }
@@ -68,7 +68,7 @@ extension FeedPanelModel {
         try await resolveService().report(accountID: id, reason: reason, comment: comment)
     }
 
-    func relationship(with id: String) async -> AccountRelationship {
-        (try? await resolveService().relationship(with: id)) ?? AccountRelationship()
+    func relationship(with id: String) async throws -> AccountRelationship {
+        try await resolveService().relationship(with: id)
     }
 }

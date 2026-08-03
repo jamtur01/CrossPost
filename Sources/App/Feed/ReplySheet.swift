@@ -7,8 +7,11 @@ struct ReplySheet: View {
     let onClose: () -> Void
 
     @State private var attachmentPreparation = AttachmentPreparationOwner()
+    @State private var sendTask: Task<Void, Never>?
 
-    private var accent: Color { model.post.target.accent }
+    private var accent: Color {
+        model.post.target.accent
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -22,7 +25,9 @@ struct ReplySheet: View {
 
             SheetTextEditor(text: $model.text, minHeight: 96, placeholder: "Write your reply…")
 
-            if !model.attachments.isEmpty { AttachmentBar(attachments: $model.attachments) }
+            if !model.attachments.isEmpty {
+                AttachmentBar(attachments: $model.attachments)
+            }
 
             HStack {
                 Button(action: chooseFiles) {
@@ -32,8 +37,8 @@ struct ReplySheet: View {
                 .foregroundStyle(.secondary)
                 .disabled(model.attachments.count >= TargetLimits.imageMax)
                 .help(model.attachments.count >= TargetLimits.imageMax
-                      ? "Maximum \(TargetLimits.imageMax) images"
-                      : "Add image")
+                    ? "Maximum \(TargetLimits.imageMax) images"
+                    : "Add image")
 
                 if model.post.target == .mastodon {
                     VisibilityMenu(visibility: $model.visibility, accent: accent)
@@ -65,20 +70,25 @@ struct ReplySheet: View {
                 successLabel: "Reply sent", submitLabel: "Reply", submittingLabel: "Sending…",
                 canSubmit: model.canSend,
                 onCancel: close,
-                onSubmit: {
-                    Task {
-                        guard await model.send() else { return }
-                        await flashSentThenClose(onClose: close)
-                    }
-                })
+                onSubmit: submit
+            )
         }
         .onDrop(of: [.image, .fileURL], isTargeted: nil) { providers in
             prepare(providers)
             return true
         }
         .onPasteCommand(of: [.image, .fileURL], perform: prepare)
+        .onReceive(
+            NotificationCenter.default.publisher(for: .crossPostCredentialsChanged)
+        ) { note in
+            guard let targets = note.userInfo?[crossPostTargetsKey] as? Set<PostTarget>,
+                  targets.contains(model.post.target) else { return }
+            close()
+        }
         .onDisappear {
             attachmentPreparation.cancel()
+            sendTask?.cancel()
+            sendTask = nil
         }
         .sheetContainer()
     }
@@ -106,8 +116,23 @@ struct ReplySheet: View {
         )
     }
 
+    private func submit() {
+        guard sendTask == nil else { return }
+        sendTask = Task {
+            let posted = await model.send()
+            guard !Task.isCancelled else { return }
+            if posted {
+                await flashSentThenClose(onClose: close)
+            }
+            guard !Task.isCancelled else { return }
+            sendTask = nil
+        }
+    }
+
     private func close() {
         attachmentPreparation.cancel()
+        sendTask?.cancel()
+        sendTask = nil
         onClose()
     }
 }

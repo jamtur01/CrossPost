@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Switching feeds or credentials while loads, live reconnects, service creation,
+  or mutations are in flight no longer lets stale work overwrite the new view.
+- Notification follow, like, and repost actions are canceled when their row or
+  account lifecycle ends, preventing late success, rollback, or error updates.
+- Profile sections, conversations, and notifications now preserve loaded data
+  and show contextual retry errors when only part of a refresh fails.
+- Feed panels now release polling, streaming, transfer, and service-build work
+  when their views close instead of retaining stale providers or models.
+
 ## [0.4.18] - 2026-08-02
 
 ### Changed

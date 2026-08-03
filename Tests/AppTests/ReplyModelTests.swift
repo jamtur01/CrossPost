@@ -1,10 +1,10 @@
-import XCTest
 @testable import CrossPost
+import XCTest
 
 @MainActor
 final class ReplyModelTests: XCTestCase {
     override func tearDown() {
-        AccountStore().mastodonUsername = ""   // don't leak the self-handle into other tests
+        AccountStore().mastodonUsername = "" // don't leak the self-handle into other tests
         super.tearDown()
     }
 
@@ -29,7 +29,8 @@ final class ReplyModelTests: XCTestCase {
         store.mastodonUsername = ""
         let post = TestFactory.feedPost(
             target: .mastodon, authorHandle: "@bob@h.io",
-            mentionHandles: ["@carol@h.io", "@bob@h.io", "@dave@h.io"])
+            mentionHandles: ["@carol@h.io", "@bob@h.io", "@dave@h.io"]
+        )
         let model = ReplyModel(post: post, store: store)
         XCTAssertEqual(model.text, "@bob@h.io @carol@h.io @dave@h.io ")
     }
@@ -39,7 +40,8 @@ final class ReplyModelTests: XCTestCase {
         store.mastodonUsername = "me@h.io"
         let post = TestFactory.feedPost(
             target: .mastodon, authorHandle: "@me@h.io",
-            mentionHandles: ["@carol@h.io"])
+            mentionHandles: ["@carol@h.io"]
+        )
         let model = ReplyModel(post: post, store: store)
         XCTAssertEqual(model.text, "@carol@h.io ")
     }
@@ -47,11 +49,11 @@ final class ReplyModelTests: XCTestCase {
     func testReplyVisibilitySeededFromMastodonParent() {
         let post = TestFactory.feedPost(target: .mastodon, visibility: "private")
         let model = ReplyModel(post: post, store: AccountStore())
-        XCTAssertEqual(model.visibility, .private)   // never widens the parent's audience
+        XCTAssertEqual(model.visibility, .private) // never widens the parent's audience
     }
 
     func testReplyVisibilityDefaultsPublicWhenParentHasNone() {
-        let post = TestFactory.feedPost(target: .bluesky)   // Bluesky carries no visibility
+        let post = TestFactory.feedPost(target: .bluesky) // Bluesky carries no visibility
         let model = ReplyModel(post: post, store: AccountStore())
         XCTAssertEqual(model.visibility, .public)
     }
@@ -67,7 +69,7 @@ final class ReplyModelTests: XCTestCase {
         model.text = "sure"
         let posted = await model.send()
         XCTAssertTrue(posted)
-        XCTAssertEqual(fake.replyVisibilities, [.unlisted])   // forwarded the parent's level
+        XCTAssertEqual(fake.replyVisibilities, [.unlisted]) // forwarded the parent's level
     }
 
     func testOverLimitReplyReportsFailureAndDoesNotPost() async {
@@ -76,9 +78,9 @@ final class ReplyModelTests: XCTestCase {
         let model = ReplyModel(post: post, store: store)
         model.text = String(repeating: "a", count: TargetLimits.blueskyMax + 1)
 
-        let posted = await model.send()   // validation fails before any network call
+        let posted = await model.send() // validation fails before any network call
 
-        XCTAssertFalse(posted)                       // must NOT report success
+        XCTAssertFalse(posted) // must NOT report success
         XCTAssertNotNil(model.blockedIssues)
         XCTAssertNil(model.errorMessage)
         XCTAssertFalse(model.didPost)
@@ -94,7 +96,7 @@ final class ReplyModelTests: XCTestCase {
             makeService: { _, _ in fake }
         )
         model.text = "sure"
-        model.attachments = [Attachment(imageData: Data([0x00, 0x01]))]   // not an image
+        model.attachments = [Attachment(imageData: Data([0x00, 0x01]))] // not an image
 
         let posted = await model.send()
 
@@ -151,6 +153,31 @@ final class ReplyModelTests: XCTestCase {
         XCTAssertFalse(model.isSending)
     }
 
+    func testCanceledReplyProviderCompletionDoesNotPublishSuccess() async {
+        let fake = FakeFeedService()
+        let gate = TestGate()
+        fake.replyDelay = { await gate.wait() }
+        let model = ReplyModel(
+            post: TestFactory.feedPost(target: .bluesky),
+            store: AccountStore(),
+            makeService: { _, _ in fake }
+        )
+        model.text = "sure"
+
+        let reply = Task { await model.send() }
+        await waitUntil { gate.arrivals == 1 }
+        reply.cancel()
+        gate.open()
+        await waitUntil { fake.replyCompletions == 1 }
+        let posted = await reply.value
+
+        XCTAssertFalse(posted)
+        XCTAssertFalse(model.didPost)
+        XCTAssertNil(model.postedURL)
+        XCTAssertNil(model.errorMessage)
+        XCTAssertFalse(model.isSending)
+    }
+
     func testEmptyReplySkipsAttachmentValidation() async {
         let fake = FakeFeedService()
         let probe = ReplyValidationProbe(result: nil)
@@ -177,17 +204,18 @@ final class ReplyModelTests: XCTestCase {
             store: AccountStore(),
             makeService: { _, _ in fake }
         )
-        model.text = ""                                   // no text…
-        model.attachments = [Attachment(imageData: TestFactory.pngData(), altText: "alt")]   // …just an image
+        model.text = "" // no text…
+        model.attachments = [Attachment(imageData: TestFactory.pngData(), altText: "alt")] // …just an image
 
         var refreshCount = 0
         let token = NotificationCenter.default.addObserver(
-            forName: .crossPostDidPost, object: nil, queue: nil) { _ in refreshCount += 1 }
+            forName: .crossPostDidPost, object: nil, queue: nil
+        ) { _ in refreshCount += 1 }
         defer { NotificationCenter.default.removeObserver(token) }
 
         let posted = await model.send()
 
-        XCTAssertTrue(posted)                             // image-only reply is allowed
+        XCTAssertTrue(posted) // image-only reply is allowed
         XCTAssertNil(model.blockedIssues)
         XCTAssertTrue(model.didPost)
         XCTAssertEqual(model.postedURL, URL(string: "https://example/reply"),
@@ -204,7 +232,7 @@ final class ReplyModelTests: XCTestCase {
             makeService: { _, _ in fake }
         )
         model.text = "hi"
-        model.isSending = true   // simulate a send already in flight
+        model.isSending = true // simulate a send already in flight
 
         let posted = await model.send()
 
@@ -243,11 +271,19 @@ private final class ReplyValidationProbe: @unchecked Sendable {
         self.blocks = blocks
     }
 
-    var hasEntered: Bool { lock.withLock { entered } }
-    var ranOnMainThread: Bool { lock.withLock { mainThread } }
-    var observedCancellation: Bool { lock.withLock { cancelled } }
+    var hasEntered: Bool {
+        lock.withLock { entered }
+    }
 
-    func validate(_ attachmentDataByPost: [[Data]]) -> Int? {
+    var ranOnMainThread: Bool {
+        lock.withLock { mainThread }
+    }
+
+    var observedCancellation: Bool {
+        lock.withLock { cancelled }
+    }
+
+    func validate(_: [[Data]]) -> Int? {
         lock.withLock {
             entered = true
             mainThread = Thread.isMainThread

@@ -16,43 +16,84 @@ protocol OptimisticPostHost: AnyObject {
     var inFlight: Set<String> { get set }
     var mutationTasks: [String: Task<Void, Never>] { get set }
     var mutationGeneration: UInt { get set }
+    var remoteMutationGeneration: UInt { get }
 
     func reportError(_ message: String)
 
-    func remoteSetLiked(_ liked: Bool, on post: FeedPost) async throws -> FeedPost
-    func remoteSetReposted(_ reposted: Bool, on post: FeedPost) async throws -> FeedPost
-    func remoteSetBookmarked(_ bookmarked: Bool, on post: FeedPost) async throws -> FeedPost
-    func remoteSetPinned(_ pinned: Bool, on post: FeedPost) async throws -> FeedPost
-    func remoteDelete(_ post: FeedPost) async throws
+    func remoteSetLiked(
+        _ liked: Bool,
+        on post: FeedPost,
+        generation: UInt
+    ) async throws -> FeedPost
+    func remoteSetReposted(
+        _ reposted: Bool,
+        on post: FeedPost,
+        generation: UInt
+    ) async throws -> FeedPost
+    func remoteSetBookmarked(
+        _ bookmarked: Bool,
+        on post: FeedPost,
+        generation: UInt
+    ) async throws -> FeedPost
+    func remoteSetPinned(
+        _ pinned: Bool,
+        on post: FeedPost,
+        generation: UInt
+    ) async throws -> FeedPost
+    func remoteDelete(_ post: FeedPost, generation: UInt) async throws
 }
 
 extension OptimisticPostHost {
+    var remoteMutationGeneration: UInt {
+        mutationGeneration
+    }
+
     func toggleLike(_ post: FeedPost) {
         Haptics.tap()
-        mutate(post, optimistic: {
-            $0.isLiked.toggle()
-            $0.likeCount = max(0, $0.likeCount + ($0.isLiked ? 1 : -1))
-        }) { try await self.remoteSetLiked($0.isLiked, on: $0) }
+        mutate(
+            post,
+            optimistic: {
+                $0.isLiked.toggle()
+                $0.likeCount = max(0, $0.likeCount + ($0.isLiked ? 1 : -1))
+            },
+            action: {
+                try await self.remoteSetLiked($0.isLiked, on: $0, generation: $1)
+            }
+        )
     }
 
     func toggleRepost(_ post: FeedPost) {
         Haptics.tap()
-        mutate(post, optimistic: {
-            $0.isReposted.toggle()
-            $0.repostCount = max(0, $0.repostCount + ($0.isReposted ? 1 : -1))
-        }) { try await self.remoteSetReposted($0.isReposted, on: $0) }
+        mutate(
+            post,
+            optimistic: {
+                $0.isReposted.toggle()
+                $0.repostCount = max(0, $0.repostCount + ($0.isReposted ? 1 : -1))
+            },
+            action: {
+                try await self.remoteSetReposted($0.isReposted, on: $0, generation: $1)
+            }
+        )
     }
 
     func setBookmarked(_ bookmarked: Bool, on post: FeedPost) {
-        mutate(post, optimistic: { $0.isBookmarked = bookmarked }) {
-            try await self.remoteSetBookmarked(bookmarked, on: $0)
-        }
+        mutate(
+            post,
+            optimistic: { $0.isBookmarked = bookmarked },
+            action: {
+                try await self.remoteSetBookmarked(bookmarked, on: $0, generation: $1)
+            }
+        )
     }
 
     func setPinned(_ pinned: Bool, on post: FeedPost) {
-        mutate(post, optimistic: { $0.isPinned = pinned }) {
-            try await self.remoteSetPinned(pinned, on: $0)
-        }
+        mutate(
+            post,
+            optimistic: { $0.isPinned = pinned },
+            action: {
+                try await self.remoteSetPinned(pinned, on: $0, generation: $1)
+            }
+        )
     }
 
     /// Optimistically remove a row, deleting it on the server and re-inserting it
@@ -62,12 +103,21 @@ extension OptimisticPostHost {
               let index = posts.firstIndex(where: { $0.id == post.id }) else { return }
         inFlight.insert(post.id)
         let generation = mutationGeneration
+        let remoteGeneration = remoteMutationGeneration
         let previousID = index > 0 ? posts[index - 1].id : nil
         let removed = posts.remove(at: index)
         let nextID = index < posts.count ? posts[index].id : nil
         mutationTasks[post.id] = Task {
             do {
-                try await remoteDelete(post)
+                try await remoteDelete(post, generation: remoteGeneration)
+            } catch is CancellationError {
+                guard mutationGeneration == generation else { return }
+                restoreDeletedPost(
+                    removed,
+                    at: index,
+                    previousID: previousID,
+                    nextID: nextID
+                )
             } catch {
                 guard mutationGeneration == generation else { return }
                 restoreDeletedPost(
@@ -85,36 +135,42 @@ extension OptimisticPostHost {
     /// Replace a row in place after an edit (same id, new content), so a surface
     /// shows the edit without a full reload.
     func replace(_ post: FeedPost) {
-        if let index = posts.firstIndex(where: { $0.id == post.id }) { posts[index] = post }
+        if let index = posts.firstIndex(where: { $0.id == post.id }) {
+            posts[index] = post
+        }
     }
 
     /// Flip the UI immediately, call the remote action, reconcile or revert on
     /// failure. Ignores a second mutation of the same post while one is in flight;
     /// reconciles only if a concurrent refresh hasn't already replaced the row.
-    func mutate(_ post: FeedPost,
-                optimistic: (inout FeedPost) -> Void,
-                action: @escaping (FeedPost) async throws -> FeedPost) {
+    func mutate(
+        _ post: FeedPost,
+        optimistic: (inout FeedPost) -> Void,
+        action: @escaping (FeedPost, UInt) async throws -> FeedPost
+    ) {
         guard !inFlight.contains(post.id),
               let index = posts.firstIndex(where: { $0.id == post.id }) else { return }
         inFlight.insert(post.id)
         let generation = mutationGeneration
+        let remoteGeneration = remoteMutationGeneration
         let original = posts[index]
         var optimisticPost = original
         optimistic(&optimisticPost)
         posts[index] = optimisticPost
         mutationTasks[post.id] = Task {
             do {
-                let updated = try await action(optimisticPost)
+                let updated = try await action(optimisticPost, remoteGeneration)
                 guard mutationGeneration == generation else { return }
                 if let index = posts.firstIndex(where: { $0.id == post.id }),
                    posts[index] == optimisticPost {
                     posts[index] = updated
                 }
+            } catch is CancellationError {
+                guard mutationGeneration == generation else { return }
+                restoreMutation(original, ifCurrent: optimisticPost)
             } catch {
                 guard mutationGeneration == generation else { return }
-                if let index = posts.firstIndex(where: { $0.id == post.id }) {
-                    posts[index] = original
-                }
+                restoreMutation(original, ifCurrent: optimisticPost)
                 reportError(error.userMessage)
             }
             finishMutation(post.id, generation: generation)
@@ -128,6 +184,13 @@ extension OptimisticPostHost {
         mutationTasks.values.forEach { $0.cancel() }
         mutationTasks.removeAll()
         inFlight.removeAll()
+    }
+
+    private func restoreMutation(_ original: FeedPost, ifCurrent optimisticPost: FeedPost) {
+        if let index = posts.firstIndex(where: { $0.id == optimisticPost.id }),
+           posts[index] == optimisticPost {
+            posts[index] = original
+        }
     }
 
     private func finishMutation(_ postID: String, generation: UInt) {

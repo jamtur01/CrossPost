@@ -1,60 +1,13 @@
-import XCTest
-import AppKit
 @testable import CrossPost
+import XCTest
 
 @MainActor
-final class FeedPanelModelTests: XCTestCase {
-    override func tearDown() {
-        // @AppStorage lives in a shared test suite; don't leak creds across tests.
-        let store = AccountStore()
-        store.mastodonInstanceURL = ""
-        store.mastodonUsername = ""
-        store.blueskyHandle = ""
-        super.tearDown()
-    }
-
-    private func makeModel(
-        _ fake: FakeFeedService,
-        target: PostTarget = .mastodon
-    ) -> FeedPanelModel {
-        let store = AccountStore()
-        store.mastodonInstanceURL = "https://h.io"
-        store.mastodonToken = "tok"
-        store.blueskyHandle = "me.bsky.social"
-        store.blueskyAppPassword = "pw"
-        let model = FeedPanelModel(target: target, store: store) { _, _ in fake }
-        model.applicationIsActive = { true }
-        return model
-    }
-
-    /// Polls observable model state until `predicate` holds, since the model's
-    /// optimistic actions reconcile in a host-owned task.
-    private func waitUntil(_ predicate: @MainActor () -> Bool, timeout: TimeInterval = 2,
-                           file: StaticString = #filePath, line: UInt = #line) async {
-        let deadline = Date().addingTimeInterval(timeout)
-        while !predicate() {
-            if Date() >= deadline {
-                XCTFail("condition not met within timeout", file: file, line: line)
-                return
-            }
-            try? await Task.sleep(nanoseconds: 1_000_000)
-        }
-    }
-
+final class FeedPanelModelTests: FeedPanelTestCase {
     // MARK: Service lifecycle
 
     // Service-build and call gating uses the shared TestGate (FakeFeedService.swift).
 
-    private func makeStore() -> AccountStore {
-        let store = AccountStore()
-        store.mastodonInstanceURL = "https://h.io"
-        store.mastodonToken = "tok"
-        store.blueskyHandle = "me.bsky.social"
-        store.blueskyAppPassword = "pw"
-        return store
-    }
-
-    func testRestartDiscardsServiceBuiltBeforeRestart() async {
+    func testRestartRetriesLiveCallerAgainstFreshService() async {
         let stale = FakeFeedService()
         stale.feed = [TestFactory.feedPost(id: "stale")]
         let fresh = FakeFeedService()
@@ -78,9 +31,13 @@ final class FeedPanelModelTests: XCTestCase {
         model.start()
         await waitUntil { model.posts.map(\.id) == ["fresh"] }
 
-        // The pre-restart build finally completes; it must not be installed.
+        // The still-live caller retries against the current generation instead of
+        // surfacing the shared build's internal cancellation.
         gate.open()
-        _ = await staleCaller.value
+        let recoveredProfile = await staleCaller.value
+        XCTAssertEqual(recoveredProfile?.id, "p")
+        XCTAssertEqual(stale.profileRequests, [])
+        XCTAssertEqual(fresh.profileRequests, ["p"])
 
         model.refresh()
         await waitUntil { stale.loadFeedCalls + fresh.loadFeedCalls == 2 }
@@ -137,6 +94,71 @@ final class FeedPanelModelTests: XCTestCase {
         XCTAssertEqual(builds, 1)
     }
 
+    func testCanceledWaiterDoesNotReachProviderAfterSharedBuild() async throws {
+        let fake = FakeFeedService()
+        let gate = TestGate()
+        var callersStarted = 0
+        var builds = 0
+        let model = FeedPanelModel(target: .bluesky, store: makeStore()) { _, _ in
+            builds += 1
+            await gate.wait()
+            return fake
+        }
+
+        let canceled = Task {
+            callersStarted += 1
+            return try await model.profile(id: "canceled")
+        }
+        let live = Task {
+            callersStarted += 1
+            return try await model.profile(id: "live")
+        }
+        await waitUntil { callersStarted == 2 && gate.arrivals == 1 }
+
+        canceled.cancel()
+        gate.open()
+
+        let canceledResult = await canceled.result
+        if case let .failure(error) = canceledResult {
+            XCTAssertTrue(error is CancellationError)
+        } else {
+            XCTFail("the canceled waiter must finish with CancellationError")
+        }
+        let liveProfile = try await live.value
+        XCTAssertEqual(liveProfile.id, "live")
+        XCTAssertEqual(fake.profileRequests, ["live"])
+        XCTAssertEqual(builds, 1)
+    }
+
+    func testFailedBuildFromCanceledWaiterDoesNotPoisonNextCaller() async throws {
+        let fake = FakeFeedService()
+        let gate = TestGate()
+        var builds = 0
+        let model = FeedPanelModel(target: .bluesky, store: makeStore()) { _, _ in
+            builds += 1
+            if builds == 1 {
+                await gate.wait()
+                throw FakeFeedService.FakeError.boom
+            }
+            return fake
+        }
+        let canceled = Task { try await model.profile(id: "canceled") }
+        await waitUntil { gate.arrivals == 1 }
+
+        canceled.cancel()
+        gate.open()
+        if case let .failure(error) = await canceled.result {
+            XCTAssertTrue(error is CancellationError)
+        } else {
+            XCTFail("the canceled waiter must not consume the replacement service")
+        }
+
+        let profile = try await model.profile(id: "current")
+        XCTAssertEqual(profile.id, "current")
+        XCTAssertEqual(builds, 2)
+        XCTAssertEqual(fake.profileRequests, ["current"])
+    }
+
     func testTabSwitchStopsCanceledWaitersBeforeProviderCalls() async {
         let fake = FakeFeedService()
         let gate = TestGate()
@@ -190,11 +212,11 @@ final class FeedPanelModelTests: XCTestCase {
         model.posts = [post]
         var remoteReturned = false
 
-        model.mutate(post, optimistic: { $0.isLiked = true }) { _ in
+        model.mutate(post, optimistic: { $0.isLiked = true }, action: { _, _ in
             await gate.wait()
             remoteReturned = true
             throw FakeFeedService.FakeError.boom
-        }
+        })
         await waitUntil { gate.arrivals == 1 }
 
         model.start()
@@ -219,11 +241,11 @@ final class FeedPanelModelTests: XCTestCase {
         model.posts = [post]
         var remoteReturned = false
 
-        model.mutate(post, optimistic: { $0.isLiked = true }) { _ in
+        model.mutate(post, optimistic: { $0.isLiked = true }, action: { _, _ in
             await gate.wait()
             remoteReturned = true
             throw FakeFeedService.FakeError.boom
-        }
+        })
         await waitUntil { gate.arrivals == 1 }
 
         model.switchTo(.notifications)
@@ -235,542 +257,5 @@ final class FeedPanelModelTests: XCTestCase {
         XCTAssertEqual(model.posts, [replacement])
         XCTAssertNil(model.actionError)
         model.stop()
-    }
-
-    // MARK: Notifications loading
-
-    func testLoadingNotificationsStoresFetchedMarksNewestAndClearsBadge() async {
-        let fake = FakeFeedService()
-        let newest = FeedNotification.fixture(id: "n2", date: Date(timeIntervalSince1970: 200))
-        let older = FeedNotification.fixture(id: "n1", date: Date(timeIntervalSince1970: 100))
-        fake.notificationsToReturn = [newest, older]   // services return newest-first
-        let model = makeModel(fake)
-        model.unreadCount = 5
-
-        model.switchTo(.notifications)
-        await waitUntil { !model.notifications.isEmpty }
-
-        XCTAssertEqual(model.notifications.map(\.id), ["n2", "n1"])
-        XCTAssertEqual(model.unreadCount, 0)                    // badge cleared
-        XCTAssertEqual(fake.markedReadCalls, [newest])          // marked read up to the newest only
-        model.stop()
-    }
-
-    func testLoadingNotificationsResolvesFollowStateInOneBatch() async {
-        let fake = FakeFeedService()
-        fake.notificationsToReturn = [
-            .fixture(id: "n1", date: Date(timeIntervalSince1970: 200), actorID: "friend"),
-            .fixture(id: "n2", date: Date(timeIntervalSince1970: 100), actorID: "stranger"),
-        ]
-        fake.relationshipsToReturn = ["friend": AccountRelationship(isFollowing: true)]
-        let model = makeModel(fake)
-
-        model.switchTo(.notifications)
-        await waitUntil { model.isFollowing("friend") }
-
-        XCTAssertFalse(model.isFollowing("stranger"))
-        XCTAssertEqual(fake.relationshipsRequests.count, 1, "one batch lookup, not per-row calls")
-        XCTAssertEqual(Set(fake.relationshipsRequests[0]), ["friend", "stranger"])
-        model.stop()
-    }
-
-    func testFollowingAnAlreadyFollowedActorNeverWritesAFollow() async {
-        let fake = FakeFeedService()
-        fake.relationshipsToReturn = ["friend": AccountRelationship(isFollowing: true)]
-        let model = makeModel(fake)
-
-        await model.follow(actorID: "friend")
-
-        XCTAssertTrue(model.isFollowing("friend"), "state reflects the resolved relationship")
-        XCTAssertEqual(fake.setFollowingCalls, [], "already following — no follow/unfollow request")
-    }
-
-    func testFollowingANewActorFollowsAndUpdatesSharedState() async {
-        let fake = FakeFeedService()
-        let model = makeModel(fake)
-
-        await model.follow(actorID: "stranger")
-
-        XCTAssertTrue(model.isFollowing("stranger"))
-        XCTAssertEqual(fake.setFollowingCalls, ["stranger:true"])
-    }
-
-    func testNotificationFollowStateMergesInsteadOfReplacing() async {
-        let fake = FakeFeedService()
-        let model = makeModel(fake)
-        // The user follows someone who isn't in any notification page.
-        await model.follow(actorID: "friend")
-        XCTAssertTrue(model.isFollowing("friend"))
-
-        // Loading a notifications page that resolves a different actor must not
-        // wipe the follow we just made — the batch merges into the set.
-        fake.notificationsToReturn = [
-            .fixture(
-                id: "n1",
-                date: Date(timeIntervalSince1970: 1),
-                actorID: "other"
-            ),
-        ]
-        fake.relationshipsToReturn = ["other": AccountRelationship(isFollowing: true)]
-        model.switchTo(.notifications)
-        await waitUntil { model.isFollowing("other") }
-
-        XCTAssertTrue(model.isFollowing("friend"), "a follow outside the page must survive a load")
-        model.stop()
-    }
-
-    // MARK: isMine (controls delete/pin)
-
-    func testIsMineMatchesOwnBlueskyHandleCaseInsensitively() {
-        let model = makeModel(FakeFeedService(), target: .bluesky)
-        let mine = TestFactory.feedPost(
-            target: .bluesky,
-            authorHandle: "@me.bsky.social"
-        )
-        let mineUppercased = TestFactory.feedPost(
-            target: .bluesky,
-            authorHandle: "@ME.BSKY.SOCIAL"
-        )
-        let other = TestFactory.feedPost(
-            target: .bluesky,
-            authorHandle: "@other.bsky.social"
-        )
-        XCTAssertTrue(model.isMine(mine))
-        XCTAssertTrue(model.isMine(mineUppercased))
-        XCTAssertFalse(model.isMine(other))
-    }
-
-    func testIsMineMatchesOwnMastodonUsername() {
-        let store = AccountStore()
-        store.mastodonUsername = "me@h.io"
-        let model = FeedPanelModel(
-            target: .mastodon,
-            store: store
-        ) { _, _ in FakeFeedService() }
-        let mine = TestFactory.feedPost(
-            target: .mastodon,
-            authorHandle: "@me@h.io"
-        )
-        let other = TestFactory.feedPost(
-            target: .mastodon,
-            authorHandle: "@someone@h.io"
-        )
-        XCTAssertTrue(model.isMine(mine))
-        XCTAssertFalse(model.isMine(other))
-    }
-
-    // MARK: Error routing (empty sticky vs transient vs silent)
-
-    func testFailedLoadOnEmptyFeedSetsStickyEmptyStateError() async {
-        let fake = FakeFeedService()
-        fake.failLoad = true
-        let model = makeModel(fake)
-        model.refresh()
-        await waitUntil { model.errorMessage != nil }
-        XCTAssertNil(
-            model.actionError,
-            "an empty-feed failure uses the sticky empty state, not the banner"
-        )
-        XCTAssertTrue(model.posts.isEmpty)
-        model.stop()
-    }
-
-    func testFailedRefreshWithContentShowsTransientBannerNotStickyError() async {
-        let fake = FakeFeedService()
-        fake.feed = [TestFactory.feedPost(target: .mastodon, id: "p1")]
-        let model = makeModel(fake)
-        model.refresh()
-        await waitUntil { !model.posts.isEmpty }   // first load succeeds
-
-        fake.failLoad = true
-        model.refresh()                            // user refresh fails with content present
-        await waitUntil { model.actionError != nil }
-        XCTAssertNil(
-            model.errorMessage,
-            "a refresh failure with content must not set the sticky banner"
-        )
-        XCTAssertEqual(model.posts.map(\.id), ["p1"], "stale content stands")
-        model.stop()
-    }
-
-    // MARK: Optimistic like / repost
-
-    func testLikeSuccessUpdatesFlagCountAndRecordURI() async {
-        let fake = FakeFeedService()
-        let model = makeModel(fake, target: .bluesky)
-        let post = TestFactory.feedPost(target: .bluesky)
-        model.posts = [post]
-
-        model.toggleLike(post)
-        XCTAssertTrue(model.posts[0].isLiked)                   // optimistic, synchronous
-        XCTAssertEqual(model.posts[0].likeCount, post.likeCount + 1)
-
-        await waitUntil { model.posts[0].likeRecordURI != nil }
-        XCTAssertEqual(model.posts[0].likeRecordURI, "at://like/\(post.id)")
-    }
-
-    func testLikeFailureRollsBackAndSurfacesError() async {
-        let fake = FakeFeedService()
-        fake.failLike = true
-        let model = makeModel(fake, target: .bluesky)
-        let post = TestFactory.feedPost(target: .bluesky)
-        model.posts = [post]
-
-        model.toggleLike(post)
-        XCTAssertTrue(model.posts[0].isLiked)                   // optimistic
-
-        await waitUntil { model.actionError != nil }
-        XCTAssertFalse(model.posts[0].isLiked)                  // rolled back
-        XCTAssertEqual(model.posts[0].likeCount, post.likeCount)
-    }
-
-    func testRepostSuccessSetsRecordURI() async {
-        let fake = FakeFeedService()
-        let model = makeModel(fake, target: .bluesky)
-        let post = TestFactory.feedPost(target: .bluesky)
-        model.posts = [post]
-
-        model.toggleRepost(post)
-        XCTAssertTrue(model.posts[0].isReposted)
-        XCTAssertEqual(model.posts[0].repostCount, post.repostCount + 1)
-
-        await waitUntil { model.posts[0].repostRecordURI != nil }
-        XCTAssertEqual(model.posts[0].repostRecordURI, "at://repost/\(post.id)")
-    }
-
-    // MARK: Delete rollback
-
-    func testDeleteFailureRestoresRowAtOriginalIndex() async {
-        let fake = FakeFeedService()
-        fake.failDelete = true
-        let model = makeModel(fake)
-        let posts = ["a", "b", "c"].map { TestFactory.feedPost(id: $0) }
-        model.posts = posts
-
-        model.delete(posts[1])
-        XCTAssertEqual(model.posts.map(\.id), ["a", "c"])       // optimistic removal
-
-        await waitUntil { model.actionError != nil }
-        XCTAssertEqual(model.posts.map(\.id), ["a", "b", "c"])  // restored at original index
-    }
-
-    func testDeleteSuccessRemovesRow() async {
-        let fake = FakeFeedService()
-        let model = makeModel(fake)
-        let posts = ["a", "b"].map { TestFactory.feedPost(id: $0) }
-        model.posts = posts
-
-        model.delete(posts[0])
-        XCTAssertEqual(model.posts.map(\.id), ["b"])
-
-        await waitUntil { fake.deletedIDs.contains("a") }
-        XCTAssertEqual(model.posts.map(\.id), ["b"])            // stays removed
-    }
-
-    // MARK: Quote / edit / report / saved feeds
-
-    private func expectRefreshNotification() -> (count: () -> Int, stop: () -> Void) {
-        var count = 0
-        let token = NotificationCenter.default.addObserver(
-            forName: .crossPostDidPost, object: nil, queue: nil) { _ in count += 1 }
-        return ({ count }, { NotificationCenter.default.removeObserver(token) })
-    }
-
-    func testQuoteForwardsArgsAndRefreshesOnce() async throws {
-        let fake = FakeFeedService()
-        let model = makeModel(fake)
-        let refresh = expectRefreshNotification()
-        defer { refresh.stop() }
-
-        _ = try await model.quote(post: TestFactory.feedPost(), text: "nice", visibility: .unlisted)
-
-        XCTAssertEqual(fake.quoteCalls.count, 1)
-        XCTAssertEqual(fake.quoteCalls.first?.text, "nice")
-        XCTAssertEqual(fake.quoteCalls.first?.visibility, .unlisted)
-        XCTAssertEqual(refresh.count(), 1)
-    }
-
-    func testEditForwardsArgsAndRefreshesOnce() async throws {
-        let fake = FakeFeedService()
-        let model = makeModel(fake)
-        let refresh = expectRefreshNotification()
-        defer { refresh.stop() }
-
-        _ = try await model.edit(post: TestFactory.feedPost(), text: "fixed", spoiler: "cw")
-
-        XCTAssertEqual(fake.editCalls.count, 1)
-        XCTAssertEqual(fake.editCalls.first?.text, "fixed")
-        XCTAssertEqual(fake.editCalls.first?.spoiler, "cw")
-        XCTAssertEqual(refresh.count(), 1)
-    }
-
-    func testReportForwardsToService() async throws {
-        let fake = FakeFeedService()
-        let model = makeModel(fake)
-
-        try await model.report(post: TestFactory.feedPost(), reason: .spam, comment: "bot")
-
-        XCTAssertEqual(fake.reportPostCalls.count, 1)
-        XCTAssertEqual(fake.reportPostCalls.first?.reason, .spam)
-        XCTAssertEqual(fake.reportPostCalls.first?.comment, "bot")
-    }
-
-    func testBookmarkedLikedAndPinnedPostsReadFromService() async throws {
-        let fake = FakeFeedService()
-        var bookmarked = TestFactory.feedPost(id: "b1"); bookmarked.isBookmarked = true
-        var liked = TestFactory.feedPost(id: "l1"); liked.isLiked = true
-        var pinned = TestFactory.feedPost(id: "p1"); pinned.isPinned = true
-        fake.feed = [bookmarked, liked, pinned, TestFactory.feedPost(id: "plain")]
-        let model = makeModel(fake)
-
-        let bookmarks = try await model.bookmarkedPosts()
-        let likes = try await model.likedPosts()
-        let pins = try await model.pinnedPosts(id: "anyone")
-
-        XCTAssertEqual(bookmarks.map(\.id), ["b1"])
-        XCTAssertEqual(likes.map(\.id), ["l1"])
-        XCTAssertEqual(pins.map(\.id), ["p1"])
-    }
-
-    func testDetailFetchesPropagateErrors() async {
-        let fake = FakeFeedService()
-        fake.failLoad = true
-        let model = makeModel(fake)
-
-        // The detail views rely on these throwing so they can show a retry state.
-        var profileThrew = false, postsThrew = false
-        do { _ = try await model.profile(id: "x") } catch { profileThrew = true }
-        do { _ = try await model.authorPosts(id: "x") } catch { postsThrew = true }
-
-        XCTAssertTrue(profileThrew)
-        XCTAssertTrue(postsThrew)
-    }
-
-    func testFailedReadMarkLeavesBadgeUncleared() async {
-        let fake = FakeFeedService()
-        fake.failMarkRead = true
-        fake.notificationsToReturn = [.fixture(id: "n1", date: Date(timeIntervalSince1970: 1))]
-        let model = makeModel(fake)
-        model.unreadCount = 3
-
-        model.switchTo(.notifications)
-        await waitUntil { !model.notifications.isEmpty }
-
-        XCTAssertEqual(model.unreadCount, 3, "a failed read-mark must not falsely clear the badge")
-        model.stop()
-    }
-
-    /// A notifications load superseded by a tab switch must not zero the badge or
-    /// cancel the successor's unread fetch once its read-mark finally returns.
-    func testSupersededNotificationsLoadDoesNotClearBadgeAfterTabSwitch() async {
-        let fake = FakeFeedService()
-        fake.notificationsToReturn = [.fixture(id: "n1", date: Date(timeIntervalSince1970: 1))]
-        fake.unread = 4
-        let gate = TestGate()
-        fake.markReadDelay = { await gate.wait() }
-        let model = makeModel(fake)
-
-        model.switchTo(.notifications)
-        await waitUntil { gate.arrivals == 1 }   // load is suspended inside the read-mark
-
-        model.switchTo(.home)                    // supersedes the load, refetches the badge
-        await waitUntil { model.unreadCount == 4 }
-
-        gate.open()                              // the stale load's read-mark returns now
-        try? await Task.sleep(nanoseconds: 100_000_000)
-        XCTAssertEqual(
-            model.unreadCount,
-            4,
-            "a superseded notifications load must not zero the badge"
-        )
-        model.stop()
-    }
-
-    func testStopClearsTransientActionError() {
-        let model = makeModel(FakeFeedService())
-        model.reportError("boom")
-
-        model.stop()
-
-        XCTAssertNil(model.actionError)
-    }
-
-    /// The banner dismiss timer is keyed to the banner instance, not its text: a
-    /// renewed identical banner gets a fresh timeout instead of dying on the old timer.
-    func testRenewedIdenticalBannerGetsAFreshDismissTimer() async {
-        let model = makeModel(FakeFeedService())
-        model.actionErrorDismissDelay = 400_000_000
-
-        model.reportError("boom")
-        try? await Task.sleep(nanoseconds: 200_000_000)
-        model.reportError("boom")                          // renew with the identical message
-        try? await Task.sleep(nanoseconds: 300_000_000)    // the first timer has fired by now
-        XCTAssertEqual(
-            model.actionError,
-            "boom",
-            "the old timer must not dismiss the renewed banner"
-        )
-
-        await waitUntil { model.actionError == nil }       // the renewed timer still dismisses it
-    }
-
-    /// The live-update loop re-acquires self weakly per iteration, so a model
-    /// discarded without stop() deallocates instead of being pinned by the open stream.
-    func testOpenLiveStreamDoesNotKeepDiscardedModelAlive() async {
-        let fake = FakeFeedService()
-        var continuation: AsyncStream<Void>.Continuation?
-        fake.liveStream = AsyncStream { continuation = $0 }   // stays open until test end
-        var model: FeedPanelModel? = makeModel(fake)          // .mastodon → live stream runs
-        model?.start()
-        await waitUntil { fake.liveUpdatesCalls == 1 }        // the loop is inside the stream
-
-        weak var weakModel: FeedPanelModel?
-        weakModel = model
-        model = nil                                           // discarded without stop()
-        await waitUntil { weakModel == nil }
-        continuation?.finish()
-    }
-
-    func testLiveBurstRunsOneActiveAndOnePendingFeedLoad() async {
-        let fake = FakeFeedService()
-        let gate = TestGate()
-        var continuation: AsyncStream<Void>.Continuation?
-        fake.liveStream = AsyncStream { continuation = $0 }
-        fake.loadDelay = { await gate.wait() }
-        let model = makeModel(fake)
-        model.start()
-        await waitUntil { gate.arrivals == 1 && fake.liveUpdatesCalls == 1 }
-
-        continuation?.yield()
-        continuation?.yield()
-        continuation?.yield()
-        try? await Task.sleep(nanoseconds: 50_000_000)
-        XCTAssertEqual(fake.loadFeedCalls, 1, "stream bursts must not start parallel feed loads")
-
-        fake.loadDelay = nil
-        gate.open()
-        await waitUntil { fake.loadFeedCalls == 2 }
-        try? await Task.sleep(nanoseconds: 50_000_000)
-        XCTAssertEqual(fake.loadFeedCalls, 2, "a burst needs at most one trailing refresh")
-        model.stop()
-        continuation?.finish()
-    }
-
-    func testUnchangedFeedRefreshDoesNotPublishPostsAgain() async {
-        let fake = FakeFeedService()
-        fake.feed = [TestFactory.feedPost(id: "same")]
-        let model = makeModel(fake)
-        model.start()
-        await waitUntil { model.posts == fake.feed }
-
-        let publication = expectation(description: "posts publication")
-        publication.isInverted = true
-        withObservationTracking {
-            _ = model.posts
-        } onChange: {
-            publication.fulfill()
-        }
-
-        model.refresh()
-        await waitUntil { fake.loadFeedCalls == 2 }
-        await fulfillment(of: [publication], timeout: 0.1)
-        model.stop()
-    }
-
-    // MARK: Search
-
-    func testSearchForwardsQueryAndReturnsResults() async throws {
-        let fake = FakeFeedService()
-        fake.searchResultsToReturn = SearchResults(posts: [TestFactory.feedPost(id: "r1")])
-        let model = makeModel(fake)
-
-        let results = try await model.search("swift")
-
-        XCTAssertEqual(fake.searchQueries, ["swift"])
-        XCTAssertEqual(results.posts.map(\.id), ["r1"])
-    }
-
-    func testSearchPropagatesError() async {
-        let fake = FakeFeedService()
-        fake.failLoad = true
-        let model = makeModel(fake)
-        do {
-            _ = try await model.search("x")
-            XCTFail("search should propagate the service error")
-        } catch { /* expected */ }
-    }
-
-    func testFeedSwitchPreventsDelayedProfileNavigation() async {
-        let fake = FakeFeedService()
-        let gate = TestGate()
-        let model = makeModel(fake)
-        let url = URL(string: "https://h.io/@alice")!
-        fake.profileForURLDelay = { await gate.wait() }
-        fake.profileForURLResult = Profile(
-            id: "alice", name: "Alice", handle: "@alice@h.io",
-            avatarURL: nil, bannerURL: nil, bio: AttributedString(""),
-            followers: 0, following: 0, posts: 0, webURL: url
-        )
-        var pushedRoutes: [String] = []
-
-        model.openLink(url) { pushedRoutes.append($0.id) }
-        await waitUntil { gate.arrivals == 1 }
-
-        model.switchTo(.notifications)
-        gate.open()
-        await waitUntil { fake.profileForURLCompletions == 1 }
-        await Task.yield()
-
-        XCTAssertTrue(pushedRoutes.isEmpty)
-    }
-
-    func testCopyLinkWritesWebURLToPasteboard() {
-        let model = makeModel(FakeFeedService())
-        let post = TestFactory.feedPost(id: "https-test")
-        // TestFactory posts have no webURL, so build one that does.
-        let withURL = FeedPost(
-            id: post.id, target: .mastodon, authorName: "A", authorHandle: "@a", avatarURL: nil,
-            date: Date(timeIntervalSince1970: 0), text: AttributedString("hi"), images: [],
-            webURL: URL(string: "https://h.io/@a/1"), isLiked: false, isReposted: false,
-            nativeRef: .mastodon(statusID: "1"))
-
-        NSPasteboard.general.clearContents()
-        let copied = model.copyLink(withURL)
-
-        XCTAssertTrue(copied)
-        XCTAssertEqual(NSPasteboard.general.string(forType: .string), "https://h.io/@a/1")
-    }
-
-    func testCopyLinkReturnsFalseWithoutWebURL() {
-        let model = makeModel(FakeFeedService())
-        XCTAssertFalse(model.copyLink(TestFactory.feedPost()))   // no webURL
-    }
-
-    func testReportAccountForwardsToService() async throws {
-        let fake = FakeFeedService()
-        let model = makeModel(fake)
-
-        try await model.report(accountID: "did:plc:abc", reason: .harassment, comment: "stop")
-
-        XCTAssertEqual(fake.reportAccountCalls.count, 1)
-        XCTAssertEqual(fake.reportAccountCalls.first?.id, "did:plc:abc")
-        XCTAssertEqual(fake.reportAccountCalls.first?.reason, .harassment)
-        XCTAssertEqual(fake.reportAccountCalls.first?.comment, "stop")
-    }
-
-    func testEditAffordanceGatedToOwnMastodonPosts() {
-        let store = AccountStore()
-        store.mastodonUsername = "me@h.io"
-        store.blueskyHandle = "me.bsky.social"
-        let panel = FeedPanelModel(target: .mastodon, store: store) { _, _ in FakeFeedService() }
-
-        let ownMastodon = TestFactory.feedPost(target: .mastodon, authorHandle: "@me@h.io")
-        let othersMastodon = TestFactory.feedPost(target: .mastodon, authorHandle: "@bob@h.io")
-        let ownBluesky = TestFactory.feedPost(target: .bluesky, authorHandle: "@me.bsky.social",
-                                              authorID: "me.bsky.social")
-
-        XCTAssertNotNil(postEditActions(for: ownMastodon, panel))    // editable
-        XCTAssertNil(postEditActions(for: othersMastodon, panel))    // not yours
-        XCTAssertNil(postEditActions(for: ownBluesky, panel))        // Bluesky has no edit
     }
 }

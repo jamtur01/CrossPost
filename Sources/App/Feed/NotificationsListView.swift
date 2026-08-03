@@ -6,11 +6,15 @@ struct NotificationsListView: View {
     let push: (FeedRoute) -> Void
     let onReply: (FeedPost) -> Void
 
-    private var accent: Color { model.target.accent }
+    private var accent: Color {
+        model.target.accent
+    }
 
     var body: some View {
         if model.notifications.isEmpty && model.isLoading {
             VStack { Spacer(); ProgressView(); Spacer() }
+        } else if let error = model.errorMessage, model.notifications.isEmpty {
+            ErrorStateView(message: error) { model.refresh() }
         } else if model.notifications.isEmpty {
             EmptyStateView(text: "No notifications yet", systemImage: "bell")
         } else {
@@ -41,12 +45,11 @@ private struct NotificationRow: View {
     @State private var post: FeedPost?
     @State private var isMutating = false
     @State private var isFollowInFlight = false
-    // Bumped whenever the notification's snapshot refreshes; in-flight optimistic
-    // like/repost tasks compare against it so a pre-refresh server response can't
-    // overwrite state a newer refresh already reconciled.
-    @State private var refreshGeneration = 0
+    @State private var actionOwner = NotificationActionOwner()
 
-    private var livePost: FeedPost? { post ?? notification.post }
+    private var livePost: FeedPost? {
+        post ?? notification.post
+    }
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -77,7 +80,7 @@ private struct NotificationRow: View {
                 if let post = livePost, !post.text.characters.isEmpty {
                     PostBody(text: post.text, accent: accent, cacheKey: post.id,
                              color: bodyIsPrimary ? AnyShapeStyle(.primary)
-                                                  : AnyShapeStyle(.secondary),
+                                 : AnyShapeStyle(.secondary),
                              lineLimit: 3,
                              onOpenURL: { model.openLink($0, push: push) })
                 }
@@ -90,12 +93,10 @@ private struct NotificationRow: View {
         .contentShape(Rectangle())
         .onTapGesture(perform: openPost)
         .onHover { hovering = $0 }
-        // Drop the optimistic copy when the underlying snapshot refreshes, so
-        // server truth wins instead of a stale local like/repost shadowing it.
         .onChange(of: notification.post) {
-            refreshGeneration += 1
-            post = nil
+            endLifecycle()
         }
+        .onDisappear(perform: endLifecycle)
     }
 
     private var actorRef: ProfileRef {
@@ -103,23 +104,33 @@ private struct NotificationRow: View {
                    name: notification.actorName, avatar: notification.avatarURL)
     }
 
-    private func openProfile() { push(.profile(actorRef)) }
+    private func openProfile() {
+        push(.profile(actorRef))
+    }
 
     private func openPost() {
-        if let post = livePost { push(.thread(post)) } else { push(.profile(actorRef)) }
+        if let post = livePost {
+            push(.thread(post))
+        } else {
+            push(.profile(actorRef))
+        }
     }
 
     // MARK: Actions
 
-    @ViewBuilder
     private var actionBar: some View {
         HStack(spacing: 18) {
             if let post = livePost {
                 postActionButton("arrowshape.turn.up.left", tint: accent, help: "Reply",
                                  compact: true) { onReply(post) }
-                postActionButton("arrow.2.squarepath", active: post.isReposted, tint: Theme.repostTint,
-                                 help: post.isReposted ? "Undo repost" : "Repost",
-                                 compact: true, action: toggleRepost)
+                postActionButton(
+                    "arrow.2.squarepath",
+                    active: post.isReposted,
+                    tint: Theme.repostTint,
+                    help: post.isReposted ? "Undo repost" : "Repost",
+                    compact: true,
+                    action: toggleRepost
+                )
                 postActionButton(post.isLiked ? "heart.fill" : "heart", active: post.isLiked,
                                  tint: Theme.likeTint, help: post.isLiked ? "Unlike" : "Like",
                                  compact: true, action: toggleLike)
@@ -137,7 +148,7 @@ private struct NotificationRow: View {
         // someone you already follow shows "Following" instead of an actionable
         // "Follow" that would be a no-op.
         let isFollowing = model.isFollowing(notification.actorID)
-        Button { Task { await follow() } } label: {
+        Button(action: follow) {
             HStack(spacing: 3) {
                 Image(systemName: isFollowing ? "checkmark" : "person.badge.plus")
                 Text(isFollowing ? "Following" : "Follow")
@@ -146,7 +157,11 @@ private struct NotificationRow: View {
             .foregroundStyle(isFollowing ? .secondary : accent)
             .contentShape(Rectangle())
         }
-        .help(isFollowing ? "Following \(notification.actorName)" : "Follow \(notification.actorName)")
+        .help(
+            isFollowing
+                ? "Following \(notification.actorName)"
+                : "Follow \(notification.actorName)"
+        )
         .disabled(isFollowInFlight || isFollowing)
     }
 
@@ -154,51 +169,79 @@ private struct NotificationRow: View {
         guard !isMutating, var optimistic = livePost else { return }
         isMutating = true
         let original = optimistic
-        let generation = refreshGeneration
         optimistic.isLiked.toggle()
         optimistic.likeCount = max(0, optimistic.likeCount + (optimistic.isLiked ? 1 : -1))
         post = optimistic
-        Task {
-            defer { isMutating = false }
-            do {
-                let updated = try await model.remoteSetLiked(optimistic.isLiked, on: optimistic)
-                guard generation == refreshGeneration else { return }
-                post = updated
-            } catch {
-                guard generation == refreshGeneration else { return }
+        let generation = model.mutationGeneration
+        actionOwner.startPostMutation(
+            isCurrent: { model.mutationGeneration == generation },
+            operation: {
+                try await model.remoteSetLiked(
+                    optimistic.isLiked,
+                    on: optimistic,
+                    generation: generation
+                )
+            },
+            onSuccess: { post = $0 },
+            onFailure: {
                 post = original
-                model.reportError(error.userMessage)
-            }
-        }
+                model.reportError($0.userMessage)
+            },
+            onFinish: { isMutating = false }
+        )
     }
 
     private func toggleRepost() {
         guard !isMutating, var optimistic = livePost else { return }
         isMutating = true
         let original = optimistic
-        let generation = refreshGeneration
         optimistic.isReposted.toggle()
         optimistic.repostCount = max(0, optimistic.repostCount + (optimistic.isReposted ? 1 : -1))
         post = optimistic
-        Task {
-            defer { isMutating = false }
-            do {
-                let updated = try await model.remoteSetReposted(optimistic.isReposted, on: optimistic)
-                guard generation == refreshGeneration else { return }
-                post = updated
-            } catch {
-                guard generation == refreshGeneration else { return }
+        let generation = model.mutationGeneration
+        actionOwner.startPostMutation(
+            isCurrent: { model.mutationGeneration == generation },
+            operation: {
+                try await model.remoteSetReposted(
+                    optimistic.isReposted,
+                    on: optimistic,
+                    generation: generation
+                )
+            },
+            onSuccess: { post = $0 },
+            onFailure: {
                 post = original
-                model.reportError(error.userMessage)
-            }
-        }
+                model.reportError($0.userMessage)
+            },
+            onFinish: { isMutating = false }
+        )
     }
 
-    private func follow() async {
+    private func follow() {
         guard !isFollowInFlight, !model.isFollowing(notification.actorID) else { return }
         isFollowInFlight = true
-        defer { isFollowInFlight = false }
-        await model.follow(actorID: notification.actorID)
+        let actorID = notification.actorID
+        let generation = model.mutationGeneration
+        actionOwner.startFollow(
+            isCurrent: { model.mutationGeneration == generation },
+            operation: {
+                try await model.remoteFollow(actorID: actorID, generation: generation)
+            },
+            onSuccess: { model.reconcileFollow($0, for: actorID) },
+            onFailure: { model.reportError($0.userMessage) },
+            onFinish: { isFollowInFlight = false }
+        )
+    }
+
+    private func invalidateActions() {
+        actionOwner.invalidate()
+        isMutating = false
+        isFollowInFlight = false
+    }
+
+    private func endLifecycle() {
+        invalidateActions()
+        post = nil
     }
 
     private var icon: String {
@@ -214,9 +257,9 @@ private struct NotificationRow: View {
         }
     }
 
-    // Mentions, replies, and quotes carry text directed at the user, so render
-    // it in the primary color. For likes/reposts/polls the body is the user's
-    // own post shown only as context, which stays secondary.
+    /// Mentions, replies, and quotes carry text directed at the user, so render
+    /// it in the primary color. For likes/reposts/polls the body is the user's
+    /// own post shown only as context, which stays secondary.
     private var bodyIsPrimary: Bool {
         switch notification.kind {
         case .mention, .reply, .quote: return true
