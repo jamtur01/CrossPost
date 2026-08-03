@@ -33,6 +33,7 @@ final class FeedPanelModel: OptimisticPostHost {
     private var unreadTask: Task<Void, Never>?
     private var followStateTask: Task<Void, Never>?
     private var profileLinkTask: Task<Void, Never>?
+    @ObservationIgnored private var profileLinkGeneration: UInt = 0
     private var actionErrorTask: Task<Void, Never>?
     private var pendingLoad: LoadRequest?
     private var activeLoadID: UUID?
@@ -40,6 +41,8 @@ final class FeedPanelModel: OptimisticPostHost {
     private var unreadTaskID: UUID?
     private var isLiveConnected = false
     var inFlight: Set<String> = []   // post ids with an in-flight like/repost/delete/etc.
+    @ObservationIgnored var mutationTasks: [String: Task<Void, Never>] = [:]
+    @ObservationIgnored var mutationGeneration: UInt = 0
     /// Identity of the banner the running dismiss timer belongs to. Keyed by token,
     /// not message text, so a renewed identical banner gets a fresh timeout instead
     /// of being dismissed early by the previous banner's timer.
@@ -126,6 +129,8 @@ final class FeedPanelModel: OptimisticPostHost {
     }
     func switchTo(_ newKind: FeedKind) {
         guard newKind != kind else { return }
+        invalidateOptimisticMutations()
+        invalidateProfileLinkLookup()
         cancelUnreadRefresh()
         cancelLoads()
         kind = newKind
@@ -210,6 +215,7 @@ final class FeedPanelModel: OptimisticPostHost {
         needsCredentials = false
         do {
             let service = try await resolveService()
+            if Task.isCancelled { return }
             switch kind {
             case .notifications:
                 try await loadNotifications(from: service)
@@ -291,6 +297,7 @@ final class FeedPanelModel: OptimisticPostHost {
         unreadTask = Task { [weak self] in
             guard let self else { return }
             let service = try? await self.resolveService()
+            if Task.isCancelled { return }
             let count = try? await service?.unreadNotificationCount()
             self.finishUnreadRefresh(id: id, count: count)
         }
@@ -320,8 +327,16 @@ final class FeedPanelModel: OptimisticPostHost {
         if let service { return service }
         // Dedup concurrent callers (load + poll + live + badge all fire on start)
         // so they share one client build instead of each authenticating separately.
-        if let serviceTask { return try await serviceTask.value }
-        let task = Task { try await makeService(target, store) }
+        if let serviceTask {
+            let resolved = try await serviceTask.value
+            guard !serviceTask.isCancelled else { throw CancellationError() }
+            return resolved
+        }
+        let task = Task {
+            let resolved = try await makeService(target, store)
+            try Task.checkCancellation()
+            return resolved
+        }
         serviceTask = task
         do {
             let svc = try await task.value
@@ -365,14 +380,24 @@ final class FeedPanelModel: OptimisticPostHost {
     /// Open a tapped body link: profile/mention links push an in-app profile route;
     /// everything else (articles, hashtags, unresolvable profiles) opens in the browser.
     func openLink(_ url: URL, push: @escaping (FeedRoute) -> Void) {
+        invalidateProfileLinkLookup()
         guard isProfileLink(url) else { open(url); return }
-        profileLinkTask?.cancel()
+        let generation = profileLinkGeneration
         profileLinkTask = Task { [weak self] in
             guard let self else { return }
             let ref = await self.profileRef(forURL: url)
-            guard !Task.isCancelled else { return }
+            guard !Task.isCancelled,
+                  self.profileLinkGeneration == generation else { return }
+            self.profileLinkTask = nil
             if let ref { push(.profile(ref)) } else { self.open(url) }
         }
+    }
+
+    /// Cancel a profile lookup whose navigation destination no longer owns the route.
+    func invalidateProfileLinkLookup() {
+        profileLinkGeneration += 1
+        profileLinkTask?.cancel()
+        profileLinkTask = nil
     }
 
     /// Cheap, sync check so non-profile links open in the browser without a network round-trip.
@@ -387,7 +412,6 @@ final class FeedPanelModel: OptimisticPostHost {
         guard let profile = try? await resolveService().profile(forURL: url) else { return nil }
         return profile.profileRef()
     }
-
 
     func setFollowing(_ following: Bool, for id: String,
                       current: AccountRelationship) async throws -> AccountRelationship {
@@ -410,8 +434,11 @@ final class FeedPanelModel: OptimisticPostHost {
     func follow(actorID: String) async {
         let current = await relationship(with: actorID)
         if current.isFollowing { followedActorIDs.insert(actorID); return }
-        do { _ = try await setFollowing(true, for: actorID, current: current) }
-        catch { reportError(error.userMessage) }
+        do {
+            _ = try await setFollowing(true, for: actorID, current: current)
+        } catch {
+            reportError(error.userMessage)
+        }
     }
 
     /// Resolve follow state for a page of notification actors in one round-trip
@@ -426,8 +453,11 @@ final class FeedPanelModel: OptimisticPostHost {
             guard let relationships = try? await service.relationships(with: Array(ids)),
                   !Task.isCancelled else { return }
             for (id, relationship) in relationships {
-                if relationship.isFollowing { followedActorIDs.insert(id) }
-                else { followedActorIDs.remove(id) }
+                if relationship.isFollowing {
+                    followedActorIDs.insert(id)
+                } else {
+                    followedActorIDs.remove(id)
+                }
             }
         }
     }
@@ -556,14 +586,18 @@ final class FeedPanelModel: OptimisticPostHost {
     }
 
     func stop() {
+        invalidateOptimisticMutations()
         pollTask?.cancel(); pollTask = nil
         cancelLoads()
         liveTask?.cancel(); liveTask = nil
         isLiveConnected = false
         cancelUnreadRefresh()
         followStateTask?.cancel(); followStateTask = nil
-        profileLinkTask?.cancel(); profileLinkTask = nil
-        actionErrorTask?.cancel(); actionErrorTask = nil
+        invalidateProfileLinkLookup()
+        actionErrorTask?.cancel()
+        actionErrorTask = nil
+        actionErrorToken = UUID()
+        actionError = nil
         serviceTask?.cancel(); serviceTask = nil
     }
 }

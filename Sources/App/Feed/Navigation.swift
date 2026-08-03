@@ -85,6 +85,8 @@ extension Profile {
 final class PostList: OptimisticPostHost {
     var posts: [FeedPost] = []
     var inFlight: Set<String> = []
+    @ObservationIgnored var mutationTasks: [String: Task<Void, Never>] = [:]
+    @ObservationIgnored var mutationGeneration: UInt = 0
     private let panel: FeedPanelModel
 
     init(panel: FeedPanelModel) { self.panel = panel }

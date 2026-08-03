@@ -2,10 +2,9 @@ import Foundation
 
 @MainActor
 extension FeedPanelModel {
-    /// Fetch the surrounding thread (ancestors + replies) for the detail view.
+    // Fetch the surrounding thread (ancestors + replies) for the detail view.
     // These detail-view fetches propagate errors so the views can show a real
     // error state with retry, rather than an empty pane that hides a failure.
-
     func thread(of post: FeedPost) async throws -> PostThread {
         try await resolveService().thread(of: post)
     }
@@ -52,7 +51,8 @@ extension FeedPanelModel {
         return updated
     }
 
-    func quote(post: FeedPost, text: String, visibility: PostVisibility) async throws -> PostedItem {
+    func quote(post: FeedPost, text: String,
+               visibility: PostVisibility) async throws -> PostedItem {
         let item = try await resolveService().quote(post: post, text: text, visibility: visibility)
         // Refresh this platform's feed so the new quote shows up.
         NotificationCenter.default.post(name: .crossPostDidPost, object: nil,

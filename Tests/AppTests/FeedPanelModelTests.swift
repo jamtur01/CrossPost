@@ -13,7 +13,10 @@ final class FeedPanelModelTests: XCTestCase {
         super.tearDown()
     }
 
-    private func makeModel(_ fake: FakeFeedService, target: PostTarget = .mastodon) -> FeedPanelModel {
+    private func makeModel(
+        _ fake: FakeFeedService,
+        target: PostTarget = .mastodon
+    ) -> FeedPanelModel {
         let store = AccountStore()
         store.mastodonInstanceURL = "https://h.io"
         store.mastodonToken = "tok"
@@ -25,12 +28,15 @@ final class FeedPanelModelTests: XCTestCase {
     }
 
     /// Polls observable model state until `predicate` holds, since the model's
-    /// optimistic actions reconcile in a detached Task.
+    /// optimistic actions reconcile in a host-owned task.
     private func waitUntil(_ predicate: @MainActor () -> Bool, timeout: TimeInterval = 2,
                            file: StaticString = #filePath, line: UInt = #line) async {
         let deadline = Date().addingTimeInterval(timeout)
         while !predicate() {
-            if Date() >= deadline { XCTFail("condition not met within timeout", file: file, line: line); return }
+            if Date() >= deadline {
+                XCTFail("condition not met within timeout", file: file, line: line)
+                return
+            }
             try? await Task.sleep(nanoseconds: 1_000_000)
         }
     }
@@ -100,6 +106,57 @@ final class FeedPanelModelTests: XCTestCase {
         XCTAssertNil(profile, "a service build finishing after stop() must not be used")
     }
 
+    func testAllWaitersRejectCancellationIgnoringServiceBuild() async {
+        let fake = FakeFeedService()
+        let gate = TestGate()
+        var builds = 0
+        var callersStarted = 0
+        let model = FeedPanelModel(target: .bluesky, store: makeStore()) { _, _ in
+            builds += 1
+            await gate.wait()
+            return fake
+        }
+
+        let first = Task {
+            callersStarted += 1
+            return try? await model.profile(id: "first")
+        }
+        let second = Task {
+            callersStarted += 1
+            return try? await model.profile(id: "second")
+        }
+        await waitUntil { callersStarted == 2 && gate.arrivals == 1 }
+
+        model.stop()
+        gate.open()
+
+        let firstProfile = await first.value
+        let secondProfile = await second.value
+        XCTAssertNil(firstProfile)
+        XCTAssertNil(secondProfile)
+        XCTAssertEqual(builds, 1)
+    }
+
+    func testTabSwitchStopsCanceledWaitersBeforeProviderCalls() async {
+        let fake = FakeFeedService()
+        let gate = TestGate()
+        let model = FeedPanelModel(target: .bluesky, store: makeStore()) { _, _ in
+            await gate.wait()
+            return fake
+        }
+
+        model.start()
+        await waitUntil { gate.arrivals == 1 }
+        await Task.yield()
+        model.switchTo(.notifications)
+        gate.open()
+
+        await waitUntil { fake.notificationsCalls == 1 }
+        XCTAssertEqual(fake.loadFeedCalls, 0)
+        XCTAssertEqual(fake.unreadCountCalls, 0)
+        model.stop()
+    }
+
     func testStartWithClearedCredentialsStopsAndFlagsNeedsCredentials() async {
         let fake = FakeFeedService()
         fake.feed = [TestFactory.feedPost(id: "p1")]
@@ -115,7 +172,68 @@ final class FeedPanelModelTests: XCTestCase {
         model.start()
 
         XCTAssertTrue(model.needsCredentials)
-        XCTAssertFalse(model.isLoading, "the cleared-credential restart must not leave a spinner running")
+        XCTAssertFalse(
+            model.isLoading,
+            "the cleared-credential restart must not leave a spinner running"
+        )
+        model.stop()
+    }
+
+    func testCredentialRestartInvalidatesOldMutationResults() async {
+        let fake = FakeFeedService()
+        let model = makeModel(fake)
+        let gate = TestGate()
+        let post = TestFactory.feedPost(target: .mastodon, id: "same")
+        var replacement = post
+        replacement.isBookmarked = true
+        fake.feed = [replacement]
+        model.posts = [post]
+        var remoteReturned = false
+
+        model.mutate(post, optimistic: { $0.isLiked = true }) { _ in
+            await gate.wait()
+            remoteReturned = true
+            throw FakeFeedService.FakeError.boom
+        }
+        await waitUntil { gate.arrivals == 1 }
+
+        model.start()
+        await waitUntil { model.posts == [replacement] }
+        XCTAssertTrue(model.inFlight.isEmpty)
+
+        gate.open()
+        await waitUntil { remoteReturned }
+        XCTAssertEqual(model.posts, [replacement])
+        XCTAssertNil(model.actionError)
+        model.stop()
+    }
+
+    func testFeedSwitchInvalidatesOldMutationResults() async {
+        let fake = FakeFeedService()
+        let model = makeModel(fake)
+        let gate = TestGate()
+        let post = TestFactory.feedPost(target: .mastodon, id: "same")
+        var replacement = post
+        replacement.isBookmarked = true
+        fake.feed = [replacement]
+        model.posts = [post]
+        var remoteReturned = false
+
+        model.mutate(post, optimistic: { $0.isLiked = true }) { _ in
+            await gate.wait()
+            remoteReturned = true
+            throw FakeFeedService.FakeError.boom
+        }
+        await waitUntil { gate.arrivals == 1 }
+
+        model.switchTo(.notifications)
+        model.switchTo(.home)
+        await waitUntil { model.posts == [replacement] }
+
+        gate.open()
+        await waitUntil { remoteReturned }
+        XCTAssertEqual(model.posts, [replacement])
+        XCTAssertNil(model.actionError)
         model.stop()
     }
 
@@ -184,9 +302,15 @@ final class FeedPanelModelTests: XCTestCase {
         await model.follow(actorID: "friend")
         XCTAssertTrue(model.isFollowing("friend"))
 
-        // Loading a notifications page that resolves a different actor must not wipe
-        // the follow we just made — the batch merges into the set rather than replacing it.
-        fake.notificationsToReturn = [.fixture(id: "n1", date: Date(timeIntervalSince1970: 1), actorID: "other")]
+        // Loading a notifications page that resolves a different actor must not
+        // wipe the follow we just made — the batch merges into the set.
+        fake.notificationsToReturn = [
+            .fixture(
+                id: "n1",
+                date: Date(timeIntervalSince1970: 1),
+                actorID: "other"
+            ),
+        ]
         fake.relationshipsToReturn = ["other": AccountRelationship(isFollowing: true)]
         model.switchTo(.notifications)
         await waitUntil { model.isFollowing("other") }
@@ -198,18 +322,41 @@ final class FeedPanelModelTests: XCTestCase {
     // MARK: isMine (controls delete/pin)
 
     func testIsMineMatchesOwnBlueskyHandleCaseInsensitively() {
-        let model = makeModel(FakeFeedService(), target: .bluesky)   // blueskyHandle = "me.bsky.social"
-        XCTAssertTrue(model.isMine(TestFactory.feedPost(target: .bluesky, authorHandle: "@me.bsky.social")))
-        XCTAssertTrue(model.isMine(TestFactory.feedPost(target: .bluesky, authorHandle: "@ME.BSKY.SOCIAL")))
-        XCTAssertFalse(model.isMine(TestFactory.feedPost(target: .bluesky, authorHandle: "@other.bsky.social")))
+        let model = makeModel(FakeFeedService(), target: .bluesky)
+        let mine = TestFactory.feedPost(
+            target: .bluesky,
+            authorHandle: "@me.bsky.social"
+        )
+        let mineUppercased = TestFactory.feedPost(
+            target: .bluesky,
+            authorHandle: "@ME.BSKY.SOCIAL"
+        )
+        let other = TestFactory.feedPost(
+            target: .bluesky,
+            authorHandle: "@other.bsky.social"
+        )
+        XCTAssertTrue(model.isMine(mine))
+        XCTAssertTrue(model.isMine(mineUppercased))
+        XCTAssertFalse(model.isMine(other))
     }
 
     func testIsMineMatchesOwnMastodonUsername() {
         let store = AccountStore()
         store.mastodonUsername = "me@h.io"
-        let model = FeedPanelModel(target: .mastodon, store: store) { _, _ in FakeFeedService() }
-        XCTAssertTrue(model.isMine(TestFactory.feedPost(target: .mastodon, authorHandle: "@me@h.io")))
-        XCTAssertFalse(model.isMine(TestFactory.feedPost(target: .mastodon, authorHandle: "@someone@h.io")))
+        let model = FeedPanelModel(
+            target: .mastodon,
+            store: store
+        ) { _, _ in FakeFeedService() }
+        let mine = TestFactory.feedPost(
+            target: .mastodon,
+            authorHandle: "@me@h.io"
+        )
+        let other = TestFactory.feedPost(
+            target: .mastodon,
+            authorHandle: "@someone@h.io"
+        )
+        XCTAssertTrue(model.isMine(mine))
+        XCTAssertFalse(model.isMine(other))
     }
 
     // MARK: Error routing (empty sticky vs transient vs silent)
@@ -220,7 +367,10 @@ final class FeedPanelModelTests: XCTestCase {
         let model = makeModel(fake)
         model.refresh()
         await waitUntil { model.errorMessage != nil }
-        XCTAssertNil(model.actionError, "an empty-feed failure uses the sticky empty state, not the banner")
+        XCTAssertNil(
+            model.actionError,
+            "an empty-feed failure uses the sticky empty state, not the banner"
+        )
         XCTAssertTrue(model.posts.isEmpty)
         model.stop()
     }
@@ -235,7 +385,10 @@ final class FeedPanelModelTests: XCTestCase {
         fake.failLoad = true
         model.refresh()                            // user refresh fails with content present
         await waitUntil { model.actionError != nil }
-        XCTAssertNil(model.errorMessage, "a refresh failure with content must not set the sticky banner")
+        XCTAssertNil(
+            model.errorMessage,
+            "a refresh failure with content must not set the sticky banner"
+        )
         XCTAssertEqual(model.posts.map(\.id), ["p1"], "stale content stands")
         model.stop()
     }
@@ -425,8 +578,21 @@ final class FeedPanelModelTests: XCTestCase {
 
         gate.open()                              // the stale load's read-mark returns now
         try? await Task.sleep(nanoseconds: 100_000_000)
-        XCTAssertEqual(model.unreadCount, 4, "a superseded notifications load must not zero the badge")
+        XCTAssertEqual(
+            model.unreadCount,
+            4,
+            "a superseded notifications load must not zero the badge"
+        )
         model.stop()
+    }
+
+    func testStopClearsTransientActionError() {
+        let model = makeModel(FakeFeedService())
+        model.reportError("boom")
+
+        model.stop()
+
+        XCTAssertNil(model.actionError)
     }
 
     /// The banner dismiss timer is keyed to the banner instance, not its text: a
@@ -439,7 +605,11 @@ final class FeedPanelModelTests: XCTestCase {
         try? await Task.sleep(nanoseconds: 200_000_000)
         model.reportError("boom")                          // renew with the identical message
         try? await Task.sleep(nanoseconds: 300_000_000)    // the first timer has fired by now
-        XCTAssertEqual(model.actionError, "boom", "the old timer must not dismiss the renewed banner")
+        XCTAssertEqual(
+            model.actionError,
+            "boom",
+            "the old timer must not dismiss the renewed banner"
+        )
 
         await waitUntil { model.actionError == nil }       // the renewed timer still dismisses it
     }
@@ -528,6 +698,30 @@ final class FeedPanelModelTests: XCTestCase {
             _ = try await model.search("x")
             XCTFail("search should propagate the service error")
         } catch { /* expected */ }
+    }
+
+    func testFeedSwitchPreventsDelayedProfileNavigation() async {
+        let fake = FakeFeedService()
+        let gate = TestGate()
+        let model = makeModel(fake)
+        let url = URL(string: "https://h.io/@alice")!
+        fake.profileForURLDelay = { await gate.wait() }
+        fake.profileForURLResult = Profile(
+            id: "alice", name: "Alice", handle: "@alice@h.io",
+            avatarURL: nil, bannerURL: nil, bio: AttributedString(""),
+            followers: 0, following: 0, posts: 0, webURL: url
+        )
+        var pushedRoutes: [String] = []
+
+        model.openLink(url) { pushedRoutes.append($0.id) }
+        await waitUntil { gate.arrivals == 1 }
+
+        model.switchTo(.notifications)
+        gate.open()
+        await waitUntil { fake.profileForURLCompletions == 1 }
+        await Task.yield()
+
+        XCTAssertTrue(pushedRoutes.isEmpty)
     }
 
     func testCopyLinkWritesWebURLToPasteboard() {

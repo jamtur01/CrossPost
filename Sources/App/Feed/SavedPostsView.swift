@@ -40,6 +40,7 @@ struct SavedPostsView: View {
         .scrollContentBackground(.hidden)
         .background(Color(nsColor: .textBackgroundColor))
         .task(id: loadToken) { await load() }
+        .onDisappear { list.invalidateOptimisticMutations() }
         .sheet(item: $replyTarget) { target in
             ReplySheet(model: ReplyModel(post: target, store: store)) { replyTarget = nil }
         }

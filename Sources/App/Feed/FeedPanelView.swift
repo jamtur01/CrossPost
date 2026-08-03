@@ -37,17 +37,22 @@ struct FeedPanelView: View {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
-        .animation(reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 0.8), value: model.actionError)
+        .animation(
+            reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 0.8),
+            value: model.actionError
+        )
         .background(Color(nsColor: .textBackgroundColor))
         .sheet(item: $replyTarget) { post in
             ReplySheet(model: ReplyModel(post: post, store: store)) { replyTarget = nil }
         }
         .onAppear { model.start() }
         .onDisappear { model.stop() }
-        .onReceive(NotificationCenter.default.publisher(for: .crossPostCredentialsChanged)) { note in
+        .onReceive(
+            NotificationCenter.default.publisher(for: .crossPostCredentialsChanged)
+        ) { note in
             if let targets = note.userInfo?[crossPostTargetsKey] as? Set<PostTarget>,
                targets.contains(model.target) {
-                routes.removeAll()
+                clearRoutes()
                 model.start()
             }
         }
@@ -57,7 +62,9 @@ struct FeedPanelView: View {
                 model.refresh()
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+        .onReceive(
+            NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)
+        ) { _ in
             // Returning to the app catches the feed and unread badge up at once —
             // important for Bluesky, which has no live stream to drive updates while away.
             model.wake()
@@ -70,9 +77,24 @@ struct FeedPanelView: View {
             // Messages), and pop any in-place navigation so the feed is visible.
             guard let kind = note.userInfo?[feedKindKey] as? FeedKind,
                   availableKinds.contains(kind) else { return }
-            routes.removeAll()
+            clearRoutes()
             model.switchTo(kind)
         }
+    }
+
+    private func pushRoute(_ route: FeedRoute) {
+        model.invalidateProfileLinkLookup()
+        routes.append(route)
+    }
+
+    private func popRoute() {
+        model.invalidateProfileLinkLookup()
+        _ = routes.popLast()
+    }
+
+    private func clearRoutes() {
+        model.invalidateProfileLinkLookup()
+        routes.removeAll()
     }
 
     // MARK: Headers
@@ -86,7 +108,7 @@ struct FeedPanelView: View {
                 ProgressView().controlSize(.small).scaleEffect(0.8)
             }
             headerIcon("magnifyingglass", help: "Search") {
-                routes.append(.search)
+                pushRoute(.search)
             }
             overflowMenu
         }
@@ -182,18 +204,18 @@ struct FeedPanelView: View {
         Menu {
             if model.target == .mastodon {
                 Button {
-                    routes.append(.saved(.bookmarks))
+                    pushRoute(.saved(.bookmarks))
                 } label: {
                     Label("Bookmarks", systemImage: "bookmark")
                 }
             }
             Button {
-                routes.append(.saved(.likes))
+                pushRoute(.saved(.likes))
             } label: {
                 Label("Likes", systemImage: "heart")
             }
             Button {
-                routes.append(.profile(myRef))
+                pushRoute(.profile(myRef))
             } label: {
                 Label("My Profile", systemImage: "person.crop.circle")
             }
@@ -227,7 +249,7 @@ struct FeedPanelView: View {
 
     private var navHeader: some View {
         HStack(spacing: 8) {
-            Button { _ = routes.popLast() } label: {
+            Button { popRoute() } label: {
                 Image(systemName: "chevron.left").font(.system(size: 14, weight: .semibold))
             }
             .buttonStyle(.borderless).foregroundStyle(accent).help("Back")
@@ -253,7 +275,13 @@ struct FeedPanelView: View {
 
     private var myRef: ProfileRef {
         let handle = model.target == .mastodon ? store.mastodonUsername : store.blueskyHandle
-        return ProfileRef(id: handle, handle: "@\(handle)", name: "My Profile", avatar: nil, isMe: true)
+        return ProfileRef(
+            id: handle,
+            handle: "@\(handle)",
+            name: "My Profile",
+            avatar: nil,
+            isMe: true
+        )
     }
 
     // MARK: Content
@@ -262,17 +290,22 @@ struct FeedPanelView: View {
     private var routeContent: some View {
         switch routes.last {
         case .thread(let post):
-            ThreadView(panel: model, store: store, post: post) { routes.append($0) }
+            ThreadView(panel: model, store: store, post: post, push: pushRoute)
         case .profile(let ref):
-            ProfileView(panel: model, store: store, ref: ref) { routes.append($0) }
+            ProfileView(panel: model, store: store, ref: ref, push: pushRoute)
         case .profileList(let ref):
-            ProfileListView(panel: model, ref: ref) { routes.append($0) }
+            ProfileListView(panel: model, ref: ref, push: pushRoute)
         case .conversation(let convo):
-            ConversationView(panel: model, conversation: convo) { routes.append($0) }
+            ConversationView(panel: model, conversation: convo, push: pushRoute)
         case .saved(let kind):
-            SavedPostsView(panel: model, store: store, kind: kind) { routes.append($0) }
+            SavedPostsView(
+                panel: model,
+                store: store,
+                kind: kind,
+                push: pushRoute
+            )
         case .search:
-            SearchView(panel: model, store: store) { routes.append($0) }
+            SearchView(panel: model, store: store, push: pushRoute)
         case .none:
             EmptyView()
         }
@@ -283,10 +316,13 @@ struct FeedPanelView: View {
         if model.needsCredentials {
             connectState
         } else if model.kind == .notifications {
-            NotificationsListView(model: model, push: { routes.append($0) },
-                                  onReply: { replyTarget = $0 })
+            NotificationsListView(
+                model: model,
+                push: pushRoute,
+                onReply: { replyTarget = $0 }
+            )
         } else if model.kind == .messages {
-            MessagesListView(model: model) { routes.append($0) }
+            MessagesListView(model: model, push: pushRoute)
         } else if let error = model.errorMessage, model.posts.isEmpty {
             emptyState(error, systemImage: "exclamationmark.triangle")
         } else if model.posts.isEmpty && model.isLoading {
@@ -299,8 +335,14 @@ struct FeedPanelView: View {
                     LazyVStack(spacing: 0) {
                         Color.clear.frame(height: 0).id(Self.topAnchor)
                         ForEach(model.posts) { post in
-                            FeedRow(post: post, host: model, panel: model, accent: accent,
-                                    push: { routes.append($0) }, onReply: { replyTarget = $0 })
+                            FeedRow(
+                                post: post,
+                                host: model,
+                                panel: model,
+                                accent: accent,
+                                push: pushRoute,
+                                onReply: { replyTarget = $0 }
+                            )
                         }
                     }
                 }

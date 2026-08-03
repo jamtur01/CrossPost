@@ -26,7 +26,10 @@ final class PostListTests: XCTestCase {
                            file: StaticString = #filePath, line: UInt = #line) async {
         let deadline = Date().addingTimeInterval(timeout)
         while !predicate() {
-            if Date() >= deadline { XCTFail("condition not met within timeout", file: file, line: line); return }
+            if Date() >= deadline {
+                XCTFail("condition not met within timeout", file: file, line: line)
+                return
+            }
             try? await Task.sleep(nanoseconds: 1_000_000)
         }
     }
@@ -128,6 +131,30 @@ final class PostListTests: XCTestCase {
 
         await waitUntil { list.posts.count == 3 }           // re-inserted on failure
         XCTAssertEqual(list.posts.map(\.id), ["a", "b", "c"])
+    }
+
+    func testInvalidatedDeleteFailureCannotRestoreRowOrReportError() async {
+        let fake = FakeFeedService()
+        fake.failDelete = true
+        let gate = TestGate()
+        fake.deleteDelay = { await gate.wait() }
+        let panel = makeModel(fake)
+        let list = PostList(panel: panel)
+        let posts = ["a", "b"].map {
+            TestFactory.feedPost(target: .bluesky, id: $0)
+        }
+        list.posts = posts
+
+        list.delete(posts[0])
+        await waitUntil { gate.arrivals == 1 }
+        list.invalidateOptimisticMutations()
+        gate.open()
+        await waitUntil { fake.deleteCompletions == 1 }
+        await Task.yield()
+
+        XCTAssertEqual(list.posts.map(\.id), ["b"])
+        XCTAssertTrue(list.inFlight.isEmpty)
+        XCTAssertNil(panel.actionError)
     }
 
     /// Delete-vs-poll race: while a delete is in flight its id sits in `inFlight`
@@ -249,5 +276,82 @@ final class PostListTests: XCTestCase {
 
         await waitUntil { list.inFlight.isEmpty }       // no Task spawned to flip it
         XCTAssertEqual(fake.likeSetCalls, [])           // remote never called
+    }
+    func testOldSuccessCannotReconcileOrClearNewGenerationMutation() async {
+        let list = PostList(panel: makeModel(FakeFeedService()))
+        let post = TestFactory.feedPost(target: .bluesky, id: "same")
+        let oldGate = TestGate()
+        let newGate = TestGate()
+        var oldRemoteReturned = false
+        list.posts = [post]
+
+        list.mutate(post, optimistic: { $0.isLiked = true }) { optimistic in
+            await oldGate.wait()
+            oldRemoteReturned = true
+            var updated = optimistic
+            updated.isPinned = true
+            return updated
+        }
+        await waitUntil { oldGate.arrivals == 1 }
+
+        list.invalidateOptimisticMutations()
+        list.mutate(list.posts[0], optimistic: { _ in }) { optimistic in
+            await newGate.wait()
+            var updated = optimistic
+            updated.isBookmarked = true
+            return updated
+        }
+        await waitUntil { newGate.arrivals == 1 }
+
+        oldGate.open()
+        await waitUntil { oldRemoteReturned }
+
+        XCTAssertTrue(list.inFlight.contains(post.id))
+        XCTAssertFalse(list.posts[0].isPinned)
+
+        newGate.open()
+        await waitUntil { list.inFlight.isEmpty }
+        XCTAssertTrue(list.posts[0].isLiked)
+        XCTAssertTrue(list.posts[0].isBookmarked)
+        XCTAssertFalse(list.posts[0].isPinned)
+    }
+
+    func testOldFailureCannotClearOrRevertNewGenerationMutation() async {
+        let panel = makeModel(FakeFeedService())
+        let list = PostList(panel: panel)
+        let post = TestFactory.feedPost(target: .bluesky, id: "same")
+        let oldGate = TestGate()
+        let newGate = TestGate()
+        var oldRemoteReturned = false
+        list.posts = [post]
+
+        list.mutate(post, optimistic: { $0.isLiked = true }) { _ in
+            await oldGate.wait()
+            oldRemoteReturned = true
+            throw FakeFeedService.FakeError.boom
+        }
+        await waitUntil { oldGate.arrivals == 1 }
+
+        list.invalidateOptimisticMutations()
+        list.posts = [post]
+        list.mutate(post, optimistic: { $0.isBookmarked = true }) { optimistic in
+            await newGate.wait()
+            var updated = optimistic
+            updated.isPinned = true
+            return updated
+        }
+        await waitUntil { newGate.arrivals == 1 }
+
+        oldGate.open()
+        await waitUntil { oldRemoteReturned }
+
+        XCTAssertTrue(list.inFlight.contains(post.id))
+        XCTAssertTrue(list.posts[0].isBookmarked)
+        XCTAssertNil(panel.actionError)
+
+        newGate.open()
+        await waitUntil { list.inFlight.isEmpty }
+        XCTAssertTrue(list.posts[0].isBookmarked)
+        XCTAssertTrue(list.posts[0].isPinned)
     }
 }

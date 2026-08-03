@@ -59,16 +59,29 @@ final class FakeFeedService: FeedService, @unchecked Sendable {
         replyVisibilities.append(visibility)
         return PostedItem(url: "https://example/reply")
     }
-    func quote(post: FeedPost, text: String, visibility: PostVisibility) async throws -> PostedItem {
+    func quote(
+        post: FeedPost,
+        text: String,
+        visibility: PostVisibility
+    ) async throws -> PostedItem {
         quoteCalls.append((text, visibility))
         return PostedItem(url: "https://example/quote")
     }
-    func thread(of post: FeedPost) async throws -> PostThread { PostThread(ancestors: [], descendants: []) }
+    func thread(of post: FeedPost) async throws -> PostThread {
+        PostThread(ancestors: [], descendants: [])
+    }
     func profile(id: String) async throws -> Profile {
         if failLoad { throw FakeError.boom }
         return Self.profile(id)
     }
-    func profile(forURL url: URL) async throws -> Profile? { nil }
+    var profileForURLResult: Profile?
+    var profileForURLDelay: (() async -> Void)?
+    private(set) var profileForURLCompletions = 0
+    func profile(forURL url: URL) async throws -> Profile? {
+        if let profileForURLDelay { await profileForURLDelay() }
+        profileForURLCompletions += 1
+        return profileForURLResult
+    }
     func myProfile() async throws -> Profile { Self.profile("me") }
     func authorPosts(id: String) async throws -> [FeedPost] {
         if failLoad { throw FakeError.boom }
@@ -126,8 +139,16 @@ final class FakeFeedService: FeedService, @unchecked Sendable {
     func followers(of id: String) async throws -> [Profile] { [] }
     func following(of id: String) async throws -> [Profile] { [] }
 
-    func notifications() async throws -> [FeedNotification] { notificationsToReturn }
-    func unreadNotificationCount() async throws -> Int { unread }
+    private(set) var notificationsCalls = 0
+    func notifications() async throws -> [FeedNotification] {
+        notificationsCalls += 1
+        return notificationsToReturn
+    }
+    private(set) var unreadCountCalls = 0
+    func unreadNotificationCount() async throws -> Int {
+        unreadCountCalls += 1
+        return unread
+    }
     var failMarkRead = false
     /// Awaited after the call is recorded — lets a test suspend the read-mark
     /// mid-flight to stage a tab-switch race deterministically.
@@ -141,9 +162,11 @@ final class FakeFeedService: FeedService, @unchecked Sendable {
     /// Awaited after the call is recorded — lets a test hold a delete in flight
     /// while it simulates a concurrent poll merge.
     var deleteDelay: (() async -> Void)?
+    private(set) var deleteCompletions = 0
     func deletePost(_ post: FeedPost) async throws {
         deletedIDs.append(post.id)
         if let deleteDelay { await deleteDelay() }
+        deleteCompletions += 1
         if failDelete { throw FakeError.boom }
     }
     private(set) var bookmarkSetCalls: [Bool] = []

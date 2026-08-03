@@ -1,19 +1,21 @@
 import SwiftUI
 
 /// The one optimistic-mutation engine shared by every post collection — the feed
-/// timeline (`FeedPanelModel`) and the route lists (`PostList`). A conformer owns a
-/// `posts` array and an `inFlight` id set; the engine flips the UI immediately,
-/// calls the remote action, then reconciles on success or reverts on failure,
-/// ignoring a second mutation of the same post while one is in flight.
+/// timeline (`FeedPanelModel`) and the route lists (`PostList`). A conformer owns
+/// its rows, in-flight ids, task handles, and lifecycle generation. The engine
+/// updates the UI immediately, calls the remote action, then reconciles on success
+/// or reverts on failure while the initiating host generation remains current.
 ///
-/// Conformers supply only the remote calls (`remoteSet*`/`remoteDelete`) and an
-/// error sink; the like/repost/bookmark/pin/delete/replace behavior lives here once.
+/// Conformers supply the ownership storage, remote calls (`remoteSet*`/
+/// `remoteDelete`), and an error sink; mutation behavior lives here once.
 @MainActor
 protocol OptimisticPostHost: AnyObject {
     var posts: [FeedPost] { get set }
     /// Ids with an in-flight mutation — also read by the timeline's load/merge so a
     /// background poll can't clobber a row mid-flight.
     var inFlight: Set<String> { get set }
+    var mutationTasks: [String: Task<Void, Never>] { get set }
+    var mutationGeneration: UInt { get set }
 
     func reportError(_ message: String)
 
@@ -55,36 +57,28 @@ extension OptimisticPostHost {
 
     /// Optimistically remove a row, deleting it on the server and re-inserting it
     /// next to its old neighbors (with an error banner) if the delete fails.
-    /// The id joins `inFlight` for the duration so a concurrent poll merge can't
-    /// resurrect the row (the timeline merge drops in-flight ids with no local row)
-    /// and a second delete of the same post is ignored while one is running.
     func delete(_ post: FeedPost) {
         guard !inFlight.contains(post.id),
               let index = posts.firstIndex(where: { $0.id == post.id }) else { return }
         inFlight.insert(post.id)
+        let generation = mutationGeneration
         let previousID = index > 0 ? posts[index - 1].id : nil
         let removed = posts.remove(at: index)
         let nextID = index < posts.count ? posts[index].id : nil
-        Task {
-            defer { inFlight.remove(post.id) }
-            do { try await remoteDelete(post) }
-            catch {
-                if !posts.contains(where: { $0.id == post.id }) {
-                    // A concurrent merge may have shifted rows, so the captured index
-                    // can displace the restore: anchor on the old neighbors instead,
-                    // falling back to the clamped index only when both are gone.
-                    if let previousID,
-                       let i = posts.firstIndex(where: { $0.id == previousID }) {
-                        posts.insert(removed, at: i + 1)
-                    } else if let nextID,
-                              let i = posts.firstIndex(where: { $0.id == nextID }) {
-                        posts.insert(removed, at: i)
-                    } else {
-                        posts.insert(removed, at: min(index, posts.count))
-                    }
-                }
+        mutationTasks[post.id] = Task {
+            do {
+                try await remoteDelete(post)
+            } catch {
+                guard mutationGeneration == generation else { return }
+                restoreDeletedPost(
+                    removed,
+                    at: index,
+                    previousID: previousID,
+                    nextID: nextID
+                )
                 reportError(error.userMessage)
             }
+            finishMutation(post.id, generation: generation)
         }
     }
 
@@ -103,25 +97,60 @@ extension OptimisticPostHost {
         guard !inFlight.contains(post.id),
               let index = posts.firstIndex(where: { $0.id == post.id }) else { return }
         inFlight.insert(post.id)
+        let generation = mutationGeneration
         let original = posts[index]
         var optimisticPost = original
         optimistic(&optimisticPost)
         posts[index] = optimisticPost
-        Task {
-            defer { inFlight.remove(post.id) }
+        mutationTasks[post.id] = Task {
             do {
                 let updated = try await action(optimisticPost)
-                if let i = posts.firstIndex(where: { $0.id == post.id }), posts[i] == optimisticPost {
-                    posts[i] = updated
+                guard mutationGeneration == generation else { return }
+                if let index = posts.firstIndex(where: { $0.id == post.id }),
+                   posts[index] == optimisticPost {
+                    posts[index] = updated
                 }
             } catch {
-                // Always revert by id, even if a concurrent refresh touched the row,
-                // so the optimistic state never sticks.
-                if let i = posts.firstIndex(where: { $0.id == post.id }) {
-                    posts[i] = original
+                guard mutationGeneration == generation else { return }
+                if let index = posts.firstIndex(where: { $0.id == post.id }) {
+                    posts[index] = original
                 }
                 reportError(error.userMessage)
             }
+            finishMutation(post.id, generation: generation)
+        }
+    }
+
+    /// End this host lifecycle without allowing cancellation-insensitive remote work
+    /// to publish into the next lifecycle.
+    func invalidateOptimisticMutations() {
+        mutationGeneration += 1
+        mutationTasks.values.forEach { $0.cancel() }
+        mutationTasks.removeAll()
+        inFlight.removeAll()
+    }
+
+    private func finishMutation(_ postID: String, generation: UInt) {
+        guard mutationGeneration == generation else { return }
+        inFlight.remove(postID)
+        mutationTasks[postID] = nil
+    }
+
+    private func restoreDeletedPost(
+        _ post: FeedPost,
+        at index: Int,
+        previousID: String?,
+        nextID: String?
+    ) {
+        guard !posts.contains(where: { $0.id == post.id }) else { return }
+        if let previousID,
+           let previousIndex = posts.firstIndex(where: { $0.id == previousID }) {
+            posts.insert(post, at: previousIndex + 1)
+        } else if let nextID,
+                  let nextIndex = posts.firstIndex(where: { $0.id == nextID }) {
+            posts.insert(post, at: nextIndex)
+        } else {
+            posts.insert(post, at: min(index, posts.count))
         }
     }
 }
