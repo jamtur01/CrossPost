@@ -126,7 +126,7 @@ private struct EmbedImage: View {
             case let .success(image):
                 image.resizable().scaledToFill()
             case .loading:
-                Rectangle().fill(.quaternary).shimmering()
+                Rectangle().fill(.quaternary).loadingSheen()
             case .failure:
                 Rectangle().fill(.quaternary)
                     .overlay { Image(systemName: "photo.badge.exclamationmark") }

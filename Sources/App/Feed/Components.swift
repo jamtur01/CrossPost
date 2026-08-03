@@ -88,41 +88,27 @@ extension View {
     }
 }
 
-/// A soft left-to-right sheen that sweeps across a placeholder while content
-/// loads, so a loading avatar/image/row reads as "loading" rather than "broken".
-/// Respects Reduce Motion (falls back to a static fill).
-private struct Shimmer: ViewModifier {
-    @State private var phase: CGFloat = -1
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
+/// A static highlight over placeholder content. Loading views must not install
+/// perpetual animations: one unresolved image would otherwise drive the entire
+/// window's SwiftUI layout and AppKit tracking-area passes continuously.
+private struct LoadingSheen: ViewModifier {
     func body(content: Content) -> some View {
-        if reduceMotion {
-            content
-        } else {
-            content
-                .overlay(
-                    LinearGradient(
-                        colors: [.clear, Color.primary.opacity(0.08), .clear],
-                        startPoint: .leading, endPoint: .trailing
-                    )
-                    .scaleEffect(x: 0.4, anchor: .leading)
-                    .offset(x: phase * 260)
-                    .blendMode(.plusLighter)
+        content
+            .overlay(
+                LinearGradient(
+                    colors: [.clear, Color.primary.opacity(0.06), .clear],
+                    startPoint: .leading,
+                    endPoint: .trailing
                 )
-                .clipped()
-                .onAppear {
-                    withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) {
-                        phase = 2
-                    }
-                }
-        }
+            )
+            .clipped()
     }
 }
 
 extension View {
-    /// Animated loading sheen for placeholder surfaces.
-    func shimmering() -> some View {
-        modifier(Shimmer())
+    /// Static loading highlight for placeholder surfaces.
+    func loadingSheen() -> some View {
+        modifier(LoadingSheen())
     }
 }
 
@@ -156,7 +142,7 @@ struct AvatarView: View {
         case let .success(image):
             image.resizable().scaledToFill()
         case .loading:
-            Circle().fill(Color.primary.opacity(0.06)).shimmering()
+            Circle().fill(Color.primary.opacity(0.06)).loadingSheen()
         case .failure:
             Circle().fill(Color.primary.opacity(0.06))
                 .overlay { Image(systemName: "person.crop.circle.badge.exclamationmark") }
@@ -167,8 +153,8 @@ struct AvatarView: View {
 }
 
 /// A placeholder post row shown while a feed's first page loads — an avatar,
-/// two name lines, and body lines, all shimmering. Reads as content arriving
-/// rather than an empty pane behind a lone spinner.
+/// two name lines, and body lines with a static highlight. Reads as content
+/// arriving rather than an empty pane behind a lone spinner.
 struct SkeletonRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: Theme.gutter) {
@@ -187,7 +173,7 @@ struct SkeletonRow: View {
         }
         .padding(.horizontal, Theme.timelineRowPaddingH)
         .padding(.vertical, Theme.timelineRowPaddingV)
-        .shimmering()
+        .loadingSheen()
         .accessibilityHidden(true)
     }
 

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Feed and media loading placeholders no longer run perpetual animations that
+  kept the app consuming CPU while idle or minimized.
+
 ## [0.4.19] - 2026-08-03
 
 ### Changed

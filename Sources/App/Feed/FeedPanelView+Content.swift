@@ -73,8 +73,8 @@ extension FeedPanelView {
         }
     }
 
-    /// First-load placeholder: a short column of shimmering rows, so the pane reads
-    /// as content arriving rather than a lone spinner on emptiness.
+    /// First-load placeholder: a short column of highlighted rows, so the pane
+    /// reads as content arriving rather than a lone spinner on emptiness.
     private var skeletonList: some View {
         ScrollView {
             LazyVStack(spacing: 0) {

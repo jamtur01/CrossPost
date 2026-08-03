@@ -152,7 +152,7 @@ struct AnimatedGIFView: View {
         case let .success(loadedURL, image) where loadedURL == url:
             AnimatedImageNSView(image: image, isActive: isActive)
         case let .loading(loadingURL) where loadingURL == url:
-            Rectangle().fill(Color.primary.opacity(0.06)).shimmering()
+            Rectangle().fill(Color.primary.opacity(0.06)).loadingSheen()
         case let .failure(failedURL) where failedURL == url:
             preview
                 .overlay { Image(systemName: "photo.badge.exclamationmark") }

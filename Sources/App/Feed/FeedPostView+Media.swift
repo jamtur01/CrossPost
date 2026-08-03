@@ -148,7 +148,7 @@ extension FeedPostView {
         case let .success(image):
             image.resizable().aspectRatio(contentMode: fit ? .fit : .fill)
         case .loading:
-            reservedMediaPlaceholder(media, fit: fit).shimmering()
+            reservedMediaPlaceholder(media, fit: fit).loadingSheen()
         case .failure:
             reservedMediaPlaceholder(media, fit: fit)
                 .overlay { Image(systemName: "photo.badge.exclamationmark") }
