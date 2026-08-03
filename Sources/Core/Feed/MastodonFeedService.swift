@@ -379,13 +379,19 @@ struct MastodonFeedService: FeedService {
     /// (a looping MP4) and video as `video`; both play inline. Audio is skipped.
     static func media(from att: MediaAttachment) -> FeedImage? {
         guard let url = URL(string: att.url) else { return nil }
+        let previewURL = att.previewUrl.flatMap(URL.init(string:))
         let type = att.type.value
         if type == .image {
-            return FeedImage(url: url, altText: att.description ?? "")
+            return FeedImage(url: url, previewURL: previewURL, altText: att.description ?? "")
         }
         if type == .gifv || type == .video {
-            return FeedImage(url: url, altText: att.description ?? "", kind: .video,
-                             aspectRatio: att.aspectRatio)
+            return FeedImage(
+                url: url,
+                previewURL: previewURL,
+                altText: att.description ?? "",
+                kind: .video,
+                aspectRatio: att.aspectRatio
+            )
         }
         return nil
     }

@@ -12,12 +12,14 @@
       "id": "m1",
       "type": "image",
       "url": "https://h.io/cat.png",
+      "preview_url": "https://h.io/cat-preview.png",
       "description": "a cat"
     },
     {
       "id": "m2",
       "type": "video",
       "url": "https://h.io/clip.mp4",
+      "preview_url": "https://h.io/clip-preview.jpg",
       "description": "a clip"
     }
   ],

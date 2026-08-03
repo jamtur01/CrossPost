@@ -93,10 +93,14 @@ final class BlueskyMappingTests: XCTestCase {
         XCTAssertEqual(post.repostRecordURI, "at://did:plc:me/app.bsky.feed.repost/repost123")
     }
 
-    func testImageEmbedPopulatesFullSizeURLAndAltText() throws {
+    func testImageEmbedPopulatesPreviewFullSizeAndAltText() throws {
         let post = try mapped("bluesky_post")
         XCTAssertEqual(post.images.count, 1)
         XCTAssertEqual(post.images[0].url, URL(string: "https://cdn.bsky.app/img/full/aaa.jpg"))
+        XCTAssertEqual(
+            post.images[0].previewURL,
+            URL(string: "https://cdn.bsky.app/img/thumb/aaa.jpg")
+        )
         XCTAssertEqual(post.images[0].altText, "a sunset over the sea")
         XCTAssertEqual(post.images[0].kind, .image)
         XCTAssertNil(post.card)
@@ -177,8 +181,11 @@ final class BlueskyMappingTests: XCTestCase {
         XCTAssertEqual(quoted.authorHandle, "@dave.bsky.social")
         XCTAssertEqual(quoted.authorName, "Dave")
         XCTAssertEqual(String(quoted.text.characters), "the quoted words")
-        XCTAssertEqual(quoted.imageURL, URL(string: "https://cdn.bsky.app/img/full/qqq.jpg"))
-        XCTAssertEqual(quoted.webURL, URL(string: "https://bsky.app/profile/dave.bsky.social/post/orig555"))
+        XCTAssertEqual(quoted.imageURL, URL(string: "https://cdn.bsky.app/img/thumb/qqq.jpg"))
+        XCTAssertEqual(
+            quoted.webURL,
+            URL(string: "https://bsky.app/profile/dave.bsky.social/post/orig555")
+        )
         // A record-only embed carries no media on the outer post.
         XCTAssertTrue(post.images.isEmpty)
     }
@@ -192,6 +199,10 @@ final class BlueskyMappingTests: XCTestCase {
         // ...and the outer media is populated too.
         XCTAssertEqual(post.images.count, 1)
         XCTAssertEqual(post.images[0].url, URL(string: "https://cdn.bsky.app/img/full/rwm.jpg"))
+        XCTAssertEqual(
+            post.images[0].previewURL,
+            URL(string: "https://cdn.bsky.app/img/thumb/rwm.jpg")
+        )
         XCTAssertEqual(post.images[0].altText, "media beside a quote")
     }
 
@@ -257,6 +268,7 @@ final class BlueskyMappingTests: XCTestCase {
 
         XCTAssertEqual(media.kind, .video)
         XCTAssertEqual(media.url, URL(string: "https://video.bsky.app/playlist.m3u8"))
+        XCTAssertEqual(media.previewURL, URL(string: "https://video.bsky.app/thumb.jpg"))
         XCTAssertEqual(media.altText, "a clip")
         XCTAssertEqual(media.aspectRatio, 1600.0 / 900.0)
     }

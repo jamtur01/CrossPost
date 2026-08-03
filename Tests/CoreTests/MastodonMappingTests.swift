@@ -58,7 +58,9 @@ final class MastodonMappingTests: XCTestCase {
         XCTAssertEqual(mapped.images.count, 2)
         XCTAssertEqual(mapped.images[0].kind, .image)
         XCTAssertEqual(mapped.images[0].altText, "a cat")
+        XCTAssertEqual(mapped.images[0].previewURL, URL(string: "https://h.io/cat-preview.png"))
         XCTAssertEqual(mapped.images[1].kind, .video)            // Mastodon video/gifv → .video
+        XCTAssertEqual(mapped.images[1].previewURL, URL(string: "https://h.io/clip-preview.jpg"))
 
         XCTAssertEqual(mapped.card?.title, "Headline")
         XCTAssertEqual(mapped.card?.providerName, "Example News")

@@ -4,15 +4,17 @@ struct FeedImage: Identifiable, Equatable, Sendable {
     enum Kind: Sendable, Equatable { case image, gif, video }
 
     let id: String
-    let url: URL             // image URL, or the looping MP4 for a gif/video
+    let url: URL             // original image URL, or the looping MP4 for motion media
+    let previewURL: URL?     // provider-sized timeline preview; nil when unavailable
     let altText: String
     let kind: Kind
     let aspectRatio: Double?
 
-    init(url: URL, altText: String, kind: Kind = .image,
-                aspectRatio: Double? = nil) {
+    init(url: URL, previewURL: URL? = nil, altText: String, kind: Kind = .image,
+         aspectRatio: Double? = nil) {
         self.id = url.absoluteString
         self.url = url
+        self.previewURL = previewURL
         self.altText = altText
         self.kind = kind
         self.aspectRatio = aspectRatio
