@@ -11,6 +11,7 @@ struct SavedPostsView: View {
     @State private var replyTarget: FeedPost?
     @State private var loading = true
     @State private var loadError: String?
+    @State private var loadToken = 0
 
     private var accent: Color { panel.target.accent }
 
@@ -33,12 +34,12 @@ struct SavedPostsView: View {
             }
             listLoadFooter(loading: loading, loadError: loadError, isEmpty: list.posts.isEmpty,
                            emptyText: "No \(kind.title.lowercased()) yet", emptyImage: kind.icon) {
-                Task { await load() }
+                loadToken += 1
             }
         }
         .scrollContentBackground(.hidden)
         .background(Color(nsColor: .textBackgroundColor))
-        .task { await load() }
+        .task(id: loadToken) { await load() }
         .sheet(item: $replyTarget) { target in
             ReplySheet(model: ReplyModel(post: target, store: store)) { replyTarget = nil }
         }
@@ -48,10 +49,13 @@ struct SavedPostsView: View {
         loading = true
         loadError = nil
         do {
-            list.posts = kind == .bookmarks
+            let loaded = kind == .bookmarks
                 ? try await panel.bookmarkedPosts()
                 : try await panel.likedPosts()
+            guard !Task.isCancelled else { return }
+            list.posts = loaded
         } catch {
+            guard !Task.isCancelled else { return }
             loadError = error.userMessage
         }
         loading = false

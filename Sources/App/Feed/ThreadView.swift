@@ -12,6 +12,7 @@ struct ThreadView: View {
     @State private var replyTarget: FeedPost?
     @State private var loading = true
     @State private var loadError: String?
+    @State private var loadToken = 0
 
     @State private var replyDisclosure = ThreadReplyDisclosure()
     private var accent: Color { panel.target.accent }
@@ -44,13 +45,13 @@ struct ThreadView: View {
                         .frame(maxWidth: .infinity).padding(.vertical, 16)
                 } else if let loadError {
                     // The focused post still shows; the thread context failed to load.
-                    ErrorStateView(message: loadError, fills: false) { Task { await load() } }
+                    ErrorStateView(message: loadError, fills: false) { loadToken += 1 }
                 }
             }
         }
         .scrollContentBackground(.hidden)
         .background(Color(nsColor: .textBackgroundColor))
-        .task { await load() }
+        .task(id: loadToken) { await load() }
         .sheet(item: $replyTarget) { target in
             ReplySheet(model: ReplyModel(post: target, store: store)) { replyTarget = nil }
         }
@@ -67,6 +68,7 @@ struct ThreadView: View {
         loadError = nil
         do {
             let thread = try await panel.thread(of: focusedPost)
+            guard !Task.isCancelled else { return }
             // Read the focused post after the fetch so a poll/like during loading is
             // reflected (freshest counts and like/repost state win).
             let live = panel.posts.first { $0.id == focusedPost.id } ?? focusedPost
@@ -78,6 +80,7 @@ struct ThreadView: View {
                 descendants: thread.descendants
             )
         } catch {
+            guard !Task.isCancelled else { return }
             let live = panel.posts.first { $0.id == focusedPost.id } ?? focusedPost
             replyDisclosure.reset()
             list.posts = [live]   // keep the focused post; surface the context failure

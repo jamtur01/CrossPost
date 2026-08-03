@@ -21,6 +21,7 @@ struct ProfileView: View {
     @State private var loading = true
     @State private var loadError: String?
     @State private var reportingAccount = false
+    @State private var loadToken = 0
 
     private var accent: Color { panel.target.accent }
     private var accountID: String { profile?.id ?? ref.id }
@@ -62,7 +63,7 @@ struct ProfileView: View {
                     ProgressView().controlSize(.small)
                         .frame(maxWidth: .infinity).padding(.vertical, 24)
                 } else if let loadError, pinnedList.posts.isEmpty && feedRows.isEmpty {
-                    ErrorStateView(message: loadError, fills: false) { Task { await load() } }
+                    ErrorStateView(message: loadError, fills: false) { loadToken += 1 }
                 } else if pinnedList.posts.isEmpty && feedRows.isEmpty {
                     EmptyStateView(text: "No posts yet", systemImage: "text.bubble", fills: false)
                 }
@@ -70,7 +71,7 @@ struct ProfileView: View {
         }
         .scrollContentBackground(.hidden)
         .background(Color(nsColor: .textBackgroundColor))
-        .task { await load() }
+        .task(id: loadToken) { await load() }
         .sheet(isPresented: $reportingAccount) {
             ReportSheet(subjectLabel: profile?.handle ?? ref.handle, accent: accent,
                         submit: { reason, comment in
@@ -179,19 +180,27 @@ struct ProfileView: View {
         loading = true
         loadError = nil
         do {
-            let resolved = ref.isMe ? try await panel.myProfile() : try await panel.profile(id: ref.id)
+            let resolved = ref.isMe
+                ? try await panel.myProfile()
+                : try await panel.profile(id: ref.id)
+            guard !Task.isCancelled else { return }
             profile = resolved
-            let id = resolved.id
+
             // Posts and pins only need the resolved id, so they run concurrently.
-            async let posts = panel.authorPosts(id: id)
-            async let pins = panel.pinnedPosts(id: id)
-            // A relationship failure shouldn't block the profile, so it stays best-effort.
-            if !ref.isMe { relationship = await panel.relationship(with: id) }
-            // The author timeline is the critical load; pinned posts are best-effort so
-            // a hiccup there doesn't blank a profile whose feed loaded fine.
-            list.posts = try await posts
-            pinnedList.posts = (try? await pins) ?? []
+            async let posts = panel.authorPosts(id: resolved.id)
+            async let pins = panel.pinnedPosts(id: resolved.id)
+            let resolvedRelationship = ref.isMe
+                ? AccountRelationship()
+                : await panel.relationship(with: resolved.id)
+            let loadedPosts = try await posts
+            let loadedPins = (try? await pins) ?? []
+            guard !Task.isCancelled else { return }
+
+            relationship = resolvedRelationship
+            list.posts = loadedPosts
+            pinnedList.posts = loadedPins
         } catch {
+            guard !Task.isCancelled else { return }
             loadError = error.userMessage
         }
         loading = false

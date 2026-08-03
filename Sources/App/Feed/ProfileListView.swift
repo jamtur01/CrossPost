@@ -10,6 +10,7 @@ struct ProfileListView: View {
     @State private var profiles: [Profile] = []
     @State private var loading = true
     @State private var loadError: String?
+    @State private var loadToken = 0
 
     var body: some View {
         ScrollView {
@@ -22,26 +23,36 @@ struct ProfileListView: View {
                 }
                 listLoadFooter(loading: loading, loadError: loadError, isEmpty: profiles.isEmpty,
                                emptyText: "No one here yet", emptyImage: "person.2") {
-                    Task { await load() }
+                    loadToken += 1
                 }
             }
         }
         .scrollContentBackground(.hidden)
         .background(Color(nsColor: .textBackgroundColor))
-        .task { await load() }
+        .task(id: loadToken) { await load() }
     }
 
     private func load() async {
         loading = true
         loadError = nil
         do {
+            let loaded: [Profile]
             switch ref.kind {
-            case .followers: profiles = try await panel.followers(of: ref.accountID)
-            case .following: profiles = try await panel.following(of: ref.accountID)
-            case .likedBy: if let post = ref.post { profiles = try await panel.likedBy(post) }
-            case .repostedBy: if let post = ref.post { profiles = try await panel.repostedBy(post) }
+            case .followers: loaded = try await panel.followers(of: ref.accountID)
+            case .following: loaded = try await panel.following(of: ref.accountID)
+            case .likedBy:
+                if let post = ref.post { loaded = try await panel.likedBy(post) } else { loaded = [] }
+            case .repostedBy:
+                if let post = ref.post {
+                    loaded = try await panel.repostedBy(post)
+                } else {
+                    loaded = []
+                }
             }
+            guard !Task.isCancelled else { return }
+            profiles = loaded
         } catch {
+            guard !Task.isCancelled else { return }
             loadError = error.userMessage
         }
         loading = false
