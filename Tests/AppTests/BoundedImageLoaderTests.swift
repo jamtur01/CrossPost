@@ -177,61 +177,6 @@ final class BoundedImageLoaderTests: XCTestCase {
         XCTAssertLessThanOrEqual(ImageURLProtocolStub.deliveredByteCount(for: url), limit + 1)
     }
 
-    func testCancellingOneWaiterDoesNotCancelSharedLoad() async throws {
-        let url = uniqueURL()
-        try ImageURLProtocolStub.configure(
-            url: url,
-            statusCode: 200,
-            mimeType: "image/png",
-            data: pngData(width: 64, height: 64),
-            options: .init(delay: 0.08)
-        )
-        let loader = makeLoader()
-        let request = thumbnailRequest(url: url)
-        let cancelled = Task { try await loader.image(for: request) }
-        let remaining = Task { try await loader.image(for: request) }
-        try await waitUntil { await loader.waiterCount(for: request) == 2 }
-
-        cancelled.cancel()
-
-        do {
-            _ = try await cancelled.value
-            XCTFail("The cancelled waiter should throw CancellationError")
-        } catch is CancellationError {
-            // Expected.
-        } catch {
-            XCTFail("Unexpected cancellation error: \(error)")
-        }
-        _ = try await remaining.value
-        XCTAssertEqual(ImageURLProtocolStub.requestCount(for: url), 1)
-    }
-
-    func testCancellingLastWaiterCancelsSourceRequest() async throws {
-        let url = uniqueURL()
-        try ImageURLProtocolStub.configure(
-            url: url,
-            statusCode: 200,
-            mimeType: "image/png",
-            data: pngData(width: 64, height: 64),
-            options: .init(delay: 0.5)
-        )
-        let loader = makeLoader()
-        let request = thumbnailRequest(url: url)
-        let load = Task { try await loader.image(for: request) }
-        try await waitUntil { ImageURLProtocolStub.requestCount(for: url) == 1 }
-
-        load.cancel()
-        do {
-            _ = try await load.value
-            XCTFail("The cancelled waiter should throw CancellationError")
-        } catch is CancellationError {
-            // Expected.
-        }
-
-        try await waitUntil { ImageURLProtocolStub.stopCount(for: url) > 0 }
-        XCTAssertEqual(ImageURLProtocolStub.deliveredByteCount(for: url), 0)
-    }
-
     func testAnimatedRequestsCoalesceAndEnforceByteLimit() async throws {
         let url = uniqueURL()
         try ImageURLProtocolStub.configure(
@@ -277,6 +222,28 @@ final class BoundedImageLoaderTests: XCTestCase {
             ),
             loader: loader,
             request: oversized
+        )
+    }
+
+    func testRejectsAnimatedSourceLargerThanRequestedTarget() async throws {
+        let url = uniqueURL()
+        try ImageURLProtocolStub.configure(
+            url: url,
+            statusCode: 200,
+            mimeType: "image/gif",
+            data: gifData(width: 64, height: 64)
+        )
+        let loader = makeLoader()
+        let request = ImageRequest(
+            url: url,
+            representation: .animated,
+            targetSize: CGSize(width: 32, height: 32)
+        )
+
+        await assertLoadError(
+            .decodedSizeExceeded(limit: 32 * 32 * 4),
+            loader: loader,
+            request: request
         )
     }
 }

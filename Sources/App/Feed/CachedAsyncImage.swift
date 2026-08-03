@@ -3,73 +3,17 @@ import Foundation
 import ImageIO
 import SwiftUI
 
-final class CachedImageEntry {
-    let image: NSImage
-    let cost: Int
-
-    init(image: NSImage, cost: Int) {
-        self.image = image
-        self.cost = cost
-    }
-}
-
-private final class ImageRequestKey: NSObject {
-    let request: ImageRequest
-
-    init(_ request: ImageRequest) {
-        self.request = request
-    }
-
-    override var hash: Int {
-        request.hashValue
-    }
-
-    override func isEqual(_ object: Any?) -> Bool {
-        guard let other = object as? ImageRequestKey else { return false }
-        return request == other.request
-    }
-}
-
-final class ImageMemoryCache: @unchecked Sendable {
-    private let staticImages = NSCache<ImageRequestKey, CachedImageEntry>()
-    private let animatedImages = NSCache<ImageRequestKey, CachedImageEntry>()
-
-    init() {
-        staticImages.countLimit = 300
-        staticImages.totalCostLimit = 192 * 1024 * 1024
-        animatedImages.countLimit = 24
-        animatedImages.totalCostLimit = 128 * 1024 * 1024
-    }
-
-    func entry(for request: ImageRequest) -> CachedImageEntry? {
-        cache(for: request).object(forKey: ImageRequestKey(request))
-    }
-
-    func insert(_ entry: CachedImageEntry, for request: ImageRequest) {
-        cache(for: request).setObject(
-            entry,
-            forKey: ImageRequestKey(request),
-            cost: entry.cost
-        )
-    }
-
-    private func cache(
-        for request: ImageRequest
-    ) -> NSCache<ImageRequestKey, CachedImageEntry> {
-        request.representation == .animated ? animatedImages : staticImages
-    }
-}
-
 actor BoundedImageLoader {
     static let shared = BoundedImageLoader()
 
     private struct InFlight {
+        let id: UUID
         var waiters: [UUID: CheckedContinuation<CachedImageEntry, Error>]
         let source: Task<Void, Never>
     }
 
     private nonisolated let cache: ImageMemoryCache
-    private let dataClient: BoundedDataClient
+    private let dataClient: any BoundedImageDataLoading
     private var inFlight: [ImageRequest: InFlight] = [:]
 
     init(configuration: URLSessionConfiguration = .ephemeral) {
@@ -78,6 +22,13 @@ actor BoundedImageLoader {
         cache = ImageMemoryCache()
         dataClient = BoundedDataClient(configuration: configuration)
     }
+
+    #if DEBUG
+        init(dataClient: any BoundedImageDataLoading) {
+            cache = ImageMemoryCache()
+            self.dataClient = dataClient
+        }
+    #endif
 
     nonisolated func cachedImage(for request: ImageRequest) -> NSImage? {
         cache.entry(for: request)?.image
@@ -92,9 +43,9 @@ actor BoundedImageLoader {
     }
 
     #if DEBUG
-    func waiterCount(for request: ImageRequest) -> Int {
-        inFlight[request]?.waiters.count ?? 0
-    }
+        func waiterCount(for request: ImageRequest) -> Int {
+            inFlight[request]?.waiters.count ?? 0
+        }
     #endif
 
     private func entry(for request: ImageRequest) async throws -> CachedImageEntry {
@@ -105,7 +56,7 @@ actor BoundedImageLoader {
             return cached
         }
         let waiterID = UUID()
-        return try await withTaskCancellationHandler {
+        let entry = try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { continuation in
                 register(
                     continuation: continuation,
@@ -116,6 +67,8 @@ actor BoundedImageLoader {
         } onCancel: {
             Task { await self.cancelWaiter(waiterID, for: request) }
         }
+        try Task.checkCancellation()
+        return entry
     }
 
     private func register(
@@ -132,11 +85,13 @@ actor BoundedImageLoader {
             inFlight[request] = current
             return
         }
+        let sourceID = UUID()
         let source = Task { [dataClient] in
             let result = await Self.load(request: request, dataClient: dataClient)
-            complete(request: request, result: result)
+            complete(request: request, sourceID: sourceID, result: result)
         }
         inFlight[request] = InFlight(
+            id: sourceID,
             waiters: [waiterID: continuation],
             source: source
         )
@@ -156,9 +111,11 @@ actor BoundedImageLoader {
 
     private func complete(
         request: ImageRequest,
+        sourceID: UUID,
         result: Result<CachedImageEntry, Error>
     ) {
-        guard let current = inFlight.removeValue(forKey: request) else { return }
+        guard let current = inFlight[request], current.id == sourceID else { return }
+        inFlight[request] = nil
         if case let .success(entry) = result {
             cache.insert(entry, for: request)
         }
@@ -169,7 +126,7 @@ actor BoundedImageLoader {
 
     private nonisolated static func load(
         request: ImageRequest,
-        dataClient: BoundedDataClient
+        dataClient: any BoundedImageDataLoading
     ) async -> Result<CachedImageEntry, Error> {
         do {
             let data = try await dataClient.data(
@@ -271,22 +228,40 @@ actor BoundedImageLoader {
         request: ImageRequest
     ) throws -> CachedImageEntry {
         let frameCount = max(1, CGImageSourceGetCount(source))
-        let (rowBytes, rowOverflow) = dimensions.width.multipliedReportingOverflow(by: 4)
-        let (frameBytes, frameOverflow) = rowBytes.multipliedReportingOverflow(
-            by: dimensions.height
-        )
-        let (cost, costOverflow) = frameBytes.multipliedReportingOverflow(by: frameCount)
-        guard !rowOverflow, !frameOverflow, !costOverflow,
-              cost <= request.representation.maxDecodedBytes
+        let maximumCost = request.representation.maxDecodedBytes
+        let targetCost = decodedCost(
+            width: request.targetSize.width,
+            height: request.targetSize.height,
+            frameCount: frameCount
+        ) ?? maximumCost
+        guard dimensions.width <= request.targetSize.width,
+              dimensions.height <= request.targetSize.height
         else {
-            throw ImageLoadingError.decodedSizeExceeded(
-                limit: request.representation.maxDecodedBytes
-            )
+            throw ImageLoadingError.decodedSizeExceeded(limit: min(targetCost, maximumCost))
+        }
+        guard let cost = decodedCost(
+            width: dimensions.width,
+            height: dimensions.height,
+            frameCount: frameCount
+        ), cost <= maximumCost else {
+            throw ImageLoadingError.decodedSizeExceeded(limit: maximumCost)
         }
         guard let image = NSImage(data: data) else {
             throw ImageLoadingError.decodeFailed
         }
         return CachedImageEntry(image: image, cost: cost)
+    }
+
+    private nonisolated static func decodedCost(
+        width: Int,
+        height: Int,
+        frameCount: Int
+    ) -> Int? {
+        let (rowBytes, rowOverflow) = width.multipliedReportingOverflow(by: 4)
+        let (frameBytes, frameOverflow) = rowBytes.multipliedReportingOverflow(by: height)
+        let (cost, costOverflow) = frameBytes.multipliedReportingOverflow(by: frameCount)
+        guard !rowOverflow, !frameOverflow, !costOverflow else { return nil }
+        return cost
     }
 }
 

@@ -1,5 +1,9 @@
 import Foundation
 
+protocol BoundedImageDataLoading: Sendable {
+    func data(from url: URL, limit: Int) async throws -> Data
+}
+
 final class BoundedDataClient: NSObject, URLSessionDataDelegate, @unchecked Sendable {
     private final class RequestState {
         let byteLimit: Int
@@ -158,3 +162,5 @@ final class BoundedDataClient: NSObject, URLSessionDataDelegate, @unchecked Send
         state.continuation.resume(with: result)
     }
 }
+
+extension BoundedDataClient: BoundedImageDataLoading {}
