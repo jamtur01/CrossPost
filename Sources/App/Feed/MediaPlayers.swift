@@ -15,10 +15,9 @@ struct LoopingVideoView: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: LoopingPlayerNSView, context: Context) {
-        // Lazy stacks recycle representables, so the same NSView can be handed a
-        // different clip; without the URL update it would keep looping the old one.
-        nsView.update(url: url)
-        nsView.setActive(isActive)
+        // Lazy stacks recycle representables, so URL and activity must update
+        // atomically: an inactive recycled view must never load the new item.
+        nsView.update(url: url, isActive: isActive)
     }
 
     static func dismantleNSView(_ nsView: LoopingPlayerNSView, coordinator: ()) {
@@ -51,26 +50,23 @@ final class LoopingPlayerNSView: NSView {
 
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
 
-    func update(url newURL: URL) {
-        guard newURL != url else { return }
-        url = newURL
-        // Nothing buffered yet: the next activation loads the new URL anyway.
-        guard itemLoaded else { return }
-        unloadItem()
-        if isActive {
-            loadItem()
-            player.play()
+    func update(url newURL: URL, isActive active: Bool) {
+        if newURL != url {
+            url = newURL
+            unloadItem()
         }
+        setActive(active)
     }
 
-    func setActive(_ active: Bool) {
+    private func setActive(_ active: Bool) {
         isActive = active
-        if active {
-            if !itemLoaded { loadItem() }
-            player.play()
-        } else {
+        guard active else {
             player.pause()
+            unloadItem()
+            return
         }
+        if !itemLoaded { loadItem() }
+        player.play()
     }
 
     func stop() {
@@ -92,14 +88,16 @@ final class LoopingPlayerNSView: NSView {
     }
 
     private func loadItem() {
+        guard isActive, !itemLoaded else { return }
         let item = AVPlayerItem(url: url)
         player.replaceCurrentItem(with: item)
         // Seek-to-zero on end loops both file-based (MP4) and HLS items reliably.
         endObserver = NotificationCenter.default.addObserver(
             forName: .AVPlayerItemDidPlayToEndTime, object: item, queue: .main
-        ) { [weak player] _ in
-            player?.seek(to: .zero)
-            player?.play()
+        ) { [weak self, weak item] _ in
+            guard let self, self.isActive, self.player.currentItem === item else { return }
+            self.player.seek(to: .zero)
+            self.player.play()
         }
         itemLoaded = true
     }
@@ -123,19 +121,17 @@ struct AnimatedGIFView: NSViewRepresentable {
     func makeNSView(context: Context) -> NSImageView {
         let view = NSImageView()
         view.imageScaling = .scaleProportionallyUpOrDown
-        view.animates = isActive
-        context.coordinator.load(url, into: view)
+        context.coordinator.update(url: url, isActive: isActive, in: view)
         return view
     }
 
     func updateNSView(_ nsView: NSImageView, context: Context) {
-        // Recycled by lazy stacks: reload when handed a different GIF's URL
-        // (no-op when the URL is unchanged).
-        context.coordinator.load(url, into: nsView)
-        nsView.animates = isActive
+        context.coordinator.update(url: url, isActive: isActive, in: nsView)
     }
 
     static func dismantleNSView(_ nsView: NSImageView, coordinator: Coordinator) {
+        nsView.animates = false
+        nsView.image = nil
         coordinator.cancel()
     }
 
@@ -152,53 +148,106 @@ struct AnimatedGIFView: NSViewRepresentable {
             cache.totalCostLimit = 128 * 1024 * 1024
             return cache
         }()
+        private let requestLock = NSLock()
+        private var requestGeneration = 0
         private var task: URLSessionDataTask?
         private var requestedURL: URL?
-
-        func load(_ url: URL, into view: NSImageView) {
-            guard url != requestedURL else { return }
-            requestedURL = url
+        private var loadedURL: URL?
+        func update(url: URL, isActive: Bool, in view: NSImageView) {
+            if url != requestedURL {
+                cancelRequest()
+                requestedURL = url
+                loadedURL = nil
+                view.image = nil
+            }
+            view.animates = isActive
+            guard isActive else {
+                cancelRequest()
+                return
+            }
+            guard loadedURL != url else { return }
             if let cached = Self.cache.object(forKey: url as NSURL) {
+                loadedURL = url
                 view.image = cached
                 return
             }
-            task?.cancel()
-            // Don't keep animating the previous GIF while the new one downloads.
-            view.image = nil
-            task = URLSession.shared.dataTask(with: url) { [weak self] data, _, _ in
-                guard let data, data.count <= Self.maxBytes,
-                      let image = NSImage(data: data) else { return }
-                Self.cache.setObject(image, forKey: url as NSURL, cost: data.count)
-                DispatchQueue.main.async {
-                    // A newer load superseded this one while it was in flight.
-                    guard self?.requestedURL == url else { return }
-                    view.image = image
+            guard task == nil else { return }
+            startRequest(url: url, view: view)
+        }
+        func cancel() {
+            cancelRequest()
+            requestedURL = nil
+            loadedURL = nil
+        }
+        deinit { task?.cancel() }
+        private func startRequest(url: URL, view: NSImageView) {
+            let generation = nextRequestGeneration()
+            task = URLSession.shared.dataTask(with: url) { [weak self, weak view] data, _, _ in
+                guard let self, self.isCurrentRequest(generation) else { return }
+                let image = data.flatMap {
+                    $0.count <= Self.maxBytes ? NSImage(data: $0) : nil
+                }
+                guard self.isCurrentRequest(generation) else { return }
+                if let data, let image {
+                    Self.cache.setObject(image, forKey: url as NSURL, cost: data.count)
+                }
+                DispatchQueue.main.async { [weak self, weak view] in
+                    guard let self, self.isCurrentRequest(generation),
+                          self.requestedURL == url else { return }
+                    self.task = nil
+                    guard let image else { return }
+                    self.loadedURL = url
+                    view?.image = image
                 }
             }
             task?.resume()
         }
-
-        func cancel() { task?.cancel() }
+        private func cancelRequest() {
+            task?.cancel()
+            task = nil
+            invalidateRequests()
+        }
+        private func nextRequestGeneration() -> Int {
+            requestLock.lock()
+            defer { requestLock.unlock() }
+            requestGeneration += 1
+            return requestGeneration
+        }
+        private func invalidateRequests() {
+            requestLock.lock()
+            requestGeneration += 1
+            requestLock.unlock()
+        }
+        private func isCurrentRequest(_ generation: Int) -> Bool {
+            requestLock.lock()
+            defer { requestLock.unlock() }
+            return requestGeneration == generation
+        }
     }
 }
 
-/// Wraps a motion-media player (gif/video) with visibility tracking so it only
-/// plays while onscreen, plus aspect-fit sizing and an optional corner badge.
+/// Wraps a motion-media player with row, window, and application visibility
+/// tracking, plus aspect-fit sizing and an optional corner badge.
 struct MotionMedia<Player: View>: View {
     let media: FeedImage
     let fit: Bool
     let badge: String?
     @ViewBuilder let player: (Bool) -> Player
 
-    @State private var visible = false
+    @State private var visibility = MotionVisibilityState.unavailable
 
     var body: some View {
         Group {
             if fit {
-                player(visible).aspectRatio(media.aspectRatio ?? 1.5, contentMode: .fit)
+                player(visibility.allowsMotion)
+                    .aspectRatio(media.aspectRatio ?? 1.5, contentMode: .fit)
             } else {
-                player(visible)
+                player(visibility.allowsMotion)
             }
+        }
+        .background {
+            MotionVisibilityObserver { visibility = $0 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .overlay(alignment: .bottomTrailing) {
             if let badge {
@@ -211,7 +260,5 @@ struct MotionMedia<Player: View>: View {
             }
         }
         .accessibilityLabel(media.altText.isEmpty ? "Animated media" : media.altText)
-        .onAppear { visible = true }
-        .onDisappear { visible = false }
     }
 }
