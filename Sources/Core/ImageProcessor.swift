@@ -28,6 +28,16 @@ enum ImageProcessor {
         return CGImageSourceCreateImageAtIndex(source, 0, nil) != nil
     }
 
+    /// Decode an upright, display-sized thumbnail without rasterising the source
+    /// at its original dimensions.
+    static func thumbnail(_ data: Data, maxPixel: Int) -> CGImage? {
+        guard maxPixel > 0,
+              let source = CGImageSourceCreateWithData(data as CFData, nil) else {
+            return nil
+        }
+        return decodedThumbnail(from: source, maxPixel: maxPixel)
+    }
+
     /// Qualities tried at each scale step, best first. The ladder stops at 0.4:
     /// below that JPEG artifacts are visible on photos while the size win is
     /// small, so past it we downscale instead.
@@ -74,15 +84,19 @@ enum ImageProcessor {
     /// no alpha channel, and letting the encoder drop it would render
     /// transparent regions black.
     private static func uprightBitmap(from source: CGImageSource, maxPixel: Int) -> CGImage? {
+        guard let image = decodedThumbnail(from: source, maxPixel: maxPixel) else {
+            return nil
+        }
+        return flattenedOntoWhite(image)
+    }
+
+    private static func decodedThumbnail(from source: CGImageSource, maxPixel: Int) -> CGImage? {
         let options: [CFString: Any] = [
             kCGImageSourceCreateThumbnailWithTransform: true,
             kCGImageSourceCreateThumbnailFromImageAlways: true,
             kCGImageSourceThumbnailMaxPixelSize: maxPixel,
         ]
-        guard let image = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else {
-            return nil
-        }
-        return flattenedOntoWhite(image)
+        return CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
     }
 
     private static func flattenedOntoWhite(_ image: CGImage) -> CGImage? {

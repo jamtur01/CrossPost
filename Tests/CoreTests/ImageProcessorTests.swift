@@ -45,6 +45,18 @@ final class ImageProcessorTests: XCTestCase {
         XCTAssertThrowsError(try ImageProcessor.jpegUnderBudget(Data([0x00, 0x01])))
     }
 
+    func testThumbnailDownsamplesToRequestedPixelLimit() throws {
+        let thumbnail = try XCTUnwrap(
+            ImageProcessor.thumbnail(solidPNG(side: 512), maxPixel: 160)
+        )
+        XCTAssertEqual(thumbnail.width, 160)
+        XCTAssertEqual(thumbnail.height, 160)
+    }
+
+    func testThumbnailRejectsUndecodableInput() {
+        XCTAssertNil(ImageProcessor.thumbnail(Data([0x00, 0x01]), maxPixel: 160))
+    }
+
     func testJpegUnderBudgetThrowsWhenItCannotFit() throws {
         // No JPEG fits in 1 byte, so even the smallest scale/quality fails the budget.
         let data = try solidPNG(side: 512)
