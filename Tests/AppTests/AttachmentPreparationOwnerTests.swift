@@ -1,3 +1,5 @@
+import AppKit
+import UniformTypeIdentifiers
 import XCTest
 @testable import CrossPost
 
@@ -91,6 +93,84 @@ final class AttachmentPreparationOwnerTests: XCTestCase {
         XCTAssertTrue(observedCancellation.value)
     }
 
+    func testProviderBridgeCancellationCancelsTransferBeforeCallback() async {
+        let provider = FakeAttachmentProvider<Data>()
+        let task = Task {
+            try await ImageAttaching.loadProviderValue { completion in
+                provider.load(completion)
+            }
+        }
+        await provider.waitUntilStarted()
+
+        task.cancel()
+
+        do {
+            _ = try await task.value
+            XCTFail("Expected provider load cancellation")
+        } catch is CancellationError {
+            XCTAssertTrue(provider.progress.isCancelled)
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+        provider.complete(Data([0x01]))
+    }
+
+    func testProviderBridgeCallbackWinsLaterCancellation() async throws {
+        let provider = FakeAttachmentProvider<Data>()
+        let expected = Data([0x01])
+        let task = Task {
+            try await ImageAttaching.loadProviderValue { completion in
+                provider.load(completion)
+            }
+        }
+        await provider.waitUntilStarted()
+
+        provider.complete(expected)
+        let result = try await task.value
+        task.cancel()
+
+        XCTAssertEqual(result, expected)
+        XCTAssertFalse(provider.progress.isCancelled)
+    }
+
+    func testProviderBridgeResumesOnlyOnceForDuplicateCallbacks() async throws {
+        let provider = FakeAttachmentProvider<Data>()
+        let task = Task {
+            try await ImageAttaching.loadProviderValue { completion in
+                provider.load(completion)
+            }
+        }
+        await provider.waitUntilStarted()
+
+        provider.complete(Data([0x01]))
+        provider.complete(Data([0x02]))
+
+        let result = try await task.value
+        XCTAssertEqual(result, Data([0x01]))
+    }
+
+    func testProviderPreparationProducesAttachment() async {
+        let provider = NSItemProvider()
+        provider.suggestedName = "paste.png"
+        provider.registerDataRepresentation(
+            forTypeIdentifier: UTType.png.identifier,
+            visibility: .all
+        ) { completion in
+            completion(TestFactory.pngData(), nil)
+            return Progress(totalUnitCount: 1)
+        }
+        let selection = ImageAttaching.selectProviders(
+            [provider],
+            remainingSlots: 1
+        )
+
+        let result = await ImageAttaching.prepare(selection)
+
+        XCTAssertEqual(result?.attachments.count, 1)
+        XCTAssertEqual(result?.failedNames, [])
+        XCTAssertEqual(result?.unnamedFailureCount, 0)
+    }
+
     private func waitUntil(_ predicate: @MainActor () -> Bool,
                            timeout: TimeInterval = 2,
                            file: StaticString = #filePath,
@@ -112,5 +192,44 @@ private final class PreparationFlag {
 
     func set(_ value: Bool = true) {
         self.value = value
+    }
+}
+
+private final class FakeAttachmentProvider<Value: Sendable>: @unchecked Sendable {
+    typealias Completion = @Sendable (Value) -> Void
+
+    let progress = Progress(totalUnitCount: 1)
+    private let lock = NSLock()
+    private var completion: Completion?
+    private var startWaiters: [CheckedContinuation<Void, Never>] = []
+
+    func load(_ completion: @escaping Completion) -> Progress {
+        let waiters = lock.withLock {
+            self.completion = completion
+            defer { startWaiters.removeAll() }
+            return startWaiters
+        }
+        for waiter in waiters {
+            waiter.resume()
+        }
+        return progress
+    }
+
+    func waitUntilStarted() async {
+        await withCheckedContinuation { continuation in
+            let started = lock.withLock {
+                guard completion == nil else { return true }
+                startWaiters.append(continuation)
+                return false
+            }
+            if started {
+                continuation.resume()
+            }
+        }
+    }
+
+    func complete(_ value: Value) {
+        let completion = lock.withLock { self.completion }
+        completion?(value)
     }
 }

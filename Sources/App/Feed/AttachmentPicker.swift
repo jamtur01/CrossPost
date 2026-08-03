@@ -1,6 +1,7 @@
-import SwiftUI
 import AppKit
 import CoreGraphics
+import Foundation
+import SwiftUI
 import UniformTypeIdentifiers
 
 /// The shared image decode and thumbnail pipeline for composer and reply attachments.
@@ -196,8 +197,13 @@ extension ImageAttaching {
         builder.images.reserveCapacity(providers.count)
         for provider in providers {
             guard !Task.isCancelled else { return nil }
-            guard let providerData = await data(from: provider.value) else {
+            let providerData: ProviderData
+            do {
+                providerData = try await data(from: provider.value)
+            } catch is CancellationError {
                 return nil
+            } catch {
+                preconditionFailure("Provider transfer failed unexpectedly: \(error)")
             }
             switch providerData {
             case .loaded(let data, let name):
@@ -215,23 +221,24 @@ extension ImageAttaching {
         return builder.result(exceededLimit: exceededLimit)
     }
 
-    private static func data(from provider: NSItemProvider) async -> ProviderData? {
-        guard !Task.isCancelled else { return nil }
+    private static func data(from provider: NSItemProvider) async throws -> ProviderData {
+        try Task.checkCancellation()
         let suggestedName = provider.suggestedName
         if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
-            let url: URL? = await withCheckedContinuation { continuation in
-                _ = provider.loadObject(ofClass: URL.self) { url, _ in
-                    continuation.resume(returning: url)
+            let url: URL? = try await loadProviderValue { completion in
+                provider.loadObject(ofClass: URL.self) { url, _ in
+                    completion(url)
                 }
             }
-            guard !Task.isCancelled else { return nil }
+            try Task.checkCancellation()
             guard let url else { return .failed(name: suggestedName) }
             do {
                 let data = try Data(contentsOf: url)
-                guard !Task.isCancelled else { return nil }
+                try Task.checkCancellation()
                 return .loaded(data, name: url.lastPathComponent)
+            } catch is CancellationError {
+                throw CancellationError()
             } catch {
-                guard !Task.isCancelled else { return nil }
                 return .failed(name: url.lastPathComponent)
             }
         }
@@ -239,16 +246,33 @@ extension ImageAttaching {
         guard provider.canLoadObject(ofClass: NSImage.self) else {
             return .failed(name: suggestedName)
         }
-        let data: Data? = await withCheckedContinuation { continuation in
+        let data: Data? = try await loadProviderValue { completion in
             provider.loadDataRepresentation(
                 forTypeIdentifier: UTType.image.identifier
             ) { data, _ in
-                continuation.resume(returning: data)
+                completion(data)
             }
         }
-        guard !Task.isCancelled else { return nil }
+        try Task.checkCancellation()
         guard let data else { return .failed(name: suggestedName) }
         return .loaded(data, name: suggestedName)
+    }
+
+    static func loadProviderValue<Value: Sendable>(
+        operation: (@escaping @Sendable (Value) -> Void) -> Progress
+    ) async throws -> Value {
+        let transfer = ProviderTransfer<Value>()
+        return try await withTaskCancellationHandler {
+            try Task.checkCancellation()
+            return try await withCheckedThrowingContinuation { continuation in
+                transfer.start(
+                    continuation: continuation,
+                    operation: operation
+                )
+            }
+        } onCancel: {
+            transfer.cancel()
+        }
     }
 
     private static func prepare(data: Data) -> PreparedImage? {
