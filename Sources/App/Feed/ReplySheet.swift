@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -5,11 +6,17 @@ struct ReplySheet: View {
     @State var model: ReplyModel
     let onClose: () -> Void
 
+    @State private var attachmentPreparation = AttachmentPreparationOwner()
+
     private var accent: Color { model.post.target.accent }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            sheetHeader(icon: nil, label: "Reply on \(model.post.target.displayName)", accent: accent)
+            sheetHeader(
+                icon: nil,
+                label: "Reply on \(model.post.target.displayName)",
+                accent: accent
+            )
 
             QuotedPreviewBlock(post: model.post, accent: accent)
 
@@ -18,7 +25,7 @@ struct ReplySheet: View {
             if !model.attachments.isEmpty { AttachmentBar(attachments: $model.attachments) }
 
             HStack {
-                Button { ImageAttaching.pick(into: $model.attachments) { model.errorMessage = $0 } } label: {
+                Button(action: chooseFiles) {
                     Image(systemName: "photo.badge.plus").font(.system(size: 15))
                 }
                 .buttonStyle(.borderless)
@@ -56,21 +63,51 @@ struct ReplySheet: View {
             SheetFooter(
                 sending: model.isSending, sent: model.didPost,
                 successLabel: "Reply sent", submitLabel: "Reply", submittingLabel: "Sending…",
-                canSubmit: model.canSend, onCancel: onClose,
+                canSubmit: model.canSend,
+                onCancel: close,
                 onSubmit: {
                     Task {
                         guard await model.send() else { return }
-                        await flashSentThenClose(onClose: onClose)
+                        await flashSentThenClose(onClose: close)
                     }
                 })
         }
         .onDrop(of: [.image, .fileURL], isTargeted: nil) { providers in
-            ImageAttaching.load(providers, into: $model.attachments) { model.errorMessage = $0 }
+            prepare(providers)
             return true
         }
-        .onPasteCommand(of: [.image, .fileURL]) {
-            ImageAttaching.load($0, into: $model.attachments) { model.errorMessage = $0 }
+        .onPasteCommand(of: [.image, .fileURL], perform: prepare)
+        .onDisappear {
+            attachmentPreparation.cancel()
         }
         .sheetContainer()
+    }
+
+    private func chooseFiles() {
+        guard let selection = ImageAttaching.selectFiles(
+            remainingSlots: TargetLimits.imageMax - model.attachments.count
+        ) else {
+            return
+        }
+        attachmentPreparation.start(
+            operation: { await ImageAttaching.prepare(selection) },
+            onPrepared: model.applyPreparedAttachments
+        )
+    }
+
+    private func prepare(_ providers: [NSItemProvider]) {
+        let selection = ImageAttaching.selectProviders(
+            providers,
+            remainingSlots: TargetLimits.imageMax - model.attachments.count
+        )
+        attachmentPreparation.start(
+            operation: { await ImageAttaching.prepare(selection) },
+            onPrepared: model.applyPreparedAttachments
+        )
+    }
+
+    private func close() {
+        attachmentPreparation.cancel()
+        onClose()
     }
 }

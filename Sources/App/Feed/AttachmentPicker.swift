@@ -3,32 +3,79 @@ import AppKit
 import CoreGraphics
 import UniformTypeIdentifiers
 
-/// The one way to add and show image attachments — shared by the composer and the
-/// reply sheet so both get the same file picker, drag-and-drop, paste, decode
-/// validation, and thumbnail grid. Operates on a `Binding<[Attachment]>` and reports
-/// user-facing problems through an `onError` sink.
+/// The shared image decode and thumbnail pipeline for composer and reply attachments.
+/// Asynchronous work returns values; the initiating view decides whether a result is
+/// still current before publishing it.
 enum ImageAttaching {
     /// File types the picker and drop accept (transcoded to JPEG on send).
     static let contentTypes: [UTType] = [.png, .jpeg, .heic, .tiff]
 
     private static let thumbnailMaxPixel = 160
-    private static let thumbnailCache: NSCache<NSUUID, NSImage> = {
+    @MainActor private static let thumbnailCache: NSCache<NSUUID, NSImage> = {
         let cache = NSCache<NSUUID, NSImage>()
         cache.totalCostLimit = 2 * 1_024 * 1_024
         return cache
     }()
 
-    private struct SendableProvider: @unchecked Sendable {
+    fileprivate struct SendableProvider: @unchecked Sendable {
         let value: NSItemProvider
     }
 
-    private struct PreparedAttachment: @unchecked Sendable {
+    fileprivate struct PreparedImage: @unchecked Sendable {
         let attachment: Attachment
-        let thumbnail: CGImage
+        let thumbnail: CGImage?
     }
 
-    private struct PreparedSelection: Sendable {
-        var attachments: [PreparedAttachment] = []
+    struct PreparedResult: Sendable {
+        fileprivate let images: [PreparedImage]
+        let failedNames: [String]
+        let unnamedFailureCount: Int
+        let exceededLimit: Bool
+
+        var attachments: [Attachment] {
+            images.map(\.attachment)
+        }
+
+        init(attachments: [Attachment],
+             failedNames: [String] = [],
+             unnamedFailureCount: Int = 0,
+             exceededLimit: Bool = false) {
+            images = attachments.map {
+                PreparedImage(attachment: $0, thumbnail: nil)
+            }
+            self.failedNames = failedNames
+            self.unnamedFailureCount = unnamedFailureCount
+            self.exceededLimit = exceededLimit
+        }
+
+        fileprivate init(images: [PreparedImage],
+                         failedNames: [String],
+                         unnamedFailureCount: Int,
+                         exceededLimit: Bool) {
+            self.images = images
+            self.failedNames = failedNames
+            self.unnamedFailureCount = unnamedFailureCount
+            self.exceededLimit = exceededLimit
+        }
+    }
+
+    struct Publication: Sendable {
+        let attachments: [Attachment]
+        let errorMessage: String?
+    }
+
+    struct FileSelection: Sendable {
+        fileprivate let urls: [URL]
+        fileprivate let exceededLimit: Bool
+    }
+
+    struct ProviderSelection: Sendable {
+        fileprivate let providers: [SendableProvider]
+        fileprivate let exceededLimit: Bool
+    }
+
+    private struct ResultBuilder {
+        var images: [PreparedImage] = []
         var failedNames: [String] = []
         var unnamedFailureCount = 0
 
@@ -39,6 +86,15 @@ enum ImageAttaching {
                 unnamedFailureCount += 1
             }
         }
+
+        func result(exceededLimit: Bool) -> PreparedResult {
+            PreparedResult(
+                images: images,
+                failedNames: failedNames,
+                unnamedFailureCount: unnamedFailureCount,
+                exceededLimit: exceededLimit
+            )
+        }
     }
 
     private enum ProviderData: Sendable {
@@ -46,90 +102,121 @@ enum ImageAttaching {
         case failed(name: String?)
     }
 
-    /// Open the system file picker and append the chosen images. The remaining
-    /// slot count is applied before any selected file is read.
+    /// Opens the system picker and returns only the selection metadata. No
+    /// asynchronous work or publication starts here.
     @MainActor
-    static func pick(into attachments: Binding<[Attachment]>,
-                     onError: @escaping (String) -> Void) {
-        let remaining = TargetLimits.imageMax - attachments.wrappedValue.count
-        guard remaining > 0 else { return }
+    static func selectFiles(remainingSlots: Int) -> FileSelection? {
+        guard remainingSlots > 0 else { return nil }
 
         let panel = NSOpenPanel()
         panel.allowedContentTypes = contentTypes
         panel.allowsMultipleSelection = true
-        guard panel.runModal() == .OK else { return }
+        guard panel.runModal() == .OK else { return nil }
 
-        let urls = Array(panel.urls.prefix(remaining))
-        let exceededLimit = panel.urls.count > urls.count
-        Task { @MainActor in
-            let result = await Task.detached(priority: .userInitiated) {
-                prepare(urls: urls)
-            }.value
-            publish(result, exceededLimit: exceededLimit,
-                    into: attachments, onError: onError)
-        }
+        let urls = Array(panel.urls.prefix(remainingSlots))
+        return FileSelection(
+            urls: urls,
+            exceededLimit: panel.urls.count > urls.count
+        )
     }
 
-    /// Load dropped or pasted image providers in their supplied order. Providers
-    /// beyond the remaining slot count are never asked for data.
+    /// Captures the provider selection before it crosses into detached work.
     @MainActor
-    static func load(_ providers: [NSItemProvider],
-                     into attachments: Binding<[Attachment]>,
-                     onError: @escaping (String) -> Void) {
-        let remaining = TargetLimits.imageMax - attachments.wrappedValue.count
-        guard remaining > 0 else {
-            onError("Maximum \(TargetLimits.imageMax) images per post.")
-            return
+    static func selectProviders(_ providers: [NSItemProvider],
+                                remainingSlots: Int) -> ProviderSelection {
+        let selected = providers.prefix(max(0, remainingSlots)).map {
+            SendableProvider(value: $0)
         }
+        return ProviderSelection(
+            providers: selected,
+            exceededLimit: providers.count > selected.count
+        )
+    }
 
-        let selected = providers.prefix(remaining).map { SendableProvider(value: $0) }
-        let exceededLimit = providers.count > selected.count
-        Task { @MainActor in
-            let result = await Task.detached(priority: .userInitiated) {
-                await prepare(providers: selected)
-            }.value
-            publish(result, exceededLimit: exceededLimit,
-                    into: attachments, onError: onError)
+    static func prepare(_ selection: FileSelection) async -> PreparedResult? {
+        await runDetached {
+            prepare(urls: selection.urls, exceededLimit: selection.exceededLimit)
         }
     }
 
-    private static func prepare(urls: [URL]) -> PreparedSelection {
-        var result = PreparedSelection()
-        result.attachments.reserveCapacity(urls.count)
+    static func prepare(_ selection: ProviderSelection) async -> PreparedResult? {
+        await runDetached {
+            await prepare(
+                providers: selection.providers,
+                exceededLimit: selection.exceededLimit
+            )
+        }
+    }
+
+    /// Runs expensive preparation away from the main actor and explicitly forwards
+    /// cancellation to the detached child.
+    static func runDetached<Value: Sendable>(
+        operation: @escaping @Sendable () async -> Value
+    ) async -> Value {
+        let worker = Task.detached(priority: .userInitiated) {
+            await operation()
+        }
+        return await withTaskCancellationHandler {
+            await worker.value
+        } onCancel: {
+            worker.cancel()
+        }
+    }
+}
+
+extension ImageAttaching {
+
+    private static func prepare(urls: [URL],
+                                exceededLimit: Bool) -> PreparedResult? {
+        var builder = ResultBuilder()
+        builder.images.reserveCapacity(urls.count)
         for url in urls {
+            guard !Task.isCancelled else { return nil }
             do {
                 let data = try Data(contentsOf: url)
-                guard let attachment = prepare(data: data) else {
-                    result.reject(named: url.lastPathComponent)
+                guard !Task.isCancelled else { return nil }
+                guard let image = prepare(data: data) else {
+                    guard !Task.isCancelled else { return nil }
+                    builder.reject(named: url.lastPathComponent)
                     continue
                 }
-                result.attachments.append(attachment)
+                builder.images.append(image)
             } catch {
-                result.reject(named: url.lastPathComponent)
+                guard !Task.isCancelled else { return nil }
+                builder.reject(named: url.lastPathComponent)
             }
         }
-        return result
+        guard !Task.isCancelled else { return nil }
+        return builder.result(exceededLimit: exceededLimit)
     }
 
-    private static func prepare(providers: [SendableProvider]) async -> PreparedSelection {
-        var result = PreparedSelection()
-        result.attachments.reserveCapacity(providers.count)
+    private static func prepare(providers: [SendableProvider],
+                                exceededLimit: Bool) async -> PreparedResult? {
+        var builder = ResultBuilder()
+        builder.images.reserveCapacity(providers.count)
         for provider in providers {
-            switch await data(from: provider.value) {
+            guard !Task.isCancelled else { return nil }
+            guard let providerData = await data(from: provider.value) else {
+                return nil
+            }
+            switch providerData {
             case .loaded(let data, let name):
-                guard let attachment = prepare(data: data) else {
-                    result.reject(named: name)
+                guard let image = prepare(data: data) else {
+                    guard !Task.isCancelled else { return nil }
+                    builder.reject(named: name)
                     continue
                 }
-                result.attachments.append(attachment)
+                builder.images.append(image)
             case .failed(let name):
-                result.reject(named: name)
+                builder.reject(named: name)
             }
         }
-        return result
+        guard !Task.isCancelled else { return nil }
+        return builder.result(exceededLimit: exceededLimit)
     }
 
-    private static func data(from provider: NSItemProvider) async -> ProviderData {
+    private static func data(from provider: NSItemProvider) async -> ProviderData? {
+        guard !Task.isCancelled else { return nil }
         let suggestedName = provider.suggestedName
         if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
             let url: URL? = await withCheckedContinuation { continuation in
@@ -137,10 +224,14 @@ enum ImageAttaching {
                     continuation.resume(returning: url)
                 }
             }
+            guard !Task.isCancelled else { return nil }
             guard let url else { return .failed(name: suggestedName) }
             do {
-                return .loaded(try Data(contentsOf: url), name: url.lastPathComponent)
+                let data = try Data(contentsOf: url)
+                guard !Task.isCancelled else { return nil }
+                return .loaded(data, name: url.lastPathComponent)
             } catch {
+                guard !Task.isCancelled else { return nil }
                 return .failed(name: url.lastPathComponent)
             }
         }
@@ -155,44 +246,56 @@ enum ImageAttaching {
                 continuation.resume(returning: data)
             }
         }
+        guard !Task.isCancelled else { return nil }
         guard let data else { return .failed(name: suggestedName) }
         return .loaded(data, name: suggestedName)
     }
 
-    private static func prepare(data: Data) -> PreparedAttachment? {
-        autoreleasepool {
+    private static func prepare(data: Data) -> PreparedImage? {
+        guard !Task.isCancelled else { return nil }
+        let image: PreparedImage? = autoreleasepool {
             guard ImageProcessor.canDecode(data),
-                  let thumbnail = ImageProcessor.thumbnail(data, maxPixel: thumbnailMaxPixel) else {
+                  let thumbnail = ImageProcessor.thumbnail(
+                    data,
+                    maxPixel: thumbnailMaxPixel
+                  ) else {
                 return nil
             }
-            return PreparedAttachment(
+            return PreparedImage(
                 attachment: Attachment(imageData: data),
                 thumbnail: thumbnail
             )
         }
+        guard !Task.isCancelled else { return nil }
+        return image
     }
 
+    /// Rechecks capacity at publication time and populates the main-actor thumbnail
+    /// cache only for attachments that will actually be appended.
     @MainActor
-    private static func publish(_ result: PreparedSelection,
-                                exceededLimit: Bool,
-                                into attachments: Binding<[Attachment]>,
-                                onError: (String) -> Void) {
-        let remaining = max(0, TargetLimits.imageMax - attachments.wrappedValue.count)
-        let accepted = result.attachments.prefix(remaining)
-        for item in accepted {
-            let image = NSImage(cgImage: item.thumbnail, size: .zero)
-            let cost = item.thumbnail.bytesPerRow * item.thumbnail.height
-            thumbnailCache.setObject(image, forKey: item.attachment.id as NSUUID, cost: cost)
-            attachments.wrappedValue.append(item.attachment)
+    static func publication(for result: PreparedResult,
+                            existingCount: Int) -> Publication {
+        let remaining = max(0, TargetLimits.imageMax - existingCount)
+        let accepted = Array(result.images.prefix(remaining))
+        for image in accepted {
+            guard let thumbnail = image.thumbnail else { continue }
+            let rendered = NSImage(cgImage: thumbnail, size: .zero)
+            let cost = thumbnail.bytesPerRow * thumbnail.height
+            thumbnailCache.setObject(
+                rendered,
+                forKey: image.attachment.id as NSUUID,
+                cost: cost
+            )
         }
 
-        let reachedLimit = exceededLimit || result.attachments.count > accepted.count
-        if let message = errorMessage(for: result, reachedLimit: reachedLimit) {
-            onError(message)
-        }
+        let reachedLimit = result.exceededLimit || result.images.count > accepted.count
+        return Publication(
+            attachments: accepted.map(\.attachment),
+            errorMessage: errorMessage(for: result, reachedLimit: reachedLimit)
+        )
     }
 
-    private static func errorMessage(for result: PreparedSelection,
+    private static func errorMessage(for result: PreparedResult,
                                      reachedLimit: Bool) -> String? {
         var messages: [String] = []
         if !result.failedNames.isEmpty || result.unnamedFailureCount > 0 {
@@ -209,9 +312,13 @@ enum ImageAttaching {
         }
         return messages.isEmpty ? nil : messages.joined(separator: " ")
     }
+
+    @MainActor
     fileprivate static func thumbnail(for id: UUID) -> NSImage? {
         thumbnailCache.object(forKey: id as NSUUID)
     }
+
+    @MainActor
     fileprivate static func removeThumbnail(for id: UUID) {
         thumbnailCache.removeObject(forKey: id as NSUUID)
     }

@@ -384,4 +384,67 @@ final class ComposeModelTests: XCTestCase {
         XCTAssertEqual(bluesky.postedThreads.count, 1, "an edited published prefix must not be resent")
         XCTAssertNotNil(model.errorMessage)
     }
+
+    func testPreparedAttachmentsFollowDraftIDAfterItsIndexChanges() {
+        let model = makeModel()
+        model.addPost()
+        let destinationID = model.thread[1].id
+        let first = Attachment(imageData: TestFactory.pngData())
+        let second = Attachment(imageData: TestFactory.pngData())
+        model.removePost(at: 0)
+
+        let applied = model.applyPreparedAttachments(
+            ImageAttaching.PreparedResult(attachments: [first, second]),
+            to: destinationID
+        )
+
+        XCTAssertTrue(applied)
+        XCTAssertEqual(model.thread[0].attachments, [first, second])
+    }
+
+    func testPreparedAttachmentsRejectRemovedDraftWithoutReportingFailure() {
+        let model = makeModel()
+        model.addPost()
+        let removedID = model.thread[1].id
+        model.removePost(at: 1)
+        model.errorMessage = "Current error"
+
+        let applied = model.applyPreparedAttachments(
+            ImageAttaching.PreparedResult(
+                attachments: [Attachment(imageData: Data([0x01]))],
+                failedNames: ["broken.png"],
+                exceededLimit: true
+            ),
+            to: removedID
+        )
+
+        XCTAssertFalse(applied)
+        XCTAssertTrue(model.thread[0].attachments.isEmpty)
+        XCTAssertEqual(model.errorMessage, "Current error")
+    }
+
+    func testPreparedAttachmentsRecheckRemainingSlotsAndPreserveOrder() {
+        let model = makeModel()
+        let existing = (0..<(TargetLimits.imageMax - 1)).map {
+            Attachment(imageData: Data([UInt8($0)]))
+        }
+        model.thread[0].attachments = existing
+        let first = Attachment(imageData: TestFactory.pngData())
+        let second = Attachment(imageData: TestFactory.pngData())
+
+        let applied = model.applyPreparedAttachments(
+            ImageAttaching.PreparedResult(
+                attachments: [first, second],
+                failedNames: ["broken.png"]
+            ),
+            to: model.thread[0].id
+        )
+
+        XCTAssertTrue(applied)
+        XCTAssertEqual(model.thread[0].attachments, existing + [first])
+        XCTAssertEqual(
+            model.errorMessage,
+            "Couldn't read broken.png. Maximum \(TargetLimits.imageMax) images per post."
+        )
+    }
 }

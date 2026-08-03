@@ -88,6 +88,25 @@ final class ComposeModel {
         thread.remove(at: index)
     }
 
+    /// Applies a completed preparation to its original draft identity. A removed
+    /// draft rejects the result without changing current errors or another post.
+    @discardableResult
+    func applyPreparedAttachments(_ result: ImageAttaching.PreparedResult,
+                                  to draftID: UUID) -> Bool {
+        guard let index = thread.firstIndex(where: { $0.id == draftID }) else {
+            return false
+        }
+        let publication = ImageAttaching.publication(
+            for: result,
+            existingCount: thread[index].attachments.count
+        )
+        thread[index].attachments.append(contentsOf: publication.attachments)
+        if let message = publication.errorMessage {
+            errorMessage = message
+        }
+        return true
+    }
+
     func toggle(_ target: PostTarget) {
         if selectedTargets.contains(target) {
             selectedTargets.remove(target)
@@ -103,7 +122,8 @@ final class ComposeModel {
         case .fullySent:
             return "Already posted to \(target.displayName). Add a new post to continue the thread."
         case .prefixEdited:
-            return "Can't re-send to \(target.displayName): an already-posted post was changed. Undo the change or clear the box."
+            return "Can't re-send to \(target.displayName): an already-posted post was changed. "
+                + "Undo the change or clear the box."
         }
     }
 
@@ -180,13 +200,7 @@ final class ComposeModel {
         var fullySent: [PostTarget] = []
         var anyLanded: [PostTarget] = []
         for result in results {
-            let items: [PostedItem]
-            let complete: Bool
-            switch result.outcome {
-            case .success(let posted): items = posted; complete = true
-            case .partial(let posted, _, _): items = posted; complete = false
-            case .failure: items = []; complete = false
-            }
+            let (items, complete) = landedItems(from: result)
             guard !items.isEmpty else { continue }
             anyLanded.append(result.target)
             let count = min(items.count, published.count)
@@ -200,14 +214,7 @@ final class ComposeModel {
                                             userInfo: [crossPostTargetsKey: Set(anyLanded)])
         }
 
-        let failures = results.compactMap { result -> String? in
-            switch result.outcome {
-            case .success: return nil
-            case .failure(let message): return "\(result.target.displayName): \(message)"
-            case .partial(_, let failedIndex, let message):
-                return "\(result.target.displayName): post \(failedIndex + 1) failed — \(message)"
-            }
-        }
+        let failures = results.compactMap(failureMessage)
         errorMessage = failures.isEmpty ? nil : failures.joined(separator: "\n")
 
         if failures.isEmpty {
@@ -217,6 +224,25 @@ final class ComposeModel {
             // Fully-sent targets have nothing left to send → deselect (locked).
             // Partially-sent targets stay selected so a retry resumes the remainder.
             selectedTargets.subtract(Set(fullySent))
+        }
+    }
+
+    private func landedItems(from result: PostResult) -> ([PostedItem], Bool) {
+        switch result.outcome {
+        case .success(let posted): return (posted, true)
+        case .partial(let posted, _, _): return (posted, false)
+        case .failure: return ([], false)
+        }
+    }
+
+    private func failureMessage(from result: PostResult) -> String? {
+        switch result.outcome {
+        case .success:
+            return nil
+        case .failure(let message):
+            return "\(result.target.displayName): \(message)"
+        case .partial(_, let failedIndex, let message):
+            return "\(result.target.displayName): post \(failedIndex + 1) failed — \(message)"
         }
     }
 }

@@ -32,9 +32,17 @@ struct ComposeColumnView: View {
 
             if model.thread.count == 1 {
                 VStack(spacing: 12) {
-                    PostCardView(post: $model.thread[0], index: 0, limit: limit,
-                                 showLabel: false, canRemove: false, onRemove: {},
-                                 onError: { model.errorMessage = $0 })
+                    PostCardView(
+                        post: $model.thread[0],
+                        index: 0,
+                        limit: limit,
+                        showLabel: false,
+                        canRemove: false,
+                        onRemove: {},
+                        onPreparedAttachments: { id, result in
+                            _ = model.applyPreparedAttachments(result, to: id)
+                        }
+                    )
                     addThreadButton(model)
                 }
                 .padding(14)
@@ -46,10 +54,16 @@ struct ComposeColumnView: View {
                             model.thread.enumerated().map { ($1.id, $0) })
                         ForEach($model.thread) { $post in
                             let index = threadIndex(of: post.id, in: indexByID)
-                            PostCardView(post: $post, index: index, limit: limit,
-                                         canRemove: true,
-                                         onRemove: { model.removePost(at: index) },
-                                         onError: { model.errorMessage = $0 })
+                            PostCardView(
+                                post: $post,
+                                index: index,
+                                limit: limit,
+                                canRemove: true,
+                                onRemove: { model.removePost(at: index) },
+                                onPreparedAttachments: { id, result in
+                                    _ = model.applyPreparedAttachments(result, to: id)
+                                }
+                            )
                         }
                         addThreadButton(model)
                     }

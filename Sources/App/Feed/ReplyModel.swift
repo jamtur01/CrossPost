@@ -61,6 +61,17 @@ final class ReplyModel {
         !isSending && !DraftPost(text: text, attachments: attachments).isEmpty
     }
 
+    func applyPreparedAttachments(_ result: ImageAttaching.PreparedResult) {
+        let publication = ImageAttaching.publication(
+            for: result,
+            existingCount: attachments.count
+        )
+        attachments.append(contentsOf: publication.attachments)
+        if let message = publication.errorMessage {
+            errorMessage = message
+        }
+    }
+
     /// Returns true only when the reply was actually posted, so the UI doesn't
     /// report success on a validation or network failure.
     @discardableResult
