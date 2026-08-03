@@ -416,7 +416,9 @@ struct MastodonFeedService: FeedService {
             authorHandle: "@\(q.account.acct)",
             avatarURL: URL(string: q.account.avatar),
             text: HTMLRenderer.renderAttributed(q.content ?? ""),
-            imageURL: image.flatMap { URL(string: $0.url) },
+            imageURL: image.flatMap {
+                $0.previewUrl.flatMap(URL.init(string:)) ?? URL(string: $0.url)
+            },
             webURL: q.url.flatMap(URL.init(string:)))
     }
 

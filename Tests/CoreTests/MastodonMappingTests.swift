@@ -30,6 +30,18 @@ final class MastodonMappingTests: XCTestCase {
         return try Self.decoder.decode(Post.self, from: Data(contentsOf: url))
     }
 
+    private func decodeQuote(_ name: String) throws -> Quote {
+        let url = try XCTUnwrap(
+            Bundle(for: Self.self).url(forResource: name, withExtension: "json"),
+            "missing fixture \(name).json"
+        )
+        let post = try JSONSerialization.jsonObject(with: Data(contentsOf: url))
+        let data = try JSONSerialization.data(
+            withJSONObject: ["state": "accepted", "quoted_status": post]
+        )
+        return try Self.decoder.decode(Quote.self, from: data)
+    }
+
     func testBoostUsesOuterIDWhileNativeRefAndContentComeFromTheBoostedStatus() throws {
         let mapped = MastodonFeedService.feedPost(from: try decodePost("mastodon_boost"))
 
@@ -69,6 +81,23 @@ final class MastodonMappingTests: XCTestCase {
         XCTAssertEqual(mapped.repostCount, 3)
         XCTAssertEqual(mapped.replyCount, 2)
         XCTAssertTrue(mapped.isSensitive)
+    }
+
+    func testQuotedPostUsesPreviewImageAndFallsBackToOriginal() throws {
+        let quote = try decodeQuote("mastodon_media_card")
+        let preview = try XCTUnwrap(MastodonFeedService.quotedPost(from: quote))
+
+        XCTAssertEqual(preview.imageURL, URL(string: "https://h.io/cat-preview.png"))
+        XCTAssertEqual(preview.webURL, URL(string: "https://h.io/@alice/MEDIA-1"))
+
+        guard case .post(let post)? = quote.quotedPost else {
+            return XCTFail("expected quoted post")
+        }
+        post.mediaAttachments[0].previewUrl = nil
+        let fallback = try XCTUnwrap(MastodonFeedService.quotedPost(from: quote))
+
+        XCTAssertEqual(fallback.imageURL, URL(string: "https://h.io/cat.png"))
+        XCTAssertEqual(fallback.webURL, preview.webURL)
     }
 
     func testQuoteSupportRequiresMastodon44() {
