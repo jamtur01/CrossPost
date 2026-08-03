@@ -1,6 +1,34 @@
 import Foundation
 import SwiftUI
 
+// Attachments can be constructed or mutated outside preparation, so outgoing bytes
+// must be checked again at the submit boundary.
+typealias UnreadablePostFinder = @Sendable (_ attachmentDataByPost: [[Data]]) -> Int?
+
+enum OutgoingImageValidation {
+    static func firstUnreadablePost(_ attachmentDataByPost: [[Data]]) -> Int? {
+        for (postIndex, attachmentData) in attachmentDataByPost.enumerated() {
+            for data in attachmentData {
+                guard !Task.isCancelled else { return nil }
+                if !ImageProcessor.canDecode(data) {
+                    return postIndex
+                }
+            }
+        }
+        return nil
+    }
+
+    static func run(
+        on attachmentDataByPost: [[Data]],
+        using findUnreadablePost: @escaping UnreadablePostFinder
+    ) async -> Int? {
+        guard !attachmentDataByPost.allSatisfy(\.isEmpty) else { return nil }
+        return await ImageAttaching.runDetached {
+            findUnreadablePost(attachmentDataByPost)
+        }
+    }
+}
+
 @MainActor
 @Observable
 final class ComposeModel {
@@ -14,8 +42,8 @@ final class ComposeModel {
 
     private let coordinator = CrossPostCoordinator()
     private let store: AccountStore
+    private let findUnreadablePost: UnreadablePostFinder
     private let makePosters: @MainActor ([PostTarget], AccountStore) async throws -> [Poster]
-
     /// What already landed on each target from a prior (possibly interrupted) submit:
     /// the published items (their native refs let a retry resume the thread) plus a
     /// per-post signature of each landed post, so an edit to an already-published post
@@ -32,10 +60,15 @@ final class ComposeModel {
         case prefixEdited   // an already-published post was changed; can't resume safely
     }
 
-    init(store: AccountStore,
-         makePosters: @escaping @MainActor ([PostTarget], AccountStore) async throws -> [Poster]
-             = PosterFactory.makePosters) {
+    init(
+        store: AccountStore,
+        findUnreadablePost: @escaping UnreadablePostFinder =
+            { OutgoingImageValidation.firstUnreadablePost($0) },
+        makePosters: @escaping @MainActor ([PostTarget], AccountStore) async throws -> [Poster] =
+            PosterFactory.makePosters
+    ) {
         self.store = store
+        self.findUnreadablePost = findUnreadablePost
         self.makePosters = makePosters
     }
 
@@ -128,63 +161,91 @@ final class ComposeModel {
     }
 
     func submit() async {
-        // Authoritative guard: a second queued submit (double tap / ⌘↩ race) or an
-        // empty/target-less call returns before touching state or the network.
-        guard canPost else { return }
+        guard !Task.isCancelled, canPost else { return }
         isPosting = true
-        blockedIssues = nil; errorMessage = nil
+        blockedIssues = nil
+        errorMessage = nil
         defer { isPosting = false }
 
         let targets = PostTarget.allCases.filter { selectedTargets.contains($0) }
+        guard let outgoing = validatedOutgoing(for: targets) else { return }
+        guard await attachmentsAreReadable(in: outgoing) else { return }
 
-        // Refuse any target whose already-published prefix was edited: a live post
-        // can't be changed, and resuming onto a changed prefix would thread wrong.
-        let edited = targets.filter { landedByTarget[$0].map { !prefixIntact($0) } ?? false }
+        do {
+            let posters = try await makePosters(targets, store)
+            guard !Task.isCancelled else { return }
+            let outcome = await coordinator.publish(
+                thread: outgoing,
+                to: targets,
+                using: posters,
+                limits: store.limits,
+                resuming: resumeItems(for: targets)
+            )
+            guard !Task.isCancelled else { return }
+            switch outcome {
+            case .blocked(let issues):
+                blockedIssues = issues
+            case .completed(let results):
+                handleCompletion(results, published: outgoing)
+            }
+        } catch is CancellationError {
+            return
+        } catch {
+            guard !Task.isCancelled else { return }
+            errorMessage = error.userMessage
+        }
+    }
+
+    private func validatedOutgoing(for targets: [PostTarget]) -> [DraftPost]? {
+        let edited = targets.filter {
+            landedByTarget[$0].map { !prefixIntact($0) } ?? false
+        }
         guard edited.isEmpty else {
             errorMessage = edited.map { lockMessage($0, .prefixEdited) }.joined(separator: "\n")
-            return
+            return nil
         }
 
-        // Stamp the chosen visibility onto every post in the thread (Mastodon honors
-        // it; Bluesky ignores it) so the picker is the single source of truth.
         let outgoing = thread.map { draft in
             var draft = draft
             draft.visibility = visibility
             return draft
         }
-
-        // Validate up front so length/empty errors abort before any network connection.
-        let issues = PostValidator.validate(thread: outgoing, targets: targets, limits: store.limits)
-        guard issues.isEmpty else { blockedIssues = issues; return }
-
-        // Reject an unreadable image before posting so it can't strand a thread mid-publish.
-        if let badIndex = outgoing.firstIndex(where: {
-            $0.attachments.contains { !ImageProcessor.canDecode($0.imageData) }
-        }) {
-            errorMessage = "Post \(badIndex + 1) has an image that can't be read. Remove it and try again."
-            return
+        let issues = PostValidator.validate(
+            thread: outgoing,
+            targets: targets,
+            limits: store.limits
+        )
+        guard issues.isEmpty else {
+            blockedIssues = issues
+            return nil
         }
+        return outgoing
+    }
 
-        // Resume each target from its intact landed prefix so nothing is sent twice.
+    private func attachmentsAreReadable(in outgoing: [DraftPost]) async -> Bool {
+        let attachmentDataByPost = outgoing.map { post in
+            post.attachments.map(\.imageData)
+        }
+        let badIndex = await OutgoingImageValidation.run(
+            on: attachmentDataByPost,
+            using: findUnreadablePost
+        )
+        guard !Task.isCancelled else { return false }
+        guard let badIndex else { return true }
+        errorMessage = "Post \(badIndex + 1) has an image that can't be read. "
+            + "Remove it and try again."
+        return false
+    }
+
+    private func resumeItems(for targets: [PostTarget]) -> [PostTarget: [PostedItem]] {
         var resuming: [PostTarget: [PostedItem]] = [:]
         for target in targets {
-            if let landed = landedByTarget[target], !landed.items.isEmpty {
-                resuming[target] = landed.items
+            guard let landed = landedByTarget[target], !landed.items.isEmpty else {
+                continue
             }
+            resuming[target] = landed.items
         }
-
-        do {
-            let posters = try await makePosters(targets, store)
-            let outcome = await coordinator.publish(thread: outgoing, to: targets,
-                                                    using: posters, limits: store.limits,
-                                                    resuming: resuming)
-            switch outcome {
-            case .blocked(let issues): blockedIssues = issues
-            case .completed(let results): handleCompletion(results, published: outgoing)
-            }
-        } catch {
-            errorMessage = error.userMessage
-        }
+        return resuming
     }
 
     /// Refresh the feed panels for platforms that received content, surface failures

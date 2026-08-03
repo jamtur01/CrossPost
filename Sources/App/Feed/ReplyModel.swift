@@ -20,13 +20,20 @@ final class ReplyModel {
     private(set) var postedURL: URL?
 
     private let store: AccountStore
+    private let findUnreadablePost: UnreadablePostFinder
     private let makeService: @MainActor (PostTarget, AccountStore) async throws -> FeedService
 
-    init(post: FeedPost, store: AccountStore,
-         makeService: @escaping @MainActor (PostTarget, AccountStore) async throws -> FeedService
-             = FeedServiceFactory.make) {
+    init(
+        post: FeedPost,
+        store: AccountStore,
+        findUnreadablePost: @escaping UnreadablePostFinder =
+            { OutgoingImageValidation.firstUnreadablePost($0) },
+        makeService: @escaping @MainActor (PostTarget, AccountStore) async throws -> FeedService =
+            FeedServiceFactory.make
+    ) {
         self.post = post
         self.store = store
+        self.findUnreadablePost = findUnreadablePost
         self.makeService = makeService
         self.text = Self.prefill(for: post, store: store)
         self.visibility = PostVisibility(mastodon: post.visibility) ?? .public
@@ -78,32 +85,56 @@ final class ReplyModel {
     func send() async -> Bool {
         // Authoritative guard: a second queued send (double tap / ⌘↩ race) returns
         // before posting again. The disabled button alone doesn't prevent the race.
-        guard canSend else { return false }
+        guard !Task.isCancelled, canSend else { return false }
         isSending = true
         blockedIssues = nil
         errorMessage = nil
         defer { isSending = false }
+
         let draft = DraftPost(text: text, attachments: attachments)
-        let issues = PostValidator.validate(thread: [draft], targets: [post.target], limits: store.limits)
+        let outgoingVisibility = visibility
+        let issues = PostValidator.validate(
+            thread: [draft],
+            targets: [post.target],
+            limits: store.limits
+        )
         guard issues.isEmpty else {
             blockedIssues = issues
             return false
         }
-        if attachments.contains(where: { !ImageProcessor.canDecode($0.imageData) }) {
+
+        let badIndex = await OutgoingImageValidation.run(
+            on: [draft.attachments.map(\.imageData)],
+            using: findUnreadablePost
+        )
+        guard !Task.isCancelled else { return false }
+        guard badIndex == nil else {
             errorMessage = "An image can't be read. Remove it and try again."
             return false
         }
+
         do {
             let service = try await makeService(post.target, store)
-            let item = try await service.reply(to: post, text: text, images: attachments,
-                                               visibility: visibility)
+            guard !Task.isCancelled else { return false }
+            let item = try await service.reply(
+                to: post,
+                text: draft.text,
+                images: draft.attachments,
+                visibility: outgoingVisibility
+            )
+            guard !Task.isCancelled else { return false }
             didPost = true
             postedURL = item.url.flatMap(URL.init(string:))
-            // Refresh the panel for this platform so the reply shows up.
-            NotificationCenter.default.post(name: .crossPostDidPost, object: nil,
-                                            userInfo: [crossPostTargetsKey: Set([post.target])])
+            NotificationCenter.default.post(
+                name: .crossPostDidPost,
+                object: nil,
+                userInfo: [crossPostTargetsKey: Set([post.target])]
+            )
             return true
+        } catch is CancellationError {
+            return false
         } catch {
+            guard !Task.isCancelled else { return false }
             errorMessage = error.userMessage
             return false
         }

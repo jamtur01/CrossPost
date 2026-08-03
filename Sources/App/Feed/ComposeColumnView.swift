@@ -30,45 +30,30 @@ struct ComposeColumnView: View {
             .frame(height: 40)
             .barSurface()
 
-            if model.thread.count == 1 {
+            ScrollView {
                 VStack(spacing: 12) {
-                    PostCardView(
-                        post: $model.thread[0],
-                        index: 0,
-                        limit: limit,
-                        showLabel: false,
-                        canRemove: false,
-                        onRemove: {},
-                        onPreparedAttachments: { id, result in
-                            _ = model.applyPreparedAttachments(result, to: id)
-                        }
+                    let isSinglePost = model.thread.count == 1
+                    let indexByID = Dictionary(
+                        uniqueKeysWithValues: model.thread.enumerated().map { ($1.id, $0) }
                     )
+                    ForEach($model.thread) { $post in
+                        let index = threadIndex(of: post.id, in: indexByID)
+                        PostCardView(
+                            post: $post,
+                            index: index,
+                            limit: limit,
+                            showLabel: !isSinglePost,
+                            canRemove: !isSinglePost,
+                            onRemove: { model.removePost(at: index) },
+                            onPreparedAttachments: { id, result in
+                                _ = model.applyPreparedAttachments(result, to: id)
+                            }
+                        )
+                    }
                     addThreadButton(model)
                 }
                 .padding(14)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            } else {
-                ScrollView {
-                    VStack(spacing: 12) {
-                        let indexByID = Dictionary(uniqueKeysWithValues:
-                            model.thread.enumerated().map { ($1.id, $0) })
-                        ForEach($model.thread) { $post in
-                            let index = threadIndex(of: post.id, in: indexByID)
-                            PostCardView(
-                                post: $post,
-                                index: index,
-                                limit: limit,
-                                canRemove: true,
-                                onRemove: { model.removePost(at: index) },
-                                onPreparedAttachments: { id, result in
-                                    _ = model.applyPreparedAttachments(result, to: id)
-                                }
-                            )
-                        }
-                        addThreadButton(model)
-                    }
-                    .padding(14)
-                }
+                .frame(maxWidth: .infinity, alignment: .top)
             }
 
             footer(model)
@@ -88,18 +73,7 @@ struct ComposeColumnView: View {
     private func footer(_ model: ComposeModel) -> some View {
         @Bindable var model = model
         VStack(alignment: .leading, spacing: 10) {
-            if let issues = model.blockedIssues, !issues.isEmpty {
-                VStack(alignment: .leading, spacing: 3) {
-                    ForEach(Array(issues.enumerated()), id: \.offset) { _, issue in
-                        Text(validationMessage(issue) { "Post \($0 + 1)" })
-                            .font(.caption)
-                            .foregroundStyle(.red)
-                    }
-                }
-            }
-            if let error = model.errorMessage {
-                Text(error).font(.caption).foregroundStyle(.red)
-            }
+            validationErrors(model)
 
             HStack(spacing: 8) {
                 Spacer(minLength: 0)
@@ -141,6 +115,22 @@ struct ComposeColumnView: View {
         .padding(.horizontal, 14).padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
         .barSurface(divider: .top)
+    }
+
+    @ViewBuilder
+    private func validationErrors(_ model: ComposeModel) -> some View {
+        if let issues = model.blockedIssues, !issues.isEmpty {
+            VStack(alignment: .leading, spacing: 3) {
+                ForEach(Array(issues.enumerated()), id: \.offset) { _, issue in
+                    Text(validationMessage(issue) { "Post \($0 + 1)" })
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+            }
+        }
+        if let error = model.errorMessage {
+            Text(error).font(.caption).foregroundStyle(.red)
+        }
     }
 
     private func targetPill(_ target: PostTarget, selected: Bool, posted: Bool = false,

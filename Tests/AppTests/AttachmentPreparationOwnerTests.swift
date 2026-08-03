@@ -75,6 +75,35 @@ final class AttachmentPreparationOwnerTests: XCTestCase {
         XCTAssertTrue(observedCancellation.value)
     }
 
+    func testAddingPostKeepsFirstDraftPreparationOwnedByThatDraft() async {
+        let model = ComposeModel(store: AccountStore())
+        let owner = AttachmentPreparationOwner()
+        let gate = TestGate()
+        let observedCancellation = PreparationFlag()
+        let firstDraftID = model.thread[0].id
+        let attachment = Attachment(imageData: TestFactory.pngData())
+
+        let task = owner.start(
+            operation: {
+                await gate.wait()
+                await observedCancellation.set(Task.isCancelled)
+                return ImageAttaching.PreparedResult(attachments: [attachment])
+            },
+            onPrepared: { result in
+                _ = model.applyPreparedAttachments(result, to: firstDraftID)
+            }
+        )
+        await waitUntil { gate.arrivals == 1 }
+
+        model.addPost()
+        gate.open()
+        await task.value
+
+        XCTAssertFalse(observedCancellation.value)
+        XCTAssertEqual(model.thread[0].id, firstDraftID)
+        XCTAssertEqual(model.thread[0].attachments, [attachment])
+    }
+
     func testDetachedWorkerReceivesOuterCancellation() async {
         let gate = TestGate()
         let observedCancellation = PreparationFlag()

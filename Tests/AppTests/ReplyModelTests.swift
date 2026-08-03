@@ -59,7 +59,11 @@ final class ReplyModelTests: XCTestCase {
     func testReplyForwardsVisibilityToService() async {
         let fake = FakeFeedService()
         let post = TestFactory.feedPost(target: .mastodon, visibility: "unlisted")
-        let model = ReplyModel(post: post, store: AccountStore()) { _, _ in fake }
+        let model = ReplyModel(
+            post: post,
+            store: AccountStore(),
+            makeService: { _, _ in fake }
+        )
         model.text = "sure"
         let posted = await model.send()
         XCTAssertTrue(posted)
@@ -84,7 +88,11 @@ final class ReplyModelTests: XCTestCase {
     func testReplyWithUnreadableImageIsRejected() async {
         let fake = FakeFeedService()
         let post = TestFactory.feedPost(target: .bluesky)
-        let model = ReplyModel(post: post, store: AccountStore()) { _, _ in fake }
+        let model = ReplyModel(
+            post: post,
+            store: AccountStore(),
+            makeService: { _, _ in fake }
+        )
         model.text = "sure"
         model.attachments = [Attachment(imageData: Data([0x00, 0x01]))]   // not an image
 
@@ -96,10 +104,79 @@ final class ReplyModelTests: XCTestCase {
         XCTAssertNil(model.postedURL)
     }
 
+    func testReplyValidatesAttachmentDataOffMainActor() async {
+        let fake = FakeFeedService()
+        let probe = ReplyValidationProbe(result: nil)
+        let post = TestFactory.feedPost(target: .bluesky)
+        let model = ReplyModel(
+            post: post,
+            store: AccountStore(),
+            findUnreadablePost: { probe.validate($0) },
+            makeService: { _, _ in fake }
+        )
+        model.text = "sure"
+        model.attachments = [Attachment(imageData: TestFactory.pngData())]
+
+        let posted = await model.send()
+
+        XCTAssertTrue(posted)
+        XCTAssertFalse(probe.ranOnMainThread)
+    }
+
+    func testCancelledReplyValidationDoesNotPostOrReportError() async {
+        let fake = FakeFeedService()
+        let probe = ReplyValidationProbe(result: 0, blocks: true)
+        let post = TestFactory.feedPost(target: .bluesky)
+        let model = ReplyModel(
+            post: post,
+            store: AccountStore(),
+            findUnreadablePost: { probe.validate($0) },
+            makeService: { _, _ in fake }
+        )
+        model.text = "sure"
+        model.attachments = [Attachment(imageData: Data([0x00]))]
+
+        let reply = Task { await model.send() }
+        await waitUntil { probe.hasEntered }
+        reply.cancel()
+        probe.release()
+        let posted = await reply.value
+
+        XCTAssertFalse(posted)
+        XCTAssertTrue(probe.observedCancellation)
+        XCTAssertNil(model.errorMessage)
+        XCTAssertFalse(model.didPost)
+        XCTAssertNil(model.postedURL)
+        XCTAssertTrue(fake.replyVisibilities.isEmpty)
+        XCTAssertFalse(model.isSending)
+    }
+
+    func testEmptyReplySkipsAttachmentValidation() async {
+        let fake = FakeFeedService()
+        let probe = ReplyValidationProbe(result: nil)
+        let post = TestFactory.feedPost(target: .bluesky)
+        let model = ReplyModel(
+            post: post,
+            store: AccountStore(),
+            findUnreadablePost: { probe.validate($0) },
+            makeService: { _, _ in fake }
+        )
+
+        let posted = await model.send()
+
+        XCTAssertFalse(posted)
+        XCTAssertFalse(probe.hasEntered)
+        XCTAssertTrue(fake.replyVisibilities.isEmpty)
+    }
+
     func testImageOnlyReplyPostsAndRefreshesOnce() async {
         let fake = FakeFeedService()
         let post = TestFactory.feedPost(target: .bluesky)
-        let model = ReplyModel(post: post, store: AccountStore()) { _, _ in fake }
+        let model = ReplyModel(
+            post: post,
+            store: AccountStore(),
+            makeService: { _, _ in fake }
+        )
         model.text = ""                                   // no text…
         model.attachments = [Attachment(imageData: TestFactory.pngData(), altText: "alt")]   // …just an image
 
@@ -121,7 +198,11 @@ final class ReplyModelTests: XCTestCase {
     func testSendIgnoresReentrantCallWhileSending() async {
         let fake = FakeFeedService()
         let post = TestFactory.feedPost(target: .bluesky)
-        let model = ReplyModel(post: post, store: AccountStore()) { _, _ in fake }
+        let model = ReplyModel(
+            post: post,
+            store: AccountStore(),
+            makeService: { _, _ in fake }
+        )
         model.text = "hi"
         model.isSending = true   // simulate a send already in flight
 
@@ -129,5 +210,56 @@ final class ReplyModelTests: XCTestCase {
 
         XCTAssertFalse(posted)
         XCTAssertTrue(fake.replyVisibilities.isEmpty, "a reentrant send must not post again")
+    }
+
+    private func waitUntil(
+        _ predicate: @escaping @MainActor () -> Bool,
+        timeout: TimeInterval = 2,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) async {
+        let deadline = Date().addingTimeInterval(timeout)
+        while !predicate() {
+            if Date() >= deadline {
+                XCTFail("Timed out waiting for condition", file: file, line: line)
+                return
+            }
+            await Task.yield()
+        }
+    }
+}
+
+private final class ReplyValidationProbe: @unchecked Sendable {
+    private let lock = NSLock()
+    private let releaseSemaphore = DispatchSemaphore(value: 0)
+    private let result: Int?
+    private let blocks: Bool
+    private var entered = false
+    private var mainThread = true
+    private var cancelled = false
+
+    init(result: Int?, blocks: Bool = false) {
+        self.result = result
+        self.blocks = blocks
+    }
+
+    var hasEntered: Bool { lock.withLock { entered } }
+    var ranOnMainThread: Bool { lock.withLock { mainThread } }
+    var observedCancellation: Bool { lock.withLock { cancelled } }
+
+    func validate(_ attachmentDataByPost: [[Data]]) -> Int? {
+        lock.withLock {
+            entered = true
+            mainThread = Thread.isMainThread
+        }
+        if blocks {
+            _ = releaseSemaphore.wait(timeout: .now() + 2)
+        }
+        lock.withLock { cancelled = Task.isCancelled }
+        return result
+    }
+
+    func release() {
+        releaseSemaphore.signal()
     }
 }
