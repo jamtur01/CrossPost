@@ -99,6 +99,7 @@ extension ComposeModel {
         blockedIssues = nil
         errorMessage = nil
         completionMessage = nil
+        lastResults = []
         _ = flushDraft()
     }
 }

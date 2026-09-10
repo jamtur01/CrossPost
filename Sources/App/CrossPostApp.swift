@@ -3,6 +3,7 @@ import SwiftUI
 @main
 struct CrossPostApp: App {
     @StateObject private var store = AccountStore()
+    @AppStorage("showComposer", store: AccountStore.defaults) private var showComposer = true
 
     var body: some Scene {
         Window("CrossPost", id: "main") {
@@ -13,6 +14,9 @@ struct CrossPostApp: App {
         .windowToolbarStyle(.unified)
         .commands {
             CommandGroup(after: .toolbar) {
+                Button(showComposer ? "Hide Composer" : "Show Composer") { showComposer.toggle() }
+                    .keyboardShortcut("c", modifiers: [.command, .shift])
+                Divider()
                 Button("Refresh All Feeds") {
                     NotificationCenter.default.post(name: .refreshAllFeeds, object: nil)
                 }

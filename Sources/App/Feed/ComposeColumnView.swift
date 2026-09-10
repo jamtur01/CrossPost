@@ -3,37 +3,24 @@ import SwiftUI
 
 struct ComposeColumnView: View {
     @EnvironmentObject var store: AccountStore
-    @State private var model: ComposeModel?
+    @Bindable var model: ComposeModel
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var confirmingNewDraft = false
 
     var body: some View {
-        Group {
-            if let model {
-                content(model)
-            } else {
-                Color.clear.onAppear { model = ComposeModel(store: store, draftStore: .application) }
+        content(model)
+            .background(Color(nsColor: .windowBackgroundColor))
+            .confirmationDialog("Discard this draft and start a new one?", isPresented: $confirmingNewDraft) {
+                Button("Discard Draft", role: .destructive) { model.startNewDraft() }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Published posts stay on their networks. This discards the saved draft and its retry history.")
             }
-        }
-        .background(Color(nsColor: .windowBackgroundColor))
-        .onDisappear { model?.flushDraft() }
-        .onReceive(NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)) { _ in
-            model?.flushDraft()
-        }
-        .confirmationDialog("Discard this draft and start a new one?", isPresented: $confirmingNewDraft) {
-            Button("Discard Draft", role: .destructive) { model?.startNewDraft() }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("Published posts stay on their networks. This discards the saved draft and its retry history.")
-        }
     }
 
     @ViewBuilder
     private func content(_ model: ComposeModel) -> some View {
         @Bindable var model = model
-        // Effective limit = the strictest selected target. Bluesky's 300 is always
-        // the floor when selected; otherwise use the connected instance's limit.
-        let limit = model.selectedTargets.contains(.bluesky)
-            ? TargetLimits.blueskyMax : store.mastodonMaxChars
         VStack(spacing: 0) {
             HStack(spacing: 7) {
                 Image(systemName: "square.and.pencil")
@@ -47,7 +34,7 @@ struct ComposeColumnView: View {
                     .disabled(model.isPosting)
             }
             .padding(.horizontal, Theme.headerPaddingH)
-            .frame(height: 40)
+            .frame(height: 52)
             .barSurface()
 
             ScrollView {
@@ -61,7 +48,8 @@ struct ComposeColumnView: View {
                         PostCardView(
                             post: $post,
                             index: index,
-                            limit: limit,
+                            limit: model.characterLimit,
+                            limitLabel: model.limitingNetwork,
                             showLabel: !isSinglePost,
                             canRemove: !isSinglePost,
                             onRemove: { model.removePost(at: index) },
@@ -71,12 +59,11 @@ struct ComposeColumnView: View {
                         )
                     }
                     addThreadButton(model)
+                    footer(model)
                 }
                 .padding(14)
                 .frame(maxWidth: .infinity, alignment: .top)
             }
-
-            footer(model)
         }
     }
 
@@ -96,13 +83,13 @@ struct ComposeColumnView: View {
             validationErrors(model)
 
             HStack(spacing: 8) {
-                Spacer(minLength: 0)
+                Text("Post to").font(.callout.weight(.medium))
                 ForEach(PostTarget.allCases) { target in
                     let selected = model.selectedTargets.contains(target)
                     targetPill(
                         target,
                         selected: selected,
-                        posted: !selected && model.isLocked(target)
+                        locked: !selected && model.isLocked(target)
                     ) {
                         model.toggle(target)
                     }
@@ -116,10 +103,11 @@ struct ComposeColumnView: View {
                 Spacer()
 
                 Button { Task { await model.submit() } } label: {
-                    Text(model.isPosting ? "Posting…" : "Post")
+                    Text(model.submissionLabel)
+                        .frame(minWidth: 78)
                 }
                 .buttonStyle(.borderedProminent)
-                .controlSize(.small)
+                .controlSize(.large)
                 .keyboardShortcut(.return, modifiers: .command)
                 .disabled(!model.canPost)
             }
@@ -130,9 +118,9 @@ struct ComposeColumnView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .padding(.horizontal, 14).padding(.vertical, 10)
+        .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .barSurface(divider: .top)
+        .cardSurface()
     }
 
     private func audiences(_ model: ComposeModel) -> some View {
@@ -153,6 +141,11 @@ struct ComposeColumnView: View {
 
     @ViewBuilder
     private func validationErrors(_ model: ComposeModel) -> some View {
+        ForEach(PostTarget.allCases) { target in
+            if let status = model.publicationStatus(for: target) {
+                Text(status).font(.callout)
+            }
+        }
         if let message = model.completionMessage {
             Label(message, systemImage: "checkmark.circle")
                 .font(.caption)
@@ -180,21 +173,20 @@ struct ComposeColumnView: View {
         }
     }
 
-    private func targetPill(_ target: PostTarget, selected: Bool, posted: Bool = false,
+    private func targetPill(_ target: PostTarget, selected: Bool, locked: Bool = false,
                             action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 5) {
-                Image(systemName: posted ? "checkmark.circle.fill" : target.glyph)
+                Image(systemName: selected ? "checkmark.circle.fill" : (locked ? "lock.circle" : "circle"))
                     .font(.system(size: 12))
                 Text(target.displayName)
                     .font(.system(size: 12, weight: .medium))
             }
             .lineLimit(1)
             .fixedSize()
-            .opacity(posted ? 0.55 : 1)
             .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .foregroundStyle(selected ? target.accent : .secondary)
+            .padding(.vertical, 6)
+            .foregroundStyle(.primary)
             .background(
                 Capsule(style: .continuous)
                     .fill(selected ? target.accent.opacity(0.10) : Theme.hoverFill)
@@ -208,7 +200,10 @@ struct ComposeColumnView: View {
             )
         }
         .buttonStyle(.plain)
-        .animation(.snappy(duration: 0.15), value: selected)
+        .animation(reduceMotion ? nil : .snappy(duration: 0.15), value: selected)
+        .accessibilityLabel(target.displayName)
+        .accessibilityValue(selected ? "Selected" : (locked ? "Locked; select for details" : "Not selected"))
+        .accessibilityAddTraits(selected ? .isSelected : [])
         .help(
             selected
                 ? "Posting to \(target.displayName)"

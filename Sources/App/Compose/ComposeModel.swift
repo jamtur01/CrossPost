@@ -50,6 +50,7 @@ final class ComposeModel {
     var errorMessage: String?
     var completionMessage: String?
     var draftError: String?
+    var lastResults: [PostResult] = []
 
     private let coordinator = CrossPostCoordinator()
     let store: AccountStore
@@ -312,6 +313,7 @@ final class ComposeModel {
     func handleCompletion(_ results: [PostResult], published: [DraftPost]? = nil) {
         // Sign the snapshot that was actually published, not the live thread: the
         // editor stays enabled during posting, so `thread` may have changed since.
+        lastResults = results
         let published = published ?? thread
         var fullySent: [PostTarget] = []
         var anyLanded: [PostTarget] = []

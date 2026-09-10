@@ -74,6 +74,42 @@ final class ComposeModelTests: XCTestCase {
 
     // MARK: handleCompletion — post-publish reconciliation
 
+    func testCounterUsesStrictestSelectedNetwork() {
+        let store = AccountStore()
+        let previous = store.mastodonMaxChars
+        defer { store.mastodonMaxChars = previous }
+        let model = ComposeModel(store: store)
+        store.mastodonMaxChars = 200
+        XCTAssertEqual(model.characterLimit, 200)
+        XCTAssertEqual(model.limitingNetwork, "Mastodon")
+        store.mastodonMaxChars = 500
+        XCTAssertEqual(model.characterLimit, 300)
+        XCTAssertEqual(model.limitingNetwork, "Bluesky")
+        model.selectedTargets = [.mastodon]
+        XCTAssertEqual(model.characterLimit, 500)
+        store.mastodonMaxChars = 300
+        model.selectedTargets.insert(.bluesky)
+        XCTAssertEqual(model.limitingNetwork, "Both networks")
+    }
+
+    func testPartialPublicationShowsNetworkResultsAndRetryDestination() {
+        let model = makeModel()
+        model.thread[0].text = "Ready"
+        model.handleCompletion([
+            result(.mastodon, .success(posted: posted)),
+            result(.bluesky, .failure(message: "Offline"))
+        ])
+        XCTAssertEqual(model.publicationStatus(for: .mastodon), "Mastodon: 1 posted")
+        XCTAssertEqual(model.publicationStatus(for: .bluesky), "Bluesky: Failed")
+        XCTAssertEqual(model.submissionLabel, "Retry Bluesky")
+        model.addPost()
+        model.selectedTargets = [.mastodon]
+        XCTAssertEqual(model.submissionLabel, "Continue thread")
+        model.startNewDraft()
+        XCTAssertNil(model.publicationStatus(for: .mastodon))
+        XCTAssertEqual(model.submissionLabel, "Post")
+    }
+
     private func result(_ target: PostTarget, _ outcome: PostResult.Outcome) -> PostResult {
         PostResult(target: target, outcome: outcome)
     }

@@ -6,7 +6,8 @@ struct PostCardView: View {
     @Binding var post: DraftPost
     let index: Int
     let limit: Int
-    var showLabel: Bool = true   // "Post N" + remove (thread mode)
+    var limitLabel: String?
+    var showLabel: Bool = true // "Post N" + remove (thread mode)
     let canRemove: Bool
     let onRemove: () -> Void
     let onPreparedAttachments: (UUID, ImageAttaching.PreparedResult) -> Void
@@ -14,8 +15,13 @@ struct PostCardView: View {
     @State private var isDropTarget = false
     @State private var attachmentPreparation = AttachmentPreparationOwner()
 
-    private var count: Int { PostValidator.graphemeCount(post.text) }
-    private var canAddImages: Bool { post.attachments.count < TargetLimits.imageMax }
+    private var count: Int {
+        PostValidator.graphemeCount(post.text)
+    }
+
+    private var canAddImages: Bool {
+        post.attachments.count < TargetLimits.imageMax
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -34,13 +40,16 @@ struct PostCardView: View {
                         }
                         .buttonStyle(.borderless)
                         .help("Remove this post")
+                        .accessibilityLabel("Remove post \(index + 1)")
                     }
                 }
             }
 
             editor
 
-            if !post.attachments.isEmpty { AttachmentBar(attachments: $post.attachments) }
+            if !post.attachments.isEmpty {
+                AttachmentBar(attachments: $post.attachments)
+            }
 
             HStack(spacing: 12) {
                 Button(action: chooseFiles) {
@@ -49,11 +58,12 @@ struct PostCardView: View {
                 .buttonStyle(.borderless)
                 .foregroundStyle(.secondary)
                 .disabled(!canAddImages)
+                .accessibilityLabel("Add image")
                 .help(canAddImages ? "Add image" : "Maximum \(TargetLimits.imageMax) images")
 
                 Spacer()
 
-                Text("\(count)/\(limit)")
+                Text("\(count)/\(limit)" + (limitLabel.map { " · \($0)" } ?? ""))
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(counterColor(count: count, limit: limit))
             }
@@ -66,7 +76,8 @@ struct PostCardView: View {
                     .strokeBorder(Color.accentColor, style: StrokeStyle(lineWidth: 2, dash: [6]))
                     .background(
                         RoundedRectangle(cornerRadius: Theme.cardCorner, style: .continuous)
-                            .fill(Color.accentColor.opacity(0.06)))
+                            .fill(Color.accentColor.opacity(0.06))
+                    )
             }
         }
         .animation(.easeOut(duration: 0.12), value: isDropTarget)
@@ -118,7 +129,7 @@ struct PostCardView: View {
             .overlay(alignment: .topLeading) {
                 if post.text.isEmpty {
                     Text("What's on your mind?")
-                        .font(Theme.content).foregroundStyle(.tertiary)
+                        .font(Theme.content).foregroundStyle(.secondary)
                         .padding(.leading, 5).padding(.top, 6)
                         .allowsHitTesting(false)
                 }

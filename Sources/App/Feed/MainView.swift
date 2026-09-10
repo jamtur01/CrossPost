@@ -1,5 +1,5 @@
-import SwiftUI
 import AppKit
+import SwiftUI
 
 struct MainView: View {
     @EnvironmentObject var store: AccountStore
@@ -7,16 +7,18 @@ struct MainView: View {
     // so re-rendering MainView never allocates a fresh model or drops feed state.
     @State private var mastodon: FeedPanelModel?
     @State private var bluesky: FeedPanelModel?
+    @State private var compose: ComposeModel?
+    @AppStorage("showComposer", store: AccountStore.defaults) private var showComposer = true
     @State private var lightbox = ImageLightbox()
     @State private var relativeTimestampNow = Date()
 
     var body: some View {
         HSplitView {
-            // Keep the authoring surface useful on launch. The previous 240pt
-            // floor let the feed group consume surplus width and squash Compose.
-            ComposeColumnView()
-                .environmentObject(store)
-                .frame(minWidth: 390, idealWidth: 400, maxWidth: 480)
+            if showComposer, let compose {
+                ComposeColumnView(model: compose)
+                    .environmentObject(store)
+                    .frame(minWidth: 330, idealWidth: 370, maxWidth: 440)
+            }
 
             // The two feeds share the remaining space equally (each maxWidth:
             // .infinity), so they are always exactly the same size.
@@ -28,21 +30,41 @@ struct MainView: View {
             // Each feed stays legible: ~290pt min per column side-by-side.
             .frame(minWidth: 580)
         }
-        .frame(minWidth: 980, minHeight: 560)
+        .frame(minWidth: showComposer ? 920 : 600, minHeight: 560)
         .environment(lightbox)
         .environment(\.relativeTimestampNow, relativeTimestampNow)
         .overlay { ImageLightboxOverlay(lightbox: lightbox) }
         .onAppear {
-            if mastodon == nil { mastodon = FeedPanelModel(target: .mastodon, store: store) }
-            if bluesky == nil { bluesky = FeedPanelModel(target: .bluesky, store: store) }
+            if mastodon == nil {
+                mastodon = FeedPanelModel(target: .mastodon, store: store)
+            }
+            if bluesky == nil {
+                bluesky = FeedPanelModel(target: .bluesky, store: store)
+            }
+            if compose == nil {
+                compose = ComposeModel(store: store, draftStore: .application)
+            }
             updateDockBadge()
         }
-        .onDisappear { NSApplication.shared.dockTile.badgeLabel = nil }
+        .onDisappear {
+            compose?.flushDraft()
+            NSApplication.shared.dockTile.badgeLabel = nil
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)) { _ in
+            compose?.flushDraft()
+        }
         .task { await runRelativeTimestampClock() }
         // Mirror the total unread notifications (both networks) onto the dock badge.
         .onChange(of: mastodon?.unreadCount) { updateDockBadge() }
         .onChange(of: bluesky?.unreadCount) { updateDockBadge() }
         .toolbar {
+            ToolbarItem(placement: .navigation) {
+                Button { showComposer.toggle() } label: {
+                    Label(showComposer ? "Hide Composer" : "Show Composer", systemImage: "sidebar.left")
+                }
+                .help(showComposer ? "Hide composer (⇧⌘C)" : "Show composer (⇧⌘C)")
+                .accessibilityValue(showComposer ? "Visible" : "Hidden")
+            }
             ToolbarItemGroup(placement: .primaryAction) {
                 Button {
                     NotificationCenter.default.post(name: .refreshAllFeeds, object: nil)
