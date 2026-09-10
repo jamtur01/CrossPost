@@ -54,6 +54,7 @@ struct PostCardView: View {
             HStack(spacing: 12) {
                 Button(action: chooseFiles) {
                     Image(systemName: "photo.badge.plus").font(.system(size: 15))
+                        .frame(minWidth: 28, minHeight: 28)
                 }
                 .buttonStyle(.borderless)
                 .foregroundStyle(.secondary)

@@ -97,26 +97,21 @@ struct ComposeColumnView: View {
                 Spacer(minLength: 0)
             }
 
-            HStack(spacing: 6) {
-                audiences(model)
-
-                Spacer()
-
-                Button { Task { await model.submit() } } label: {
-                    Text(model.submissionLabel)
-                        .frame(minWidth: 78)
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .keyboardShortcut(.return, modifiers: .command)
-                .disabled(!model.canPost)
-            }
+            audiences(model)
+                .frame(maxWidth: .infinity, alignment: .leading)
             if let warning = model.audienceWarning {
                 Label(warning, systemImage: "exclamationmark.triangle.fill")
                     .font(.caption)
                     .foregroundStyle(.primary)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            Button { Task { await model.submit() } } label: {
+                Text(model.submissionLabel).frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .keyboardShortcut(.return, modifiers: .command)
+            .disabled(!model.canPost)
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -128,7 +123,7 @@ struct ComposeColumnView: View {
         return VStack(alignment: .leading, spacing: 6) {
             if model.selectedTargets.contains(.mastodon) {
                 HStack(spacing: 4) {
-                    Text("Mastodon:")
+                    Text("Mastodon:").fixedSize()
                     VisibilityMenu(visibility: $model.visibility, accent: PostTarget.mastodon.accent)
                 }
             }
