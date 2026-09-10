@@ -7,6 +7,7 @@ struct SettingsView: View {
     @State private var blueskyHandle: String = ""
     @State private var blueskyPassword: String = ""
     @State private var status: [PostTarget: String] = [:]
+    @AppStorage("readingTextSize", store: AccountStore.defaults) private var readingTextSize = ReadingTextSize.standard
     @State private var failedTargets: Set<PostTarget> = []
     @State private var verifyingMastodon = false
     @State private var verifyingBluesky = false
@@ -15,6 +16,16 @@ struct SettingsView: View {
         Form {
             mastodonSection
             blueskySection
+            Section("Reading") {
+                Picker("Text size", selection: $readingTextSize) {
+                    ForEach(ReadingTextSize.allCases, id: \.self) { size in
+                        Text(size.rawValue).tag(size)
+                    }
+                }
+                Text("Applies to posts, quotations, profile bios, and messages.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
 
             Section {
                 LabeledContent("Version", value: Self.appVersion)

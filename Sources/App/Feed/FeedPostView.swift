@@ -38,11 +38,11 @@ struct FeedPostView: View {
     /// Contexts without a lightbox open the image through their URL action.
     @Environment(ImageLightbox.self) var lightbox: ImageLightbox?
 
-    private var bodyFont: Font {
+    private var bodyFontSize: CGFloat {
         if expanded {
-            return Theme.contentLarge
+            return 18
         }
-        return inTimeline ? Theme.timelineContent : Theme.content
+        return inTimeline ? 14 : 15
     }
 
     private var authorNameFont: Font {
@@ -98,6 +98,7 @@ struct FeedPostView: View {
         .contentShape(Rectangle())
         .onHover { hovering = $0 }
         .onTapGesture { onOpenDetail?() }
+        .accessibilityAction(named: "Open thread") { onOpenDetail?() }
         .sheet(isPresented: $reporting) {
             if let onReport {
                 ReportSheet(subjectLabel: "this post", accent: accent,
@@ -120,7 +121,7 @@ struct FeedPostView: View {
     /// a drag selects text while a plain click still falls through to open the thread.
     private var bodyText: some View {
         PostBody(text: post.text, accent: accent, cacheKey: post.id,
-                 font: bodyFont, onOpenURL: onOpenURL)
+                 fontSize: bodyFontSize, onOpenURL: onOpenURL)
     }
 
     @ViewBuilder
@@ -165,7 +166,7 @@ struct FeedPostView: View {
             if let visibility = visibilityBadge {
                 Image(systemName: visibility.symbol)
                     .font(metadataFont)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(.secondary)
                     .help(visibility.label)
                     .accessibilityLabel(visibility.label)
             }

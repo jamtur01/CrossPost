@@ -6,16 +6,16 @@ extension PostTarget {
     /// Used sparingly: the column identity glyph, active states, and primary actions.
     var accent: Color {
         switch self {
-        case .mastodon: return Color(red: 0.388, green: 0.392, blue: 1.0)
-        case .bluesky: return Color(red: 0.039, green: 0.478, blue: 1.0)
+        case .mastodon: Color(red: 0.388, green: 0.392, blue: 1.0)
+        case .bluesky: Color(red: 0.039, green: 0.478, blue: 1.0)
         }
     }
 
     /// A small letter-mark badge for the column header.
     var glyph: String {
         switch self {
-        case .mastodon: return "m.circle.fill"
-        case .bluesky: return "b.circle.fill"
+        case .mastodon: "m.circle.fill"
+        case .bluesky: "b.circle.fill"
         }
     }
 }
@@ -26,18 +26,16 @@ extension PostTarget {
 enum Theme {
     // Typography
     static let columnTitle = Font.system(size: 15, weight: .semibold)
-    static let timelineContent = Font.system(size: 14)
     static let timelineName = Font.system(size: 14, weight: .semibold)
     static let timelineHandle = Font.system(size: 12.5)
-    static let timelineMeta = Font.system(size: 11.5)
-    static let timelineContext = Font.system(size: 11.5, weight: .medium)
-    static let content = Font.system(size: 15)                        // post body
-    static let contentLarge = Font.system(size: 18)                   // detail body
+    static let timelineMeta = Font.system(size: 12.5)
+    static let timelineContext = Font.system(size: 12, weight: .medium)
+    static let content = Font.system(size: 15) // post body
     static let name = Font.system(size: 14.5, weight: .semibold)
     static let nameLarge = Font.system(size: 16, weight: .semibold)
-    static let handle = Font.system(size: 13)                         // @handle (secondary)
-    static let meta = Font.system(size: 12.5)                         // timestamp (tertiary)
-    static let context = Font.system(size: 12, weight: .medium)       // "boosted" / "in reply"
+    static let handle = Font.system(size: 13) // @handle (secondary)
+    static let meta = Font.system(size: 12.5) // timestamp (secondary)
+    static let context = Font.system(size: 12, weight: .medium) // "boosted" / "in reply"
     static let action = Font.system(size: 13.5)
     static let count = Font.system(size: 12.5).monospacedDigit()
     static let sectionHeader = Font.system(size: 11, weight: .semibold) // "People" / "Pinned"
@@ -49,11 +47,11 @@ enum Theme {
     static let rowPaddingV: CGFloat = 12
     static let headerPaddingH: CGFloat = 14
     static let componentSpacing: CGFloat = 6
-    static let gutter: CGFloat = 10                                   // avatar → content
-    static let actionGap: CGFloat = 20                               // between action buttons
+    static let gutter: CGFloat = 10 // avatar → content
+    static let actionGap: CGFloat = 20 // between action buttons
     static let timelineAvatar: CGFloat = 40
     static let avatar: CGFloat = 44
-    static let avatarSmall: CGFloat = 42                              // list rows (search/followers)
+    static let avatarSmall: CGFloat = 42 // list rows (search/followers)
     static let avatarLarge: CGFloat = 54
     static let cardCorner: CGFloat = 12
     static let mediaCorner: CGFloat = 10
@@ -78,10 +76,12 @@ private struct CardSurface: ViewModifier {
         content
             .background(
                 RoundedRectangle(cornerRadius: corner, style: .continuous)
-                    .fill(Color(nsColor: .textBackgroundColor)))
+                    .fill(Color(nsColor: .textBackgroundColor))
+            )
             .overlay(
                 RoundedRectangle(cornerRadius: corner, style: .continuous)
-                    .strokeBorder(Theme.hairline, lineWidth: 0.75))
+                    .strokeBorder(Theme.hairline, lineWidth: 0.75)
+            )
     }
 }
 
@@ -96,5 +96,35 @@ extension View {
 enum Haptics {
     static func tap() {
         NSHapticFeedbackManager.defaultPerformer.perform(.generic, performanceTime: .now)
+    }
+}
+
+/// A reading preference applied to post bodies, quotations, bios, and messages.
+enum ReadingTextSize: String, CaseIterable {
+    case standard = "Standard"
+    case larger = "Larger"
+    case largest = "Largest"
+
+    var increase: CGFloat {
+        switch self {
+        case .standard: 0
+        case .larger: 2
+        case .largest: 4
+        }
+    }
+}
+
+private struct ReadingFont: ViewModifier {
+    @AppStorage("readingTextSize", store: AccountStore.defaults) private var size = ReadingTextSize.standard
+    let baseSize: CGFloat
+
+    func body(content: Content) -> some View {
+        content.font(.system(size: baseSize + size.increase))
+    }
+}
+
+extension View {
+    func readingFont(size: CGFloat = 15) -> some View {
+        modifier(ReadingFont(baseSize: size))
     }
 }

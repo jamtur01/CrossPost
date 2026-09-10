@@ -85,7 +85,7 @@ struct QuoteCardView: View {
                 }
                 if hasText {
                     PostBody(text: quote.text, accent: accent, cacheKey: quote.id,
-                             font: .system(size: 13), lineLimit: 6, onOpenURL: onOpen)
+                             fontSize: 13, lineLimit: 6, onOpenURL: onOpen)
                 }
                 if let imageURL = quote.imageURL {
                     EmbedImage(

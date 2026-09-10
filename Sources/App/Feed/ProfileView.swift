@@ -203,7 +203,7 @@ struct ProfileView: View {
 
         if let bio = profile?.bio, !bio.characters.isEmpty {
             Text(RichText.styled(bio, accent: accent))
-                .font(Theme.content)
+                .readingFont()
                 .tint(accent)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.top, 2)

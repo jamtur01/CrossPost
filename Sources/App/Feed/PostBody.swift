@@ -9,14 +9,14 @@ struct PostBody: View {
     let text: AttributedString
     let accent: Color
     var cacheKey: String?
-    var font: Font = Theme.content
-    var color: AnyShapeStyle = AnyShapeStyle(.primary)
+    var fontSize: CGFloat = 15
+    var color: AnyShapeStyle = .init(.primary)
     var lineLimit: Int?
     let onOpenURL: (URL) -> Void
 
     var body: some View {
         Text(RichText.styled(text, accent: accent, cacheKey: cacheKey))
-            .font(font)
+            .readingFont(size: fontSize)
             .foregroundStyle(color)
             .tint(accent)
             .lineSpacing(Theme.bodyLineSpacing)

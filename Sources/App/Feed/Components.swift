@@ -233,7 +233,7 @@ private struct RelativeTimestampView: View {
 
     var body: some View {
         Text(RelativeTimestampFormat.string(for: date, relativeTo: now))
-            .font(font).foregroundStyle(.tertiary).fixedSize()
+            .font(font).foregroundStyle(.secondary).fixedSize()
     }
 }
 

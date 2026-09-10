@@ -6,7 +6,7 @@ struct MessagesListView: View {
     let push: (FeedRoute) -> Void
 
     var body: some View {
-        if model.conversations.isEmpty && model.isLoading {
+        if model.conversations.isEmpty, model.isLoading {
             VStack { Spacer(); ProgressView(); Spacer() }
         } else if let error = model.errorMessage, model.conversations.isEmpty {
             // The model exposes only user-facing error text, not the underlying
@@ -21,7 +21,7 @@ struct MessagesListView: View {
                         + "→ App Passwords and create one with \"Allow access to your "
                         + "direct messages\" checked.")
                         .font(.caption)
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 28)
                 }
@@ -168,7 +168,7 @@ struct ConversationView: View {
                 Spacer()
                 Image(systemName: "chevron.right")
                     .font(.caption)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(.secondary)
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
@@ -181,7 +181,7 @@ struct ConversationView: View {
     private func bubble(_ message: DirectMessage) -> some View {
         VStack(alignment: message.isFromMe ? .trailing : .leading, spacing: 2) {
             Text(message.text)
-                .font(Theme.content)
+                .readingFont()
                 .foregroundStyle(message.isFromMe ? .white : .primary)
                 .textSelection(.enabled)
                 .padding(.horizontal, 11)
@@ -193,7 +193,7 @@ struct ConversationView: View {
                 .frame(maxWidth: 260, alignment: .leading)
             Text(message.date, format: .dateTime.hour().minute())
                 .font(.system(size: 11))
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(.secondary)
                 .padding(.horizontal, 4)
         }
         .frame(maxWidth: .infinity, alignment: message.isFromMe ? .trailing : .leading)
