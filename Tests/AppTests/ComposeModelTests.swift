@@ -94,6 +94,31 @@ final class ComposeModelTests: XCTestCase {
         XCTAssertTrue(model.thread[0].isEmpty) // box cleared on a clean run
     }
 
+    func testSuccessfulSendPreservesEditsMadeDuringPosting() {
+        let model = makeModel()
+        model.thread[0].text = "Submitted text"
+        let submitted = model.thread
+        model.thread[0].text = "New text typed while posting"
+
+        model.handleCompletion([result(.mastodon, .success(posted: posted))], published: submitted)
+
+        XCTAssertEqual(model.thread[0].text, "New text typed while posting")
+        XCTAssertEqual(model.lockReason(.mastodon), .prefixEdited)
+    }
+
+    func testSuccessfulSendPreservesPostsAddedDuringPosting() {
+        let model = makeModel()
+        model.thread[0].text = "Submitted text"
+        let submitted = model.thread
+        model.addPost()
+        model.thread[1].text = "Continue the thread"
+
+        model.handleCompletion([result(.mastodon, .success(posted: posted))], published: submitted)
+
+        XCTAssertEqual(model.thread.count, 2)
+        XCTAssertNil(model.lockReason(.mastodon))
+    }
+
     func testFullySentTargetIsLockedAndPartialStaysResumable() {
         let model = makeModel()
         model.thread[0].text = "first"

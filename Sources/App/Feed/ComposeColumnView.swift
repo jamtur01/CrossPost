@@ -1,18 +1,30 @@
+import AppKit
 import SwiftUI
 
 struct ComposeColumnView: View {
     @EnvironmentObject var store: AccountStore
     @State private var model: ComposeModel?
+    @State private var confirmingNewDraft = false
 
     var body: some View {
         Group {
             if let model {
                 content(model)
             } else {
-                Color.clear.onAppear { model = ComposeModel(store: store) }
+                Color.clear.onAppear { model = ComposeModel(store: store, draftStore: .application) }
             }
         }
         .background(Color(nsColor: .windowBackgroundColor))
+        .onDisappear { model?.flushDraft() }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)) { _ in
+            model?.flushDraft()
+        }
+        .confirmationDialog("Discard this draft and start a new one?", isPresented: $confirmingNewDraft) {
+            Button("Discard Draft", role: .destructive) { model?.startNewDraft() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Published posts stay on their networks. This discards the saved draft and its retry history.")
+        }
     }
 
     @ViewBuilder
@@ -29,6 +41,10 @@ struct ComposeColumnView: View {
                     .foregroundStyle(.secondary)
                 Text("New Post").font(Theme.columnTitle)
                 Spacer()
+                Button("New draft…") { confirmingNewDraft = true }
+                    .buttonStyle(.borderless)
+                    .font(.caption)
+                    .disabled(model.isPosting)
             }
             .padding(.horizontal, Theme.headerPaddingH)
             .frame(height: 40)
@@ -137,6 +153,19 @@ struct ComposeColumnView: View {
 
     @ViewBuilder
     private func validationErrors(_ model: ComposeModel) -> some View {
+        if let message = model.completionMessage {
+            Label(message, systemImage: "checkmark.circle")
+                .font(.caption)
+        }
+        if let error = model.draftError {
+            Text(error).font(.caption).foregroundStyle(.red)
+            if let draftStore = model.draftStore {
+                Button("Show saved draft") {
+                    NSWorkspace.shared.activateFileViewerSelecting([draftStore.url])
+                }
+                .font(.caption)
+            }
+        }
         if let issues = model.blockedIssues, !issues.isEmpty {
             VStack(alignment: .leading, spacing: 3) {
                 ForEach(Array(issues.enumerated()), id: \.offset) { _, issue in

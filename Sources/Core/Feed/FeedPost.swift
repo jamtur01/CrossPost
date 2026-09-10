@@ -4,15 +4,15 @@ struct FeedImage: Identifiable, Equatable, Sendable {
     enum Kind: Sendable, Equatable { case image, gif, video }
 
     let id: String
-    let url: URL             // original image URL, or the looping MP4 for motion media
-    let previewURL: URL?     // provider-sized timeline preview; nil when unavailable
+    let url: URL // original image URL, or the looping MP4 for motion media
+    let previewURL: URL? // provider-sized timeline preview; nil when unavailable
     let altText: String
     let kind: Kind
     let aspectRatio: Double?
 
     init(url: URL, previewURL: URL? = nil, altText: String, kind: Kind = .image,
          aspectRatio: Double? = nil) {
-        self.id = url.absoluteString
+        id = url.absoluteString
         self.url = url
         self.previewURL = previewURL
         self.altText = altText
@@ -32,41 +32,29 @@ struct FeedNotification: Identifiable, Equatable, Sendable {
     let actorHandle: String
     let actorID: String
     let avatarURL: URL?
-    let post: FeedPost?     // the related post (the mention/reply, or the liked/reposted subject)
+    let post: FeedPost? // the related post (the mention/reply, or the liked/reposted subject)
     let date: Date
-
-    init(id: String, kind: Kind, actorName: String, actorHandle: String, actorID: String,
-                avatarURL: URL?, post: FeedPost?, date: Date) {
-        self.id = id
-        self.kind = kind
-        self.actorName = actorName
-        self.actorHandle = actorHandle
-        self.actorID = actorID
-        self.avatarURL = avatarURL
-        self.post = post
-        self.date = date
-    }
 }
 
 /// Platform-native handles needed to act on or reply to a post, as plain values
 /// so FeedPost never imports an SDK type.
-enum NativeRef: Equatable, Sendable {
+enum NativeRef: Equatable, Codable, Sendable {
     case mastodon(statusID: String)
     case bluesky(uri: String, cid: String, rootURI: String, rootCID: String)
 }
 
 struct FeedPost: Identifiable, Equatable, Sendable {
-    let id: String          // "<platform>:<native id>"
+    let id: String // "<platform>:<native id>"
     let target: PostTarget
     let authorName: String
     let authorHandle: String
-    let authorID: String     // Mastodon account.id / Bluesky DID (for profile + author feed)
+    let authorID: String // Mastodon account.id / Bluesky DID (for profile + author feed)
     let avatarURL: URL?
     let date: Date
     let text: AttributedString
     let images: [FeedImage]
-    let card: LinkCard?      // link preview, if any
-    let quoted: QuotedPost?  // quoted post, if any
+    let card: LinkCard? // link preview, if any
+    let quoted: QuotedPost? // quoted post, if any
     let webURL: URL?
     var isLiked: Bool
     var isReposted: Bool
@@ -75,29 +63,29 @@ struct FeedPost: Identifiable, Equatable, Sendable {
     var replyCount: Int
     var repostCount: Int
     var likeCount: Int
-    var likeRecordURI: String?      // Bluesky: like record uri (for undo); nil for Mastodon
-    var repostRecordURI: String?    // Bluesky: repost record uri (for undo); nil for Mastodon
-    let boostedBy: String?          // display name of the booster/reposter, if this is a boost
-    let mentionHandles: [String]    // "@handle"s the parent post mentions (for reply prefill)
-    let visibility: String?         // Mastodon visibility (public/unlisted/private/direct); nil for Bluesky
-    let spoilerText: String?        // Mastodon content warning, if any
-    let isSensitive: Bool           // Mastodon sensitive-media flag
-    let isReply: Bool               // this post is itself a reply (has a parent to show)
+    var likeRecordURI: String? // Bluesky: like record uri (for undo); nil for Mastodon
+    var repostRecordURI: String? // Bluesky: repost record uri (for undo); nil for Mastodon
+    let boostedBy: String? // display name of the booster/reposter, if this is a boost
+    let mentionHandles: [String] // "@handle"s the parent post mentions (for reply prefill)
+    let visibility: String? // Mastodon visibility (public/unlisted/private/direct); nil for Bluesky
+    let spoilerText: String? // Mastodon content warning, if any
+    let isSensitive: Bool // Mastodon sensitive-media flag
+    let isReply: Bool // this post is itself a reply (has a parent to show)
     let nativeRef: NativeRef
 
     init(id: String, target: PostTarget, authorName: String, authorHandle: String,
-                authorID: String = "",
-                avatarURL: URL?, date: Date,
-                text: AttributedString, images: [FeedImage],
-                card: LinkCard? = nil, quoted: QuotedPost? = nil,
-                webURL: URL?, isLiked: Bool, isReposted: Bool,
-                isBookmarked: Bool = false, isPinned: Bool = false,
-                replyCount: Int = 0, repostCount: Int = 0, likeCount: Int = 0,
-                likeRecordURI: String? = nil, repostRecordURI: String? = nil,
-                boostedBy: String? = nil, mentionHandles: [String] = [],
-                visibility: String? = nil, spoilerText: String? = nil,
-                isSensitive: Bool = false, isReply: Bool = false,
-                nativeRef: NativeRef) {
+         authorID: String = "",
+         avatarURL: URL?, date: Date,
+         text: AttributedString, images: [FeedImage],
+         card: LinkCard? = nil, quoted: QuotedPost? = nil,
+         webURL: URL?, isLiked: Bool, isReposted: Bool,
+         isBookmarked: Bool = false, isPinned: Bool = false,
+         replyCount: Int = 0, repostCount: Int = 0, likeCount: Int = 0,
+         likeRecordURI: String? = nil, repostRecordURI: String? = nil,
+         boostedBy: String? = nil, mentionHandles: [String] = [],
+         visibility: String? = nil, spoilerText: String? = nil,
+         isSensitive: Bool = false, isReply: Bool = false,
+         nativeRef: NativeRef) {
         self.id = id; self.target = target; self.authorName = authorName
         self.authorHandle = authorHandle; self.authorID = authorID
         self.avatarURL = avatarURL

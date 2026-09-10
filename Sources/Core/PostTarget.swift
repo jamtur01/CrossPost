@@ -1,15 +1,17 @@
 import Foundation
 
-enum PostTarget: String, CaseIterable, Sendable, Identifiable {
+enum PostTarget: String, CaseIterable, Codable, Sendable, Identifiable {
     case mastodon
     case bluesky
 
-    var id: String { rawValue }
+    var id: String {
+        rawValue
+    }
 
     var displayName: String {
         switch self {
-        case .mastodon: return "Mastodon"
-        case .bluesky: return "Bluesky"
+        case .mastodon: "Mastodon"
+        case .bluesky: "Bluesky"
         }
     }
 }

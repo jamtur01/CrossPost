@@ -3,7 +3,7 @@ import Foundation
 /// One published post's user-facing reference plus the native handle needed to
 /// continue a thread from it (resume an interrupted cross-post without re-sending
 /// what already landed).
-struct PostedItem: Equatable, Sendable {
+struct PostedItem: Equatable, Codable, Sendable {
     let url: String?
     let ref: NativeRef?
     init(url: String?, ref: NativeRef? = nil) {
@@ -18,14 +18,13 @@ struct ThreadPostError: Error, CustomStringConvertible, LocalizedError {
     let failedIndex: Int
     let underlying: Error
 
-    init(posted: [PostedItem], failedIndex: Int, underlying: Error) {
-        self.posted = posted
-        self.failedIndex = failedIndex
-        self.underlying = underlying
+    var description: String {
+        underlying.userMessage
     }
 
-    var description: String { underlying.userMessage }
-    var errorDescription: String? { description }
+    var errorDescription: String? {
+        description
+    }
 }
 
 /// Publishes a whole thread to one target. Throws `ThreadPostError` on mid-thread failure.

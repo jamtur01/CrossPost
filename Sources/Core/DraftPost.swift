@@ -1,6 +1,6 @@
 import Foundation
 
-struct Attachment: Identifiable, Equatable, Sendable {
+struct Attachment: Identifiable, Equatable, Codable, Sendable {
     let id: UUID
     var imageData: Data
     var altText: String
@@ -12,7 +12,7 @@ struct Attachment: Identifiable, Equatable, Sendable {
     }
 }
 
-struct DraftPost: Identifiable, Equatable, Sendable {
+struct DraftPost: Identifiable, Equatable, Codable, Sendable {
     let id: UUID
     var text: String
     var attachments: [Attachment]

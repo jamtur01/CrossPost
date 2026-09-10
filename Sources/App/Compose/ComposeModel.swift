@@ -32,45 +32,61 @@ enum OutgoingImageValidation {
 @MainActor
 @Observable
 final class ComposeModel {
-    var thread: [DraftPost] = [DraftPost()]
-    var selectedTargets: Set<PostTarget> = [.mastodon, .bluesky]
+    var thread: [DraftPost] = [DraftPost()] {
+        didSet { scheduleDraftSave() }
+    }
+
+    var selectedTargets: Set<PostTarget> = [.mastodon, .bluesky] {
+        didSet { scheduleDraftSave() }
+    }
+
     /// Mastodon visibility applied to every post in the thread at submit; Bluesky ignores it.
-    var visibility: PostVisibility = .public
+    var visibility: PostVisibility = .public {
+        didSet { scheduleDraftSave() }
+    }
+
     var isPosting = false
     var blockedIssues: [ValidationIssue]?
     var errorMessage: String?
+    var completionMessage: String?
+    var draftError: String?
 
     private let coordinator = CrossPostCoordinator()
-    private let store: AccountStore
+    let store: AccountStore
+    let draftStore: DraftStore?
+    @ObservationIgnored var draftSaveTask: Task<Void, Never>?
+    @ObservationIgnored var restoringDraft = true
+    var pendingTargets: Set<PostTarget> = []
+    var publishingAccounts: [PostTarget: String] = [:]
     private let findUnreadablePost: UnreadablePostFinder
     private let makePosters: @MainActor ([PostTarget], AccountStore) async throws -> [Poster]
     /// What already landed on each target from a prior (possibly interrupted) submit:
     /// the published items (their native refs let a retry resume the thread) plus a
     /// per-post signature of each landed post, so an edit to an already-published post
     /// is detected and never silently re-sent.
-    private struct LandedThread {
-        let items: [PostedItem]
-        let signatures: [PostSignature]
-    }
-
-    private var landedByTarget: [PostTarget: LandedThread] = [:]
+    var landedByTarget: [PostTarget: LandedThread] = [:]
 
     /// Why a target can't be (re)selected right now.
     enum LockReason: Equatable {
         case fullySent // the whole current thread already landed
         case prefixEdited // an already-published post was changed; can't resume safely
+        case accountChanged
+        case interrupted
     }
 
     init(
         store: AccountStore,
+        draftStore: DraftStore? = nil,
         findUnreadablePost: @escaping UnreadablePostFinder =
             { OutgoingImageValidation.firstUnreadablePost($0) },
         makePosters: @escaping @MainActor ([PostTarget], AccountStore) async throws -> [Poster] =
             PosterFactory.makePosters
     ) {
         self.store = store
+        self.draftStore = draftStore
         self.findUnreadablePost = findUnreadablePost
         self.makePosters = makePosters
+        restoreDraft()
     }
 
     var canPost: Bool {
@@ -92,24 +108,11 @@ final class ComposeModel {
     }
 
     func lockReason(_ target: PostTarget) -> LockReason? {
+        guard !pendingTargets.contains(target) else { return .interrupted }
         guard let landed = landedByTarget[target] else { return nil }
+        guard landed.account == accountKey(for: target) else { return .accountChanged }
         guard prefixIntact(landed) else { return .prefixEdited }
         return thread.count <= landed.items.count ? .fullySent : nil
-    }
-
-    /// Content identity of one post: the trimmed text plus attachment identities.
-    /// A full value rather than a `Hasher` Int — a hash collision would silently
-    /// defeat the edited-prefix lock and re-send or mis-thread a changed post.
-    /// Visibility and alt text are deliberately excluded so changing them doesn't
-    /// spuriously mark an intact prefix as edited.
-    private struct PostSignature: Equatable {
-        let text: String
-        let attachmentIDs: [UUID]
-
-        init(_ post: DraftPost) {
-            text = post.text.trimmingCharacters(in: .whitespacesAndNewlines)
-            attachmentIDs = post.attachments.map(\.id)
-        }
     }
 
     /// Whether the current thread still begins with every landed post unchanged, so
@@ -168,7 +171,13 @@ final class ComposeModel {
             "Already posted to \(target.displayName). Add a new post to continue the thread."
         case .prefixEdited:
             "Can't re-send to \(target.displayName): an already-posted post was changed. "
-                + "Undo the change or clear the box."
+                + "Undo the change or start a new draft."
+        case .accountChanged:
+            "This thread was started with a different \(target.displayName) account. "
+                + "Reconnect that account or start a new draft."
+        case .interrupted:
+            "Posting to \(target.displayName) was interrupted. Check your profile for published posts "
+                + "before starting a new draft; retrying could duplicate them."
         }
     }
 
@@ -177,15 +186,27 @@ final class ComposeModel {
         isPosting = true
         blockedIssues = nil
         errorMessage = nil
+        completionMessage = nil
         defer { isPosting = false }
 
         let targets = PostTarget.allCases.filter { selectedTargets.contains($0) }
+        let credentials = credentialSnapshot(for: targets)
         guard let outgoing = validatedOutgoing(for: targets) else { return }
         guard await attachmentsAreReadable(in: outgoing) else { return }
+        guard credentials == credentialSnapshot(for: targets) else {
+            errorMessage = "Accounts changed while preparing the post. Review the destinations and try again."
+            return
+        }
+        await publish(outgoing, to: targets, credentials: credentials)
+    }
 
+    private func publish(
+        _ outgoing: [DraftPost], to targets: [PostTarget], credentials: [PostTarget: [String]]
+    ) async {
         do {
             let posters = try await makePosters(targets, store)
             guard !Task.isCancelled else { return }
+            guard preparePublication(to: targets, credentials: credentials) else { return }
             let outcome = await coordinator.publish(
                 thread: outgoing,
                 to: targets,
@@ -197,6 +218,8 @@ final class ComposeModel {
             switch outcome {
             case let .blocked(issues):
                 blockedIssues = issues
+                pendingTargets = []
+                _ = flushDraft()
             case let .completed(results):
                 handleCompletion(results, published: outgoing)
             }
@@ -205,15 +228,35 @@ final class ComposeModel {
         } catch {
             guard !Task.isCancelled else { return }
             errorMessage = error.userMessage
+            // Poster construction failed before publishing began.
+            pendingTargets = []
+            _ = flushDraft()
         }
     }
 
-    private func validatedOutgoing(for targets: [PostTarget]) -> [DraftPost]? {
-        let edited = targets.filter {
-            landedByTarget[$0].map { !prefixIntact($0) } ?? false
+    private func preparePublication(to targets: [PostTarget], credentials: [PostTarget: [String]]) -> Bool {
+        guard credentials == credentialSnapshot(for: targets),
+              targets.allSatisfy({ target in
+                  landedByTarget[target].map { $0.account == accountKey(for: target) } ?? true
+              }) else {
+            errorMessage = "Accounts changed while preparing the post. Review the destinations and try again."
+            return false
         }
-        guard edited.isEmpty else {
-            errorMessage = edited.map { lockMessage($0, .prefixEdited) }.joined(separator: "\n")
+        publishingAccounts = Dictionary(uniqueKeysWithValues: targets.map { ($0, accountKey(for: $0)) })
+        pendingTargets = Set(targets)
+        guard flushDraft() else {
+            pendingTargets = []
+            return false
+        }
+        return true
+    }
+
+    private func validatedOutgoing(for targets: [PostTarget]) -> [DraftPost]? {
+        let locked = targets.compactMap { target in
+            lockReason(target).map { lockMessage(target, $0) }
+        }
+        guard locked.isEmpty else {
+            errorMessage = locked.joined(separator: "\n")
             return nil
         }
 
@@ -278,7 +321,10 @@ final class ComposeModel {
             anyLanded.append(result.target)
             let count = min(items.count, published.count)
             let signatures = (0 ..< count).map { PostSignature(published[$0]) }
-            landedByTarget[result.target] = LandedThread(items: items, signatures: signatures)
+            landedByTarget[result.target] = LandedThread(
+                items: items, signatures: signatures,
+                account: publishingAccounts[result.target] ?? accountKey(for: result.target)
+            )
             if complete {
                 fullySent.append(result.target)
             }
@@ -292,14 +338,26 @@ final class ComposeModel {
         let failures = results.compactMap(failureMessage)
         errorMessage = failures.isEmpty ? nil : failures.joined(separator: "\n")
 
-        if failures.isEmpty {
+        pendingTargets.subtract(results.map(\.target))
+        let unchanged = thread.map { draft in
+            var draft = draft
+            draft.visibility = visibility
+            return draft
+        } == published
+
+        if failures.isEmpty, unchanged {
             thread = [DraftPost()] // clean run — clear the box and all locks
             landedByTarget = [:]
+            completionMessage = "Posted successfully."
         } else {
             // Fully-sent targets have nothing left to send → deselect (locked).
             // Partially-sent targets stay selected so a retry resumes the remainder.
-            selectedTargets.subtract(Set(fullySent))
+            selectedTargets.subtract(fullySent.filter { isLocked($0) })
+            if failures.isEmpty {
+                completionMessage = "Posted successfully. Your newer edits are still in this draft."
+            }
         }
+        _ = flushDraft()
     }
 
     private func landedItems(from result: PostResult) -> ([PostedItem], Bool) {
