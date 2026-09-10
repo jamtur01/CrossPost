@@ -1,0 +1,6 @@
+line_length: 120
+function_body_length: 100
+type_body_length: 400
+file_length: 600
+cyclomatic_complexity: 8
+function_parameter_count: 6

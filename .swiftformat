@@ -1,0 +1,6 @@
+--swift-version 5.9
+--maxwidth 120
+--indent 4
+--self remove
+--disable wrapMultilineStatementBraces
+--trailing-commas never
