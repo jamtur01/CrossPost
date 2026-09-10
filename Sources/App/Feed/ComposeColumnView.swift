@@ -6,7 +6,11 @@ struct ComposeColumnView: View {
 
     var body: some View {
         Group {
-            if let model { content(model) } else { Color.clear.onAppear { model = ComposeModel(store: store) } }
+            if let model {
+                content(model)
+            } else {
+                Color.clear.onAppear { model = ComposeModel(store: store) }
+            }
         }
         .background(Color(nsColor: .windowBackgroundColor))
     }
@@ -91,15 +95,7 @@ struct ComposeColumnView: View {
             }
 
             HStack(spacing: 6) {
-                if model.selectedTargets.contains(.mastodon) {
-                    Image(systemName: PostTarget.mastodon.glyph)
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                    VisibilityMenu(
-                        visibility: $model.visibility,
-                        accent: PostTarget.mastodon.accent
-                    )
-                }
+                audiences(model)
 
                 Spacer()
 
@@ -111,10 +107,32 @@ struct ComposeColumnView: View {
                 .keyboardShortcut(.return, modifiers: .command)
                 .disabled(!model.canPost)
             }
+            if let warning = model.audienceWarning {
+                Label(warning, systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.primary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .padding(.horizontal, 14).padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
         .barSurface(divider: .top)
+    }
+
+    private func audiences(_ model: ComposeModel) -> some View {
+        @Bindable var model = model
+        return VStack(alignment: .leading, spacing: 6) {
+            if model.selectedTargets.contains(.mastodon) {
+                HStack(spacing: 4) {
+                    Text("Mastodon:")
+                    VisibilityMenu(visibility: $model.visibility, accent: PostTarget.mastodon.accent)
+                }
+            }
+            if model.selectedTargets.contains(.bluesky) {
+                Label("Bluesky: Public", systemImage: "globe")
+            }
+        }
+        .font(.caption)
     }
 
     @ViewBuilder
@@ -150,13 +168,15 @@ struct ComposeColumnView: View {
             .foregroundStyle(selected ? target.accent : .secondary)
             .background(
                 Capsule(style: .continuous)
-                    .fill(selected ? target.accent.opacity(0.10) : Theme.hoverFill))
+                    .fill(selected ? target.accent.opacity(0.10) : Theme.hoverFill)
+            )
             .overlay(
                 Capsule(style: .continuous)
                     .strokeBorder(
                         selected ? target.accent.opacity(0.30) : Theme.hairline,
                         lineWidth: 0.75
-                    ))
+                    )
+            )
         }
         .buttonStyle(.plain)
         .animation(.snappy(duration: 0.15), value: selected)

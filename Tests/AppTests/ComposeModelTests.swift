@@ -1,9 +1,11 @@
-import XCTest
 @testable import CrossPost
+import XCTest
 
 @MainActor
 final class ComposeModelTests: XCTestCase {
-    private func makeModel() -> ComposeModel { ComposeModel(store: AccountStore()) }
+    private func makeModel() -> ComposeModel {
+        ComposeModel(store: AccountStore())
+    }
 
     func testStartsWithOneEmptyPostAndBothTargets() {
         let model = makeModel()
@@ -50,11 +52,32 @@ final class ComposeModelTests: XCTestCase {
         XCTAssertEqual(model.selectedTargets, [.mastodon, .bluesky])
     }
 
+    func testRestrictedCrossPostExplainsPublicBlueskyAudience() {
+        let model = makeModel()
+        for visibility in [PostVisibility.private, .direct] {
+            model.visibility = visibility
+            XCTAssertTrue(model.audienceWarning?.contains("Bluesky will publish this publicly") == true)
+        }
+    }
+
+    func testAudienceWarningOnlyAppearsForMixedRestrictedAudiences() {
+        let model = makeModel()
+        XCTAssertNil(model.audienceWarning)
+        model.visibility = .unlisted
+        XCTAssertNil(model.audienceWarning)
+        model.visibility = .private
+        model.selectedTargets = [.mastodon]
+        XCTAssertNil(model.audienceWarning)
+        model.selectedTargets = [.bluesky]
+        XCTAssertNil(model.audienceWarning)
+    }
+
     // MARK: handleCompletion — post-publish reconciliation
 
     private func result(_ target: PostTarget, _ outcome: PostResult.Outcome) -> PostResult {
         PostResult(target: target, outcome: outcome)
     }
+
     private let posted = [PostedItem(url: "https://x/1", ref: .mastodon(statusID: "1"))]
     private let posted2 = [PostedItem(url: "https://x/1", ref: .mastodon(statusID: "1")),
                            PostedItem(url: "https://x/2", ref: .mastodon(statusID: "2"))]
@@ -68,7 +91,7 @@ final class ComposeModelTests: XCTestCase {
         ])
         XCTAssertNil(model.errorMessage)
         XCTAssertEqual(model.thread.count, 1)
-        XCTAssertTrue(model.thread[0].isEmpty)         // box cleared on a clean run
+        XCTAssertTrue(model.thread[0].isEmpty) // box cleared on a clean run
     }
 
     func testFullySentTargetIsLockedAndPartialStaysResumable() {
@@ -81,7 +104,7 @@ final class ComposeModelTests: XCTestCase {
             result(.bluesky, .partial(posted: posted, failedIndex: 1, message: "boom"))
         ])
         XCTAssertNotNil(model.errorMessage)
-        XCTAssertEqual(model.thread.count, 2)          // draft kept, not cleared
+        XCTAssertEqual(model.thread.count, 2) // draft kept, not cleared
         // Mastodon is fully sent → deselected and locked.
         XCTAssertFalse(model.selectedTargets.contains(.mastodon))
         XCTAssertEqual(model.lockReason(.mastodon), .fullySent)
@@ -98,7 +121,7 @@ final class ComposeModelTests: XCTestCase {
             result(.bluesky, .partial(posted: [], failedIndex: 0, message: "boom"))
         ])
         XCTAssertNotNil(model.errorMessage)
-        XCTAssertFalse(model.isLocked(.bluesky))       // nothing landed → still retryable
+        XCTAssertFalse(model.isLocked(.bluesky)) // nothing landed → still retryable
         XCTAssertTrue(model.selectedTargets.contains(.bluesky))
     }
 
@@ -117,10 +140,10 @@ final class ComposeModelTests: XCTestCase {
         model.addPost(); model.thread[1].text = "second"
         // Only the 1st post landed on Bluesky.
         model.handleCompletion([result(.bluesky, .partial(posted: posted, failedIndex: 1, message: "x"))])
-        XCTAssertFalse(model.isLocked(.bluesky))           // resumable: 2nd post unsent
+        XCTAssertFalse(model.isLocked(.bluesky)) // resumable: 2nd post unsent
 
-        model.thread[1].text = "second, edited"            // edit only the unsent suffix
-        XCTAssertFalse(model.isLocked(.bluesky))           // still resumable, prefix intact
+        model.thread[1].text = "second, edited" // edit only the unsent suffix
+        XCTAssertFalse(model.isLocked(.bluesky)) // still resumable, prefix intact
     }
 
     func testEditingAnAlreadyLandedPostLocksTheTarget() {
@@ -128,9 +151,9 @@ final class ComposeModelTests: XCTestCase {
         model.thread[0].text = "first"
         model.addPost(); model.thread[1].text = "second"
         model.handleCompletion([result(.bluesky, .partial(posted: posted, failedIndex: 1, message: "x"))])
-        XCTAssertFalse(model.isLocked(.bluesky))           // resumable before the edit
+        XCTAssertFalse(model.isLocked(.bluesky)) // resumable before the edit
 
-        model.thread[0].text = "first, edited"             // edit the already-published 1st post
+        model.thread[0].text = "first, edited" // edit the already-published 1st post
         XCTAssertEqual(model.lockReason(.bluesky), .prefixEdited)
     }
 
@@ -145,7 +168,7 @@ final class ComposeModelTests: XCTestCase {
         ])
         XCTAssertEqual(model.lockReason(.bluesky), .fullySent)
 
-        model.removePost(at: 1)                            // remove the 2nd (landed) post
+        model.removePost(at: 1) // remove the 2nd (landed) post
         // The thread no longer matches the landed prefix → reposting [first] would
         // duplicate it, so the target is locked as edited, never resent.
         XCTAssertEqual(model.lockReason(.bluesky), .prefixEdited)
@@ -159,9 +182,9 @@ final class ComposeModelTests: XCTestCase {
             result(.bluesky, .success(posted: posted)),
             result(.mastodon, .failure(message: "no account"))
         ])
-        XCTAssertFalse(model.selectedTargets.contains(.bluesky))   // fully sent → de-selected
+        XCTAssertFalse(model.selectedTargets.contains(.bluesky)) // fully sent → de-selected
         model.errorMessage = nil
-        model.toggle(.bluesky)                                     // re-selecting it is refused
+        model.toggle(.bluesky) // re-selecting it is refused
         XCTAssertFalse(model.selectedTargets.contains(.bluesky))
         XCTAssertNotNil(model.errorMessage)
     }
@@ -206,7 +229,7 @@ final class ComposeModelTests: XCTestCase {
 
     func testPreparedAttachmentsRecheckRemainingSlotsAndPreserveOrder() {
         let model = makeModel()
-        let existing = (0..<(TargetLimits.imageMax - 1)).map {
+        let existing = (0 ..< (TargetLimits.imageMax - 1)).map {
             Attachment(imageData: Data([UInt8($0)]))
         }
         model.thread[0].attachments = existing
@@ -228,5 +251,4 @@ final class ComposeModelTests: XCTestCase {
             "Couldn't read broken.png. Maximum \(TargetLimits.imageMax) images per post."
         )
     }
-
 }

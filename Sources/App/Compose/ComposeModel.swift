@@ -1,8 +1,8 @@
 import Foundation
 import SwiftUI
 
-// Attachments can be constructed or mutated outside preparation, so outgoing bytes
-// must be checked again at the submit boundary.
+/// Attachments can be constructed or mutated outside preparation, so outgoing bytes
+/// must be checked again at the submit boundary.
 typealias UnreadablePostFinder = @Sendable (_ attachmentDataByPost: [[Data]]) -> Int?
 
 enum OutgoingImageValidation {
@@ -52,12 +52,13 @@ final class ComposeModel {
         let items: [PostedItem]
         let signatures: [PostSignature]
     }
+
     private var landedByTarget: [PostTarget: LandedThread] = [:]
 
     /// Why a target can't be (re)selected right now.
     enum LockReason: Equatable {
-        case fullySent      // the whole current thread already landed
-        case prefixEdited   // an already-published post was changed; can't resume safely
+        case fullySent // the whole current thread already landed
+        case prefixEdited // an already-published post was changed; can't resume safely
     }
 
     init(
@@ -76,10 +77,19 @@ final class ComposeModel {
         !isPosting && !selectedTargets.isEmpty && thread.contains { !$0.isEmpty }
     }
 
+    var audienceWarning: String? {
+        guard selectedTargets == Set(PostTarget.allCases),
+              visibility == .private || visibility == .direct else { return nil }
+        return "Bluesky will publish this publicly. Mastodon's \(visibility.title.lowercased()) "
+            + "setting applies only to Mastodon."
+    }
+
     /// True when this target can't receive the current thread: either it's fully sent
     /// or its already-published prefix was edited. A target with intact landed posts
     /// and unsent posts below them is *resumable*, not locked.
-    func isLocked(_ target: PostTarget) -> Bool { lockReason(target) != nil }
+    func isLocked(_ target: PostTarget) -> Bool {
+        lockReason(target) != nil
+    }
 
     func lockReason(_ target: PostTarget) -> LockReason? {
         guard let landed = landedByTarget[target] else { return nil }
@@ -108,13 +118,15 @@ final class ComposeModel {
     private func prefixIntact(_ landed: LandedThread) -> Bool {
         guard thread.count >= landed.signatures.count else { return false }
         for (index, signature) in landed.signatures.enumerated()
-        where PostSignature(thread[index]) != signature {
+            where PostSignature(thread[index]) != signature {
             return false
         }
         return true
     }
 
-    func addPost() { thread.append(DraftPost()) }
+    func addPost() {
+        thread.append(DraftPost())
+    }
 
     func removePost(at index: Int) {
         guard thread.count > 1, thread.indices.contains(index) else { return }
@@ -153,9 +165,9 @@ final class ComposeModel {
     private func lockMessage(_ target: PostTarget, _ reason: LockReason) -> String {
         switch reason {
         case .fullySent:
-            return "Already posted to \(target.displayName). Add a new post to continue the thread."
+            "Already posted to \(target.displayName). Add a new post to continue the thread."
         case .prefixEdited:
-            return "Can't re-send to \(target.displayName): an already-posted post was changed. "
+            "Can't re-send to \(target.displayName): an already-posted post was changed. "
                 + "Undo the change or clear the box."
         }
     }
@@ -183,9 +195,9 @@ final class ComposeModel {
             )
             guard !Task.isCancelled else { return }
             switch outcome {
-            case .blocked(let issues):
+            case let .blocked(issues):
                 blockedIssues = issues
-            case .completed(let results):
+            case let .completed(results):
                 handleCompletion(results, published: outgoing)
             }
         } catch is CancellationError {
@@ -265,9 +277,11 @@ final class ComposeModel {
             guard !items.isEmpty else { continue }
             anyLanded.append(result.target)
             let count = min(items.count, published.count)
-            let signatures = (0..<count).map { PostSignature(published[$0]) }
+            let signatures = (0 ..< count).map { PostSignature(published[$0]) }
             landedByTarget[result.target] = LandedThread(items: items, signatures: signatures)
-            if complete { fullySent.append(result.target) }
+            if complete {
+                fullySent.append(result.target)
+            }
         }
 
         if !anyLanded.isEmpty {
@@ -279,7 +293,7 @@ final class ComposeModel {
         errorMessage = failures.isEmpty ? nil : failures.joined(separator: "\n")
 
         if failures.isEmpty {
-            thread = [DraftPost()]      // clean run — clear the box and all locks
+            thread = [DraftPost()] // clean run — clear the box and all locks
             landedByTarget = [:]
         } else {
             // Fully-sent targets have nothing left to send → deselect (locked).
@@ -290,20 +304,20 @@ final class ComposeModel {
 
     private func landedItems(from result: PostResult) -> ([PostedItem], Bool) {
         switch result.outcome {
-        case .success(let posted): return (posted, true)
-        case .partial(let posted, _, _): return (posted, false)
-        case .failure: return ([], false)
+        case let .success(posted): (posted, true)
+        case let .partial(posted, _, _): (posted, false)
+        case .failure: ([], false)
         }
     }
 
     private func failureMessage(from result: PostResult) -> String? {
         switch result.outcome {
         case .success:
-            return nil
-        case .failure(let message):
-            return "\(result.target.displayName): \(message)"
-        case .partial(_, let failedIndex, let message):
-            return "\(result.target.displayName): post \(failedIndex + 1) failed — \(message)"
+            nil
+        case let .failure(message):
+            "\(result.target.displayName): \(message)"
+        case let .partial(_, failedIndex, message):
+            "\(result.target.displayName): post \(failedIndex + 1) failed — \(message)"
         }
     }
 }
