@@ -9,8 +9,7 @@ import SwiftUI
 ///   - active: Whether the action is currently engaged (e.g. liked, reposted).
 ///   - tint: Colour applied when `active` is true.
 ///   - help: Accessibility tooltip.
-///   - compact: When true, uses notification-row sizing: `.system(size: 13)` font
-///     and a fixed `22×18` frame instead of `Theme.action` font with padding.
+///   - compact: When true, uses the notification-row font and hides counts.
 ///   - action: Callback invoked on tap.
 func postActionButton(
     _ symbol: String,
@@ -21,41 +20,26 @@ func postActionButton(
     compact: Bool = false,
     action: @escaping () -> Void
 ) -> some View {
-    Button(action: action) {
-        if compact {
+    let isToggle = ["heart", "heart.fill", "arrow.2.squarepath"].contains(symbol)
+    let state = isToggle ? (active ? "On" : "Off") : ""
+    let value = [state, count.map { $0.formatted() } ?? ""]
+        .filter { !$0.isEmpty }.joined(separator: ", ")
+    return Button(action: action) {
+        HStack(spacing: 5) {
             Image(systemName: symbol)
-                .font(.system(size: 13))
-                .foregroundStyle(active ? tint : .secondary)
-                .frame(width: 22, height: 18)
-                .contentShape(Rectangle())
-        } else if let count {
-            HStack(spacing: 5) {
-                Image(systemName: symbol)
-                    .font(Theme.action)
-                    .contentTransition(.symbolEffect(.replace))
-                    .symbolEffect(.bounce, value: active)
-                    .foregroundStyle(active ? tint : Color.secondary)
-                if count > 0 {
-                    Text(count.formatted(.number.notation(.compactName)))
-                        .font(Theme.count)
-                        .foregroundStyle(active ? tint : Color.secondary)
-                        .contentTransition(.numericText(value: Double(count)))
-                }
+                .font(compact ? .system(size: 13) : Theme.action)
+            if !compact, let count, count > 0 {
+                Text(count.formatted(.number.notation(.compactName)))
+                    .font(Theme.count)
             }
-            .padding(.vertical, 5)
-            .padding(.horizontal, 3)
-            .contentShape(Rectangle())
-            .animation(.snappy, value: active)
-            .animation(.snappy, value: count)
-        } else {
-            Image(systemName: symbol)
-                .font(Theme.action)
-                .foregroundStyle(active ? tint : .secondary)
-                .padding(.vertical, 4)
-                .padding(.horizontal, 5)
-                .contentShape(Rectangle())
         }
+        .foregroundStyle(active ? tint : Color.secondary)
+        .frame(minWidth: 28, minHeight: 28)
+        .contentShape(Rectangle())
     }
     .buttonStyle(.plain)
+    .accessibilityLabel(help)
+    .accessibilityValue(value)
+    .accessibilityAddTraits(active ? .isSelected : [])
     .help(help)
 }

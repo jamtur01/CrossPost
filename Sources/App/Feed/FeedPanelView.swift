@@ -106,12 +106,13 @@ struct FeedPanelView: View {
     // MARK: Headers
 
     private var platformHeader: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 4) {
             feedTitleMenu
+                .frame(maxWidth: .infinity, alignment: .leading)
             notificationButton
-            Spacer(minLength: 8)
             if model.isLoading {
                 ProgressView().controlSize(.small).scaleEffect(0.8)
+                    .frame(width: 14, height: 14)
             }
             headerIcon("magnifyingglass", help: "Search") {
                 pushRoute(.search)
@@ -119,11 +120,18 @@ struct FeedPanelView: View {
             overflowMenu
         }
         .padding(.horizontal, Theme.headerPaddingH)
-        .frame(height: 40)
+        .frame(height: 52)
         .barSurface()
     }
 
     private var feedTitleMenu: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            networkLabel
+            feedKindMenu
+        }
+    }
+
+    private var feedKindMenu: some View {
         Menu {
             ForEach(availableKinds) { kind in
                 Button {
@@ -139,19 +147,14 @@ struct FeedPanelView: View {
                 .accessibilityAddTraits(kind == model.kind ? .isSelected : [])
             }
         } label: {
-            HStack(spacing: 6) {
-                Image(systemName: model.target.glyph)
-                    .font(.system(size: 15))
-                    .foregroundStyle(accent)
-                Text(model.kind.title)
-                    .font(Theme.columnTitle)
-                    .foregroundStyle(.primary)
-            }
-            .contentShape(Rectangle())
+            Text(model.kind.title)
+                .font(Theme.columnTitle)
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+                .contentShape(Rectangle())
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.visible)
-        .fixedSize()
         .accessibilityLabel(feedTitleAccessibilityLabel)
         .accessibilityHint("Choose a feed")
         .help("Switch feed")
@@ -169,6 +172,8 @@ struct FeedPanelView: View {
                 }
             }
             .foregroundStyle(model.kind == .notifications ? accent : .secondary)
+            .frame(minWidth: 28, minHeight: 28)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.borderless)
         .fixedSize()
@@ -234,6 +239,8 @@ struct FeedPanelView: View {
         } label: {
             Image(systemName: "ellipsis")
                 .font(.system(size: 13, weight: .medium))
+                .frame(width: 28, height: 28)
+                .contentShape(Rectangle())
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
@@ -250,9 +257,12 @@ struct FeedPanelView: View {
     ) -> some View {
         Button(action: action) {
             Image(systemName: symbol).font(.system(size: 13, weight: .medium))
+                .frame(width: 28, height: 28)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.borderless)
         .foregroundStyle(.secondary)
+        .accessibilityLabel(help)
         .help(help)
     }
 
@@ -260,13 +270,31 @@ struct FeedPanelView: View {
         HStack(spacing: 8) {
             Button { popRoute() } label: {
                 Image(systemName: "chevron.left").font(.system(size: 14, weight: .semibold))
+                    .frame(width: 28, height: 28)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.borderless).foregroundStyle(accent).help("Back")
-            Text(navTitle).font(Theme.columnTitle).lineLimit(1)
-            Spacer()
+            .accessibilityLabel("Back")
+            VStack(alignment: .leading, spacing: 2) {
+                networkLabel
+                Text(navTitle).font(Theme.columnTitle).lineLimit(1)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.horizontal, Theme.headerPaddingH)
-        .frame(height: 40)
+        .frame(height: 52)
         .barSurface()
+    }
+
+    private var networkLabel: some View {
+        HStack(spacing: 4) {
+            Image(systemName: model.target.glyph)
+                .foregroundStyle(accent)
+                .accessibilityHidden(true)
+            Text(model.target.displayName)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
+        .font(.system(size: 11, weight: .medium))
     }
 }
