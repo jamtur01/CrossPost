@@ -179,7 +179,7 @@ extension FeedPostView {
                 Button("Open original") { onOpenURL(media.url) }
                     .help("Open original image in browser")
             }
-            .buttonStyle(.borderless)
+            .buttonStyle(.bordered)
             .controlSize(.small)
         }
         .font(Theme.meta)
