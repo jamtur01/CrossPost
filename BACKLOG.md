@@ -16,6 +16,8 @@ This file is the remaining work — to pick up later.
 - [x] **Post editing** — edit your own Mastodon posts (text + content warning).
 - [x] **Search** — people and posts on both networks, from a header search field.
 - [x] **Copy link to post** — on the post menu.
+- [x] **Active draft recovery** — one draft and its safe retry progress survive a quit.
+- [x] **Reading text size** — Standard, Larger, and Largest in Settings.
 
 ## Deferred — larger efforts
 
@@ -45,8 +47,8 @@ Consciously scoped out for size; pick up next.
 
 ## Tier 3 — compose & power-user polish
 
-- [ ] **Persistent drafts** — multiple drafts that survive a quit (today: one
-      in-memory draft).
+- [ ] **Multiple drafts** — save and choose between several drafts (today: one
+      active draft is saved across quits).
 - [ ] **Scheduled posts.**
 - [ ] **GIF / video upload** — display works, but only local images attach today;
       no video upload, no Tenor/Giphy GIF search on compose.
@@ -59,8 +61,8 @@ Consciously scoped out for size; pick up next.
 
 ## Tier 4 — smaller UX niceties
 
-- [ ] **Appearance settings** — text size, font, and a theme override (today
-      follows system light/dark only; also an accessibility consideration).
+- [ ] **Appearance settings** — font selection and a theme override (today
+      follows system light/dark; reading text size is available).
 
 ## Likely deliberate (confirm before building)
 

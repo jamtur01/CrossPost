@@ -9,7 +9,8 @@ posts without leaving the window.
 
 ## Features
 
-- **Three-column window** — Compose · Mastodon · Bluesky, with draggable dividers.
+- **Three-column window** — Compose · Mastodon · Bluesky, with a draggable composer divider.
+  Hide or show the composer with ⇧⌘C without losing the draft.
 - **Cross-post** a single post or a whole thread to both networks at once, with
   images (and alt text). Posts are validated first: if anything is empty or over a
   network's limit (Bluesky 300, Mastodon from your instance), nothing is sent and
@@ -25,8 +26,13 @@ posts without leaving the window.
   attribution.
 - **In-app profiles & threads** — tap an avatar, mention, or profile link to open a
   profile or expand a thread in place, with followers/following lists.
-- **Social graph** — follow/unfollow, mute, and block from a profile.
+- **Social graph** — follow/unfollow, mute, and block other accounts from a profile.
+  Your own profile hides these controls.
 - **Direct messages** — read and send Bluesky DMs in the Messages tab.
+- **Reading controls** — Standard, Larger, and Largest text in Settings; persistent network
+  names in navigation headers; Retry and Open original actions for failed images.
+- **Active draft recovery** — text, images, alt text, audiences, destinations, and partial
+  thread progress are saved locally across quits.
 - **Sandboxed**, Developer ID-signed and notarized. Credentials are stored in the
   **macOS Keychain** (this-device-only); instance URL and handle live in app
   preferences.
@@ -66,7 +72,8 @@ Open **Settings** (⌘,):
   **`write`** scopes, then copy "Your access token". Click **Verify & Save**.
 - **Bluesky** — your handle (e.g. `you.bsky.social`) and an **app password**
   (bsky.app → **Settings → Privacy and security → App passwords**), *not* your main
-  password. Click **Verify & Save**.
+  password. Enable Direct Messages access on the app password to use DMs.
+  Click **Verify & Save**.
 
 A network without saved credentials shows a "Connect in Settings" prompt instead of
 a feed.
@@ -75,10 +82,12 @@ a feed.
 
 - **Compose** (left column): type a post; **Add post to thread** stacks more posts
   inline; attach images with alt text. Toggle **Mastodon** / **Bluesky** (both on by
-  default) and press **Post** (⌘↩). On success the box clears and the feed columns
-  you posted to refresh — no popup. Per-network failures show inline; a target that
-  already received the current post is locked until you edit it, so a partial
-  cross-post can't be sent twice.
+  default), review each network's audience, and press **Post** (⌘↩). Bluesky posts are
+  public; the visibility menu applies only to Mastodon. On success the submitted
+  draft clears; edits made during posting remain. Per-network outcomes show inline.
+  **Retry** sends only unsent posts. An already-published prefix cannot be edited
+  and resent; add a post to continue that thread, or choose **New draft…**.
+  Interrupted sends require checking your profiles before starting a new draft.
 - **Feeds** (middle/right): switch **Home** / **Notifications** / **Messages**,
   refresh, and on any post use **reply**, **like**, **repost**, **bookmark**, or the
   overflow menu (**delete**/**pin** your own, **open in browser**, who liked or
