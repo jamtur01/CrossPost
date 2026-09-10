@@ -33,10 +33,15 @@ final class DraftStore: Sendable {
         self.url = url
     }
 
-    static var application: DraftStore {
-        DraftStore(url: URL.applicationSupportDirectory
+    static let application: DraftStore = {
+        // Hosted tests launch the app UI too; its autosave must never touch a real draft.
+        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
+            return DraftStore(url: URL.temporaryDirectory
+                .appending(path: "CrossPost-tests-\(UUID())/active-draft.plist"))
+        }
+        return DraftStore(url: URL.applicationSupportDirectory
             .appending(path: "CrossPost/active-draft.plist"))
-    }
+    }()
 
     func load() throws -> SavedComposeDraft? {
         try queue.sync {

@@ -19,6 +19,12 @@ final class ComposeDraftRecoveryTests: XCTestCase {
         try super.tearDownWithError()
     }
 
+    func testApplicationDraftStorageIsIsolatedUnderHostedTests() {
+        XCTAssertTrue(DraftStore.application.url.path.hasPrefix(URL.temporaryDirectory.path))
+        XCTAssertNotEqual(DraftStore.application.url, URL.applicationSupportDirectory
+            .appending(path: "CrossPost/active-draft.plist"))
+    }
+
     func testDraftRestoresTextImagesAltTextTargetsAndAudience() {
         let model = ComposeModel(store: AccountStore(), draftStore: draftStore)
         model.thread = [DraftPost(text: "Draft", attachments: [
