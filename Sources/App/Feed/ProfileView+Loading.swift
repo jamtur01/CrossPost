@@ -23,13 +23,17 @@ extension ProfileView {
 
         guard !Task.isCancelled, loadToken == token else { return }
         profile = resolved
-        if !ref.isMe {
+        if !isOwnProfile {
             relationshipLoadToken += 1
         }
         pinnedLoadToken += 1
 
+        await loadAuthorPosts(id: resolved.id, token: token)
+    }
+
+    private func loadAuthorPosts(id: String, token: Int) async {
         do {
-            let loadedPosts = try await panel.authorPosts(id: resolved.id)
+            let loadedPosts = try await panel.authorPosts(id: id)
             guard !Task.isCancelled, loadToken == token else { return }
             list.posts = loadedPosts
         } catch is CancellationError {
@@ -42,7 +46,7 @@ extension ProfileView {
     }
 
     func loadRelationship() async {
-        guard !ref.isMe, let id = profile?.id else { return }
+        guard !isOwnProfile, let id = profile?.id else { return }
         invalidateRelationshipAction()
         partialLoad.beginRelationshipLoad()
         do {

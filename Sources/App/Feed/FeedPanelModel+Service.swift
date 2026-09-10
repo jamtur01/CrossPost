@@ -65,7 +65,9 @@ extension FeedPanelModel {
     }
 
     func report(accountID id: String, reason: ReportReason, comment: String) async throws {
-        try await resolveService().report(accountID: id, reason: reason, comment: comment)
+        let service = try await resolveService()
+        try requireOtherAccount(id)
+        try await service.report(accountID: id, reason: reason, comment: comment)
     }
 
     func relationship(with id: String) async throws -> AccountRelationship {

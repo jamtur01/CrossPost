@@ -11,7 +11,8 @@ extension FeedPanelModel {
         beginFollowMutation(for: id)
         defer { finishFollowMutation(for: id) }
         let updated = try await lifecycleOperation(generation: generation) { service in
-            try await service.setFollowing(following, for: id, current: current)
+            try self.requireOtherAccount(id)
+            return try await service.setFollowing(following, for: id, current: current)
         }
         reconcileFollow(updated, for: id)
         return updated
@@ -25,6 +26,7 @@ extension FeedPanelModel {
         beginFollowMutation(for: actorID)
         defer { finishFollowMutation(for: actorID) }
         return try await lifecycleOperation(generation: generation) { service in
+            try self.requireOtherAccount(actorID)
             let current = try await service.relationship(with: actorID)
             try self.checkLifecycleGeneration(generation)
             if current.isFollowing {
@@ -53,7 +55,8 @@ extension FeedPanelModel {
     /// Merges the result into the shared set rather than replacing it, so a follow
     /// the user just made on an actor outside this page isn't dropped.
     func refreshFollowStates(for fetched: [FeedNotification], service: FeedService) {
-        let ids = Set(fetched.map(\.actorID)).subtracting([""])
+        let ids = Set(fetched.filter { !isOwnAccount(id: $0.actorID, handle: $0.actorHandle) }
+            .map(\.actorID)).subtracting([""])
         cancelFollowStateLookup()
         guard !ids.isEmpty else { return }
         var generations: [String: UInt] = [:]
@@ -66,28 +69,27 @@ extension FeedPanelModel {
             guard let self else { return }
             do {
                 let relationships = try await service.relationships(with: Array(ids))
-                guard !Task.isCancelled, self.followStateTaskID == id else { return }
-                for (actorID, relationship) in relationships {
-                    guard let expectedGeneration = generations[actorID],
-                          self.followStateGenerations[actorID, default: 0]
-                          == expectedGeneration else { continue }
-                    if relationship.isFollowing {
-                        self.followedActorIDs.insert(actorID)
-                    } else {
-                        self.followedActorIDs.remove(actorID)
-                    }
-                }
-                self.followStateTask = nil
-                self.followStateTaskID = nil
+                guard !Task.isCancelled, followStateTaskID == id else { return }
+                acceptFollowStates(relationships, expected: generations)
+                followStateTask = nil
+                followStateTaskID = nil
             } catch is CancellationError {
                 return
             } catch {
-                guard !Task.isCancelled, self.followStateTaskID == id else { return }
-                self.followStateTask = nil
-                self.followStateTaskID = nil
-                self.reportError("Couldn't load follow states. \(error.userMessage)")
+                guard !Task.isCancelled, followStateTaskID == id else { return }
+                followStateTask = nil
+                followStateTaskID = nil
+                reportError("Couldn't load follow states. \(error.userMessage)")
                 Log.feed.error("loading notification follow states failed: \(error)")
             }
+        }
+    }
+
+    private func acceptFollowStates(_ relationships: [String: AccountRelationship], expected: [String: UInt]) {
+        for (actorID, relationship) in relationships {
+            guard let generation = expected[actorID],
+                  followStateGenerations[actorID, default: 0] == generation else { continue }
+            reconcileFollow(relationship, for: actorID)
         }
     }
 
@@ -112,7 +114,8 @@ extension FeedPanelModel {
     ) async throws -> AccountRelationship {
         let generation = mutationGeneration
         return try await lifecycleOperation(generation: generation) { service in
-            try await service.setMuted(muted, for: id, current: current)
+            try self.requireOtherAccount(id)
+            return try await service.setMuted(muted, for: id, current: current)
         }
     }
 
@@ -123,7 +126,8 @@ extension FeedPanelModel {
     ) async throws -> AccountRelationship {
         let generation = mutationGeneration
         return try await lifecycleOperation(generation: generation) { service in
-            try await service.setBlocked(blocked, for: id, current: current)
+            try self.requireOtherAccount(id)
+            return try await service.setBlocked(blocked, for: id, current: current)
         }
     }
 
@@ -137,8 +141,17 @@ extension FeedPanelModel {
 
     /// Whether a post was authored by the signed-in user (controls delete/pin actions).
     func isMine(_ post: FeedPost) -> Bool {
-        let mine = target == .mastodon ? store.mastodonUsername : store.blueskyHandle
-        return !mine.isEmpty && post.authorHandle.lowercased() == "@\(mine.lowercased())"
+        isOwnAccount(id: post.authorID, handle: post.authorHandle)
+    }
+
+    func isOwnAccount(id: String = "", handle: String = "") -> Bool {
+        store.isOwnAccount(target, id: id, handle: handle)
+    }
+
+    func requireOtherAccount(_ id: String) throws {
+        guard !isOwnAccount(id: id) else {
+            throw PosterFactory.ConfigError.message("This action isn't available for your own account.")
+        }
     }
 
     func messages(

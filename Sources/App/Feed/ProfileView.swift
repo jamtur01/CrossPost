@@ -4,7 +4,7 @@ import SwiftUI
 /// A profile: banner, avatar, bio, counts, and the user's recent posts.
 struct ProfileView: View {
     let panel: FeedPanelModel
-    let store: AccountStore
+    @ObservedObject var store: AccountStore
     let ref: ProfileRef
     let push: (FeedRoute) -> Void
 
@@ -38,11 +38,15 @@ struct ProfileView: View {
         _pinnedList = State(initialValue: PostList(panel: panel))
     }
 
+    var isOwnProfile: Bool {
+        ref.isMe || panel.isOwnAccount(id: profile?.id ?? ref.id, handle: profile?.handle ?? ref.handle)
+    }
+
     var body: some View {
         ScrollView {
             VStack(spacing: 0) {
                 headerCard
-                if !ref.isMe, let error = partialLoad.relationshipError {
+                if !isOwnProfile, let error = partialLoad.relationshipError {
                     partialErrorRow("Relationship", message: error) {
                         relationshipLoadToken += 1
                     }
@@ -78,10 +82,10 @@ struct ProfileView: View {
                     ErrorStateView(message: loadError, fills: false) { loadToken += 1 }
                 } else if let postsLoadError {
                     partialErrorRow("Recent posts", message: postsLoadError) { loadToken += 1 }
-                } else if pinnedList.posts.isEmpty
-                    && feedRows.isEmpty
-                    && partialLoad.pinnedError == nil
-                    && !partialLoad.isPinnedLoading {
+                } else if pinnedList.posts.isEmpty,
+                          feedRows.isEmpty,
+                          partialLoad.pinnedError == nil,
+                          !partialLoad.isPinnedLoading {
                     EmptyStateView(text: "No posts yet", systemImage: "text.bubble", fills: false)
                 }
             }
@@ -160,7 +164,7 @@ struct ProfileView: View {
 
                     Spacer()
 
-                    if !ref.isMe {
+                    if !isOwnProfile {
                         relationshipControls
                     }
                     if let url = profile?.webURL {

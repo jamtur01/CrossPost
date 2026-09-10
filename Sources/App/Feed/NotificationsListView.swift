@@ -11,7 +11,7 @@ struct NotificationsListView: View {
     }
 
     var body: some View {
-        if model.notifications.isEmpty && model.isLoading {
+        if model.notifications.isEmpty, model.isLoading {
             VStack { Spacer(); ProgressView(); Spacer() }
         } else if let error = model.errorMessage, model.notifications.isEmpty {
             ErrorStateView(message: error) { model.refresh() }
@@ -99,6 +99,10 @@ private struct NotificationRow: View {
         .onDisappear(perform: endLifecycle)
     }
 
+    private var isOwnActor: Bool {
+        model.isOwnAccount(id: notification.actorID, handle: notification.actorHandle)
+    }
+
     private var actorRef: ProfileRef {
         ProfileRef(id: notification.actorID, handle: notification.actorHandle,
                    name: notification.actorName, avatar: notification.avatarURL)
@@ -135,7 +139,9 @@ private struct NotificationRow: View {
                                  tint: Theme.likeTint, help: post.isLiked ? "Unlike" : "Like",
                                  compact: true, action: toggleLike)
             }
-            followButton
+            if !isOwnActor {
+                followButton
+            }
             Spacer(minLength: 0)
         }
         .padding(.top, 3)
@@ -218,7 +224,7 @@ private struct NotificationRow: View {
     }
 
     private func follow() {
-        guard !isFollowInFlight, !model.isFollowing(notification.actorID) else { return }
+        guard !isOwnActor, !isFollowInFlight, !model.isFollowing(notification.actorID) else { return }
         isFollowInFlight = true
         let actorID = notification.actorID
         let generation = model.mutationGeneration
@@ -246,14 +252,14 @@ private struct NotificationRow: View {
 
     private var icon: String {
         switch notification.kind {
-        case .like: return "heart.fill"
-        case .repost: return "arrow.2.squarepath"
-        case .follow: return "person.fill.badge.plus"
-        case .mention: return "at"
-        case .reply: return "arrowshape.turn.up.left.fill"
-        case .quote: return "quote.bubble.fill"
-        case .poll: return "chart.bar.fill"
-        case .other: return "bell.fill"
+        case .like: "heart.fill"
+        case .repost: "arrow.2.squarepath"
+        case .follow: "person.fill.badge.plus"
+        case .mention: "at"
+        case .reply: "arrowshape.turn.up.left.fill"
+        case .quote: "quote.bubble.fill"
+        case .poll: "chart.bar.fill"
+        case .other: "bell.fill"
         }
     }
 
@@ -262,29 +268,29 @@ private struct NotificationRow: View {
     /// own post shown only as context, which stays secondary.
     private var bodyIsPrimary: Bool {
         switch notification.kind {
-        case .mention, .reply, .quote: return true
-        case .like, .repost, .follow, .poll, .other: return false
+        case .mention, .reply, .quote: true
+        case .like, .repost, .follow, .poll, .other: false
         }
     }
 
     private var tint: Color {
         switch notification.kind {
-        case .like: return Theme.likeTint
-        case .repost: return Theme.repostTint
-        default: return accent
+        case .like: Theme.likeTint
+        case .repost: Theme.repostTint
+        default: accent
         }
     }
 
     private var actionText: String {
         switch notification.kind {
-        case .like: return "liked your post"
-        case .repost: return "reposted your post"
-        case .follow: return "followed you"
-        case .mention: return "mentioned you"
-        case .reply: return "replied"
-        case .quote: return "quoted your post"
-        case .poll: return "a poll ended"
-        case .other: return ""
+        case .like: "liked your post"
+        case .repost: "reposted your post"
+        case .follow: "followed you"
+        case .mention: "mentioned you"
+        case .reply: "replied"
+        case .quote: "quoted your post"
+        case .poll: "a poll ended"
+        case .other: ""
         }
     }
 }

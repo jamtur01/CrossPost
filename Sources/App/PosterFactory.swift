@@ -1,6 +1,6 @@
+import ATProtoKit
 import Foundation
 import TootSDK
-import ATProtoKit
 
 enum PosterFactory {
     struct MastodonVerification {
@@ -22,12 +22,17 @@ enum PosterFactory {
         guard let url = store.mastodonBaseURL else {
             throw ConfigError.message("Invalid Mastodon instance URL")
         }
-        let client = TootClient(instanceURL: url, accessToken: store.mastodonToken)
+        let token = store.mastodonToken
+        let client = TootClient(instanceURL: url, accessToken: token)
         try await client.connect()
         let account = try await client.verifyCredentials()
+        guard store.mastodonBaseURL == url, store.mastodonToken == token else {
+            throw ConfigError.message("Mastodon account changed while connecting. Try again.")
+        }
         if store.mastodonUsername != account.acct {
             store.mastodonUsername = account.acct
         }
+        store.rememberOwnAccount(account.id, for: .mastodon)
         return client
     }
 
@@ -52,7 +57,8 @@ enum PosterFactory {
         return MastodonVerification(
             poster: MastodonPoster(client: client),
             maxCharacters: max,
-            username: account.acct)
+            username: account.acct
+        )
     }
 
     @MainActor
@@ -71,11 +77,13 @@ enum PosterFactory {
         try await makeBlueskyClients(handle: store.blueskyHandle, appPassword: store.blueskyAppPassword)
     }
 
-    static func makeBlueskyClients(handle: String, appPassword: String) async throws -> (kit: ATProtoKit, bluesky: ATProtoBluesky) {
+    static func makeBlueskyClients(handle: String,
+                                   appPassword: String) async throws -> (kit: ATProtoKit, bluesky: ATProtoBluesky) {
         let config = ATProtocolConfiguration()
         try await config.authenticate(
             with: handle.trimmingCharacters(in: .whitespacesAndNewlines),
-            password: appPassword)
+            password: appPassword
+        )
         let kit = await ATProtoKit(sessionConfiguration: config)
         let bluesky = ATProtoBluesky(atProtoKitInstance: kit)
         return (kit, bluesky)
@@ -88,12 +96,18 @@ enum PosterFactory {
     static func makePosters(for targets: [PostTarget], store: AccountStore) async throws -> [Poster] {
         var posters: [Poster] = []
         if targets.contains(.mastodon) {
-            do { posters.append(try await makeMastodon(store)) }
-            catch { posters.append(FailedPoster(target: .mastodon, message: error.userMessage)) }
+            do {
+                try await posters.append(makeMastodon(store))
+            } catch {
+                posters.append(FailedPoster(target: .mastodon, message: error.userMessage))
+            }
         }
         if targets.contains(.bluesky) {
-            do { posters.append(try await makeBluesky(store)) }
-            catch { posters.append(FailedPoster(target: .bluesky, message: error.userMessage)) }
+            do {
+                try await posters.append(makeBluesky(store))
+            } catch {
+                posters.append(FailedPoster(target: .bluesky, message: error.userMessage))
+            }
         }
         return posters
     }
@@ -102,14 +116,21 @@ enum PosterFactory {
         let target: PostTarget
         let message: String
 
-        func post(thread: [DraftPost], continuingFrom ref: NativeRef?) async throws -> [PostedItem] {
+        func post(thread _: [DraftPost], continuingFrom _: NativeRef?) async throws -> [PostedItem] {
             throw ConfigError.message(message)
         }
     }
 
     enum ConfigError: Error, CustomStringConvertible, LocalizedError {
         case message(String)
-        var description: String { switch self { case .message(let m): return m } }
-        var errorDescription: String? { description }
+        var description: String {
+            switch self {
+            case let .message(message): message
+            }
+        }
+
+        var errorDescription: String? {
+            description
+        }
     }
 }

@@ -74,8 +74,8 @@ extension FeedPanelModel {
         isLoading = true
         loadTask = Task { [weak self] in
             guard let self else { return }
-            await self.load(reset: request.reset, userInitiated: request.userInitiated)
-            self.finishLoad(id: id)
+            await load(reset: request.reset, userInitiated: request.userInitiated)
+            finishLoad(id: id)
         }
     }
 
@@ -131,10 +131,13 @@ extension FeedPanelModel {
         if errorMessage != nil {
             errorMessage = nil
         }
-        if notifications != fetched {
-            notifications = fetched
+        let visible = fetched.filter {
+            $0.kind == .poll || !isOwnAccount(id: $0.actorID, handle: $0.actorHandle)
         }
-        refreshFollowStates(for: fetched, service: service)
+        if notifications != visible {
+            notifications = visible
+        }
+        refreshFollowStates(for: visible, service: service)
         do {
             try await service.markNotificationsRead(upTo: fetched.first)
             guard !Task.isCancelled else { return }
@@ -202,9 +205,9 @@ extension FeedPanelModel {
     /// decide between a sticky empty-state error and a transient refresh error.
     private var currentCollectionIsEmpty: Bool {
         switch kind {
-        case .notifications: return notifications.isEmpty
-        case .messages: return conversations.isEmpty
-        case .home: return posts.isEmpty
+        case .notifications: notifications.isEmpty
+        case .messages: conversations.isEmpty
+        case .home: posts.isEmpty
         }
     }
 
@@ -221,16 +224,16 @@ extension FeedPanelModel {
         unreadTask = Task { [weak self] in
             guard let self else { return }
             do {
-                let service = try await self.resolveService()
+                let service = try await resolveService()
                 let count = try await service.unreadNotificationCount()
                 try Task.checkCancellation()
-                self.finishUnreadRefresh(id: id, count: count)
+                finishUnreadRefresh(id: id, count: count)
             } catch is CancellationError {
                 return
             } catch {
-                guard self.unreadTaskID == id else { return }
+                guard unreadTaskID == id else { return }
                 Log.feed.error("refreshing unread notification count failed: \(error)")
-                self.finishUnreadRefresh(id: id, count: nil)
+                finishUnreadRefresh(id: id, count: nil)
             }
         }
     }

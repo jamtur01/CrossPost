@@ -101,7 +101,7 @@ extension ProfileView {
     }
 
     private func startRelationshipAction(_ action: RelationshipAction) {
-        guard partialLoad.relationship != nil else { return }
+        guard !isOwnProfile, partialLoad.relationship != nil else { return }
         relationshipTask?.cancel()
         relationshipGeneration += 1
         let generation = relationshipGeneration

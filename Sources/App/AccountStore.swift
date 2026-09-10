@@ -5,11 +5,14 @@ import SwiftUI
 @MainActor
 final class AccountStore: ObservableObject {
     @AppStorage("mastodonInstanceURL", store: AccountStore.defaults) var mastodonInstanceURL: String = ""
-    @AppStorage("mastodonMaxChars", store: AccountStore.defaults) var mastodonMaxChars: Int = TargetLimits.mastodonFallback
-    @AppStorage("mastodonUsername", store: AccountStore.defaults) var mastodonUsername: String = ""   // your own acct, to avoid self-mentions
+    @AppStorage("mastodonMaxChars", store: AccountStore.defaults) var mastodonMaxChars: Int = TargetLimits
+        .mastodonFallback
+    @AppStorage("mastodonUsername",
+                store: AccountStore.defaults) var mastodonUsername: String = "" // your own acct, to avoid self-mentions
     @AppStorage("blueskyHandle", store: AccountStore.defaults) var blueskyHandle: String = ""
 
     private let credentials: SecretStoring
+    @Published private var ownAccounts: [PostTarget: (id: String, scope: [String])] = [:]
 
     init(credentials: SecretStoring? = nil) {
         self.credentials = credentials ?? Self.defaultCredentialStore()
@@ -18,7 +21,7 @@ final class AccountStore: ObservableObject {
     /// Real Keychain in normal runs; ephemeral storage when hosted by the unit-test
     /// runner, so launching the test host doesn't trigger a Keychain password prompt.
     private static func defaultCredentialStore() -> SecretStoring {
-        return isUnderTests ? EphemeralSecretStore() : CredentialStore()
+        isUnderTests ? EphemeralSecretStore() : CredentialStore()
     }
 
     /// UserDefaults for stored prefs. The standard suite in normal runs, but a
@@ -31,7 +34,7 @@ final class AccountStore: ObservableObject {
         return suite
     }()
 
-    nonisolated private static var isUnderTests: Bool {
+    private nonisolated static var isUnderTests: Bool {
         ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
     }
 
@@ -67,13 +70,21 @@ final class AccountStore: ObservableObject {
         } else {
             try credentials.save(value, account: account)
         }
+        // Invalidate on writes so row rendering never has to read Keychain to check ownership.
+        switch account {
+        case "mastodon-token": ownAccounts[.mastodon] = nil
+        case "bluesky-app-password": ownAccounts[.bluesky] = nil
+        default: break
+        }
     }
 
     func saveMastodon(instanceURL: String, token: String, maxChars: Int, username: String?) throws {
         try persist(token, account: "mastodon-token")
         mastodonInstanceURL = instanceURL.trimmingCharacters(in: .whitespacesAndNewlines)
         mastodonMaxChars = maxChars
-        if let username { mastodonUsername = username }
+        if let username {
+            mastodonUsername = username
+        }
     }
 
     func saveBluesky(handle: String, appPassword: String) throws {
@@ -81,8 +92,54 @@ final class AccountStore: ObservableObject {
         blueskyHandle = handle.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    var hasMastodon: Bool { !mastodonInstanceURL.isEmpty && !mastodonToken.isEmpty }
-    var hasBluesky: Bool { !blueskyHandle.isEmpty && !blueskyAppPassword.isEmpty }
+    var hasMastodon: Bool {
+        !mastodonInstanceURL.isEmpty && !mastodonToken.isEmpty
+    }
+
+    var hasBluesky: Bool {
+        !blueskyHandle.isEmpty && !blueskyAppPassword.isEmpty
+    }
+
+    /// Matches the verified account ID, falling back to the configured handle before verification.
+    func isOwnAccount(_ target: PostTarget, id: String = "", handle: String = "") -> Bool {
+        if !id.isEmpty, let own = ownAccounts[target], own.scope == accountScope(target) {
+            return id == own.id
+        }
+        let ownHandle = target == .mastodon ? mastodonUsername : blueskyHandle
+        let own = normalizedHandle(ownHandle, for: target)
+        return !own.isEmpty && own == normalizedHandle(handle, for: target)
+    }
+
+    /// Keeps verified identity in memory for the current credentials only.
+    func rememberOwnAccount(_ id: String, for target: PostTarget) {
+        guard !id.isEmpty else { return }
+        let scope = accountScope(target)
+        if let own = ownAccounts[target], own.id == id, own.scope == scope {
+            return
+        }
+        ownAccounts[target] = (id, scope)
+    }
+
+    private func accountScope(_ target: PostTarget) -> [String] {
+        switch target {
+        case .mastodon:
+            [mastodonBaseURL?.absoluteString ?? "", mastodonUsername.lowercased()]
+        case .bluesky:
+            [blueskyHandle.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()]
+        }
+    }
+
+    private func normalizedHandle(_ handle: String, for target: PostTarget) -> String {
+        let handle = handle.trimmingCharacters(in: .whitespacesAndNewlines)
+        var normalized = String(handle.drop(while: { $0 == "@" })).lowercased()
+        if target == .mastodon, let host = mastodonBaseURL?.host?.lowercased() {
+            let suffix = "@\(host)"
+            if normalized.hasSuffix(suffix) {
+                normalized.removeLast(suffix.count)
+            }
+        }
+        return normalized
+    }
 
     /// The instance URL normalized for networking: a bare host like `hachyderm.io`
     /// gets an `https://` scheme, surrounding whitespace and trailing slashes are dropped.
@@ -93,8 +150,12 @@ final class AccountStore: ObservableObject {
     nonisolated static func normalizedMastodonBaseURL(from rawValue: String) -> URL? {
         var text = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return nil }
-        if !text.contains("://") { text = "https://" + text }
-        while text.hasSuffix("/") { text.removeLast() }
+        if !text.contains("://") {
+            text = "https://" + text
+        }
+        while text.hasSuffix("/") {
+            text.removeLast()
+        }
         guard let url = URL(string: text), let host = url.host, !host.isEmpty else { return nil }
         // The bearer token rides every request; only loopback may skip TLS
         // (self-hosted dev instances), anything remote must be https.
@@ -105,5 +166,7 @@ final class AccountStore: ObservableObject {
         }
     }
 
-    var limits: TargetLimits { TargetLimits(mastodonMax: mastodonMaxChars) }
+    var limits: TargetLimits {
+        TargetLimits(mastodonMax: mastodonMaxChars)
+    }
 }
