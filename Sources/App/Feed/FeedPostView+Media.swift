@@ -98,7 +98,6 @@ extension FeedPostView {
         switch media.kind {
         case .image:
             staticImage(media, fit: fit)
-                .accessibilityLabel(media.altText.isEmpty ? "Image" : media.altText)
         case .gif:
             MotionMedia(media: media, fit: fit, badge: "GIF") { active in
                 AnimatedGIFView(
@@ -125,8 +124,7 @@ extension FeedPostView {
             representation: .timeline,
             targetSize: targetSize
         ) { phase in staticImageContent(phase, media: media, fit: fit) }
-            .onTapGesture { lightbox?.present(media.url) }
-            .pointingHandCursor(enabled: lightbox != nil)
+            .id(imageRetryIDs[media.url])
             .draggable(media.url) {
                 CachedAsyncImage(
                     url: previewURL,
@@ -146,15 +144,49 @@ extension FeedPostView {
     ) -> some View {
         switch phase {
         case let .success(image):
-            image.resizable().aspectRatio(contentMode: fit ? .fit : .fill)
+            Button {
+                if let lightbox {
+                    lightbox.present(media.url)
+                } else {
+                    onOpenURL(media.url)
+                }
+            } label: {
+                image.resizable().aspectRatio(contentMode: fit ? .fit : .fill)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(media.altText.isEmpty ? "Image" : media.altText)
+            .accessibilityHint("Open full-size image")
+            .help("Open full-size image")
+            .pointingHandCursor()
         case .loading:
             reservedMediaPlaceholder(media, fit: fit).loadingSheen()
         case .failure:
             reservedMediaPlaceholder(media, fit: fit)
-                .overlay { Image(systemName: "photo.badge.exclamationmark") }
+                .overlay { imageFailureActions(media) }
         case .unavailable:
             reservedMediaPlaceholder(media, fit: fit)
         }
+    }
+
+    private func imageFailureActions(_ media: FeedImage) -> some View {
+        VStack(spacing: 6) {
+            Text("Image couldn’t load")
+                .foregroundStyle(.secondary)
+            HStack(spacing: 10) {
+                Button("Retry") { imageRetryIDs[media.url] = UUID() }
+                    .help("Retry loading image")
+                Button("Open original") { onOpenURL(media.url) }
+                    .help("Open original image in browser")
+            }
+            .buttonStyle(.borderless)
+            .controlSize(.small)
+        }
+        .font(Theme.meta)
+        .multilineTextAlignment(.center)
+        .padding(8)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(media.altText.isEmpty ? "Image" : media.altText)
     }
 
     @ViewBuilder

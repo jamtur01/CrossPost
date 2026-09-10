@@ -34,8 +34,8 @@ struct FeedPostView: View {
     @State private var reporting = false
     @State private var quoting = false
     @State private var editing = false
-    // Optional: present where no lightbox is installed (e.g. preview/sheet contexts)
-    // simply leaves images non-poppable rather than crashing.
+    @State var imageRetryIDs: [URL: UUID] = [:]
+    /// Contexts without a lightbox open the image through their URL action.
     @Environment(ImageLightbox.self) var lightbox: ImageLightbox?
 
     private var bodyFont: Font {
