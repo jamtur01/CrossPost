@@ -30,10 +30,10 @@ struct ProfileListRef: Identifiable {
 
     var title: String {
         switch kind {
-        case .followers: return "Followers"
-        case .following: return "Following"
-        case .likedBy: return "Liked by"
-        case .repostedBy: return "Reposted by"
+        case .followers: "Followers"
+        case .following: "Following"
+        case .likedBy: "Liked by"
+        case .repostedBy: "Reposted by"
         }
     }
 }
@@ -65,13 +65,27 @@ enum FeedRoute: Identifiable {
 
     var id: String {
         switch self {
-        case let .thread(post): return "thread:\(post.id)"
-        case let .profile(ref): return "profile:\(ref.id):\(ref.isMe)"
-        case let .profileList(ref): return "list:\(ref.id)"
-        case let .conversation(convo): return "convo:\(convo.id)"
-        case let .saved(kind): return "saved:\(kind.rawValue)"
-        case .search: return "search"
+        case let .thread(post): "thread:\(post.id)"
+        case let .profile(ref): "profile:\(ref.id):\(ref.isMe)"
+        case let .profileList(ref): "list:\(ref.id)"
+        case let .conversation(convo): "convo:\(convo.id)"
+        case let .saved(kind): "saved:\(kind.rawValue)"
+        case .search: "search"
         }
+    }
+}
+
+/// A unique visit, so opening the same post twice still preserves each back-stack entry.
+struct FeedDestination: Hashable {
+    let id = UUID()
+    let route: FeedRoute
+
+    static func == (lhs: FeedDestination, rhs: FeedDestination) -> Bool {
+        lhs.id == rhs.id
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
     }
 }
 

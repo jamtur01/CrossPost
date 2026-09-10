@@ -1,11 +1,12 @@
-import XCTest
 @testable import CrossPost
+import XCTest
 
 final class NavigationTests: XCTestCase {
     func testProfileRefDerivedFromPost() {
         let post = TestFactory.feedPost(
             target: .bluesky, authorName: "Bob", authorHandle: "@bob.bsky.social",
-            authorID: "bob.bsky.social")
+            authorID: "bob.bsky.social"
+        )
         let ref = post.profileRef()
         XCTAssertEqual(ref.id, "bob.bsky.social")
         XCTAssertEqual(ref.handle, "@bob.bsky.social")
@@ -30,5 +31,12 @@ final class NavigationTests: XCTestCase {
     func testSavedKindTitles() {
         XCTAssertEqual(SavedKind.bookmarks.title, "Bookmarks")
         XCTAssertEqual(SavedKind.likes.title, "Likes")
+    }
+
+    func testRepeatedVisitsHaveIndependentNavigationIdentity() {
+        let first = FeedDestination(route: .search)
+        let second = FeedDestination(route: .search)
+        XCTAssertNotEqual(first, second)
+        XCTAssertEqual(Set([first, first, second]).count, 2)
     }
 }

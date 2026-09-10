@@ -4,8 +4,8 @@ extension FeedPanelView {
     // MARK: Content
 
     @ViewBuilder
-    var routeContent: some View {
-        switch routes.last {
+    func routeContent(for route: FeedRoute) -> some View {
+        switch route {
         case let .thread(post):
             ThreadView(panel: model, store: store, post: post, push: pushRoute)
         case let .profile(ref):
@@ -23,8 +23,6 @@ extension FeedPanelView {
             )
         case .search:
             SearchView(panel: model, store: store, push: pushRoute)
-        case .none:
-            EmptyView()
         }
     }
 
@@ -42,7 +40,7 @@ extension FeedPanelView {
             MessagesListView(model: model, push: pushRoute)
         } else if let error = model.errorMessage, model.posts.isEmpty {
             emptyState(error, systemImage: "exclamationmark.triangle")
-        } else if model.posts.isEmpty && model.isLoading {
+        } else if model.posts.isEmpty, model.isLoading {
             skeletonList
         } else if model.posts.isEmpty {
             emptyState("No posts yet.", systemImage: "text.bubble")
@@ -138,14 +136,14 @@ extension FeedPanelView {
     }
 
     var navTitle: String {
-        switch routes.last {
-        case .thread: return "Thread"
-        case let .profile(ref): return ref.name
-        case let .profileList(ref): return ref.title
-        case let .conversation(convo): return convo.otherName
-        case let .saved(kind): return kind.title
-        case .search: return "Search"
-        case .none: return ""
+        switch routes.last?.route {
+        case .thread: "Thread"
+        case let .profile(ref): ref.name
+        case let .profileList(ref): ref.title
+        case let .conversation(convo): convo.otherName
+        case let .saved(kind): kind.title
+        case .search: "Search"
+        case .none: ""
         }
     }
 

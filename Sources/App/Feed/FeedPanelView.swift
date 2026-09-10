@@ -5,7 +5,7 @@ struct FeedPanelView: View {
     @State var model: FeedPanelModel
     @EnvironmentObject var store: AccountStore
     @State var replyTarget: FeedPost?
-    @State var routes: [FeedRoute] = []
+    @State var routes: [FeedDestination] = []
     @Environment(\.accessibilityReduceMotion) var reduceMotion
 
     var accent: Color {
@@ -26,12 +26,12 @@ struct FeedPanelView: View {
             } else {
                 navHeader
             }
-            if routes.isEmpty {
+            NavigationStack(path: $routes) {
                 timeline
-            } else {
-                // Identity per route so a profile→profile (or thread→thread) push
-                // re-creates the view and reloads, instead of reusing stale state.
-                routeContent.id(routes.last?.id)
+                    .navigationDestination(for: FeedDestination.self) { destination in
+                        routeContent(for: destination.route)
+                            .navigationBarBackButtonHidden()
+                    }
             }
         }
         // Transient errors (failed refresh, like, follow, …) float as a toast over
@@ -54,6 +54,7 @@ struct FeedPanelView: View {
         }
         .onAppear { model.start() }
         .onDisappear { model.stop() }
+        .onChange(of: routes) { model.invalidateProfileLinkLookup() }
         .onReceive(
             NotificationCenter.default.publisher(for: .crossPostCredentialsChanged)
         ) { note in
@@ -91,17 +92,14 @@ struct FeedPanelView: View {
     }
 
     func pushRoute(_ route: FeedRoute) {
-        model.invalidateProfileLinkLookup()
-        routes.append(route)
+        routes.append(FeedDestination(route: route))
     }
 
     private func popRoute() {
-        model.invalidateProfileLinkLookup()
         _ = routes.popLast()
     }
 
     private func clearRoutes() {
-        model.invalidateProfileLinkLookup()
         routes.removeAll()
     }
 
