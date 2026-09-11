@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.21] - 2026-09-11
+
+### Added
+
+- Active drafts now recover across quits, including text, images, alt text,
+  audiences, destinations, and partial thread progress.
+- Settings now offers Standard, Larger, and Largest reading text sizes.
+- Failed images offer Retry and Open original actions.
+
+### Changed
+
+- Publishing controls group destinations, per-network audiences, and outcomes
+  together. Mastodon visibility is clearly separate from Bluesky's public audience.
+- The composer can be hidden and shown with Shift-Command-C while preserving the
+  draft, and its audience controls stay legible at narrow widths.
+- Account setup now shows verification status for each network and explains
+  Bluesky app-password access for direct messages.
+- Feed navigation uses native navigation stacks, keeps network names visible,
+  and provides larger controls with stronger metadata contrast.
+
+### Fixed
+
+- Edits made during posting survive a successful send. Recovered partial threads
+  retry only unsent posts, and interrupted sends require checking profiles before
+  starting a new draft to avoid duplicate posts.
+- Own profiles hide follow, mute, and block controls, and notifications filter
+  out self-generated activity.
+
 ## [0.4.20] - 2026-08-03
 
 ### Fixed
@@ -520,6 +548,7 @@ Initial release.
 - Keychain-backed credential storage.
 - Signed and notarized Developer ID release builds produced by CI.
 
+[0.4.21]: https://github.com/jamtur01/CrossPost/releases/tag/v0.4.21
 [0.4.20]: https://github.com/jamtur01/CrossPost/releases/tag/v0.4.20
 [0.4.19]: https://github.com/jamtur01/CrossPost/releases/tag/v0.4.19
 [0.4.18]: https://github.com/jamtur01/CrossPost/releases/tag/v0.4.18
