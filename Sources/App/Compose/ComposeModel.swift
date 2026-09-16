@@ -48,7 +48,16 @@ final class ComposeModel {
     var isPosting = false
     var blockedIssues: [ValidationIssue]?
     var errorMessage: String?
-    var completionMessage: String?
+    var completionMessage: String? {
+        didSet {
+            if completionMessage == nil, oldValue != nil {
+                lastResults = []
+            }
+            scheduleCompletionDismissal()
+        }
+    }
+
+    @ObservationIgnored var completionDismissTask: Task<Void, Never>?
     var draftError: String?
     var lastResults: [PostResult] = []
 
@@ -311,6 +320,7 @@ final class ComposeModel {
     /// again publishes only the unsent remainder.
     /// Internal (not private) so the partial-failure reconciliation can be unit-tested.
     func handleCompletion(_ results: [PostResult], published: [DraftPost]? = nil) {
+        completionMessage = nil
         // Sign the snapshot that was actually published, not the live thread: the
         // editor stays enabled during posting, so `thread` may have changed since.
         lastResults = results

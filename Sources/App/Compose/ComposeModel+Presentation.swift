@@ -1,6 +1,21 @@
 import Foundation
 
 extension ComposeModel {
+    func scheduleCompletionDismissal() {
+        completionDismissTask?.cancel()
+        completionDismissTask = nil
+        guard completionMessage != nil else { return }
+        completionDismissTask = Task { [weak self] in
+            do {
+                try await Task.sleep(for: .seconds(5))
+            } catch {
+                return // Dismissal was cancelled by a new draft or submission.
+            }
+            guard !Task.isCancelled else { return }
+            self?.completionMessage = nil
+        }
+    }
+
     var characterLimit: Int {
         selectedTargets.compactMap { store.limits.maxGraphemes[$0] }.min() ?? TargetLimits.blueskyMax
     }

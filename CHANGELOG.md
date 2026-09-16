@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Successful-post confirmations and per-network counts clear after five seconds,
+  while failed-post details and thread retry progress remain available.
+
 ## [0.4.21] - 2026-09-11
 
 ### Added
