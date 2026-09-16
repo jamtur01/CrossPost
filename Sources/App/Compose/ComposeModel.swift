@@ -23,7 +23,7 @@ enum OutgoingImageValidation {
         using findUnreadablePost: @escaping UnreadablePostFinder
     ) async -> Int? {
         guard !attachmentDataByPost.allSatisfy(\.isEmpty) else { return nil }
-        return await ImageAttaching.runDetached {
+        return await ImageAttaching.runInBackground {
             findUnreadablePost(attachmentDataByPost)
         }
     }

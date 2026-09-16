@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Successful-post confirmations and per-network counts clear after five seconds,
   while failed-post details and thread retry progress remain available.
+- Image preparation and validation inherit cancellation before background work
+  starts, closing a race when cancelling replies or posts.
 
 ## [0.4.21] - 2026-09-11
 

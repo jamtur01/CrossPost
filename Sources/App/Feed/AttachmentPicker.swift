@@ -14,7 +14,7 @@ enum ImageAttaching {
     private static let thumbnailMaxPixel = 160
     @MainActor private static let thumbnailCache: NSCache<NSUUID, NSImage> = {
         let cache = NSCache<NSUUID, NSImage>()
-        cache.totalCostLimit = 2 * 1_024 * 1_024
+        cache.totalCostLimit = 2 * 1024 * 1024
         return cache
     }()
 
@@ -121,7 +121,7 @@ enum ImageAttaching {
         )
     }
 
-    /// Captures the provider selection before it crosses into detached work.
+    /// Captures the provider selection before it crosses into background work.
     @MainActor
     static func selectProviders(_ providers: [NSItemProvider],
                                 remainingSlots: Int) -> ProviderSelection {
@@ -135,13 +135,13 @@ enum ImageAttaching {
     }
 
     static func prepare(_ selection: FileSelection) async -> PreparedResult? {
-        await runDetached {
+        await runInBackground {
             prepare(urls: selection.urls, exceededLimit: selection.exceededLimit)
         }
     }
 
     static func prepare(_ selection: ProviderSelection) async -> PreparedResult? {
-        await runDetached {
+        await runInBackground {
             await prepare(
                 providers: selection.providers,
                 exceededLimit: selection.exceededLimit
@@ -149,24 +149,17 @@ enum ImageAttaching {
         }
     }
 
-    /// Runs expensive preparation away from the main actor and explicitly forwards
-    /// cancellation to the detached child.
-    static func runDetached<Value: Sendable>(
+    /// Runs expensive preparation away from the main actor in a child task that
+    /// inherits cancellation, including cancellation before the worker starts.
+    static func runInBackground<Value: Sendable>(
         operation: @escaping @Sendable () async -> Value
     ) async -> Value {
-        let worker = Task.detached(priority: .userInitiated) {
-            await operation()
-        }
-        return await withTaskCancellationHandler {
-            await worker.value
-        } onCancel: {
-            worker.cancel()
-        }
+        async let value = operation()
+        return await value
     }
 }
 
 extension ImageAttaching {
-
     private static func prepare(urls: [URL],
                                 exceededLimit: Bool) -> PreparedResult? {
         var builder = ResultBuilder()
@@ -206,14 +199,13 @@ extension ImageAttaching {
                 preconditionFailure("Provider transfer failed unexpectedly: \(error)")
             }
             switch providerData {
-            case .loaded(let data, let name):
+            case let .loaded(data, name):
                 guard let image = prepare(data: data) else {
-                    guard !Task.isCancelled else { return nil }
                     builder.reject(named: name)
                     continue
                 }
                 builder.images.append(image)
-            case .failed(let name):
+            case let .failed(name):
                 builder.reject(named: name)
             }
         }
@@ -280,8 +272,8 @@ extension ImageAttaching {
         let image: PreparedImage? = autoreleasepool {
             guard ImageProcessor.canDecode(data),
                   let thumbnail = ImageProcessor.thumbnail(
-                    data,
-                    maxPixel: thumbnailMaxPixel
+                      data,
+                      maxPixel: thumbnailMaxPixel
                   ) else {
                 return nil
             }

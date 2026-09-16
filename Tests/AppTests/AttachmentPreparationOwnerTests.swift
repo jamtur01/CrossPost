@@ -1,7 +1,7 @@
 import AppKit
+@testable import CrossPost
 import UniformTypeIdentifiers
 import XCTest
-@testable import CrossPost
 
 @MainActor
 final class AttachmentPreparationOwnerTests: XCTestCase {
@@ -104,11 +104,11 @@ final class AttachmentPreparationOwnerTests: XCTestCase {
         XCTAssertEqual(model.thread[0].attachments, [attachment])
     }
 
-    func testDetachedWorkerReceivesOuterCancellation() async {
+    func testBackgroundWorkerReceivesOuterCancellation() async {
         let gate = TestGate()
         let observedCancellation = PreparationFlag()
         let task = Task {
-            await ImageAttaching.runDetached {
+            await ImageAttaching.runInBackground {
                 await gate.wait()
                 await observedCancellation.set(Task.isCancelled)
             }
@@ -120,6 +120,21 @@ final class AttachmentPreparationOwnerTests: XCTestCase {
         await task.value
 
         XCTAssertTrue(observedCancellation.value)
+    }
+
+    func testWorkerStartsCancelledWhenParentIsAlreadyCancelled() async {
+        var missedCancellations = 0
+        for _ in 0 ..< 1000 {
+            let task = Task {
+                withUnsafeCurrentTask { $0?.cancel() }
+                return await ImageAttaching.runInBackground { Task.isCancelled }
+            }
+            let wasCancelled = await task.value
+            if !wasCancelled {
+                missedCancellations += 1
+            }
+        }
+        XCTAssertEqual(missedCancellations, 0)
     }
 
     func testProviderBridgeCancellationCancelsTransferBeforeCallback() async {
