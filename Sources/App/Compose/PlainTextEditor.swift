@@ -25,11 +25,18 @@ struct PlainTextEditor: NSViewRepresentable {
             // so typing continues after the @handles rather than before them.
             textView.string = text
             textView.setSelectedRange(NSRange(location: text.utf16.count, length: 0))
+            // Take focus once the editor is in a window, so typing goes straight to
+            // the post. Otherwise, with keyboard navigation on, AppKit focuses the
+            // first key view (a header button) and draws its focus ring.
+            DispatchQueue.main.async { [weak textView] in
+                guard let textView else { return }
+                textView.window?.makeFirstResponder(textView)
+            }
         }
         return scrollView
     }
 
-    func updateNSView(_ scrollView: NSScrollView, context: Context) {
+    func updateNSView(_ scrollView: NSScrollView, context _: Context) {
         guard let textView = scrollView.documentView as? NSTextView else { return }
         // Don't disturb an in-progress IME composition (CJK / dead keys).
         guard !textView.hasMarkedText(), textView.string != text else { return }
@@ -41,11 +48,15 @@ struct PlainTextEditor: NSViewRepresentable {
         textView.setSelectedRange(clamped)
     }
 
-    func makeCoordinator() -> Coordinator { Coordinator(text: $text) }
+    func makeCoordinator() -> Coordinator {
+        Coordinator(text: $text)
+    }
 
     final class Coordinator: NSObject, NSTextViewDelegate {
         private let text: Binding<String>
-        init(text: Binding<String>) { self.text = text }
+        init(text: Binding<String>) {
+            self.text = text
+        }
 
         func textDidChange(_ notification: Notification) {
             guard let textView = notification.object as? NSTextView else { return }
