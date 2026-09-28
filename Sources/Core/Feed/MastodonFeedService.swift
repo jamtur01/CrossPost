@@ -459,7 +459,18 @@ struct MastodonFeedService: FeedService {
             spoilerText: display.spoilerText.nilIfBlank,
             isSensitive: display.sensitive,
             isReply: display.inReplyToId != nil,
+            replyToHandle: replyToHandle(of: display),
             nativeRef: .mastodon(statusID: display.id))
+    }
+
+    /// The parent author's "@acct". Mastodon gives only the parent's account id, so
+    /// it resolves when that is the author (a thread) or someone the post mentions.
+    private static func replyToHandle(of post: Post) -> String? {
+        guard let parentID = post.inReplyToAccountId else { return nil }
+        if parentID == post.account.id {
+            return "@\(post.account.acct)"
+        }
+        return post.mentions.first { $0.id == parentID }.map { "@\($0.acct)" }
     }
 }
 

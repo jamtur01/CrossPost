@@ -71,6 +71,7 @@ struct FeedPost: Identifiable, Equatable, Sendable {
     let spoilerText: String? // Mastodon content warning, if any
     let isSensitive: Bool // Mastodon sensitive-media flag
     let isReply: Bool // this post is itself a reply (has a parent to show)
+    let replyToHandle: String? // "@handle" of the parent's author, when the payload names it
     let nativeRef: NativeRef
 
     init(id: String, target: PostTarget, authorName: String, authorHandle: String,
@@ -85,6 +86,7 @@ struct FeedPost: Identifiable, Equatable, Sendable {
          boostedBy: String? = nil, mentionHandles: [String] = [],
          visibility: String? = nil, spoilerText: String? = nil,
          isSensitive: Bool = false, isReply: Bool = false,
+         replyToHandle: String? = nil,
          nativeRef: NativeRef) {
         self.id = id; self.target = target; self.authorName = authorName
         self.authorHandle = authorHandle; self.authorID = authorID
@@ -99,6 +101,7 @@ struct FeedPost: Identifiable, Equatable, Sendable {
         self.boostedBy = boostedBy; self.mentionHandles = mentionHandles
         self.visibility = visibility; self.spoilerText = spoilerText
         self.isSensitive = isSensitive; self.isReply = isReply
+        self.replyToHandle = replyToHandle
         self.nativeRef = nativeRef
     }
 }

@@ -157,6 +157,16 @@ final class BlueskyMappingTests: XCTestCase {
         XCTAssertEqual(rootCID, "bafyroot")
     }
 
+    func testTimelineReplyNamesTheParentAuthor() throws {
+        XCTAssertEqual(try mapped("bluesky_reply").replyToHandle, "@carol.bsky.social")
+    }
+
+    func testBarePostViewReplyHasNoParentHandle() throws {
+        // A bare post view carries only the parent's uri, not its author.
+        let post = try BlueskyFeedService.feedPost(fromPostView: feedItem("bluesky_reply").post)
+        XCTAssertNil(post.replyToHandle)
+    }
+
     func testBarePostViewDerivesThreadRootFromRecordReply() throws {
         // When no explicit replyRoot is supplied (e.g. a reply parent hydrated on
         // its own), the root is derived from the post record's own reply field.

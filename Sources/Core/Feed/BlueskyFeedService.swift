@@ -634,8 +634,12 @@ struct BlueskyFeedService: FeedService {
             boostedBy = displayOrHandle(repost.by.displayName, repost.by.actorHandle)
             boostKey = repost.by.actorDID
         }
+        var replyToHandle: String?
+        if case .postView(let parent)? = item.reply?.parent {
+            replyToHandle = "@\(parent.author.actorHandle)"
+        }
         return feedPost(fromPostView: item.post, replyRoot: replyRoot, isReply: item.reply != nil,
-                        boostedBy: boostedBy, boostKey: boostKey)
+                        replyToHandle: replyToHandle, boostedBy: boostedBy, boostKey: boostKey)
     }
 
     /// Map a bare post view (timeline item, reply parent, etc.) to a FeedPost.
@@ -643,6 +647,7 @@ struct BlueskyFeedService: FeedService {
         fromPostView p: AppBskyLexicon.Feed.PostViewDefinition,
         replyRoot: (uri: String, cid: String)? = nil,
         isReply: Bool? = nil,
+        replyToHandle: String? = nil,
         boostedBy: String? = nil,
         boostKey: String? = nil
     ) -> FeedPost {
@@ -706,6 +711,7 @@ struct BlueskyFeedService: FeedService {
             repostRecordURI: p.viewer?.repostURI,
             boostedBy: boostedBy,
             isReply: isReply ?? (record?.reply != nil),
+            replyToHandle: replyToHandle,
             nativeRef: .bluesky(uri: p.uri, cid: p.cid, rootURI: root.uri, rootCID: root.cid))
     }
 }

@@ -139,9 +139,11 @@ struct FeedPostView: View {
         }
         if post.isReply, let onShowParent {
             Button(action: onShowParent) {
-                Label("In reply to a post", systemImage: "arrowshape.turn.up.left.fill")
+                Label("In reply to \(post.replyToHandle ?? "a post")",
+                      systemImage: "arrowshape.turn.up.left.fill")
                     .font(contextFont)
                     .foregroundStyle(accent)
+                    .lineLimit(1)
             }
             .buttonStyle(.plain)
         }

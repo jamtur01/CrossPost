@@ -64,6 +64,33 @@ final class MastodonMappingTests: XCTestCase {
         XCTAssertTrue(mapped.isReply)
     }
 
+    func testReplyNamesTheMentionedParentAuthor() throws {
+        var post = try decodePost("mastodon_reply")
+        post.inReplyToAccountId = "acc-bob"
+        post.mentions = [
+            Mention(id: "acc-carol", username: "carol", url: "https://c.io/@carol", acct: "carol@c.io"),
+            Mention(id: "acc-bob", username: "bob", url: "https://b.io/@bob", acct: "bob@b.io")
+        ]
+
+        XCTAssertEqual(MastodonFeedService.feedPost(from: post).replyToHandle, "@bob@b.io")
+    }
+
+    func testSelfReplyNamesTheAuthor() throws {
+        var post = try decodePost("mastodon_reply")
+        post.inReplyToAccountId = post.account.id
+
+        XCTAssertEqual(MastodonFeedService.feedPost(from: post).replyToHandle, "@alice@h.io")
+    }
+
+    func testReplyToUnmentionedAccountHasNoHandle() throws {
+        var post = try decodePost("mastodon_reply")
+        post.inReplyToAccountId = "acc-unknown"
+
+        let mapped = MastodonFeedService.feedPost(from: post)
+        XCTAssertNil(mapped.replyToHandle)
+        XCTAssertTrue(mapped.isReply)
+    }
+
     func testMapsMediaKindsLinkCardCountsAndSensitive() throws {
         let mapped = MastodonFeedService.feedPost(from: try decodePost("mastodon_media_card"))
 
