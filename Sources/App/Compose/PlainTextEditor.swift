@@ -8,7 +8,7 @@ struct PlainTextEditor: NSViewRepresentable {
     @Binding var text: String
 
     func makeNSView(context: Context) -> NSScrollView {
-        let scrollView = NSTextView.scrollableTextView()
+        let scrollView = FocusOnFirstWindowTextView.scrollableTextView()
         scrollView.hasVerticalScroller = false
         scrollView.hasHorizontalScroller = false
         scrollView.drawsBackground = false
@@ -25,13 +25,6 @@ struct PlainTextEditor: NSViewRepresentable {
             // so typing continues after the @handles rather than before them.
             textView.string = text
             textView.setSelectedRange(NSRange(location: text.utf16.count, length: 0))
-            // Take focus once the editor is in a window, so typing goes straight to
-            // the post. Otherwise, with keyboard navigation on, AppKit focuses the
-            // first key view (a header button) and draws its focus ring.
-            DispatchQueue.main.async { [weak textView] in
-                guard let textView else { return }
-                textView.window?.makeFirstResponder(textView)
-            }
         }
         return scrollView
     }
@@ -76,6 +69,26 @@ struct PlainTextEditor: NSViewRepresentable {
             default:
                 return false
             }
+        }
+    }
+}
+
+/// Takes keyboard focus the first time it joins a window, so typing goes straight
+/// to the post. Otherwise, with keyboard navigation on, AppKit focuses the first
+/// key view (a header button) and draws its focus ring. SwiftUI can create the
+/// view well before inserting it into a window, hence the window hook.
+private final class FocusOnFirstWindowTextView: NSTextView {
+    private var hasTakenFocus = false
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        guard !hasTakenFocus, window != nil else { return }
+        hasTakenFocus = true
+        // Defer past the insertion pass so AppKit's own initial-focus choice
+        // doesn't override this one.
+        DispatchQueue.main.async { [weak self] in
+            guard let self, let window else { return }
+            window.makeFirstResponder(self)
         }
     }
 }
