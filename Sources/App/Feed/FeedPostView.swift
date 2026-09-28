@@ -129,7 +129,11 @@ struct FeedPostView: View {
         // The boost comes first: it explains why the post is in this timeline,
         // while the reply line describes the post itself.
         if let boostedBy = post.boostedBy {
-            Label("\(boostedBy) boosted", systemImage: "arrow.2.squarepath")
+            let verb = switch post.target {
+            case .mastodon: "boosted"
+            case .bluesky: "reposted"
+            }
+            Label("\(boostedBy) \(verb)", systemImage: "arrow.2.squarepath")
                 .font(contextFont)
                 .foregroundStyle(.secondary)
         }
