@@ -75,7 +75,7 @@ struct QuoteCardView: View {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 6) {
                     AvatarView(url: quote.avatarURL, size: 20, ring: false)
-                    Text(quote.authorName)
+                    EmojiText(quote.authorName, emojis: quote.emojis, pointSize: 12.5)
                         .font(.system(size: 12.5, weight: .semibold))
                         .lineLimit(1)
                     Text(quote.authorHandle)
@@ -84,7 +84,7 @@ struct QuoteCardView: View {
                         .lineLimit(1)
                 }
                 if hasText {
-                    PostBody(text: quote.text, accent: accent, cacheKey: quote.id,
+                    PostBody(text: quote.text, accent: accent, cacheKey: quote.id, emojis: quote.emojis,
                              fontSize: 13, lineLimit: 6, onOpenURL: onOpen)
                 }
                 if let imageURL = quote.imageURL {

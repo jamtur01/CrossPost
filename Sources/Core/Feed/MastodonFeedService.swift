@@ -58,6 +58,7 @@ struct MastodonFeedService: FeedService {
             actorName: displayOrHandle(n.account.displayName, n.account.acct),
             actorHandle: "@\(n.account.acct)", actorID: n.account.id,
             avatarURL: URL(string: n.account.avatar),
+            emojis: emojiMap(n.account.emojis),
             post: n.post.map { Self.feedPost(from: $0) }, date: n.createdAt)
     }
 
@@ -372,7 +373,21 @@ struct MastodonFeedService: FeedService {
             followers: account.followersCount,
             following: account.followingCount,
             posts: account.postsCount,
-            webURL: URL(string: account.url))
+            webURL: URL(string: account.url),
+            emojis: emojiMap(account.emojis))
+    }
+
+    /// Shortcode → static image URL across Mastodon emoji lists; later lists win.
+    static func emojiMap(_ lists: [Emoji]...) -> [String: URL] {
+        var map: [String: URL] = [:]
+        for list in lists {
+            for emoji in list {
+                if let url = URL(string: emoji.staticUrl) {
+                    map[emoji.shortcode] = url
+                }
+            }
+        }
+        return map
     }
 
     /// Map a Mastodon attachment to feed media. Animated GIFs arrive as `gifv`
@@ -419,7 +434,8 @@ struct MastodonFeedService: FeedService {
             imageURL: image.flatMap {
                 $0.previewUrl.flatMap(URL.init(string:)) ?? URL(string: $0.url)
             },
-            webURL: q.url.flatMap(URL.init(string:)))
+            webURL: q.url.flatMap(URL.init(string:)),
+            emojis: emojiMap(q.account.emojis, q.emojis))
     }
 
     static func feedPost(from post: Post) -> FeedPost {
@@ -460,6 +476,7 @@ struct MastodonFeedService: FeedService {
             isSensitive: display.sensitive,
             isReply: display.inReplyToId != nil,
             replyToHandle: replyToHandle(of: display),
+            emojis: emojiMap(post.account.emojis, display.account.emojis, display.emojis),
             nativeRef: .mastodon(statusID: display.id))
     }
 

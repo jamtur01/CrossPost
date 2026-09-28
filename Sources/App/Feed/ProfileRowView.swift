@@ -12,10 +12,12 @@ struct ProfileRowView: View {
                 AvatarView(url: profile.avatarURL, size: Theme.avatarSmall)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(profile.name).font(Theme.name).lineLimit(1)
+                    EmojiText(profile.name, emojis: profile.emojis, pointSize: 14.5)
+                        .font(Theme.name).lineLimit(1)
                     Text(profile.handle).font(Theme.handle).foregroundStyle(.secondary).lineLimit(1)
                     if !profile.bio.characters.isEmpty {
-                        Text(profile.bio).font(Theme.meta).foregroundStyle(.secondary).lineLimit(2)
+                        EmojiText(profile.bio, emojis: profile.emojis, pointSize: 12.5)
+                            .font(Theme.meta).foregroundStyle(.secondary).lineLimit(2)
                     }
                 }
                 Spacer(minLength: 0)

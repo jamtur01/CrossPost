@@ -52,6 +52,14 @@ struct FeedPostView: View {
         return inTimeline ? Theme.timelineName : Theme.name
     }
 
+    /// Point size of `authorNameFont`, for sizing custom emoji in the name.
+    private var authorNamePointSize: CGFloat {
+        if expanded {
+            return 16
+        }
+        return inTimeline ? 14 : 14.5
+    }
+
     private var authorHandleFont: Font {
         inTimeline ? Theme.timelineHandle : Theme.handle
     }
@@ -120,7 +128,7 @@ struct FeedPostView: View {
     /// Body text. Selectable everywhere so the body can be copied; in timeline rows
     /// a drag selects text while a plain click still falls through to open the thread.
     private var bodyText: some View {
-        PostBody(text: post.text, accent: accent, cacheKey: post.id,
+        PostBody(text: post.text, accent: accent, cacheKey: post.id, emojis: post.emojis,
                  fontSize: bodyFontSize, onOpenURL: onOpenURL)
     }
 
@@ -133,9 +141,13 @@ struct FeedPostView: View {
             case .mastodon: "boosted"
             case .bluesky: "reposted"
             }
-            Label("\(boostedBy) \(verb)", systemImage: "arrow.2.squarepath")
-                .font(contextFont)
-                .foregroundStyle(.secondary)
+            Label {
+                EmojiText("\(boostedBy) \(verb)", emojis: post.emojis, pointSize: 12)
+            } icon: {
+                Image(systemName: "arrow.2.squarepath")
+            }
+            .font(contextFont)
+            .foregroundStyle(.secondary)
         }
         if post.isReply, let onShowParent {
             Button(action: onShowParent) {
@@ -156,7 +168,7 @@ struct FeedPostView: View {
                     AvatarView(url: post.avatarURL, size: avatarSize)
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(post.authorName)
+                        EmojiText(post.authorName, emojis: post.emojis, pointSize: authorNamePointSize)
                             .font(authorNameFont)
                             .lineLimit(1)
                         Text(post.authorHandle)

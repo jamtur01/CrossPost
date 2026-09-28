@@ -28,9 +28,11 @@ struct QuotedPost: Equatable, Sendable, Identifiable {
     let text: AttributedString
     let imageURL: URL?
     let webURL: URL?
+    let emojis: [String: URL] // custom emoji shortcodes in the name and text (Mastodon)
 
     init(id: String, authorName: String, authorHandle: String,
-                avatarURL: URL?, text: AttributedString, imageURL: URL?, webURL: URL?) {
+         avatarURL: URL?, text: AttributedString, imageURL: URL?, webURL: URL?,
+         emojis: [String: URL] = [:]) {
         self.id = id
         self.authorName = authorName
         self.authorHandle = authorHandle
@@ -38,6 +40,7 @@ struct QuotedPost: Equatable, Sendable, Identifiable {
         self.text = text
         self.imageURL = imageURL
         self.webURL = webURL
+        self.emojis = emojis
     }
 }
 
@@ -53,10 +56,12 @@ struct Profile: Sendable, Identifiable, Equatable {
     let following: Int
     let posts: Int
     let webURL: URL?
+    let emojis: [String: URL] // custom emoji shortcodes in the name and bio (Mastodon)
 
     init(id: String, name: String, handle: String,
-                avatarURL: URL?, bannerURL: URL?, bio: AttributedString,
-                followers: Int, following: Int, posts: Int, webURL: URL?) {
+         avatarURL: URL?, bannerURL: URL?, bio: AttributedString,
+         followers: Int, following: Int, posts: Int, webURL: URL?,
+         emojis: [String: URL] = [:]) {
         self.id = id
         self.name = name
         self.handle = handle
@@ -67,6 +72,7 @@ struct Profile: Sendable, Identifiable, Equatable {
         self.following = following
         self.posts = posts
         self.webURL = webURL
+        self.emojis = emojis
     }
 }
 

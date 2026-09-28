@@ -11,6 +11,8 @@ struct ProfileView: View {
     /// Optional, matching FeedPostView: contexts without a lightbox installed just
     /// leave the banner/avatar non-poppable rather than crashing on first tap.
     @Environment(ImageLightbox.self) private var lightbox: ImageLightbox?
+    @AppStorage(ReadingTextSize.storageKey, store: AccountStore.defaults)
+    private var readingSize = ReadingTextSize.standard
 
     @State var profile: Profile?
     @State var list: PostList
@@ -185,7 +187,7 @@ struct ProfileView: View {
 
     @ViewBuilder
     private var profileIdentityAndStats: some View {
-        Text(profile?.name ?? ref.name)
+        EmojiText(profile?.name ?? ref.name, emojis: profile?.emojis ?? [:], pointSize: 15)
             .font(.title3.weight(.bold))
             .lineLimit(1)
         HStack(spacing: 6) {
@@ -202,7 +204,8 @@ struct ProfileView: View {
         }
 
         if let bio = profile?.bio, !bio.characters.isEmpty {
-            Text(RichText.styled(bio, accent: accent))
+            EmojiText(RichText.styled(bio, accent: accent), emojis: profile?.emojis ?? [:],
+                      pointSize: 15 + readingSize.increase)
                 .readingFont()
                 .tint(accent)
                 .frame(maxWidth: .infinity, alignment: .leading)

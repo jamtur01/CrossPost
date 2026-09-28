@@ -9,13 +9,17 @@ struct PostBody: View {
     let text: AttributedString
     let accent: Color
     var cacheKey: String?
+    var emojis: [String: URL] = [:]
     var fontSize: CGFloat = 15
     var color: AnyShapeStyle = .init(.primary)
     var lineLimit: Int?
     let onOpenURL: (URL) -> Void
+    @AppStorage(ReadingTextSize.storageKey, store: AccountStore.defaults)
+    private var readingSize = ReadingTextSize.standard
 
     var body: some View {
-        Text(RichText.styled(text, accent: accent, cacheKey: cacheKey))
+        EmojiText(RichText.styled(text, accent: accent, cacheKey: cacheKey),
+                  emojis: emojis, pointSize: fontSize + readingSize.increase)
             .readingFont(size: fontSize)
             .foregroundStyle(color)
             .tint(accent)

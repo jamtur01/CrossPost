@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Mastodon custom emoji (such as `:verified:`) render as images in display
+  names, post text, quotes, profiles, and notifications.
+
 ### Fixed
 
 - Successful-post confirmations and per-network counts clear after five seconds,

@@ -30,6 +30,25 @@ final class MastodonMappingTests: XCTestCase {
         return try Self.decoder.decode(Post.self, from: Data(contentsOf: url))
     }
 
+    /// Decodes a fixture after `patch` edits its JSON — for fields TootSDK exposes
+    /// as `let` (e.g. an account's emoji list).
+    private func decodePost(_ name: String, patch: (inout [String: Any]) -> Void) throws -> Post {
+        let url = try XCTUnwrap(Bundle(for: Self.self).url(forResource: name, withExtension: "json"),
+                                "missing fixture \(name).json")
+        var json = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+        patch(&json)
+        return try Self.decoder.decode(Post.self, from: JSONSerialization.data(withJSONObject: json))
+    }
+
+    private static func emojiJSON(_ shortcode: String) -> [[String: Any]] {
+        [[
+            "shortcode": shortcode,
+            "url": "https://e.io/\(shortcode).gif",
+            "static_url": "https://e.io/\(shortcode).png",
+            "visible_in_picker": true
+        ]]
+    }
+
     private func decodeQuote(_ name: String) throws -> Quote {
         let url = try XCTUnwrap(
             Bundle(for: Self.self).url(forResource: name, withExtension: "json"),
@@ -89,6 +108,34 @@ final class MastodonMappingTests: XCTestCase {
         let mapped = MastodonFeedService.feedPost(from: post)
         XCTAssertNil(mapped.replyToHandle)
         XCTAssertTrue(mapped.isReply)
+    }
+
+    func testBoostCarriesBoosterAuthorAndContentEmojiAsStaticImages() throws {
+        let post = try decodePost("mastodon_boost") { json in
+            json["account"] = (json["account"] as? [String: Any] ?? [:])
+                .merging(["emojis": Self.emojiJSON("booster")]) { $1 }
+            var reblog = json["reblog"] as? [String: Any] ?? [:]
+            reblog["account"] = (reblog["account"] as? [String: Any] ?? [:])
+                .merging(["emojis": Self.emojiJSON("verified")]) { $1 }
+            reblog["emojis"] = Self.emojiJSON("python")
+            json["reblog"] = reblog
+        }
+
+        XCTAssertEqual(MastodonFeedService.feedPost(from: post).emojis.mapValues(\.absoluteString), [
+            "booster": "https://e.io/booster.png",
+            "verified": "https://e.io/verified.png",
+            "python": "https://e.io/python.png"
+        ])
+    }
+
+    func testProfileCarriesDisplayNameEmoji() throws {
+        let post = try decodePost("mastodon_reply") { json in
+            json["account"] = (json["account"] as? [String: Any] ?? [:])
+                .merging(["emojis": Self.emojiJSON("verified")]) { $1 }
+        }
+
+        XCTAssertEqual(MastodonFeedService.profile(from: post.account).emojis.mapValues(\.absoluteString),
+                       ["verified": "https://e.io/verified.png"])
     }
 
     func testMapsMediaKindsLinkCardCountsAndSensitive() throws {

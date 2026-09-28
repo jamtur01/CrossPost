@@ -66,7 +66,8 @@ private struct NotificationRow: View {
                         HStack(spacing: 7) {
                             AvatarView(url: notification.avatarURL, size: 26, ring: false)
 
-                            Text(notification.actorName).font(Theme.name).lineLimit(1)
+                            EmojiText(notification.actorName, emojis: notification.emojis, pointSize: 14.5)
+                                .font(Theme.name).lineLimit(1)
                         }
                         .contentShape(Rectangle())
                     }
@@ -78,7 +79,7 @@ private struct NotificationRow: View {
                 }
 
                 if let post = livePost, !post.text.characters.isEmpty {
-                    PostBody(text: post.text, accent: accent, cacheKey: post.id,
+                    PostBody(text: post.text, accent: accent, cacheKey: post.id, emojis: post.emojis,
                              color: bodyIsPrimary ? AnyShapeStyle(.primary)
                                  : AnyShapeStyle(.secondary),
                              lineLimit: 3,

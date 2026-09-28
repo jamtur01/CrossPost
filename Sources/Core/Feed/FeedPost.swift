@@ -32,6 +32,7 @@ struct FeedNotification: Identifiable, Equatable, Sendable {
     let actorHandle: String
     let actorID: String
     let avatarURL: URL?
+    var emojis: [String: URL] = [:] // actor display-name custom emoji (Mastodon)
     let post: FeedPost? // the related post (the mention/reply, or the liked/reposted subject)
     let date: Date
 }
@@ -72,6 +73,7 @@ struct FeedPost: Identifiable, Equatable, Sendable {
     let isSensitive: Bool // Mastodon sensitive-media flag
     let isReply: Bool // this post is itself a reply (has a parent to show)
     let replyToHandle: String? // "@handle" of the parent's author, when the payload names it
+    let emojis: [String: URL] // custom emoji shortcodes in names and text (Mastodon)
     let nativeRef: NativeRef
 
     init(id: String, target: PostTarget, authorName: String, authorHandle: String,
@@ -86,7 +88,7 @@ struct FeedPost: Identifiable, Equatable, Sendable {
          boostedBy: String? = nil, mentionHandles: [String] = [],
          visibility: String? = nil, spoilerText: String? = nil,
          isSensitive: Bool = false, isReply: Bool = false,
-         replyToHandle: String? = nil,
+         replyToHandle: String? = nil, emojis: [String: URL] = [:],
          nativeRef: NativeRef) {
         self.id = id; self.target = target; self.authorName = authorName
         self.authorHandle = authorHandle; self.authorID = authorID
@@ -101,7 +103,7 @@ struct FeedPost: Identifiable, Equatable, Sendable {
         self.boostedBy = boostedBy; self.mentionHandles = mentionHandles
         self.visibility = visibility; self.spoilerText = spoilerText
         self.isSensitive = isSensitive; self.isReply = isReply
-        self.replyToHandle = replyToHandle
+        self.replyToHandle = replyToHandle; self.emojis = emojis
         self.nativeRef = nativeRef
     }
 }
