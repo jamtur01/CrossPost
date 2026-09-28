@@ -120,18 +120,31 @@ struct ComposeColumnView: View {
 
     private func audiences(_ model: ComposeModel) -> some View {
         @Bindable var model = model
-        return VStack(alignment: .leading, spacing: 6) {
+        return Grid(alignment: .leading, horizontalSpacing: 6, verticalSpacing: 6) {
             if model.selectedTargets.contains(.mastodon) {
-                HStack(spacing: 4) {
-                    Text("Mastodon:").fixedSize()
+                GridRow {
+                    audienceLabel(.mastodon)
                     VisibilityMenu(visibility: $model.visibility, accent: PostTarget.mastodon.accent)
                 }
             }
             if model.selectedTargets.contains(.bluesky) {
-                Label("Bluesky: Public", systemImage: "globe")
+                GridRow {
+                    audienceLabel(.bluesky)
+                    // Bluesky has no per-post audience, so this is a fixed value, not a menu.
+                    Label("Public", systemImage: "globe")
+                        .font(.system(size: 12.5, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .help("Bluesky posts are always public")
+                }
             }
         }
-        .font(.caption)
+    }
+
+    private func audienceLabel(_ target: PostTarget) -> some View {
+        Text("\(target.displayName):")
+            .font(.system(size: 12.5))
+            .foregroundStyle(.secondary)
+            .fixedSize()
     }
 
     @ViewBuilder

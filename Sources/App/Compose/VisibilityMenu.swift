@@ -18,10 +18,9 @@ struct VisibilityMenu: View {
         } label: {
             Label(visibility.title, systemImage: visibility.symbol)
                 .font(.system(size: 12.5, weight: .medium))
-                .foregroundStyle(accent)
         }
         .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
+        .tint(accent)
         .fixedSize()
         .help("Mastodon visibility — \(visibility.detail)")
     }
