@@ -18,6 +18,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   while failed-post details and thread retry progress remain available.
 - Image preparation and validation inherit cancellation before background work
   starts, closing a race when cancelling replies or posts.
+- The post editor takes keyboard focus when the composer or a reply, quote, or
+  edit sheet opens, instead of the New draft button showing a focus ring when
+  keyboard navigation is on.
+- Boosted replies show who boosted them above the reply line, and Bluesky
+  reposts say "reposted" rather than "boosted".
+- Reply lines name the account being replied to when the network provides it.
+- Composer audience rows align, and the Mastodon visibility menu shows its
+  dropdown arrow and accent color.
 
 ## [0.4.21] - 2026-09-11
 
