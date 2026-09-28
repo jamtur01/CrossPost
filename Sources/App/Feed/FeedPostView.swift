@@ -126,6 +126,13 @@ struct FeedPostView: View {
 
     @ViewBuilder
     private var contextLine: some View {
+        // The boost comes first: it explains why the post is in this timeline,
+        // while the reply line describes the post itself.
+        if let boostedBy = post.boostedBy {
+            Label("\(boostedBy) boosted", systemImage: "arrow.2.squarepath")
+                .font(contextFont)
+                .foregroundStyle(.secondary)
+        }
         if post.isReply, let onShowParent {
             Button(action: onShowParent) {
                 Label("In reply to a post", systemImage: "arrowshape.turn.up.left.fill")
@@ -133,11 +140,6 @@ struct FeedPostView: View {
                     .foregroundStyle(accent)
             }
             .buttonStyle(.plain)
-        }
-        if let boostedBy = post.boostedBy {
-            Label("\(boostedBy) boosted", systemImage: "arrow.2.squarepath")
-                .font(contextFont)
-                .foregroundStyle(.secondary)
         }
     }
 
