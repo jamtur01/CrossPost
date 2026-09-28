@@ -7,7 +7,8 @@ struct SettingsView: View {
     @State private var blueskyHandle: String = ""
     @State private var blueskyPassword: String = ""
     @State private var status: [PostTarget: String] = [:]
-    @AppStorage("readingTextSize", store: AccountStore.defaults) private var readingTextSize = ReadingTextSize.standard
+    @AppStorage(ReadingTextSize.storageKey, store: AccountStore.defaults)
+    private var readingTextSize = ReadingTextSize.standard
     @State private var failedTargets: Set<PostTarget> = []
     @State private var verifyingMastodon = false
     @State private var verifyingBluesky = false

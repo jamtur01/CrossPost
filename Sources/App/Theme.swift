@@ -105,6 +105,8 @@ enum ReadingTextSize: String, CaseIterable {
     case larger = "Larger"
     case largest = "Largest"
 
+    static let storageKey = "readingTextSize"
+
     var increase: CGFloat {
         switch self {
         case .standard: 0
@@ -115,7 +117,7 @@ enum ReadingTextSize: String, CaseIterable {
 }
 
 private struct ReadingFont: ViewModifier {
-    @AppStorage("readingTextSize", store: AccountStore.defaults) private var size = ReadingTextSize.standard
+    @AppStorage(ReadingTextSize.storageKey, store: AccountStore.defaults) private var size = ReadingTextSize.standard
     let baseSize: CGFloat
 
     func body(content: Content) -> some View {
