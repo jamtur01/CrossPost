@@ -51,11 +51,11 @@ final class PlainTextEditorFocusTests: XCTestCase {
 
     private func waitUntil(_ description: String, _ condition: @escaping () -> Bool) {
         let met = expectation(description: description)
-        @MainActor @Sendable func poll() {
+        func poll() {
             if condition() {
                 met.fulfill()
             } else {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.02, execute: poll)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.02) { poll() }
             }
         }
         poll()
