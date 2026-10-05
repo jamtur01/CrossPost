@@ -318,9 +318,9 @@ final class BlueskyMappingTests: XCTestCase {
 
     /// The hydrated-post dict keyed exactly as the mapper keys it — by post uri — so
     /// a notification's referencedURI can select it. Built from the shared post fixture.
-    private func hydratedPosts() throws -> [String: AppBskyLexicon.Feed.PostViewDefinition] {
+    private func hydratedPosts() throws -> [String: FeedPost] {
         let post = try feedItem("bluesky_post").post
-        return [post.uri: post]
+        return [post.uri: BlueskyFeedService.feedPost(fromPostView: post)]
     }
 
     func testReferencedURIRoutesByReason() throws {

@@ -7,6 +7,7 @@ struct BlueskyFeedService: FeedService {
     private let chat: ATProtoBlueskyChat
     private let handle: String
     private let didCache = OwnDIDCache()
+    private let notificationPostCache = NotificationPostCache()
 
     init(kit: ATProtoKit, bluesky: ATProtoBluesky, handle: String) {
         self.kit = kit
@@ -43,17 +44,30 @@ struct BlueskyFeedService: FeedService {
 
     func notifications(includeHistory: Bool,
                        onPage: @Sendable ([FeedNotification]) async -> Void) async throws -> [FeedNotification] {
-        let notes = try await paged(target: 100, maxPages: includeHistory ? 2 : 1) {
+        let notes = try await paged(target: 100, maxPages: includeHistory ? 2 : 1, onPage: { notes in
+            try await publishNotifications(notes, onPage: onPage)
+        }, {
             let output = try await kit.listNotifications(limit: 100, cursor: $0)
             return (output.notifications, output.cursor)
-        }
-        // Hydrate the related posts (the mention/reply/quote itself, or the liked/
-        // reposted subject) so notifications carry embeds and counts.
-        let uris = Set(notes.compactMap(Self.referencedURI))
-        let hydrated = try await hydratePosts(Array(uris))
-        let result = notes.map { Self.notification(from: $0, hydrated: hydrated) }
-        await onPage(result)
-        return result
+        })
+        let cached = await notificationPostCache.snapshot(for: Set(notes.compactMap(Self.referencedURI)))
+        return notes.map { Self.notification(from: $0, hydrated: cached.posts) }
+    }
+
+    private func publishNotifications(
+        _ notes: [AppBskyLexicon.Notification.Notification],
+        onPage: @Sendable ([FeedNotification]) async -> Void
+    ) async throws {
+        let cached = await notificationPostCache.snapshot(for: Set(notes.compactMap(Self.referencedURI)))
+        try Task.checkCancellation()
+        await onPage(notes.map { Self.notification(from: $0, hydrated: cached.posts) })
+        guard !cached.missing.isEmpty else { return }
+        let hydrated = try await hydratePosts(cached.missing)
+        try Task.checkCancellation()
+        await notificationPostCache.insert(hydrated, requested: cached.missing, generation: cached.generation)
+        let current = await notificationPostCache.snapshot(for: Set(notes.compactMap(Self.referencedURI)))
+        guard current.generation == cached.generation else { return }
+        await onPage(notes.map { Self.notification(from: $0, hydrated: current.posts) })
     }
 
     /// The post URI a notification refers to, if any: the mention/reply/quote
@@ -68,7 +82,7 @@ struct BlueskyFeedService: FeedService {
     }
 
     static func notification(from n: AppBskyLexicon.Notification.Notification,
-                             hydrated: [String: AppBskyLexicon.Feed.PostViewDefinition]) -> FeedNotification {
+                             hydrated: [String: FeedPost]) -> FeedNotification {
         let kind: FeedNotification.Kind
         switch n.reason {
         case .mention: kind = .mention
@@ -79,7 +93,7 @@ struct BlueskyFeedService: FeedService {
         case .quote: kind = .quote
         default: kind = .other
         }
-        let post = referencedURI(n).flatMap { hydrated[$0] }.map { feedPost(fromPostView: $0) }
+        let post = referencedURI(n).flatMap { hydrated[$0] }
         return FeedNotification(
             id: n.uri, kind: kind,
             actorName: displayOrHandle(n.author.displayName, n.author.actorHandle),
@@ -107,17 +121,17 @@ struct BlueskyFeedService: FeedService {
     /// Hydrate posts by AT-URI. getPosts accepts up to 25 at a time, so the
     /// chunks are fetched concurrently rather than one round-trip after another.
     private func hydratePosts(_ uris: [String]) async throws
-        -> [String: AppBskyLexicon.Feed.PostViewDefinition] {
+        -> [String: FeedPost] {
         let chunks = stride(from: 0, to: uris.count, by: 25).map {
             Array(uris[$0..<min($0 + 25, uris.count)])
         }
-        var result: [String: AppBskyLexicon.Feed.PostViewDefinition] = [:]
+        var result: [String: FeedPost] = [:]
         try await withThrowingTaskGroup(of: [AppBskyLexicon.Feed.PostViewDefinition].self) { group in
             for chunk in chunks {
                 group.addTask { try await kit.getPosts(chunk).posts }
             }
             for try await posts in group {
-                for post in posts { result[post.uri] = post }
+                for post in posts { result[post.uri] = Self.feedPost(fromPostView: post) }
             }
         }
         return result
@@ -131,6 +145,7 @@ struct BlueskyFeedService: FeedService {
 
     func setLiked(_ liked: Bool, on post: FeedPost) async throws -> FeedPost {
         guard case .bluesky(let uri, let cid, _, _) = post.nativeRef else { throw FeedError.wrongPlatform }
+        await notificationPostCache.invalidate(uri)
         var copy = post
         if liked {
             // Already liked with a known record: creating a second like would
@@ -149,11 +164,13 @@ struct BlueskyFeedService: FeedService {
             copy.isLiked = false
             copy.likeRecordURI = nil
         }
+        await notificationPostCache.invalidate(uri)
         return copy
     }
 
     func setReposted(_ reposted: Bool, on post: FeedPost) async throws -> FeedPost {
         guard case .bluesky(let uri, let cid, _, _) = post.nativeRef else { throw FeedError.wrongPlatform }
+        await notificationPostCache.invalidate(uri)
         var copy = post
         if reposted {
             // Same idempotency guard as setLiked: never create a duplicate record.
@@ -170,6 +187,7 @@ struct BlueskyFeedService: FeedService {
             copy.isReposted = false
             copy.repostRecordURI = nil
         }
+        await notificationPostCache.invalidate(uri)
         return copy
     }
 
@@ -341,6 +359,7 @@ struct BlueskyFeedService: FeedService {
     func deletePost(_ post: FeedPost) async throws {
         guard case .bluesky(let uri, _, _, _) = post.nativeRef else { throw FeedError.wrongPlatform }
         try await bluesky.deleteRecord(.recordURI(atURI: uri))
+        await notificationPostCache.invalidate(uri)
     }
 
     func setBookmarked(_ bookmarked: Bool, on post: FeedPost) async throws -> FeedPost {
@@ -350,8 +369,10 @@ struct BlueskyFeedService: FeedService {
         } else {
             try await kit.deleteBookmark(uri: uri)
         }
+        await notificationPostCache.invalidate(uri)
         var copy = post
         copy.isBookmarked = bookmarked
+        await notificationPostCache.invalidate(uri)
         return copy
     }
 

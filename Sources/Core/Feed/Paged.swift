@@ -7,7 +7,7 @@ import Foundation
 func paged<Item, Cursor>(
     target: Int,
     maxPages: Int,
-    onPage: ([Item]) async -> Void = { _ in },
+    onPage: ([Item]) async throws -> Void = { _ in },
     _ fetch: (Cursor?) async throws -> (items: [Item], cursor: Cursor?)
 ) async throws -> [Item] {
     var collected: [Item] = []
@@ -17,7 +17,7 @@ func paged<Item, Cursor>(
         let (items, next) = try await fetch(cursor)
         try Task.checkCancellation()
         collected += items
-        await onPage(collected)
+        try await onPage(collected)
         guard collected.count < target, !items.isEmpty, let next else { break }
         cursor = next
     }
