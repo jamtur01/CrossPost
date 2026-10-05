@@ -14,15 +14,16 @@ extension FeedPanelModel {
 
     func switchTo(_ newKind: FeedKind) {
         guard newKind != kind else { return }
+        // Canceled mutations have no confirmed snapshot to restore on the next visit.
+        if !inFlight.isEmpty {
+            posts = []
+        }
         invalidateOptimisticMutations()
         invalidateProfileLinkLookup()
         cancelUnreadRefresh()
         cancelFollowStateLookup()
         cancelLoads()
         kind = newKind
-        posts = []
-        notifications = []
-        conversations = []
         errorMessage = nil
         enqueueLoad(reset: true, userInitiated: false)
         refreshUnreadCount()
