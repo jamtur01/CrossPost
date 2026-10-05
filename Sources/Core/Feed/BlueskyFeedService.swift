@@ -1,5 +1,5 @@
-import Foundation
 import ATProtoKit
+import Foundation
 
 struct BlueskyFeedService: FeedService {
     private let kit: ATProtoKit
@@ -12,7 +12,7 @@ struct BlueskyFeedService: FeedService {
     init(kit: ATProtoKit, bluesky: ATProtoBluesky, handle: String) {
         self.kit = kit
         self.bluesky = bluesky
-        self.chat = ATProtoBlueskyChat(atProtoKitInstance: kit)
+        chat = ATProtoBlueskyChat(atProtoKitInstance: kit)
         self.handle = handle
     }
 
@@ -21,8 +21,8 @@ struct BlueskyFeedService: FeedService {
     /// The cache actor owns the in-flight fetch, so concurrent first callers share
     /// one getProfile round-trip instead of racing check-then-act.
     private func ownDID() async throws -> String {
-        let kit = self.kit
-        let handle = self.handle
+        let kit = kit
+        let handle = handle
         return try await didCache.did { try await kit.getProfile(for: handle).actorDID }
     }
 
@@ -38,7 +38,7 @@ struct BlueskyFeedService: FeedService {
             })
             return feed.compactMap { Self.feedPost(from: $0) }
         case .notifications, .messages:
-            return []   // these load through their own methods, not as posts
+            return [] // these load through their own methods, not as posts
         }
     }
 
@@ -70,37 +70,6 @@ struct BlueskyFeedService: FeedService {
         await onPage(notes.map { Self.notification(from: $0, hydrated: current.posts) })
     }
 
-    /// The post URI a notification refers to, if any: the mention/reply/quote
-    /// itself, or the liked/reposted subject. Single source of truth used both to
-    /// decide what to hydrate and which hydrated post to attach - keep them in sync.
-    static func referencedURI(_ n: AppBskyLexicon.Notification.Notification) -> String? {
-        switch n.reason {
-        case .mention, .reply, .quote: return n.uri
-        case .like, .likeViaRepost, .repost, .repostViaRepost: return n.reasonSubjectURI
-        default: return nil
-        }
-    }
-
-    static func notification(from n: AppBskyLexicon.Notification.Notification,
-                             hydrated: [String: FeedPost]) -> FeedNotification {
-        let kind: FeedNotification.Kind
-        switch n.reason {
-        case .mention: kind = .mention
-        case .reply: kind = .reply
-        case .like, .likeViaRepost: kind = .like
-        case .repost, .repostViaRepost: kind = .repost
-        case .follow: kind = .follow
-        case .quote: kind = .quote
-        default: kind = .other
-        }
-        let post = referencedURI(n).flatMap { hydrated[$0] }
-        return FeedNotification(
-            id: n.uri, kind: kind,
-            actorName: displayOrHandle(n.author.displayName, n.author.actorHandle),
-            actorHandle: "@\(n.author.actorHandle)", actorID: n.author.actorDID,
-            avatarURL: n.author.avatarImageURL, post: post, date: n.indexedAt)
-    }
-
     func unreadNotificationCount() async throws -> Int {
         try await kit.getUnreadCount(priority: nil).count
     }
@@ -123,7 +92,7 @@ struct BlueskyFeedService: FeedService {
     private func hydratePosts(_ uris: [String]) async throws
         -> [String: FeedPost] {
         let chunks = stride(from: 0, to: uris.count, by: 25).map {
-            Array(uris[$0..<min($0 + 25, uris.count)])
+            Array(uris[$0 ..< min($0 + 25, uris.count)])
         }
         var result: [String: FeedPost] = [:]
         try await withThrowingTaskGroup(of: [AppBskyLexicon.Feed.PostViewDefinition].self) { group in
@@ -131,7 +100,9 @@ struct BlueskyFeedService: FeedService {
                 group.addTask { try await kit.getPosts(chunk).posts }
             }
             for try await posts in group {
-                for post in posts { result[post.uri] = Self.feedPost(fromPostView: post) }
+                for post in posts {
+                    result[post.uri] = Self.feedPost(fromPostView: post)
+                }
             }
         }
         return result
@@ -144,7 +115,7 @@ struct BlueskyFeedService: FeedService {
     }
 
     func setLiked(_ liked: Bool, on post: FeedPost) async throws -> FeedPost {
-        guard case .bluesky(let uri, let cid, _, _) = post.nativeRef else { throw FeedError.wrongPlatform }
+        guard case let .bluesky(uri, cid, _, _) = post.nativeRef else { throw FeedError.wrongPlatform }
         await notificationPostCache.invalidate(uri)
         var copy = post
         if liked {
@@ -169,7 +140,7 @@ struct BlueskyFeedService: FeedService {
     }
 
     func setReposted(_ reposted: Bool, on post: FeedPost) async throws -> FeedPost {
-        guard case .bluesky(let uri, let cid, _, _) = post.nativeRef else { throw FeedError.wrongPlatform }
+        guard case let .bluesky(uri, cid, _, _) = post.nativeRef else { throw FeedError.wrongPlatform }
         await notificationPostCache.invalidate(uri)
         var copy = post
         if reposted {
@@ -193,7 +164,7 @@ struct BlueskyFeedService: FeedService {
 
     func reply(to post: FeedPost, text: String, images: [Attachment],
                visibility _: PostVisibility) async throws -> PostedItem {
-        guard case .bluesky(let uri, let cid, let rootURI, let rootCID) = post.nativeRef else {
+        guard case let .bluesky(uri, cid, rootURI, rootCID) = post.nativeRef else {
             throw FeedError.wrongPlatform
         }
         let parent = Self.strongRef(uri, cid)
@@ -209,10 +180,11 @@ struct BlueskyFeedService: FeedService {
     }
 
     func quote(post: FeedPost, text: String, visibility _: PostVisibility) async throws -> PostedItem {
-        guard case .bluesky(let uri, let cid, _, _) = post.nativeRef else { throw FeedError.wrongPlatform }
+        guard case let .bluesky(uri, cid, _, _) = post.nativeRef else { throw FeedError.wrongPlatform }
         let ref = try await bluesky.createPostRecord(
             text: text,
-            embed: .record(strongReference: .init(recordURI: uri, cidHash: cid)))
+            embed: .record(strongReference: .init(recordURI: uri, cidHash: cid))
+        )
         // A quote is a fresh top-level post, so it is its own thread root.
         let nativeRef = NativeRef.bluesky(uri: ref.recordURI, cid: ref.recordCID,
                                           rootURI: ref.recordURI, rootCID: ref.recordCID)
@@ -220,16 +192,16 @@ struct BlueskyFeedService: FeedService {
     }
 
     func thread(of post: FeedPost) async throws -> PostThread {
-        guard case .bluesky(let uri, _, _, _) = post.nativeRef else {
+        guard case let .bluesky(uri, _, _, _) = post.nativeRef else {
             return PostThread(ancestors: [], descendants: [])
         }
         let output = try await kit.getPostThread(from: uri)
-        guard case .threadViewPost(let thread) = output.thread else {
+        guard case let .threadViewPost(thread) = output.thread else {
             return PostThread(ancestors: [], descendants: [])
         }
         var ancestors: [FeedPost] = []
         var node = thread.parent
-        while case .threadViewPost(let parent)? = node {
+        while case let .threadViewPost(parent)? = node {
             ancestors.append(Self.feedPost(fromPostView: parent.post))
             node = parent.parent
         }
@@ -245,110 +217,8 @@ struct BlueskyFeedService: FeedService {
         return PostThread(ancestors: ancestors, descendants: descendants)
     }
 
-    /// The direct reply threads of a node, in order.
-    static func childThreads(
-        of node: AppBskyLexicon.Feed.ThreadViewPostDefinition
-    ) -> [AppBskyLexicon.Feed.ThreadViewPostDefinition] {
-        (node.replies ?? []).compactMap { reply in
-            if case .threadViewPost(let child) = reply { return child }
-            return nil
-        }
-    }
-
-    static func videoMedia(from view: AppBskyLexicon.Embed.VideoDefinition.View) -> FeedImage? {
-        guard let url = URL(string: view.playlistURI) else { return nil }
-        return FeedImage(
-            url: url,
-            previewURL: view.thumbnailImageURL.flatMap(URL.init(string:)),
-            altText: view.altText ?? "",
-            kind: .video,
-            aspectRatio: Self.aspect(view.aspectRatio)
-        )
-    }
-
-    static func aspect(_ ratio: AppBskyLexicon.Embed.AspectRatioDefinition?) -> Double? {
-        guard let ratio, ratio.height > 0 else { return nil }
-        return Double(ratio.width) / Double(ratio.height)
-    }
-
-    static func imageMedia(
-        from image: AppBskyLexicon.Embed.ImagesDefinition.ViewImage
-    ) -> FeedImage {
-        FeedImage(
-            url: image.fullSizeImageURL,
-            previewURL: image.thumbnailImageURL,
-            altText: image.altText,
-            aspectRatio: Self.aspect(image.aspectRatio)
-        )
-    }
-
-    /// Bluesky GIFs (Tenor/Giphy) arrive as external embeds; play them inline when
-    /// the link is a direct `.gif`, otherwise they fall back to a link card.
-    static func gifMedia(from external: AppBskyLexicon.Embed.ExternalDefinition.ViewExternal) -> FeedImage? {
-        guard let url = URL(string: external.uri),
-              url.path.lowercased().hasSuffix(".gif")
-        else { return nil }
-        return FeedImage(
-            url: url,
-            previewURL: external.thumbnailImageURL,
-            altText: external.title,
-            kind: .gif
-        )
-    }
-
-    static func linkCard(from external: AppBskyLexicon.Embed.ExternalDefinition.ViewExternal) -> LinkCard? {
-        guard let url = URL(string: external.uri) else { return nil }
-        return LinkCard(url: url, title: external.title, description: external.description,
-                        imageURL: external.thumbnailImageURL, providerName: url.host ?? "")
-    }
-
-    /// Render a post record's text with its richtext facets resolved to links:
-    /// mentions → the author's profile, links → their full URL, tags → the tag page.
-    static func attributedText(_ record: AppBskyLexicon.Feed.PostRecord?) -> AttributedString {
-        guard let record else { return AttributedString("") }
-        let spans = (record.facets ?? []).compactMap { facet -> RichTextLinks.Span? in
-            guard let url = facetURL(facet.features) else { return nil }
-            return RichTextLinks.Span(byteStart: facet.index.byteStart,
-                                      byteEnd: facet.index.byteEnd, url: url)
-        }
-        return RichTextLinks.attributed(record.text, spans: spans)
-    }
-
-    private static func facetURL(_ features: [AppBskyLexicon.RichText.Facet.FeaturesUnion]) -> URL? {
-        for feature in features {
-            switch feature {
-            case .mention(let mention): return URL(string: BlueskyURL.profile(mention.did))
-            case .link(let link): return URL(string: link.uri)
-            case .tag(let tag): return URL(string: BlueskyURL.hashtag(tag.tag))
-            case .unknown: continue
-            }
-        }
-        return nil
-    }
-
-    static func quotedPost(fromRecordView view: AppBskyLexicon.Embed.RecordDefinition.View) -> QuotedPost? {
-        guard case .viewRecord(let vr) = view.record else { return nil }
-        let record = vr.value.getRecord(ofType: AppBskyLexicon.Feed.PostRecord.self)
-        var imageURL: URL?
-        for embed in vr.embeds ?? [] {
-            if case .embedImagesView(let v) = embed, let first = v.images.first {
-                imageURL = first.thumbnailImageURL
-                break
-            }
-        }
-        return QuotedPost(
-            id: "bluesky:\(vr.uri)",
-            authorName: displayOrHandle(vr.author.displayName, vr.author.actorHandle),
-            authorHandle: "@\(vr.author.actorHandle)",
-            avatarURL: vr.author.avatarImageURL,
-            text: Self.attributedText(record),
-            imageURL: imageURL,
-            webURL: BlueskyURL.post(recordURI: vr.uri, handle: vr.author.actorHandle)
-                .flatMap(URL.init(string:)))
-    }
-
     func profile(id: String) async throws -> Profile {
-        Self.profile(fromDetailed: try await kit.getProfile(for: id))
+        try await Self.profile(fromDetailed: kit.getProfile(for: id))
     }
 
     func profile(forURL url: URL) async throws -> Profile? {
@@ -357,13 +227,13 @@ struct BlueskyFeedService: FeedService {
     }
 
     func deletePost(_ post: FeedPost) async throws {
-        guard case .bluesky(let uri, _, _, _) = post.nativeRef else { throw FeedError.wrongPlatform }
+        guard case let .bluesky(uri, _, _, _) = post.nativeRef else { throw FeedError.wrongPlatform }
         try await bluesky.deleteRecord(.recordURI(atURI: uri))
         await notificationPostCache.invalidate(uri)
     }
 
     func setBookmarked(_ bookmarked: Bool, on post: FeedPost) async throws -> FeedPost {
-        guard case .bluesky(let uri, let cid, _, _) = post.nativeRef else { throw FeedError.wrongPlatform }
+        guard case let .bluesky(uri, cid, _, _) = post.nativeRef else { throw FeedError.wrongPlatform }
         if bookmarked {
             try await kit.createBookmark(uri: uri, cid: cid)
         } else {
@@ -376,20 +246,20 @@ struct BlueskyFeedService: FeedService {
         return copy
     }
 
-    func setPinned(_ pinned: Bool, on post: FeedPost) async throws -> FeedPost {
+    func setPinned(_: Bool, on _: FeedPost) async throws -> FeedPost {
         throw FeedError.notSupported("Pinning posts isn't supported on Bluesky yet.")
     }
 
-    func editableSource(of post: FeedPost) async throws -> EditableSource {
+    func editableSource(of _: FeedPost) async throws -> EditableSource {
         throw FeedError.notSupported("Bluesky posts can't be edited.")
     }
 
-    func edit(post: FeedPost, text: String, spoiler: String) async throws -> FeedPost {
+    func edit(post _: FeedPost, text _: String, spoiler _: String) async throws -> FeedPost {
         throw FeedError.notSupported("Bluesky posts can't be edited.")
     }
 
     func likedBy(_ post: FeedPost) async throws -> [Profile] {
-        guard case .bluesky(let uri, _, _, _) = post.nativeRef else { return [] }
+        guard case let .bluesky(uri, _, _, _) = post.nativeRef else { return [] }
         let likes = try await paged(target: 200, maxPages: 3) {
             let output = try await kit.getLikes(from: uri, limit: 100, cursor: $0)
             return (output.likes, output.cursor)
@@ -398,7 +268,7 @@ struct BlueskyFeedService: FeedService {
     }
 
     func repostedBy(_ post: FeedPost) async throws -> [Profile] {
-        guard case .bluesky(let uri, _, _, _) = post.nativeRef else { return [] }
+        guard case let .bluesky(uri, _, _, _) = post.nativeRef else { return [] }
         let actors = try await paged(target: 200, maxPages: 3) {
             let output = try await kit.getRepostedBy(uri, limit: 100, cursor: $0)
             return (output.repostedBy, output.cursor)
@@ -431,7 +301,8 @@ struct BlueskyFeedService: FeedService {
                 otherName: displayOrHandle(other.displayName, other.actorHandle),
                 otherHandle: "@\(other.actorHandle)", otherID: other.actorDID,
                 otherAvatarURL: other.avatarImageURL,
-                lastMessage: last.text, lastDate: last.date, unreadCount: convo.unreadCount)
+                lastMessage: last.text, lastDate: last.date, unreadCount: convo.unreadCount
+            )
         }
     }
 
@@ -441,37 +312,34 @@ struct BlueskyFeedService: FeedService {
         // Deep DM history beyond one page isn't reachable until the SDK adds a cursor.
         let output = try await chat.getMessages(from: conversationID, limit: 100)
         let messages = output.messages.compactMap { message -> DirectMessage? in
-            guard case .messageView(let m) = message else { return nil }
-            return DirectMessage(id: m.messageID, text: m.text, date: m.sentAt,
-                                 isFromMe: m.sender.authorDID == myDID)
+            guard case let .messageView(message) = message else { return nil }
+            return DirectMessage(id: message.messageID, text: message.text, date: message.sentAt,
+                                 isFromMe: message.sender.authorDID == myDID)
         }
-        return messages.reversed()   // getMessages returns newest-first; show oldest-first
+        return messages.reversed() // getMessages returns newest-first; show oldest-first
     }
 
     func sendMessage(_ text: String, to conversationID: String) async throws {
         _ = try await chat.sendMessage(
             to: conversationID,
-            message: ChatBskyLexicon.Conversation.MessageInputDefinition(text: text))
+            message: ChatBskyLexicon.Conversation.MessageInputDefinition(text: text)
+        )
     }
 
-    // Bluesky has no per-user timeline stream (only the global firehose), so it polls.
-    func liveUpdates() async -> AsyncStream<FeedUpdate>? { nil }
-
-    static func lastMessage(_ union: ChatBskyLexicon.Conversation.ConversationViewDefinition.LastMessageUnion?)
-        -> (text: String?, date: Date?) {
-        guard case .messageView(let m)? = union else { return (nil, nil) }
-        return (m.text, m.sentAt)
+    /// Bluesky has no per-user timeline stream (only the global firehose), so it polls.
+    func liveUpdates() async -> AsyncStream<FeedUpdate>? {
+        nil
     }
 
     func relationship(with id: String) async throws -> AccountRelationship {
-        Self.relationship(from: try await kit.getProfile(for: id).viewer)
+        try await Self.relationship(from: kit.getProfile(for: id).viewer)
     }
 
     func relationships(with ids: [String]) async throws -> [String: AccountRelationship] {
         guard !ids.isEmpty else { return [:] }
         var result: [String: AccountRelationship] = [:]
         // getProfiles silently caps its input at 25 actors, so page explicitly.
-        for chunk in stride(from: 0, to: ids.count, by: 25).map({ Array(ids[$0..<min($0 + 25, ids.count)]) }) {
+        for chunk in stride(from: 0, to: ids.count, by: 25).map({ Array(ids[$0 ..< min($0 + 25, ids.count)]) }) {
             for profile in try await kit.getProfiles(for: chunk).profiles {
                 let relationship = Self.relationship(from: profile.viewer)
                 // Callers may hold either form of id; key by whichever they asked with.
@@ -483,18 +351,8 @@ struct BlueskyFeedService: FeedService {
         return result.filter { requested.contains($0.key) }
     }
 
-    static func relationship(from viewer: AppBskyLexicon.Actor.ViewerStateDefinition?) -> AccountRelationship {
-        AccountRelationship(
-            isFollowing: viewer?.followingURI != nil,
-            isFollowedBy: viewer?.followedByURI != nil,
-            isMuting: viewer?.isMuted ?? false,
-            isBlocking: viewer?.blockingURI != nil,
-            followRecordURI: viewer?.followingURI,
-            blockRecordURI: viewer?.blockingURI)
-    }
-
     func setFollowing(_ following: Bool, for id: String,
-                             current: AccountRelationship) async throws -> AccountRelationship {
+                      current: AccountRelationship) async throws -> AccountRelationship {
         var rel = current
         if following {
             let ref = try await bluesky.createFollowRecord(actorDID: id)
@@ -509,15 +367,19 @@ struct BlueskyFeedService: FeedService {
     }
 
     func setMuted(_ muted: Bool, for id: String,
-                         current: AccountRelationship) async throws -> AccountRelationship {
-        if muted { try await kit.muteActor(id) } else { try await kit.unmuteActor(id) }
+                  current: AccountRelationship) async throws -> AccountRelationship {
+        if muted {
+            try await kit.muteActor(id)
+        } else {
+            try await kit.unmuteActor(id)
+        }
         var rel = current
         rel.isMuting = muted
         return rel
     }
 
     func setBlocked(_ blocked: Bool, for id: String,
-                           current: AccountRelationship) async throws -> AccountRelationship {
+                    current: AccountRelationship) async throws -> AccountRelationship {
         var rel = current
         if blocked {
             let ref = try await bluesky.createBlockRecord(ofType: .actorBlock(actorDID: id))
@@ -547,16 +409,8 @@ struct BlueskyFeedService: FeedService {
         return actors.map { Self.profile(fromBasic: $0) }
     }
 
-    static func profile(fromBasic p: AppBskyLexicon.Actor.ProfileViewDefinition) -> Profile {
-        Profile(id: p.actorDID,
-                name: displayOrHandle(p.displayName, p.actorHandle),
-                handle: "@\(p.actorHandle)", avatarURL: p.avatarImageURL, bannerURL: nil,
-                bio: AttributedString(p.description ?? ""), followers: 0, following: 0, posts: 0,
-                webURL: URL(string: BlueskyURL.profile(p.actorHandle)))
-    }
-
     func myProfile() async throws -> Profile {
-        Self.profile(fromDetailed: try await kit.getProfile(for: handle))
+        try await Self.profile(fromDetailed: kit.getProfile(for: handle))
     }
 
     func authorPosts(id: String) async throws -> [FeedPost] {
@@ -567,21 +421,22 @@ struct BlueskyFeedService: FeedService {
         return feed.compactMap { Self.feedPost(from: $0) }
     }
 
-    func pinnedPosts(of id: String) async throws -> [FeedPost] {
-        []   // Bluesky pinning isn't supported in this app.
+    func pinnedPosts(of _: String) async throws -> [FeedPost] {
+        [] // Bluesky pinning isn't supported in this app.
     }
 
     func search(_ query: String) async throws -> SearchResults {
         // Accounts and posts are independent endpoints, so query them concurrently.
         async let actors = kit.searchActors(matching: query, limit: 20)
         async let posts = kit.searchPosts(matching: query, limit: 20)
-        return SearchResults(
-            accounts: try await actors.actors.map(Self.profile(fromBasic:)),
-            posts: try await posts.posts.map { Self.feedPost(fromPostView: $0) })
+        return try await SearchResults(
+            accounts: actors.actors.map(Self.profile(fromBasic:)),
+            posts: posts.posts.map { Self.feedPost(fromPostView: $0) }
+        )
     }
 
     func bookmarkedPosts() async throws -> [FeedPost] {
-        []   // Bluesky has no native bookmarks.
+        [] // Bluesky has no native bookmarks.
     }
 
     func likedPosts() async throws -> [FeedPost] {
@@ -594,7 +449,7 @@ struct BlueskyFeedService: FeedService {
     }
 
     func report(post: FeedPost, reason: ReportReason, comment: String) async throws {
-        guard case .bluesky(let uri, let cid, _, _) = post.nativeRef else { throw FeedError.wrongPlatform }
+        guard case let .bluesky(uri, cid, _, _) = post.nativeRef else { throw FeedError.wrongPlatform }
         let subject = ComAtprotoLexicon.Moderation.CreateReportRequestBody.SubjectUnion
             .strongReference(.init(recordURI: uri, cidHash: cid))
         _ = try await kit.createReport(with: reason.blueskyReason,
@@ -618,137 +473,8 @@ struct BlueskyFeedService: FeedService {
     ) throws -> ComAtprotoLexicon.Moderation.CreateReportRequestBody.SubjectUnion {
         let json = try JSONEncoder().encode(RepoRefSubject(did: did))
         return try JSONDecoder().decode(
-            ComAtprotoLexicon.Moderation.CreateReportRequestBody.SubjectUnion.self, from: json)
-    }
-
-    /// The lexicon wire shape of a `com.atproto.admin.defs#repoRef` subject.
-    private struct RepoRefSubject: Encodable {
-        let did: String
-
-        private enum CodingKeys: String, CodingKey {
-            case type = "$type"
-            case did
-        }
-
-        func encode(to encoder: Encoder) throws {
-            var container = encoder.container(keyedBy: CodingKeys.self)
-            try container.encode("com.atproto.admin.defs#repoRef", forKey: .type)
-            try container.encode(did, forKey: .did)
-        }
-    }
-
-    static func profile(fromDetailed p: AppBskyLexicon.Actor.ProfileViewDetailedDefinition) -> Profile {
-        Profile(
-            id: p.actorDID,   // the stable id; follow/block records require the DID, not the handle
-            name: displayOrHandle(p.displayName, p.actorHandle),
-            handle: "@\(p.actorHandle)",
-            avatarURL: p.avatarImageURL,
-            bannerURL: p.bannerImageURL,
-            bio: AttributedString(p.description ?? ""),
-            followers: p.followerCount ?? 0,
-            following: p.followCount ?? 0,
-            posts: p.postCount ?? 0,
-            webURL: URL(string: BlueskyURL.profile(p.actorHandle)))
-    }
-
-    static func feedPost(
-        from item: AppBskyLexicon.Feed.FeedViewPostDefinition
-    ) -> FeedPost? {
-        let replyRoot: (uri: String, cid: String)?
-        if case .postView(let rootPost)? = item.reply?.root {
-            replyRoot = (rootPost.uri, rootPost.cid)
-        } else {
-            replyRoot = nil
-        }
-        // A repost carries the original post plus who reposted it. Attribute the
-        // booster and key the id by the reposter so the same post reposted by
-        // several people (or also present as an original) stays distinct — else
-        // ForEach ids collide and FeedMerge drops reposts.
-        var boostedBy: String?
-        var boostKey: String?
-        if case .reasonRepost(let repost)? = item.reason {
-            boostedBy = displayOrHandle(repost.by.displayName, repost.by.actorHandle)
-            boostKey = repost.by.actorDID
-        }
-        var replyToHandle: String?
-        if case .postView(let parent)? = item.reply?.parent {
-            replyToHandle = "@\(parent.author.actorHandle)"
-        }
-        return feedPost(fromPostView: item.post, replyRoot: replyRoot, isReply: item.reply != nil,
-                        replyToHandle: replyToHandle, boostedBy: boostedBy, boostKey: boostKey)
-    }
-
-    /// Map a bare post view (timeline item, reply parent, etc.) to a FeedPost.
-    static func feedPost(
-        fromPostView p: AppBskyLexicon.Feed.PostViewDefinition,
-        replyRoot: (uri: String, cid: String)? = nil,
-        isReply: Bool? = nil,
-        replyToHandle: String? = nil,
-        boostedBy: String? = nil,
-        boostKey: String? = nil
-    ) -> FeedPost {
-        let record = p.record.getRecord(ofType: AppBskyLexicon.Feed.PostRecord.self)
-        var images: [FeedImage] = []
-        var card: LinkCard?
-        var quoted: QuotedPost?
-        if let embed = p.embed {
-            switch embed {
-            case .embedImagesView(let view):
-                images = view.images.map(Self.imageMedia(from:))
-            case .embedVideoView(let view):
-                if let media = Self.videoMedia(from: view) { images = [media] }
-            case .embedExternalView(let view):
-                if let gif = Self.gifMedia(from: view.external) { images = [gif] }
-                else { card = linkCard(from: view.external) }
-            case .embedRecordView(let view):
-                quoted = quotedPost(fromRecordView: view)
-            case .embedRecordWithMediaView(let view):
-                quoted = quotedPost(fromRecordView: view.record)
-                switch view.media {
-                case .embedImagesView(let v):
-                    images = v.images.map(Self.imageMedia(from:))
-                case .embedVideoView(let v):
-                    if let media = Self.videoMedia(from: v) { images = [media] }
-                case .embedExternalView(let v):
-                    if let gif = Self.gifMedia(from: v.external) { images = [gif] }
-                    else { card = linkCard(from: v.external) }
-                default:
-                    break
-                }
-            default:
-                break
-            }
-        }
-        // If no explicit replyRoot was supplied, derive it from the post's own record.
-        let resolvedReplyRoot = replyRoot
-            ?? record?.reply.map { ($0.root.recordURI, $0.root.recordCID) }
-        let root = BlueskyThreadRef.root(postURI: p.uri, postCID: p.cid, replyRoot: resolvedReplyRoot)
-        return FeedPost(
-            id: boostKey.map { "bluesky:\($0):\(p.uri)" } ?? "bluesky:\(p.uri)",
-            target: .bluesky,
-            authorName: displayOrHandle(p.author.displayName, p.author.actorHandle),
-            authorHandle: "@\(p.author.actorHandle)",
-            authorID: p.author.actorDID,   // stable id; profile + author-feed lookups accept the DID
-            avatarURL: p.author.avatarImageURL,
-            date: p.indexedAt,
-            text: Self.attributedText(record),
-            images: images,
-            card: card,
-            quoted: quoted,
-            webURL: BlueskyURL.post(recordURI: p.uri, handle: p.author.actorHandle).flatMap(URL.init(string:)),
-            isLiked: p.viewer?.likeURI != nil,
-            isReposted: p.viewer?.repostURI != nil,
-            isBookmarked: p.viewer?.isBookmarked ?? false,
-            isPinned: p.viewer?.isPinned ?? false,
-            replyCount: p.replyCount ?? 0,
-            repostCount: p.repostCount ?? 0,
-            likeCount: p.likeCount ?? 0,
-            likeRecordURI: p.viewer?.likeURI,
-            repostRecordURI: p.viewer?.repostURI,
-            boostedBy: boostedBy,
-            isReply: isReply ?? (record?.reply != nil),
-            replyToHandle: replyToHandle,
-            nativeRef: .bluesky(uri: p.uri, cid: p.cid, rootURI: root.uri, rootCID: root.cid))
+            ComAtprotoLexicon.Moderation.CreateReportRequestBody.SubjectUnion.self, from: json
+        )
     }
 }
 
@@ -756,12 +482,12 @@ extension ReportReason {
     /// Closest matching Bluesky moderation reason.
     var blueskyReason: ComAtprotoLexicon.Moderation.ReasonTypeDefinition {
         switch self {
-        case .spam: return .spam
-        case .harassment: return .rude
-        case .misleading: return .misleading
-        case .sexual: return .sexual
-        case .illegal: return .violation
-        case .other: return .other
+        case .spam: .spam
+        case .harassment: .rude
+        case .misleading: .misleading
+        case .sexual: .sexual
+        case .illegal: .violation
+        case .other: .other
         }
     }
 }
@@ -774,7 +500,9 @@ private actor OwnDIDCache {
     private var inFlight: Task<String, Error>?
 
     func did(fetch: @escaping @Sendable () async throws -> String) async throws -> String {
-        if let inFlight { return try await inFlight.value }
+        if let inFlight {
+            return try await inFlight.value
+        }
         let task = Task { try await fetch() }
         inFlight = task
         do {
@@ -783,5 +511,21 @@ private actor OwnDIDCache {
             inFlight = nil
             throw error
         }
+    }
+}
+
+/// The lexicon wire shape of a `com.atproto.admin.defs#repoRef` subject.
+private struct RepoRefSubject: Encodable {
+    let did: String
+
+    private enum CodingKeys: String, CodingKey {
+        case type = "$type"
+        case did
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode("com.atproto.admin.defs#repoRef", forKey: .type)
+        try container.encode(did, forKey: .did)
     }
 }

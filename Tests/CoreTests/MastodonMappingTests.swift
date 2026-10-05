@@ -1,6 +1,6 @@
-import XCTest
-import TootSDK
 @testable import CrossPost
+import TootSDK
+import XCTest
 
 /// Fixture-decoded tests for the Mastodon feed mapping. The fixtures are decoded
 /// with a `JSONDecoder` configured like TootSDK's internal `TootDecoder`
@@ -16,10 +16,15 @@ final class MastodonMappingTests: XCTestCase {
             withFraction.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
             let plain = ISO8601DateFormatter()
             plain.formatOptions = [.withInternetDateTime]
-            if let date = withFraction.date(from: string) ?? plain.date(from: string) { return date }
-            if let seconds = TimeInterval(string) { return Date(timeIntervalSince1970: seconds) }
-            throw DecodingError.dataCorruptedError(
-                in: try decoder.singleValueContainer(), debugDescription: "bad date: \(string)")
+            if let date = withFraction.date(from: string) ?? plain.date(from: string) {
+                return date
+            }
+            if let seconds = TimeInterval(string) {
+                return Date(timeIntervalSince1970: seconds)
+            }
+            throw try DecodingError.dataCorruptedError(
+                in: decoder.singleValueContainer(), debugDescription: "bad date: \(string)"
+            )
         }
         return decoder
     }()
@@ -62,20 +67,20 @@ final class MastodonMappingTests: XCTestCase {
     }
 
     func testBoostUsesOuterIDWhileNativeRefAndContentComeFromTheBoostedStatus() throws {
-        let mapped = MastodonFeedService.feedPost(from: try decodePost("mastodon_boost"))
+        let mapped = try MastodonFeedService.feedPost(from: decodePost("mastodon_boost"))
 
-        XCTAssertEqual(mapped.id, "mastodon:BOOST-1")               // outer entry id stays distinct
-        XCTAssertEqual(mapped.boostedBy, "Bob Booster")             // attributed to the reposter
-        XCTAssertEqual(mapped.authorHandle, "@alice@h.io")          // content is the original author's
+        XCTAssertEqual(mapped.id, "mastodon:BOOST-1") // outer entry id stays distinct
+        XCTAssertEqual(mapped.boostedBy, "Bob Booster") // attributed to the reposter
+        XCTAssertEqual(mapped.authorHandle, "@alice@h.io") // content is the original author's
         XCTAssertEqual(String(mapped.text.characters), "original toot")
-        XCTAssertEqual(mapped.likeCount, 8)                         // counts from the boosted status
+        XCTAssertEqual(mapped.likeCount, 8) // counts from the boosted status
 
-        guard case .mastodon(let statusID) = mapped.nativeRef else { return XCTFail("expected mastodon ref") }
-        XCTAssertEqual(statusID, "INNER-9")                         // like/reply target the real status
+        guard case let .mastodon(statusID) = mapped.nativeRef else { return XCTFail("expected mastodon ref") }
+        XCTAssertEqual(statusID, "INNER-9") // like/reply target the real status
     }
 
     func testReplyInheritsVisibilitySpoilerAndSensitive() throws {
-        let mapped = MastodonFeedService.feedPost(from: try decodePost("mastodon_reply"))
+        let mapped = try MastodonFeedService.feedPost(from: decodePost("mastodon_reply"))
 
         XCTAssertEqual(mapped.visibility, "private")
         XCTAssertEqual(mapped.spoilerText, "content warning")
@@ -84,7 +89,7 @@ final class MastodonMappingTests: XCTestCase {
     }
 
     func testReplyNamesTheMentionedParentAuthor() throws {
-        var post = try decodePost("mastodon_reply")
+        let post = try decodePost("mastodon_reply")
         post.inReplyToAccountId = "acc-bob"
         post.mentions = [
             Mention(id: "acc-carol", username: "carol", url: "https://c.io/@carol", acct: "carol@c.io"),
@@ -95,14 +100,14 @@ final class MastodonMappingTests: XCTestCase {
     }
 
     func testSelfReplyNamesTheAuthor() throws {
-        var post = try decodePost("mastodon_reply")
+        let post = try decodePost("mastodon_reply")
         post.inReplyToAccountId = post.account.id
 
         XCTAssertEqual(MastodonFeedService.feedPost(from: post).replyToHandle, "@alice@h.io")
     }
 
     func testReplyToUnmentionedAccountHasNoHandle() throws {
-        var post = try decodePost("mastodon_reply")
+        let post = try decodePost("mastodon_reply")
         post.inReplyToAccountId = "acc-unknown"
 
         let mapped = MastodonFeedService.feedPost(from: post)
@@ -139,19 +144,19 @@ final class MastodonMappingTests: XCTestCase {
     }
 
     func testMapsMediaKindsLinkCardCountsAndSensitive() throws {
-        let mapped = MastodonFeedService.feedPost(from: try decodePost("mastodon_media_card"))
+        let mapped = try MastodonFeedService.feedPost(from: decodePost("mastodon_media_card"))
 
         XCTAssertEqual(mapped.images.count, 2)
         XCTAssertEqual(mapped.images[0].kind, .image)
         XCTAssertEqual(mapped.images[0].altText, "a cat")
         XCTAssertEqual(mapped.images[0].previewURL, URL(string: "https://h.io/cat-preview.png"))
-        XCTAssertEqual(mapped.images[1].kind, .video)            // Mastodon video/gifv → .video
+        XCTAssertEqual(mapped.images[1].kind, .video) // Mastodon video/gifv → .video
         XCTAssertEqual(mapped.images[1].previewURL, URL(string: "https://h.io/clip-preview.jpg"))
 
         XCTAssertEqual(mapped.card?.title, "Headline")
         XCTAssertEqual(mapped.card?.providerName, "Example News")
 
-        XCTAssertEqual(mapped.likeCount, 7)                       // favourites_count
+        XCTAssertEqual(mapped.likeCount, 7) // favourites_count
         XCTAssertEqual(mapped.repostCount, 3)
         XCTAssertEqual(mapped.replyCount, 2)
         XCTAssertTrue(mapped.isSensitive)
@@ -164,7 +169,7 @@ final class MastodonMappingTests: XCTestCase {
         XCTAssertEqual(preview.imageURL, URL(string: "https://h.io/cat-preview.png"))
         XCTAssertEqual(preview.webURL, URL(string: "https://h.io/@alice/MEDIA-1"))
 
-        guard case .post(let post)? = quote.quotedPost else {
+        guard case let .post(post)? = quote.quotedPost else {
             return XCTFail("expected quoted post")
         }
         post.mediaAttachments[0].previewUrl = nil

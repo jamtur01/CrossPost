@@ -51,7 +51,7 @@ final class PlainTextEditorFocusTests: XCTestCase {
 
     private func waitUntil(_ description: String, _ condition: @escaping () -> Bool) {
         let met = expectation(description: description)
-        func poll() {
+        @MainActor @Sendable func poll() {
             if condition() {
                 met.fulfill()
             } else {

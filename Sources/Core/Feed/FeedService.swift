@@ -26,7 +26,9 @@ struct EditableSource: Sendable, Equatable {
 struct SearchResults: Sendable, Equatable {
     var accounts: [Profile]
     var posts: [FeedPost]
-    var isEmpty: Bool { accounts.isEmpty && posts.isEmpty }
+    var isEmpty: Bool {
+        accounts.isEmpty && posts.isEmpty
+    }
 
     init(accounts: [Profile] = [], posts: [FeedPost] = []) {
         self.accounts = accounts

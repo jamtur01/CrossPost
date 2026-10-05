@@ -195,7 +195,7 @@ final class FakeFeedService: FeedService, @unchecked Sendable {
     private(set) var setFollowingCalls: [String] = []
 
     private(set) var notificationsCalls = 0
-    func notifications(includeHistory: Bool,
+    func notifications(includeHistory _: Bool,
                        onPage: @Sendable ([FeedNotification]) async -> Void) async throws -> [FeedNotification] {
         notificationsCalls += 1
         await onPage(notificationsToReturn)
@@ -346,7 +346,7 @@ extension FakeFeedService {
         []
     }
 
-    func conversations(includeHistory: Bool,
+    func conversations(includeHistory _: Bool,
                        onPage: @Sendable ([Conversation]) async -> Void) async throws -> [Conversation] {
         conversationsCalls += 1
         if failConversations {

@@ -1,6 +1,6 @@
-import XCTest
 import ATProtoKit
 @testable import CrossPost
+import XCTest
 
 /// Fixture-decoded tests for the Bluesky SDK -> `FeedPost` mapping — the most
 /// complex mapping in the app. The `app.bsky` view types are `Codable`, so the
@@ -35,10 +35,10 @@ final class BlueskyMappingTests: XCTestCase {
     }
 
     /// The (text, url) pairs of every linked run in an attributed string.
-    private func links(_ s: AttributedString) -> [(text: String, url: URL)] {
-        s.runs.compactMap { run in
+    private func links(_ text: AttributedString) -> [(text: String, url: URL)] {
+        text.runs.compactMap { run in
             guard let url = run.link else { return nil }
-            return (String(s[run.range].characters), url)
+            return (String(text[run.range].characters), url)
         }
     }
 
@@ -57,7 +57,7 @@ final class BlueskyMappingTests: XCTestCase {
         XCTAssertNil(post.boostedBy)
 
         // A top-level post is its own thread root (uri+cid repeated).
-        guard case .bluesky(let uri, let cid, let rootURI, let rootCID) = post.nativeRef else {
+        guard case let .bluesky(uri, cid, rootURI, rootCID) = post.nativeRef else {
             return XCTFail("expected a bluesky native ref")
         }
         XCTAssertEqual(uri, "at://did:plc:alice/app.bsky.feed.post/aaa111")
@@ -149,7 +149,7 @@ final class BlueskyMappingTests: XCTestCase {
         XCTAssertTrue(post.isReply)
         // The reply's own uri differs from the thread root; the root (uri+cid)
         // must propagate into the native ref so a continuation threads correctly.
-        guard case .bluesky(let uri, _, let rootURI, let rootCID) = post.nativeRef else {
+        guard case let .bluesky(uri, _, rootURI, rootCID) = post.nativeRef else {
             return XCTFail("expected a bluesky native ref")
         }
         XCTAssertEqual(uri, "at://did:plc:alice/app.bsky.feed.post/reply999")
@@ -173,8 +173,8 @@ final class BlueskyMappingTests: XCTestCase {
         let postView = try feedItem("bluesky_reply").post
         let post = BlueskyFeedService.feedPost(fromPostView: postView)
 
-        XCTAssertTrue(post.isReply)   // record.reply != nil
-        guard case .bluesky(_, _, let rootURI, let rootCID) = post.nativeRef else {
+        XCTAssertTrue(post.isReply) // record.reply != nil
+        guard case let .bluesky(_, _, rootURI, rootCID) = post.nativeRef else {
             return XCTFail("expected a bluesky native ref")
         }
         XCTAssertEqual(rootURI, "at://did:plc:carol/app.bsky.feed.post/root001")
@@ -225,7 +225,7 @@ final class BlueskyMappingTests: XCTestCase {
         XCTAssertNil(post.card)
         XCTAssertEqual(post.images.count, 1)
         XCTAssertEqual(post.images[0].kind, .gif)
-        XCTAssertEqual(post.images[0].altText, "celebrate")   // gif alt text is the title
+        XCTAssertEqual(post.images[0].altText, "celebrate") // gif alt text is the title
         XCTAssertEqual(post.images[0].url, URL(string: "https://media.tenor.com/celebrate.gif?hh=200"))
     }
 
@@ -236,31 +236,32 @@ final class BlueskyMappingTests: XCTestCase {
         XCTAssertEqual(card.title, "A Big Story")
         XCTAssertEqual(card.description, "everything about the story")
         XCTAssertEqual(card.imageURL, URL(string: "https://www.nytimes.com/thumb.jpg"))
-        XCTAssertEqual(card.providerName, "www.nytimes.com")   // provider is the URL host
+        XCTAssertEqual(card.providerName, "www.nytimes.com") // provider is the URL host
     }
 
     // MARK: - gifMedia boundary (only direct .gif URLs are playable)
 
     func testGifMediaTreatsOnlyDirectGifURLsAsPlayable() {
-        // name, uri, expected-to-be-gif
-        let cases: [(name: String, uri: String, isGif: Bool)] = [
-            ("plain gif", "https://x.test/a.gif", true),
-            ("gif with query", "https://x.test/a.gif?width=100", true),
-            ("uppercase extension", "https://x.test/a.GIF", true),
-            ("png", "https://x.test/a.png", false),
-            ("mp4", "https://x.test/a.mp4", false),
-            ("html page", "https://x.test/story.html", false),
-            (".gif in path but not suffix", "https://x.test/a.gif/more", false),
+        // URL and whether it is directly playable.
+        let cases: [(uri: String, isGif: Bool)] = [
+            ("https://x.test/a.gif", true),
+            ("https://x.test/a.gif?width=100", true),
+            ("https://x.test/a.GIF", true),
+            ("https://x.test/a.png", false),
+            ("https://x.test/a.mp4", false),
+            ("https://x.test/story.html", false),
+            ("https://x.test/a.gif/more", false)
         ]
-        for c in cases {
+        for item in cases {
             let external = AppBskyLexicon.Embed.ExternalDefinition.ViewExternal(
-                uri: c.uri, title: "t", description: "d", thumbnailImageURL: nil)
+                uri: item.uri, title: "t", description: "d", thumbnailImageURL: nil
+            )
             let media = BlueskyFeedService.gifMedia(from: external)
-            if c.isGif {
-                XCTAssertEqual(media?.kind, .gif, "\(c.name) should be a gif")
-                XCTAssertEqual(media?.url, URL(string: c.uri), "\(c.name) keeps the full uri")
+            if item.isGif {
+                XCTAssertEqual(media?.kind, .gif, "\(item.uri) should be a gif")
+                XCTAssertEqual(media?.url, URL(string: item.uri), "\(item.uri) keeps the full uri")
             } else {
-                XCTAssertNil(media, "\(c.name) must not be treated as a gif")
+                XCTAssertNil(media, "\(item.uri) must not be treated as a gif")
             }
         }
     }
@@ -273,7 +274,8 @@ final class BlueskyMappingTests: XCTestCase {
             playlistURI: "https://video.bsky.app/playlist.m3u8",
             thumbnailImageURL: "https://video.bsky.app/thumb.jpg",
             altText: "a clip",
-            aspectRatio: .init(width: 1600, height: 900))
+            aspectRatio: .init(width: 1600, height: 900)
+        )
         let media = try XCTUnwrap(BlueskyFeedService.videoMedia(from: view))
 
         XCTAssertEqual(media.kind, .video)
@@ -339,12 +341,12 @@ final class BlueskyMappingTests: XCTestCase {
             ("follow", nil),
             ("starterpack-joined", nil),
             ("subscribed-post", nil),
-            ("totally-new-reason", nil),
+            ("totally-new-reason", nil)
         ]
-        for c in cases {
-            let n = try inlineNotification(reason: c.reason, reasonSubject: subject)
-            XCTAssertEqual(BlueskyFeedService.referencedURI(n), c.expected,
-                           "\(c.reason) must route to \(c.expected ?? "nil")")
+        for item in cases {
+            let note = try inlineNotification(reason: item.reason, reasonSubject: subject)
+            XCTAssertEqual(BlueskyFeedService.referencedURI(note), item.expected,
+                           "\(item.reason) must route to \(item.expected ?? "nil")")
         }
     }
 
@@ -361,12 +363,12 @@ final class BlueskyMappingTests: XCTestCase {
             ("follow", .follow),
             ("starterpack-joined", .other),
             ("subscribed-post", .other),
-            ("totally-new-reason", .other),
+            ("totally-new-reason", .other)
         ]
-        for c in cases {
-            let n = try inlineNotification(reason: c.reason, reasonSubject: nil)
-            let mapped = BlueskyFeedService.notification(from: n, hydrated: [:])
-            XCTAssertEqual(mapped.kind, c.kind, "\(c.reason) must map to \(c.kind)")
+        for item in cases {
+            let note = try inlineNotification(reason: item.reason, reasonSubject: nil)
+            let mapped = BlueskyFeedService.notification(from: note, hydrated: [:])
+            XCTAssertEqual(mapped.kind, item.kind, "\(item.reason) must map to \(item.kind)")
         }
     }
 
@@ -374,8 +376,8 @@ final class BlueskyMappingTests: XCTestCase {
         // The point of the refactor: the SAME referencedURI that decides what to
         // hydrate also selects which hydrated post to attach. The like's subject is
         // the post fixture's uri, so its mapped post (text included) rides along.
-        let n = try notification("bluesky_notification_like")
-        let mapped = BlueskyFeedService.notification(from: n, hydrated: try hydratedPosts())
+        let note = try notification("bluesky_notification_like")
+        let mapped = try BlueskyFeedService.notification(from: note, hydrated: hydratedPosts())
         let post = try XCTUnwrap(mapped.post, "hydrated subject must attach")
         XCTAssertEqual(String(post.text.characters), "hello @alice.bsky.social")
     }
@@ -383,21 +385,21 @@ final class BlueskyMappingTests: XCTestCase {
     func testFollowHasNoReferencedPostEvenWhenPostsExist() throws {
         // referencedURI is nil for a follow, so nothing attaches (no crash) even
         // though the hydrated dict is non-empty.
-        let n = try notification("bluesky_notification_follow")
-        let mapped = BlueskyFeedService.notification(from: n, hydrated: try hydratedPosts())
+        let note = try notification("bluesky_notification_follow")
+        let mapped = try BlueskyFeedService.notification(from: note, hydrated: hydratedPosts())
         XCTAssertNil(mapped.post)
     }
 
     func testLikeWithMissingHydratedSubjectHasNilPost() throws {
         // Graceful miss: the subject wasn't hydrated (e.g. deleted), so post is nil.
-        let n = try notification("bluesky_notification_like")
-        let mapped = BlueskyFeedService.notification(from: n, hydrated: [:])
+        let note = try notification("bluesky_notification_like")
+        let mapped = BlueskyFeedService.notification(from: note, hydrated: [:])
         XCTAssertNil(mapped.post)
     }
 
     func testNotificationCarriesActorIdentityIdAndDate() throws {
-        let n = try notification("bluesky_notification_like")
-        let mapped = BlueskyFeedService.notification(from: n, hydrated: [:])
+        let note = try notification("bluesky_notification_like")
+        let mapped = BlueskyFeedService.notification(from: note, hydrated: [:])
         XCTAssertEqual(mapped.id, "at://did:plc:bob/app.bsky.feed.like/like999")
         XCTAssertEqual(mapped.actorHandle, "@bob.bsky.social")
         XCTAssertEqual(mapped.actorName, "Bob Liker")
@@ -410,8 +412,8 @@ final class BlueskyMappingTests: XCTestCase {
 
     func testActorNameFallsBackToHandleWhenDisplayNameBlank() throws {
         // displayName is "" on the follow fixture; displayOrHandle uses the handle.
-        let n = try notification("bluesky_notification_follow")
-        let mapped = BlueskyFeedService.notification(from: n, hydrated: [:])
+        let note = try notification("bluesky_notification_follow")
+        let mapped = BlueskyFeedService.notification(from: note, hydrated: [:])
         XCTAssertEqual(mapped.actorName, "carol.bsky.social")
         XCTAssertEqual(mapped.actorHandle, "@carol.bsky.social")
     }
@@ -419,9 +421,9 @@ final class BlueskyMappingTests: XCTestCase {
     func testLikeViaRepostFoldsToLikeAndAttachesSubject() throws {
         // Fixture parity for the folded variant: kind collapses to .like and the
         // subject still routes through referencedURI to attach the hydrated post.
-        let n = try notification("bluesky_notification_like_via_repost")
-        let mapped = BlueskyFeedService.notification(from: n, hydrated: try hydratedPosts())
+        let note = try notification("bluesky_notification_like_via_repost")
+        let mapped = try BlueskyFeedService.notification(from: note, hydrated: hydratedPosts())
         XCTAssertEqual(mapped.kind, .like)
-        XCTAssertEqual(String(try XCTUnwrap(mapped.post).text.characters), "hello @alice.bsky.social")
+        XCTAssertEqual(try String(XCTUnwrap(mapped.post).text.characters), "hello @alice.bsky.social")
     }
 }

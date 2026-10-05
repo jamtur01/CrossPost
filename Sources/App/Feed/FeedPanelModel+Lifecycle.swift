@@ -60,27 +60,13 @@ extension FeedPanelModel {
                 return service
             }
 
-            let resolution: ServiceResolution
-            if let serviceResolution {
-                resolution = serviceResolution
-            } else {
-                let id = UUID()
-                let task = Task {
-                    let resolved = try await makeService(target, store)
-                    try Task.checkCancellation()
-                    return resolved
-                }
-                resolution = ServiceResolution(id: id, task: task)
-                serviceResolution = resolution
-            }
+            let resolution = currentServiceResolution()
 
             let resolved: FeedService
             do {
                 resolved = try await resolution.task.value
             } catch {
-                if serviceResolution?.id == resolution.id {
-                    serviceResolution = nil
-                }
+                clearServiceResolution(ownedBy: resolution.id)
                 try Task.checkCancellation()
                 if resolution.task.isCancelled, serviceResolutionIsActive {
                     continue
@@ -90,9 +76,7 @@ extension FeedPanelModel {
 
             try Task.checkCancellation()
             if resolution.task.isCancelled {
-                if serviceResolution?.id == resolution.id {
-                    serviceResolution = nil
-                }
+                clearServiceResolution(ownedBy: resolution.id)
                 if serviceResolutionIsActive {
                     continue
                 }
@@ -103,6 +87,26 @@ extension FeedPanelModel {
             service = resolved
             return resolved
         }
+    }
+
+    private func clearServiceResolution(ownedBy id: UUID) {
+        if serviceResolution?.id == id {
+            serviceResolution = nil
+        }
+    }
+
+    private func currentServiceResolution() -> ServiceResolution {
+        if let serviceResolution {
+            return serviceResolution
+        }
+        let task = Task {
+            let resolved = try await makeService(target, store)
+            try Task.checkCancellation()
+            return resolved
+        }
+        let resolution = ServiceResolution(id: UUID(), task: task)
+        serviceResolution = resolution
+        return resolution
     }
 
     func openInBrowser(_ post: FeedPost) {
