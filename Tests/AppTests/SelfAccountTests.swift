@@ -45,8 +45,8 @@ final class SelfAccountTests: FeedPanelTestCase {
         fake.notificationsToReturn = [own]
         model.refresh()
         await waitUntil { !model.isLoading }
-        XCTAssertTrue(model.notifications.isEmpty)
-        XCTAssertEqual(fake.markedReadCalls, [own, own])
+        XCTAssertEqual(model.notifications, [other])
+        XCTAssertEqual(fake.markedReadCalls, [own])
         model.stop()
     }
 

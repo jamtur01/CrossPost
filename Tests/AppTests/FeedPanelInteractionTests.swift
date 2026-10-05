@@ -15,7 +15,7 @@ final class FeedPanelInteractionTests: FeedPanelTestCase {
         model.unreadCount = 5
 
         model.switchTo(.notifications)
-        await waitUntil { !model.notifications.isEmpty }
+        await waitUntil { !model.isLoading }
 
         XCTAssertEqual(model.notifications.map(\.id), ["n2", "n1"])
         XCTAssertEqual(model.unreadCount, 0) // badge cleared
