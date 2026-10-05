@@ -11,7 +11,7 @@ final class FeedPanelRefreshLifecycleTests: FeedPanelTestCase {
         model.unreadCount = 3
 
         model.switchTo(.notifications)
-        await waitUntil { !model.notifications.isEmpty }
+        await waitUntil { !model.isLoading }
 
         XCTAssertEqual(model.unreadCount, 3, "a failed read-mark must not falsely clear the badge")
         XCTAssertNotNil(model.actionError, "a failed read-mark must surface a retryable error")
