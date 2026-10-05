@@ -1,5 +1,5 @@
-import XCTest
 @testable import CrossPost
+import XCTest
 
 final class AccountStoreTests: XCTestCase {
     private func normalized(_ raw: String) -> URL? {
@@ -97,19 +97,26 @@ final class AccountStoreCredentialTests: XCTestCase {
     /// A SecretStoring whose writes fail on demand, standing in for a locked or
     /// ACL-denied Keychain.
     private final class FailingSecretStore: SecretStoring, @unchecked Sendable {
-        struct Failure: LocalizedError {
-            var errorDescription: String? { "Keychain denied the write" }
-        }
         var failWrites = true
+        private(set) var loadCalls = 0
         private var items: [String: String] = [:]
 
         func save(_ value: String, account: String) throws {
-            if failWrites { throw Failure() }
+            if failWrites {
+                throw SecretWriteFailure()
+            }
             items[account] = value
         }
-        func load(account: String) throws -> String? { items[account] }
+
+        func load(account: String) throws -> String? {
+            loadCalls += 1
+            return items[account]
+        }
+
         func delete(account: String) throws {
-            if failWrites { throw Failure() }
+            if failWrites {
+                throw SecretWriteFailure()
+            }
             items[account] = nil
         }
     }
@@ -126,7 +133,7 @@ final class AccountStoreCredentialTests: XCTestCase {
     func testFailedPasswordClearSurfacesKeychainError() {
         let store = AccountStore(credentials: FailingSecretStore())
 
-        store.blueskyAppPassword = ""   // empty value routes through delete, which also fails
+        store.blueskyAppPassword = "" // empty value routes through delete, which also fails
 
         XCTAssertNotNil(store.keychainError)
     }
@@ -142,5 +149,37 @@ final class AccountStoreCredentialTests: XCTestCase {
 
         XCTAssertNil(store.keychainError, "a successful write must clear the stale failure")
         XCTAssertEqual(store.mastodonToken, "abc")
+    }
+
+    func testAvailabilityChecksDoNotReadSecretsAfterInitialization() throws {
+        let secrets = FailingSecretStore()
+        secrets.failWrites = false
+        try secrets.save("token", account: "mastodon-token")
+        try secrets.save("password", account: "bluesky-app-password")
+        let store = AccountStore(credentials: secrets)
+        store.mastodonInstanceURL = "https://example.social"
+        store.blueskyHandle = "me.bsky.social"
+        let initialReads = secrets.loadCalls
+        for _ in 0 ..< 100 {
+            XCTAssertTrue(store.hasMastodon)
+            XCTAssertTrue(store.hasBluesky)
+        }
+        XCTAssertEqual(secrets.loadCalls, initialReads)
+
+        secrets.failWrites = true
+        store.mastodonToken = ""
+        XCTAssertTrue(store.hasMastodon, "A failed deletion must retain availability")
+        secrets.failWrites = false
+        store.mastodonToken = ""
+        store.blueskyAppPassword = ""
+        XCTAssertFalse(store.hasMastodon)
+        XCTAssertFalse(store.hasBluesky)
+        XCTAssertEqual(secrets.loadCalls, initialReads)
+    }
+}
+
+private struct SecretWriteFailure: LocalizedError {
+    var errorDescription: String? {
+        "Keychain denied the write"
     }
 }

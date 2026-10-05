@@ -12,10 +12,21 @@ final class AccountStore: ObservableObject {
     @AppStorage("blueskyHandle", store: AccountStore.defaults) var blueskyHandle: String = ""
 
     private let credentials: SecretStoring
+    @Published private var availableCredentials: Set<PostTarget> = []
     @Published private var ownAccounts: [PostTarget: (id: String, scope: [String])] = [:]
 
     init(credentials: SecretStoring? = nil) {
         self.credentials = credentials ?? Self.defaultCredentialStore()
+        for (target, account) in [(PostTarget.mastodon, "mastodon-token"), (.bluesky, "bluesky-app-password")] {
+            do {
+                if let value = try self.credentials.load(account: account), !value.isEmpty {
+                    availableCredentials.insert(target)
+                }
+            } catch {
+                keychainError = error.userMessage
+                Log.auth.error("Reading credential availability for \(account, privacy: .public) failed: \(error)")
+            }
+        }
     }
 
     /// Real Keychain in normal runs; ephemeral storage when hosted by the unit-test
@@ -71,10 +82,12 @@ final class AccountStore: ObservableObject {
             try credentials.save(value, account: account)
         }
         // Invalidate on writes so row rendering never has to read Keychain to check ownership.
-        switch account {
-        case "mastodon-token": ownAccounts[.mastodon] = nil
-        case "bluesky-app-password": ownAccounts[.bluesky] = nil
-        default: break
+        let target: PostTarget = account == "mastodon-token" ? .mastodon : .bluesky
+        ownAccounts[target] = nil
+        if value.isEmpty {
+            availableCredentials.remove(target)
+        } else {
+            availableCredentials.insert(target)
         }
     }
 
@@ -93,11 +106,11 @@ final class AccountStore: ObservableObject {
     }
 
     var hasMastodon: Bool {
-        !mastodonInstanceURL.isEmpty && !mastodonToken.isEmpty
+        !mastodonInstanceURL.isEmpty && availableCredentials.contains(.mastodon)
     }
 
     var hasBluesky: Bool {
-        !blueskyHandle.isEmpty && !blueskyAppPassword.isEmpty
+        !blueskyHandle.isEmpty && availableCredentials.contains(.bluesky)
     }
 
     /// Matches the verified account ID, falling back to the configured handle before verification.
