@@ -13,23 +13,29 @@ struct MastodonFeedService: FeedService {
 
     init(client: TootClient) { self.client = client }
 
-    func loadFeed(_ kind: FeedKind) async throws -> [FeedPost] {
+    func loadFeed(_ kind: FeedKind, includeHistory: Bool,
+                  onPage: @Sendable ([FeedPost]) async -> Void) async throws -> [FeedPost] {
         switch kind {
         case .home:
-            let posts = try await paged(target: 80, maxPages: 2) {
+            let posts = try await paged(target: 80, maxPages: includeHistory ? 2 : 1, onPage: { posts in
+                await onPage(posts.map { Self.feedPost(from: $0) })
+            }, {
                 try await client.getTimeline(.home, pageInfo: $0, limit: 40).page
-            }
+            })
             return posts.map { Self.feedPost(from: $0) }
         case .notifications, .messages:
             return []   // these load through their own methods, not as posts
         }
     }
 
-    func notifications() async throws -> [FeedNotification] {
+    func notifications(includeHistory: Bool,
+                       onPage: @Sendable ([FeedNotification]) async -> Void) async throws -> [FeedNotification] {
         // 30 is Mastodon's documented per-page max for notifications.
-        let notes = try await paged(target: 80, maxPages: 3) {
+        let notes = try await paged(target: 80, maxPages: includeHistory ? 3 : 1, onPage: { notes in
+            await onPage(notes.map { Self.notification(from: $0) })
+        }, {
             try await client.getNotifications(params: .init(), $0, limit: 30).page
-        }
+        })
         return notes.map { Self.notification(from: $0) }
     }
 
@@ -262,7 +268,8 @@ struct MastodonFeedService: FeedService {
         }.map { Self.profile(from: $0) }
     }
 
-    func conversations() async throws -> [Conversation] {
+    func conversations(includeHistory: Bool,
+                       onPage: @Sendable ([Conversation]) async -> Void) async throws -> [Conversation] {
         throw FeedError.notSupported("Direct messages aren't supported for Mastodon yet.")
     }
     func messages(in conversationID: String) async throws -> [DirectMessage] {

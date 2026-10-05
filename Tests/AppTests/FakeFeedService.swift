@@ -42,7 +42,10 @@ final class FakeFeedService: FeedService, @unchecked Sendable {
     private(set) var reportAccountCalls: [ReportAccountCall] = []
 
     var loadDelay: (() async -> Void)?
-    func loadFeed(_: FeedKind) async throws -> [FeedPost] {
+    var historyRequests: [Bool] = []
+    func loadFeed(_: FeedKind, includeHistory: Bool,
+                  onPage: @Sendable ([FeedPost]) async -> Void) async throws -> [FeedPost] {
+        historyRequests.append(includeHistory)
         loadFeedCalls += 1
         if let loadDelay {
             await loadDelay()
@@ -50,6 +53,7 @@ final class FakeFeedService: FeedService, @unchecked Sendable {
         if failLoad {
             throw FakeError.boom
         }
+        await onPage(feed)
         return feed
     }
 
@@ -191,8 +195,10 @@ final class FakeFeedService: FeedService, @unchecked Sendable {
     private(set) var setFollowingCalls: [String] = []
 
     private(set) var notificationsCalls = 0
-    func notifications() async throws -> [FeedNotification] {
+    func notifications(includeHistory: Bool,
+                       onPage: @Sendable ([FeedNotification]) async -> Void) async throws -> [FeedNotification] {
         notificationsCalls += 1
+        await onPage(notificationsToReturn)
         return notificationsToReturn
     }
 
@@ -340,11 +346,13 @@ extension FakeFeedService {
         []
     }
 
-    func conversations() async throws -> [Conversation] {
+    func conversations(includeHistory: Bool,
+                       onPage: @Sendable ([Conversation]) async -> Void) async throws -> [Conversation] {
         conversationsCalls += 1
         if failConversations {
             throw FakeError.boom
         }
+        await onPage(conversationsToReturn)
         return conversationsToReturn
     }
 

@@ -25,21 +25,25 @@ struct BlueskyFeedService: FeedService {
         return try await didCache.did { try await kit.getProfile(for: handle).actorDID }
     }
 
-    func loadFeed(_ kind: FeedKind) async throws -> [FeedPost] {
+    func loadFeed(_ kind: FeedKind, includeHistory: Bool,
+                  onPage: @Sendable ([FeedPost]) async -> Void) async throws -> [FeedPost] {
         switch kind {
         case .home:
-            let feed = try await paged(target: 100, maxPages: 2) {
+            let feed = try await paged(target: 100, maxPages: includeHistory ? 2 : 1, onPage: { feed in
+                await onPage(feed.compactMap { Self.feedPost(from: $0) })
+            }, {
                 let output = try await kit.getTimeline(limit: 100, cursor: $0)
                 return (output.feed, output.cursor)
-            }
+            })
             return feed.compactMap { Self.feedPost(from: $0) }
         case .notifications, .messages:
             return []   // these load through their own methods, not as posts
         }
     }
 
-    func notifications() async throws -> [FeedNotification] {
-        let notes = try await paged(target: 100, maxPages: 2) {
+    func notifications(includeHistory: Bool,
+                       onPage: @Sendable ([FeedNotification]) async -> Void) async throws -> [FeedNotification] {
+        let notes = try await paged(target: 100, maxPages: includeHistory ? 2 : 1) {
             let output = try await kit.listNotifications(limit: 100, cursor: $0)
             return (output.notifications, output.cursor)
         }
@@ -47,7 +51,9 @@ struct BlueskyFeedService: FeedService {
         // reposted subject) so notifications carry embeds and counts.
         let uris = Set(notes.compactMap(Self.referencedURI))
         let hydrated = try await hydratePosts(Array(uris))
-        return notes.map { Self.notification(from: $0, hydrated: hydrated) }
+        let result = notes.map { Self.notification(from: $0, hydrated: hydrated) }
+        await onPage(result)
+        return result
     }
 
     /// The post URI a notification refers to, if any: the mention/reply/quote
@@ -379,15 +385,24 @@ struct BlueskyFeedService: FeedService {
         return actors.map { Self.profile(fromBasic: $0) }
     }
 
-    func conversations() async throws -> [Conversation] {
+    func conversations(includeHistory: Bool,
+                       onPage: @Sendable ([Conversation]) async -> Void) async throws -> [Conversation] {
         let myDID = try await ownDID()
-        let convos = try await paged(target: 200, maxPages: 3) {
+        let convos = try await paged(target: 200, maxPages: includeHistory ? 3 : 1, onPage: { convos in
+            await onPage(Self.conversations(from: convos, ownDID: myDID))
+        }, {
             let output = try await chat.listConversations(limit: 100, cursor: $0)
             return (output.conversations, output.cursor)
-        }
-        return convos.compactMap { convo in
+        })
+        return Self.conversations(from: convos, ownDID: myDID)
+    }
+
+    private static func conversations(
+        from convos: [ChatBskyLexicon.Conversation.ConversationViewDefinition], ownDID: String
+    ) -> [Conversation] {
+        convos.compactMap { convo in
             // Fall back to the first member for a self-conversation (DM to yourself).
-            guard let other = convo.members.first(where: { $0.actorDID != myDID }) ?? convo.members.first
+            guard let other = convo.members.first(where: { $0.actorDID != ownDID }) ?? convo.members.first
             else { return nil }
             let last = Self.lastMessage(convo.lastMessage)
             return Conversation(

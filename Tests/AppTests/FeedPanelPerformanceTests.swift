@@ -3,6 +3,21 @@ import XCTest
 
 @MainActor
 final class FeedPanelPerformanceTests: FeedPanelTestCase {
+    func testRefreshDoesNotRequestHistoryAgain() async {
+        let fake = FakeFeedService()
+        fake.feed = [TestFactory.feedPost(id: "first")]
+        let model = makeModel(fake)
+        model.start()
+        await waitUntil { !model.isLoading }
+        model.refresh()
+        await waitUntil { !model.isLoading }
+        XCTAssertEqual(fake.historyRequests, [true, false])
+        model.restartAfterCredentialsChange()
+        await waitUntil { !model.isLoading }
+        XCTAssertEqual(fake.historyRequests, [true, false, true])
+        model.stop()
+    }
+
     func testTabSwitchRetainsLoadedContentWhileRefreshing() async {
         let fake = FakeFeedService()
         let model = makeModel(fake, target: .bluesky)
@@ -31,7 +46,7 @@ final class FeedPanelPerformanceTests: FeedPanelTestCase {
 
         gate.open()
         await waitUntil { !model.isLoading }
-        XCTAssertEqual(model.posts, fake.feed)
+        XCTAssertEqual(model.posts, fake.feed + [post])
         model.stop()
     }
 

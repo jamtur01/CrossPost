@@ -3,11 +3,9 @@ import Foundation
 @MainActor
 extension FeedPanelModel {
     struct LoadRequest {
-        var reset: Bool
         var userInitiated: Bool
 
         mutating func merge(_ newer: LoadRequest) {
-            reset = reset || newer.reset
             userInitiated = userInitiated || newer.userInitiated
         }
     }
@@ -25,7 +23,7 @@ extension FeedPanelModel {
         cancelLoads()
         kind = newKind
         errorMessage = nil
-        enqueueLoad(reset: true, userInitiated: false)
+        enqueueLoad(userInitiated: false)
         refreshUnreadCount()
     }
 
@@ -37,7 +35,7 @@ extension FeedPanelModel {
             startPolling()
         }
         scrollToTopToken += 1
-        enqueueLoad(reset: false, userInitiated: true)
+        enqueueLoad(userInitiated: true)
         refreshUnreadCount() // a manual refresh must update the badge too, not just the feed
     }
 
@@ -50,14 +48,14 @@ extension FeedPanelModel {
         if pollTask == nil {
             startPolling()
         }
-        enqueueLoad(reset: false, userInitiated: false)
+        enqueueLoad(userInitiated: false)
         refreshUnreadCount()
     }
 
     /// Queue a load without allowing refresh bursts to fan out into parallel requests.
     /// One active request may be followed by one merged trailing request.
-    func enqueueLoad(reset: Bool, userInitiated: Bool) {
-        let request = LoadRequest(reset: reset, userInitiated: userInitiated)
+    func enqueueLoad(userInitiated: Bool) {
+        let request = LoadRequest(userInitiated: userInitiated)
         guard loadTask == nil else {
             if pendingLoad == nil {
                 pendingLoad = request
@@ -75,7 +73,7 @@ extension FeedPanelModel {
         isLoading = true
         loadTask = Task { [weak self] in
             guard let self else { return }
-            await load(reset: request.reset, userInitiated: request.userInitiated)
+            await load(userInitiated: request.userInitiated)
             finishLoad(id: id)
         }
     }
@@ -100,7 +98,7 @@ extension FeedPanelModel {
         isLoading = false
     }
 
-    private func load(reset: Bool, userInitiated: Bool) async {
+    private func load(userInitiated: Bool) async {
         guard hasCredentials else { needsCredentials = true; return }
         if Task.isCancelled {
             return
@@ -117,7 +115,7 @@ extension FeedPanelModel {
             case .messages:
                 try await loadConversations(from: service)
             case .home:
-                try await loadPosts(reset: reset, from: service)
+                try await loadPosts(from: service)
             }
         } catch {
             handleLoadError(error, userInitiated: userInitiated)
@@ -125,20 +123,15 @@ extension FeedPanelModel {
     }
 
     private func loadNotifications(from service: FeedService) async throws {
-        let fetched = try await service.notifications()
+        let includeHistory = !loadedHistory.contains(.notifications)
+        let fetched = try await service.notifications(includeHistory: includeHistory) { [weak self] page in
+            await self?.acceptNotifications(page)
+        }
         if Task.isCancelled {
             return
         }
-        if errorMessage != nil {
-            errorMessage = nil
-        }
-        let visible = fetched.filter {
-            $0.kind == .poll || !isOwnAccount(id: $0.actorID, handle: $0.actorHandle)
-        }
-        if notifications != visible {
-            notifications = visible
-        }
-        refreshFollowStates(for: visible, service: service)
+        loadedHistory.insert(.notifications)
+        refreshFollowStates(for: notifications, service: service)
         do {
             try await service.markNotificationsRead(upTo: fetched.first)
             guard !Task.isCancelled else { return }
@@ -155,35 +148,58 @@ extension FeedPanelModel {
         }
     }
 
-    private func loadConversations(from service: FeedService) async throws {
-        let fetched = try await service.conversations()
-        if Task.isCancelled {
-            return
-        }
+    private func acceptNotifications(_ fetched: [FeedNotification]) {
+        guard !Task.isCancelled else { return }
         if errorMessage != nil {
             errorMessage = nil
         }
-        if conversations != fetched {
-            conversations = fetched
+        let visible = fetched.filter {
+            $0.kind == .poll || !isOwnAccount(id: $0.actorID, handle: $0.actorHandle)
+        }
+        let next = FeedMerge.retainingHistory(existing: notifications, fetched: visible)
+        if notifications != next {
+            notifications = next
         }
     }
 
-    private func loadPosts(reset: Bool, from service: FeedService) async throws {
-        let fetched = try await service.loadFeed(kind)
-        if Task.isCancelled {
-            return
+    private func loadConversations(from service: FeedService) async throws {
+        _ = try await service.conversations(includeHistory: !loadedHistory.contains(.messages)) { [weak self] page in
+            await self?.acceptConversations(page)
         }
+        guard !Task.isCancelled else { return }
+        loadedHistory.insert(.messages)
+    }
+
+    private func acceptConversations(_ fetched: [Conversation]) {
+        guard !Task.isCancelled else { return }
         if errorMessage != nil {
             errorMessage = nil
         }
-        let next = reset
-            ? fetched
-            : FeedMerge.merge(
-                existing: posts,
-                fetched: fetched,
-                preservingIDs: inFlight,
-                excludingIDs: inFlight.subtracting(posts.lazy.map(\.id))
-            )
+        let next = FeedMerge.retainingHistory(existing: conversations, fetched: fetched)
+        if conversations != next {
+            conversations = next
+        }
+    }
+
+    private func loadPosts(from service: FeedService) async throws {
+        _ = try await service.loadFeed(kind, includeHistory: !loadedHistory.contains(.home)) { [weak self] page in
+            await self?.acceptPosts(page)
+        }
+        guard !Task.isCancelled else { return }
+        loadedHistory.insert(.home)
+    }
+
+    private func acceptPosts(_ fetched: [FeedPost]) {
+        guard !Task.isCancelled else { return }
+        if errorMessage != nil {
+            errorMessage = nil
+        }
+        let next = FeedMerge.merge(
+            existing: posts,
+            fetched: fetched,
+            preservingIDs: inFlight,
+            excludingIDs: inFlight.subtracting(posts.lazy.map(\.id))
+        )
         if posts != next {
             posts = next
         }

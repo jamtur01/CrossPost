@@ -176,7 +176,7 @@ extension FeedPanelModel {
     /// Refresh the conversation list (last-message previews, ordering) after activity.
     func reloadConversations(generation: UInt) async throws {
         let fetched = try await lifecycleOperation(generation: generation) { service in
-            try await service.conversations()
+            try await service.conversations(includeHistory: false, onPage: { _ in })
         }
         if conversations != fetched {
             conversations = fetched

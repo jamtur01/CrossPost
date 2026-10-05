@@ -22,7 +22,8 @@ struct SearchResults: Sendable, Equatable {
 /// A platform's feed: load posts, toggle like/repost, and reply to one post.
 /// `setLiked`/`setReposted` return the updated FeedPost (new flags + record uris).
 protocol FeedService: Sendable {
-    func loadFeed(_ kind: FeedKind) async throws -> [FeedPost]
+    func loadFeed(_ kind: FeedKind, includeHistory: Bool,
+                  onPage: @Sendable ([FeedPost]) async -> Void) async throws -> [FeedPost]
     func setLiked(_ liked: Bool, on post: FeedPost) async throws -> FeedPost
     func setReposted(_ reposted: Bool, on post: FeedPost) async throws -> FeedPost
     /// Reply to a post. `visibility` applies to Mastodon (defaulting to the
@@ -73,7 +74,8 @@ protocol FeedService: Sendable {
     // MARK: Notifications
 
     /// All notifications (mentions, replies, likes, reposts, follows, quotes).
-    func notifications() async throws -> [FeedNotification]
+    func notifications(includeHistory: Bool,
+                       onPage: @Sendable ([FeedNotification]) async -> Void) async throws -> [FeedNotification]
     /// Count of unread notifications, for the tab badge.
     func unreadNotificationCount() async throws -> Int
     /// Mark notifications read up to the newest one the user just saw, so a
@@ -105,7 +107,8 @@ protocol FeedService: Sendable {
     // MARK: Direct messages
 
     /// The user's DM conversations.
-    func conversations() async throws -> [Conversation]
+    func conversations(includeHistory: Bool,
+                       onPage: @Sendable ([Conversation]) async -> Void) async throws -> [Conversation]
     /// Messages in a conversation, oldest first.
     func messages(in conversationID: String) async throws -> [DirectMessage]
     /// Send a message to a conversation.

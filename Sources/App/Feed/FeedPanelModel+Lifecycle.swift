@@ -27,7 +27,7 @@ extension FeedPanelModel {
                         }
                         guard let self else { break }
                         if self.applicationIsActive() {
-                            self.enqueueLoad(reset: false, userInitiated: false)
+                            self.enqueueLoad(userInitiated: false)
                             self.refreshUnreadCount()
                         }
                     }

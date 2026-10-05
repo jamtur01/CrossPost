@@ -17,6 +17,7 @@ final class FeedPanelModel: OptimisticPostHost {
     /// notifications load so rows can show real follow state immediately.
     var followedActorIDs: Set<String> = []
     var conversations: [Conversation] = []
+    @ObservationIgnored var loadedHistory: Set<FeedKind> = []
     var unreadCount = 0
     var scrollToTopToken = 0 // bumped on each user-initiated refresh
 
@@ -102,6 +103,7 @@ final class FeedPanelModel: OptimisticPostHost {
         stop()
         service = nil
         if clearingContent {
+            loadedHistory = []
             posts = []
             notifications = []
             conversations = []
@@ -114,7 +116,7 @@ final class FeedPanelModel: OptimisticPostHost {
         }
         serviceResolutionIsActive = true
         needsCredentials = false
-        enqueueLoad(reset: true, userInitiated: false)
+        enqueueLoad(userInitiated: false)
         refreshUnreadCount()
         startPolling()
         startLiveUpdates()
@@ -162,7 +164,7 @@ final class FeedPanelModel: OptimisticPostHost {
                 guard let self else { break }
                 if self.applicationIsActive() {
                     if self.target != .mastodon || !self.isLiveConnected {
-                        self.enqueueLoad(reset: false, userInitiated: false)
+                        self.enqueueLoad(userInitiated: false)
                     }
                     self.refreshUnreadCount()
                 }
