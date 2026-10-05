@@ -3,6 +3,24 @@ import XCTest
 
 @MainActor
 final class FeedPanelPerformanceTests: FeedPanelTestCase {
+    func testConversationRefreshAfterSendingKeepsOlderHistory() async throws {
+        let fake = FakeFeedService()
+        let model = makeModel(fake, target: .bluesky)
+        let older = Conversation(
+            id: "older", otherName: "A", otherHandle: "a", otherID: "a",
+            otherAvatarURL: nil, lastMessage: "Earlier", lastDate: nil, unreadCount: 0
+        )
+        let recent = Conversation(
+            id: "recent", otherName: "B", otherHandle: "b", otherID: "b",
+            otherAvatarURL: nil, lastMessage: "Sent", lastDate: nil, unreadCount: 0
+        )
+        model.conversations = [older]
+        fake.conversationsToReturn = [recent]
+        try await model.reloadConversations(generation: model.mutationGeneration)
+        XCTAssertEqual(model.conversations, [recent, older])
+        model.stop()
+    }
+
     func testRefreshDoesNotRequestHistoryAgain() async {
         let fake = FakeFeedService()
         fake.feed = [TestFactory.feedPost(id: "first")]

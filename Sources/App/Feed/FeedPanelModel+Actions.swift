@@ -183,8 +183,9 @@ extension FeedPanelModel {
         let fetched = try await lifecycleOperation(generation: generation) { service in
             try await service.conversations(includeHistory: false, onPage: { _ in })
         }
-        if conversations != fetched {
-            conversations = fetched
+        let next = FeedMerge.retainingHistory(existing: conversations, fetched: fetched)
+        if conversations != next {
+            conversations = next
         }
     }
 
