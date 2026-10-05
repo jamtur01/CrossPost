@@ -61,7 +61,8 @@ extension FeedPanelModel {
         let now = Date()
         followStateDates = followStateDates.filter { now.timeIntervalSince($0.value) < 60 }
         let ids = actors.subtracting(followStateDates.keys)
-        guard !ids.isEmpty, followStateTask == nil else { return }
+        guard !ids.isEmpty else { return }
+        cancelFollowStateLookup()
         var generations: [String: UInt] = [:]
         for actorID in ids {
             generations[actorID] = followStateGenerations[actorID, default: 0]
