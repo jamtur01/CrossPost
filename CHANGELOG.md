@@ -7,13 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.22] - 2026-10-05
+
 ### Added
 
 - Mastodon custom emoji (such as `:verified:`) render as images in display
   names, post text, quotes, profiles, and notifications.
 
+### Changed
+
+- Home, Notifications, and Messages retain loaded content when switching tabs
+  and refresh it in the background.
+- Feeds and conversation lists display the first page before older history
+  finishes loading, and refreshes retain that history.
+- Bluesky notifications appear before related post previews finish loading.
+  Recently loaded previews and follow states are reused to reduce requests.
+- Mastodon live updates refresh only affected content and group bursts of events
+  into one-second refresh windows.
+- Credential availability checks use cached state instead of reading Keychain
+  during tab switches and refreshes.
+
 ### Fixed
 
+- Sending a message preserves older cached conversations, and canceled Mastodon
+  subscriptions close their connections without disconnecting newer subscriptions.
 - Successful-post confirmations and per-network counts clear after five seconds,
   while failed-post details and thread retry progress remain available.
 - Image preparation and validation inherit cancellation before background work
@@ -568,6 +585,7 @@ Initial release.
 - Keychain-backed credential storage.
 - Signed and notarized Developer ID release builds produced by CI.
 
+[0.4.22]: https://github.com/jamtur01/CrossPost/releases/tag/v0.4.22
 [0.4.21]: https://github.com/jamtur01/CrossPost/releases/tag/v0.4.21
 [0.4.20]: https://github.com/jamtur01/CrossPost/releases/tag/v0.4.20
 [0.4.19]: https://github.com/jamtur01/CrossPost/releases/tag/v0.4.19
