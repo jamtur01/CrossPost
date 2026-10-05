@@ -39,6 +39,16 @@ final class FeedPanelModel: OptimisticPostHost {
     var pollTask: Task<Void, Never>?
     var liveTask: Task<Void, Never>?
     @ObservationIgnored var liveTaskID: UUID?
+    @ObservationIgnored var liveRefreshTask: Task<Void, Never>?
+    @ObservationIgnored var pendingLiveKinds: Set<FeedKind> = []
+    @ObservationIgnored var pendingLiveUnread = false
+    @ObservationIgnored var liveRefreshDelay: @MainActor () async throws -> Void = {
+        try await Task.sleep(for: .seconds(1))
+    }
+
+    @ObservationIgnored var followStateDates: [String: Date] = [:]
+    @ObservationIgnored var lastReadNotificationID: String?
+    @ObservationIgnored var lastReadDate: Date?
     var unreadTask: Task<Void, Never>?
     var followStateTask: Task<Void, Never>?
     @ObservationIgnored var followStateTaskID: UUID?
@@ -104,6 +114,9 @@ final class FeedPanelModel: OptimisticPostHost {
         service = nil
         if clearingContent {
             loadedHistory = []
+            followStateDates = [:]
+            lastReadNotificationID = nil
+            lastReadDate = nil
             posts = []
             notifications = []
             conversations = []
@@ -132,12 +145,12 @@ final class FeedPanelModel: OptimisticPostHost {
         actionErrorTask = Task { [weak self] in
             guard let self else { return }
             do {
-                try await Task.sleep(nanoseconds: self.actionErrorDismissDelay)
+                try await Task.sleep(nanoseconds: actionErrorDismissDelay)
             } catch {
                 return
             }
-            if self.actionErrorToken == token {
-                self.actionError = nil
+            if actionErrorToken == token {
+                actionError = nil
             }
         }
     }
@@ -162,11 +175,11 @@ final class FeedPanelModel: OptimisticPostHost {
                     break
                 }
                 guard let self else { break }
-                if self.applicationIsActive() {
-                    if self.target != .mastodon || !self.isLiveConnected {
-                        self.enqueueLoad(userInitiated: false)
+                if applicationIsActive() {
+                    if target != .mastodon || !isLiveConnected {
+                        enqueueLoad(userInitiated: false)
                     }
-                    self.refreshUnreadCount()
+                    refreshUnreadCount()
                 }
             }
         }
@@ -178,6 +191,7 @@ final class FeedPanelModel: OptimisticPostHost {
         cancelLoads()
         liveTaskID = nil
         liveTask?.cancel(); liveTask = nil
+        cancelLiveRefresh()
         isLiveConnected = false
         cancelUnreadRefresh()
         cancelFollowStateLookup()

@@ -455,7 +455,7 @@ struct BlueskyFeedService: FeedService {
     }
 
     // Bluesky has no per-user timeline stream (only the global firehose), so it polls.
-    func liveUpdates() async -> AsyncStream<Void>? { nil }
+    func liveUpdates() async -> AsyncStream<FeedUpdate>? { nil }
 
     static func lastMessage(_ union: ChatBskyLexicon.Conversation.ConversationViewDefinition.LastMessageUnion?)
         -> (text: String?, date: Date?) {

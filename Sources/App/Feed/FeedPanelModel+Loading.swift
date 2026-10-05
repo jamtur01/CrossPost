@@ -132,9 +132,17 @@ extension FeedPanelModel {
         }
         loadedHistory.insert(.notifications)
         refreshFollowStates(for: notifications, service: service)
+        guard let latest = fetched.first else { return }
+        let unchanged = latest.id == lastReadNotificationID && unreadCount == 0
+        // Bluesky can count hidden notifications, so periodically advance its seen time too.
+        if unchanged, target == .mastodon || Date().timeIntervalSince(lastReadDate ?? .distantPast) < 60 {
+            return
+        }
         do {
-            try await service.markNotificationsRead(upTo: fetched.first)
+            try await service.markNotificationsRead(upTo: latest)
             guard !Task.isCancelled else { return }
+            lastReadNotificationID = latest.id
+            lastReadDate = Date()
             cancelUnreadRefresh()
             if unreadCount != 0 {
                 unreadCount = 0

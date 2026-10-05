@@ -1,5 +1,20 @@
 import Foundation
 
+enum FeedUpdate: Sendable {
+    case connected
+    case disconnected
+    case home
+    case notifications
+    case postChanged
+
+    var isContentChange: Bool {
+        switch self {
+        case .connected, .disconnected: false
+        case .home, .notifications, .postChanged: true
+        }
+    }
+}
+
 /// The editable source of a post: the raw text and content warning, before the
 /// server renders them to HTML/rich text.
 struct EditableSource: Sendable, Equatable {
@@ -118,5 +133,5 @@ protocol FeedService: Sendable {
 
     /// A stream that yields whenever the server signals a change, for live refresh.
     /// Returns nil if the platform has no usable per-user stream (Bluesky uses polling).
-    func liveUpdates() async -> AsyncStream<Void>?
+    func liveUpdates() async -> AsyncStream<FeedUpdate>?
 }

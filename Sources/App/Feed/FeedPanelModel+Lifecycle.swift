@@ -6,6 +6,7 @@ extension FeedPanelModel {
     /// Subscribe to Mastodon's live stream. Each event requests a refresh; the load
     /// coordinator permits one active request and one trailing request for a burst.
     func startLiveUpdates() {
+        cancelLiveRefresh()
         isLiveConnected = false
         liveTaskID = nil
         liveTask?.cancel()
@@ -19,16 +20,11 @@ extension FeedPanelModel {
             while !Task.isCancelled {
                 let stream = await self?.liveStream()
                 if let stream {
-                    guard self?.setLiveConnected(true, ownedBy: id) == true else { return }
-                    backoff = 2_000_000_000
-                    for await _ in stream {
-                        if Task.isCancelled {
-                            break
-                        }
-                        guard let self else { break }
-                        if self.applicationIsActive() {
-                            self.enqueueLoad(userInitiated: false)
-                            self.refreshUnreadCount()
+                    for await update in stream {
+                        guard !Task.isCancelled, let self,
+                              receiveLiveUpdate(update, ownedBy: id) else { return }
+                        if update.isContentChange {
+                            backoff = 2_000_000_000
                         }
                     }
                     guard self?.setLiveConnected(false, ownedBy: id) == true else { return }
@@ -46,7 +42,7 @@ extension FeedPanelModel {
         }
     }
 
-    private func liveStream() async -> AsyncStream<Void>? {
+    private func liveStream() async -> AsyncStream<FeedUpdate>? {
         guard let service = try? await resolveService() else { return nil }
         return await service.liveUpdates()
     }
@@ -86,7 +82,7 @@ extension FeedPanelModel {
                     serviceResolution = nil
                 }
                 try Task.checkCancellation()
-                if resolution.task.isCancelled && serviceResolutionIsActive {
+                if resolution.task.isCancelled, serviceResolutionIsActive {
                     continue
                 }
                 throw error
@@ -140,21 +136,21 @@ extension FeedPanelModel {
         profileLinkTask = Task { [weak self] in
             guard let self else { return }
             do {
-                let ref = try await self.profileRef(forURL: url)
+                let ref = try await profileRef(forURL: url)
                 guard !Task.isCancelled,
-                      self.profileLinkGeneration == generation else { return }
-                self.profileLinkTask = nil
+                      profileLinkGeneration == generation else { return }
+                profileLinkTask = nil
                 if let ref {
                     push(.profile(ref))
                 } else {
-                    self.open(url)
+                    open(url)
                 }
             } catch is CancellationError {
                 return
             } catch {
-                guard self.profileLinkGeneration == generation else { return }
-                self.profileLinkTask = nil
-                self.reportError("Couldn't open profile. \(error.userMessage)")
+                guard profileLinkGeneration == generation else { return }
+                profileLinkTask = nil
+                reportError("Couldn't open profile. \(error.userMessage)")
                 Log.feed.error("resolving profile link \(url) failed: \(error)")
             }
         }
@@ -170,8 +166,8 @@ extension FeedPanelModel {
     /// Cheap, sync check so non-profile links open in the browser without a network round-trip.
     private func isProfileLink(_ url: URL) -> Bool {
         switch target {
-        case .mastodon: return ProfileLink.isMastodonProfileURL(url)
-        case .bluesky: return ProfileLink.blueskyID(from: url) != nil
+        case .mastodon: ProfileLink.isMastodonProfileURL(url)
+        case .bluesky: ProfileLink.blueskyID(from: url) != nil
         }
     }
 

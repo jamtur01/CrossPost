@@ -38,6 +38,7 @@ extension FeedPanelModel {
 
     /// Publishes a relationship only after the initiating UI lifecycle accepts it.
     func reconcileFollow(_ relationship: AccountRelationship, for actorID: String) {
+        followStateDates[actorID] = Date()
         if relationship.isFollowing {
             followedActorIDs.insert(actorID)
         } else {
@@ -55,10 +56,12 @@ extension FeedPanelModel {
     /// Merges the result into the shared set rather than replacing it, so a follow
     /// the user just made on an actor outside this page isn't dropped.
     func refreshFollowStates(for fetched: [FeedNotification], service: FeedService) {
-        let ids = Set(fetched.filter { !isOwnAccount(id: $0.actorID, handle: $0.actorHandle) }
+        let actors = Set(fetched.filter { !isOwnAccount(id: $0.actorID, handle: $0.actorHandle) }
             .map(\.actorID)).subtracting([""])
-        cancelFollowStateLookup()
-        guard !ids.isEmpty else { return }
+        let now = Date()
+        followStateDates = followStateDates.filter { now.timeIntervalSince($0.value) < 60 }
+        let ids = actors.subtracting(followStateDates.keys)
+        guard !ids.isEmpty, followStateTask == nil else { return }
         var generations: [String: UInt] = [:]
         for actorID in ids {
             generations[actorID] = followStateGenerations[actorID, default: 0]
@@ -94,6 +97,7 @@ extension FeedPanelModel {
     }
 
     private func beginFollowMutation(for actorID: String) {
+        followStateDates[actorID] = nil
         followStateGenerations[actorID, default: 0] &+= 1
     }
 

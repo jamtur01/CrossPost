@@ -279,30 +279,46 @@ struct MastodonFeedService: FeedService {
         throw FeedError.notSupported("Direct messages aren't supported for Mastodon yet.")
     }
 
-    func liveUpdates() async -> AsyncStream<Void>? {
-        guard let socket = try? await client.beginStreaming() else { return nil }
-        // If the subscription fails, the socket stays open but silent: the stream
-        // would suspend forever and never finish, blocking the caller's reconnect
-        // loop. Bail so its backoff-retry can open a fresh connection instead.
+    func liveUpdates() async -> AsyncStream<FeedUpdate>? {
         do {
-            try await socket.sendQuery(StreamQuery(.subscribe, timeline: .user))
+            let stream = try await client.streaming.subscribe(to: .user)
+            return AsyncStream { continuation in
+                let task = Task {
+                    do {
+                        for try await event in stream {
+                            if let update = Self.feedUpdate(from: event) {
+                                continuation.yield(update)
+                            }
+                        }
+                    } catch {
+                        Log.feed.error("Mastodon stream failed: \(error)")
+                    }
+                    continuation.finish()
+                }
+                continuation.onTermination = { _ in task.cancel() }
+            }
         } catch {
-            socket.close()
+            Log.feed.error("Mastodon stream subscription failed: \(error)")
             return nil
         }
-        return AsyncStream { continuation in
-            let task = Task {
-                // Each streamed event (status, notification, delete) is a signal to
-                // refresh; we don't read the event content, just that it happened.
-                do {
-                    for try await _ in socket.stream { continuation.yield(()) }
-                } catch {}
-                continuation.finish()
-            }
-            continuation.onTermination = { _ in
-                task.cancel()
-                socket.close()
-            }
+    }
+
+    static func feedUpdate(from event: StreamingClient.Event) -> FeedUpdate? {
+        switch event {
+        case .connectionUp: return .connected
+        case .connectionDown: return .disconnected
+        case let .receivedEvent(content):
+            return contentUpdate(from: content)
+        }
+    }
+
+    private static func contentUpdate(from content: EventContent) -> FeedUpdate? {
+        switch content {
+        case .update: return .home
+        case .notification: return .notifications
+        case .delete, .postUpdate, .filtersChanged: return .postChanged
+        case .conversation, .announcement, .announcementReaction, .announcementDelete,
+             .encryptedMessage, .unsupportedEvent: return nil
         }
     }
 

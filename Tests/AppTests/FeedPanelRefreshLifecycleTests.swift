@@ -76,8 +76,8 @@ final class FeedPanelRefreshLifecycleTests: FeedPanelTestCase {
     /// discarded without stop() deallocates instead of being pinned by the open stream.
     func testOpenLiveStreamDoesNotKeepDiscardedModelAlive() async {
         let fake = FakeFeedService()
-        var continuation: AsyncStream<Void>.Continuation?
-        fake.liveStream = AsyncStream { continuation = $0 } // stays open until test end
+        var continuation: AsyncStream<FeedUpdate>.Continuation?
+        fake.liveStream = AsyncStream { continuation = $0; $0.yield(.connected) } // stays open until test end
         var model: FeedPanelModel? = makeModel(fake) // .mastodon → live stream runs
         model?.start()
         await waitUntil { fake.liveUpdatesCalls == 1 } // the loop is inside the stream
@@ -91,8 +91,8 @@ final class FeedPanelRefreshLifecycleTests: FeedPanelTestCase {
 
     func testReplacingLiveTaskClearsConnectionBeforeReplacementConnects() async {
         let fake = FakeFeedService()
-        var continuation: AsyncStream<Void>.Continuation?
-        fake.liveStream = AsyncStream { continuation = $0 }
+        var continuation: AsyncStream<FeedUpdate>.Continuation?
+        fake.liveStream = AsyncStream { continuation = $0; $0.yield(.connected) }
         let model = makeModel(fake)
         model.start()
         await waitUntil { model.isLiveConnected }
@@ -109,12 +109,17 @@ final class FeedPanelRefreshLifecycleTests: FeedPanelTestCase {
         let replacement = FakeFeedService()
         let staleStreamGate = FeedPanelGate()
         let pollGate = FeedPanelGate()
-        var replacementContinuation: AsyncStream<Void>.Continuation?
+        var replacementContinuation: AsyncStream<FeedUpdate>.Continuation?
+        var sentConnection = false
         stale.liveStream = AsyncStream(unfolding: {
+            if !sentConnection {
+                sentConnection = true
+                return .connected
+            }
             await staleStreamGate.wait()
             return nil
         })
-        replacement.liveStream = AsyncStream { replacementContinuation = $0 }
+        replacement.liveStream = AsyncStream { replacementContinuation = $0; $0.yield(.connected) }
         var builds = 0
         let model = FeedPanelModel(target: .mastodon, store: makeStore()) { _, _ in
             builds += 1
@@ -163,16 +168,16 @@ final class FeedPanelRefreshLifecycleTests: FeedPanelTestCase {
     func testLiveBurstRunsOneActiveAndOnePendingFeedLoad() async {
         let fake = FakeFeedService()
         let gate = TestGate()
-        var continuation: AsyncStream<Void>.Continuation?
-        fake.liveStream = AsyncStream { continuation = $0 }
+        var continuation: AsyncStream<FeedUpdate>.Continuation?
+        fake.liveStream = AsyncStream { continuation = $0; $0.yield(.connected) }
         fake.loadDelay = { await gate.wait() }
         let model = makeModel(fake)
         model.start()
         await waitUntil { gate.arrivals == 1 && fake.liveUpdatesCalls == 1 }
 
-        continuation?.yield()
-        continuation?.yield()
-        continuation?.yield()
+        continuation?.yield(.home)
+        continuation?.yield(.home)
+        continuation?.yield(.home)
         try? await Task.sleep(nanoseconds: 50_000_000)
         XCTAssertEqual(fake.loadFeedCalls, 1, "stream bursts must not start parallel feed loads")
 

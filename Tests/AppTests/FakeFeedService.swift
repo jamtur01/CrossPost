@@ -270,9 +270,9 @@ final class FakeFeedService: FeedService, @unchecked Sendable {
     private(set) var sentMessages: [String] = []
     private(set) var sendMessageCompletions = 0
 
-    var liveStream: AsyncStream<Void>?
+    var liveStream: AsyncStream<FeedUpdate>?
     private(set) var liveUpdatesCalls = 0
-    func liveUpdates() async -> AsyncStream<Void>? {
+    func liveUpdates() async -> AsyncStream<FeedUpdate>? {
         liveUpdatesCalls += 1
         return liveStream
     }
