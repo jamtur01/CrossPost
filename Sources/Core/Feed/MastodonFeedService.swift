@@ -12,6 +12,7 @@ extension PagedResult {
 struct MastodonFeedService: FeedService {
     private let client: TootClient
     private let quoteSupport = QuoteSupportCache()
+    private let streamOwner = MastodonStreamOwner()
 
     init(client: TootClient) {
         self.client = client
@@ -264,8 +265,12 @@ struct MastodonFeedService: FeedService {
 
     func liveUpdates() async -> AsyncStream<FeedUpdate>? {
         do {
-            let stream = try await client.streaming.subscribe(to: .user)
+            let (id, stream) = try await streamOwner.subscribe(client.streaming)
+            let connected = await client.streaming.isConnectionUp
             return AsyncStream { continuation in
+                if connected {
+                    continuation.yield(.connected)
+                }
                 let task = Task {
                     do {
                         for try await event in stream {
@@ -273,12 +278,17 @@ struct MastodonFeedService: FeedService {
                                 continuation.yield(update)
                             }
                         }
+                    } catch is CancellationError {
+                        // Subscription cancellation is normal when a panel stops.
                     } catch {
                         Log.feed.error("Mastodon stream failed: \(error)")
                     }
                     continuation.finish()
                 }
-                continuation.onTermination = { _ in task.cancel() }
+                continuation.onTermination = { _ in
+                    task.cancel()
+                    Task { await streamOwner.release(id, streaming: client.streaming) }
+                }
             }
         } catch {
             Log.feed.error("Mastodon stream subscription failed: \(error)")
@@ -361,6 +371,28 @@ struct MastodonFeedService: FeedService {
             return nil
         }
         return Self.profile(from: account)
+    }
+}
+
+/// A canceled subscription must not disconnect a newer subscription on the same client.
+private actor MastodonStreamOwner {
+    private var owner: UUID?
+
+    func subscribe(_ streaming: StreamingClient) async throws -> (UUID, StreamingClient.Stream) {
+        let id = UUID()
+        owner = id
+        do {
+            return try await (id, streaming.subscribe(to: .user))
+        } catch {
+            await release(id, streaming: streaming)
+            throw error
+        }
+    }
+
+    func release(_ id: UUID, streaming: StreamingClient) async {
+        guard owner == id else { return }
+        owner = nil
+        await streaming.disconnect()
     }
 }
 

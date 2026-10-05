@@ -7,6 +7,15 @@ import XCTest
 /// (snake_case keys + its multi-format date strategy), since that initializer
 /// isn't accessible from here.
 final class MastodonMappingTests: XCTestCase {
+    func testStreamEventsOnlyInvalidateRelevantContent() throws {
+        let post = try decodePost("mastodon_reply")
+        XCTAssertEqual(MastodonFeedService.feedUpdate(from: .connectionUp), .connected)
+        XCTAssertEqual(MastodonFeedService.feedUpdate(from: .connectionDown), .disconnected)
+        XCTAssertEqual(MastodonFeedService.feedUpdate(from: .receivedEvent(.update(post))), .home)
+        XCTAssertEqual(MastodonFeedService.feedUpdate(from: .receivedEvent(.delete("post"))), .postChanged)
+        XCTAssertNil(MastodonFeedService.feedUpdate(from: .receivedEvent(.announcementDelete("announcement"))))
+    }
+
     private static let decoder: JSONDecoder = {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
