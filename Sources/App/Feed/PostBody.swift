@@ -13,6 +13,10 @@ struct PostBody: View {
     var fontSize: CGFloat = 15
     var color: AnyShapeStyle = .init(.primary)
     var lineLimit: Int?
+    /// Plain click on the text. Selectable text swallows clicks, so a tap gesture on
+    /// the enclosing row never sees them; this one sits on the text itself, while a
+    /// drag still selects and link clicks still go to the link.
+    var onTap: (() -> Void)?
     let onOpenURL: (URL) -> Void
     @AppStorage(ReadingTextSize.storageKey, store: AccountStore.defaults)
     private var readingSize = ReadingTextSize.standard
@@ -29,6 +33,8 @@ struct PostBody: View {
             // No fixedSize when a line limit is set — they conflict and the text
             // would ignore the limit and grow unbounded.
             .fixedSize(horizontal: false, vertical: lineLimit == nil)
+            .simultaneousGesture(TapGesture().onEnded { onTap?() },
+                                 including: onTap == nil ? .none : .all)
             .linkPointers()
             .environment(\.openURL, OpenURLAction { url in onOpenURL(url); return .handled })
             .textSelection(.enabled)

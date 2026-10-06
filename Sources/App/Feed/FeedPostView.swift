@@ -126,10 +126,10 @@ struct FeedPostView: View {
     }
 
     /// Body text. Selectable everywhere so the body can be copied; in timeline rows
-    /// a drag selects text while a plain click still falls through to open the thread.
+    /// a drag selects text while a plain click opens the thread.
     private var bodyText: some View {
         PostBody(text: post.text, accent: accent, cacheKey: post.id, emojis: post.emojis,
-                 fontSize: bodyFontSize, onOpenURL: onOpenURL)
+                 fontSize: bodyFontSize, onTap: onOpenDetail, onOpenURL: onOpenURL)
     }
 
     @ViewBuilder

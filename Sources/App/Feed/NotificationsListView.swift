@@ -85,6 +85,7 @@ private struct NotificationRow: View {
                              color: bodyIsPrimary ? AnyShapeStyle(.primary)
                                  : AnyShapeStyle(.secondary),
                              lineLimit: 3,
+                             onTap: openPost,
                              onOpenURL: { model.openLink($0, push: push) })
                 }
 
