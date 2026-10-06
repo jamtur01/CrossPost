@@ -72,6 +72,8 @@ private struct NotificationRow: View {
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    .pointingHandCursor()
+                    .help("Open profile")
 
                     Text(actionText).font(Theme.handle).foregroundStyle(.secondary).lineLimit(1)
                     Spacer(minLength: 4)

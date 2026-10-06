@@ -45,6 +45,7 @@ struct LinkCardView: View {
             )
         }
         .buttonStyle(.plain)
+        .pointingHandCursor()
         .help(card.url.absoluteString)
     }
 }
@@ -63,7 +64,10 @@ struct QuoteCardView: View {
         // Only present as tappable when there's a URL to open; otherwise it's a
         // plain card, not a dead button.
         if let url = quote.webURL {
-            Button { onOpen(url) } label: { card }.buttonStyle(.plain)
+            Button { onOpen(url) } label: { card }
+                .buttonStyle(.plain)
+                .pointingHandCursor()
+                .help("Open quoted post")
         } else {
             card
         }

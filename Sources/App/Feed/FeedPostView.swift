@@ -158,6 +158,7 @@ struct FeedPostView: View {
                     .lineLimit(1)
             }
             .buttonStyle(.plain)
+            .pointingHandCursor()
         }
     }
 
@@ -180,6 +181,7 @@ struct FeedPostView: View {
                 }
             }
             .buttonStyle(.plain)
+            .pointingHandCursor()
             .help("Open profile")
 
             Spacer(minLength: 6)
