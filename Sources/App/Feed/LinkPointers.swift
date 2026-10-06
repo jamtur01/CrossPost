@@ -1,7 +1,6 @@
 import SwiftUI
 
 /// Marks a link run inside a `Text`, so its laid-out bounds can be found.
-@available(macOS 15, *)
 struct LinkRun: TextAttribute {
     let url: URL
 }
@@ -10,7 +9,6 @@ struct LinkRun: TextAttribute {
 /// `Text` forces the I-beam over its whole frame (links included), and no cursor
 /// set from a hover handler survives it, so links need their own views on top.
 /// Clicks on them open through the environment's `openURL`, as the text would.
-@available(macOS 15, *)
 private struct LinkPointers: ViewModifier {
     @Environment(\.openURL) private var openURL
 
@@ -59,14 +57,8 @@ private struct LinkPointers: ViewModifier {
 }
 
 extension View {
-    /// Pointing-hand cursor over the links of an `EmojiText` (macOS 15+; earlier
-    /// systems keep the text's own cursor).
-    @ViewBuilder
+    /// Pointing-hand cursor over the links of an `EmojiText`.
     func linkPointers() -> some View {
-        if #available(macOS 15, *) {
-            modifier(LinkPointers())
-        } else {
-            self
-        }
+        modifier(LinkPointers())
     }
 }

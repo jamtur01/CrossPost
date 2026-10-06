@@ -158,7 +158,7 @@ extension FeedPostView {
             .accessibilityLabel(media.altText.isEmpty ? "Image" : media.altText)
             .accessibilityHint("Open full-size image")
             .help("Open full-size image")
-            .pointingHandCursor()
+            .pointerStyle(.link)
         case .loading:
             reservedMediaPlaceholder(media, fit: fit).loadingSheen()
         case .failure:

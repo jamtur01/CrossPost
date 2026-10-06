@@ -138,7 +138,7 @@ struct ProfileView: View {
                     lightbox?.present(url)
                 }
             }
-            .pointingHandCursor(enabled: profile?.bannerURL != nil && lightbox != nil)
+            .pointerStyle(profile?.bannerURL != nil && lightbox != nil ? .link : nil)
             .help(profile?.bannerURL != nil ? "View banner" : "")
 
             VStack(alignment: .leading, spacing: 8) {
@@ -161,7 +161,7 @@ struct ProfileView: View {
                     .padding(.bottom, -34)
                     .contentShape(Circle())
                     .onTapGesture { popOutAvatar() }
-                    .pointingHandCursor(enabled: lightbox != nil)
+                    .pointerStyle(lightbox != nil ? .link : nil)
                     .help("View profile photo")
 
                     Spacer()

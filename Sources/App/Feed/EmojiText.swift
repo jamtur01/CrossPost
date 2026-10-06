@@ -47,7 +47,7 @@ struct EmojiText: View {
 
     /// Tags each link run with `LinkRun` so `linkPointers()` can find its bounds.
     private static func linkMarked(_ text: AttributedString) -> Text {
-        guard #available(macOS 15, *), text.runs.contains(where: { $0.link != nil }) else {
+        guard text.runs.contains(where: { $0.link != nil }) else {
             return Text(text)
         }
         return text.runs[\.link].map { link, range in

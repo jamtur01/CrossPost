@@ -45,7 +45,7 @@ struct LinkCardView: View {
             )
         }
         .buttonStyle(.plain)
-        .pointingHandCursor()
+        .pointerStyle(.link)
         .help(card.url.absoluteString)
     }
 }
@@ -66,7 +66,7 @@ struct QuoteCardView: View {
         if let url = quote.webURL {
             Button { onOpen(url) } label: { card }
                 .buttonStyle(.plain)
-                .pointingHandCursor()
+                .pointerStyle(.link)
                 .help("Open quoted post")
         } else {
             card
