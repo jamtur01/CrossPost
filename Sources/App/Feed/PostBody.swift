@@ -29,6 +29,7 @@ struct PostBody: View {
             // No fixedSize when a line limit is set — they conflict and the text
             // would ignore the limit and grow unbounded.
             .fixedSize(horizontal: false, vertical: lineLimit == nil)
+            .linkPointers()
             .environment(\.openURL, OpenURLAction { url in onOpenURL(url); return .handled })
             .textSelection(.enabled)
     }

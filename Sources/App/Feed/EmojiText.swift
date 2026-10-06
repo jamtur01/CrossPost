@@ -22,7 +22,7 @@ struct EmojiText: View {
 
     var body: some View {
         if emojis.isEmpty {
-            Text(text)
+            Self.linkMarked(text)
         } else {
             let segments = CustomEmoji.segments(in: text, emojis: emojis)
             let urls = Self.urls(in: segments)
@@ -38,11 +38,23 @@ struct EmojiText: View {
     private func text(for segment: CustomEmoji.Segment) -> Text {
         switch segment {
         case let .text(run):
-            return Text(run)
+            return Self.linkMarked(run)
         case let .emoji(shortcode, url):
             guard let image = image(for: url) else { return Text(verbatim: ":\(shortcode):") }
             return Text(Image(nsImage: sized(image))).baselineOffset(pointSize * -0.2)
         }
+    }
+
+    /// Tags each link run with `LinkRun` so `linkPointers()` can find its bounds.
+    private static func linkMarked(_ text: AttributedString) -> Text {
+        guard #available(macOS 15, *), text.runs.contains(where: { $0.link != nil }) else {
+            return Text(text)
+        }
+        return text.runs[\.link].map { link, range in
+            let piece = Text(AttributedString(text[range]))
+            return link.map { piece.customAttribute(LinkRun(url: $0)) } ?? piece
+        }
+        .reduce(Text(verbatim: ""), +)
     }
 
     private func image(for url: URL) -> NSImage? {
