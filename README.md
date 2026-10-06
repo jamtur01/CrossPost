@@ -39,7 +39,7 @@ posts without leaving the window.
 
 ## Requirements
 
-- macOS 14 (Sonoma) or later
+- macOS 15 (Sequoia) or later
 - Xcode 15+ and [XcodeGen](https://github.com/yonaskolb/XcodeGen)
   (`brew install xcodegen`) to build from source
 

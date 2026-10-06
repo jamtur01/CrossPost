@@ -2,7 +2,7 @@ name: CrossPost
 options:
   bundleIdPrefix: net.kartar
   deploymentTarget:
-    macOS: "14.0"
+    macOS: "15.0"
   createIntermediateGroups: true
 settings:
   base:
