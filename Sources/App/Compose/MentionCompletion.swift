@@ -40,6 +40,10 @@ final class MentionCompletion {
         let queryChanged = next.text != query?.text
         query = next
         guard queryChanged else { return }
+        // The old results belong to the old query: never let Return pick one.
+        people = []
+        failureMessage = nil
+        selectedIndex = 0
         task?.cancel()
         task = Task { [weak self, search, debounce] in
             try? await Task.sleep(for: debounce)

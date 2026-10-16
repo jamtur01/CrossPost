@@ -48,6 +48,12 @@ final class MentionCompletionTests: XCTestCase {
         XCTAssertEqual(queries, ["pup"])
         XCTAssertEqual(completion.people.map(\.displayName), ["pup"])
         XCTAssertTrue(completion.isActive)
+
+        // A new query must not offer the old query's people while its search runs.
+        completion.update(text: "@bob", caret: 4)
+        XCTAssertEqual(completion.people, [])
+        XCTAssertNil(completion.selected)
+        XCTAssertFalse(completion.isActive)
     }
 
     func testFailureWithNoResultsShowsMessage() async {
