@@ -18,14 +18,16 @@ do {
 func srgb(_ r: Int, _ g: Int, _ b: Int) -> NSColor {
     NSColor(srgbRed: CGFloat(r) / 255, green: CGFloat(g) / 255, blue: CGFloat(b) / 255, alpha: 1)
 }
-let mastodonPurple = srgb(99, 100, 255)   // ~#6364FF
-let blueskyBlue = srgb(17, 133, 254)      // ~#1185FE
+
+let mastodonPurple = srgb(99, 100, 255) // ~#6364FF
+let blueskyBlue = srgb(17, 133, 254) // ~#1185FE
 
 func renderIcon(_ n: CGFloat) -> NSBitmapImageRep {
     let rep = NSBitmapImageRep(
         bitmapDataPlanes: nil, pixelsWide: Int(n), pixelsHigh: Int(n),
         bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
-        colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
+        colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0
+    )!
     let ctx = NSGraphicsContext(bitmapImageRep: rep)!
 
     NSGraphicsContext.saveGraphicsState()
@@ -35,7 +37,7 @@ func renderIcon(_ n: CGFloat) -> NSBitmapImageRep {
     // Rounded tile with a small transparent margin (macOS draws its own shape).
     let inset = n * 0.085
     let tile = CGRect(x: inset, y: inset, width: n - 2 * inset, height: n - 2 * inset)
-    let radius = tile.width * 0.2237   // Apple's continuous-corner ratio
+    let radius = tile.width * 0.2237 // Apple's continuous-corner ratio
     NSGraphicsContext.saveGraphicsState()
     NSBezierPath(roundedRect: tile, xRadius: radius, yRadius: radius).addClip()
     NSGradient(colors: [mastodonPurple, blueskyBlue])!.draw(in: tile, angle: -45)
