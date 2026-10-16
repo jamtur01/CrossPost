@@ -435,6 +435,10 @@ struct BlueskyFeedService: FeedService {
         )
     }
 
+    func mentionCandidates(matching query: String) async throws -> [MentionCandidate] {
+        try await kit.searchActorsTypeahead(matching: query, limit: 8).actors.map(Self.mentionCandidate(from:))
+    }
+
     func bookmarkedPosts() async throws -> [FeedPost] {
         [] // Bluesky has no native bookmarks.
     }

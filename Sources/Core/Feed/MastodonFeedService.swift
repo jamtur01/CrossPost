@@ -177,6 +177,13 @@ struct MastodonFeedService: FeedService {
         )
     }
 
+    func mentionCandidates(matching query: String) async throws -> [MentionCandidate] {
+        // Resolve only a full "user@instance", so a remote account the instance
+        // hasn't seen can be found without a WebFinger lookup per keystroke.
+        let params = SearchAccountsParams(query: query, resolve: query.contains("@"))
+        return try await client.searchAccounts(params: params, limit: 8).map(Self.mentionCandidate(from:))
+    }
+
     func bookmarkedPosts() async throws -> [FeedPost] {
         try await paged(target: 80, maxPages: 2) {
             try await client.getTimeline(.bookmarks, pageInfo: $0, limit: 40).page

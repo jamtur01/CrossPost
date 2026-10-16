@@ -63,6 +63,8 @@ protocol FeedService: Sendable {
     func authorPosts(id: String) async throws -> [FeedPost]
     /// Search for accounts and posts matching `query`.
     func search(_ query: String) async throws -> SearchResults
+    /// Accounts matching a partial @-mention, for compose autocomplete.
+    func mentionCandidates(matching query: String) async throws -> [MentionCandidate]
     /// Posts the user has pinned to their profile (Mastodon; empty on Bluesky).
     func pinnedPosts(of id: String) async throws -> [FeedPost]
     /// The signed-in user's bookmarked posts (Mastodon; empty on Bluesky).

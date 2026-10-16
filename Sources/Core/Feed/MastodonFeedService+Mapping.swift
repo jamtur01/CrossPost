@@ -42,6 +42,15 @@ extension MastodonFeedService {
         )
     }
 
+    /// The bio and profile field values are kept as profile text so a link to
+    /// the person's Bluesky account can merge the two in mention search.
+    static func mentionCandidate(from account: Account) -> MentionCandidate {
+        MentionCandidate(target: .mastodon, handle: account.acct,
+                         displayName: account.displayName ?? "",
+                         avatarURL: URL(string: account.avatar),
+                         profileText: ([account.note] + account.fields.map(\.value)).joined(separator: "\n"))
+    }
+
     static func profile(from account: Account) -> Profile {
         Profile(
             id: account.id,

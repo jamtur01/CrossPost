@@ -16,6 +16,21 @@ final class MastodonMappingTests: XCTestCase {
         XCTAssertNil(MastodonFeedService.feedUpdate(from: .receivedEvent(.announcementDelete("announcement"))))
     }
 
+    func testMentionCandidateKeepsBioAndFieldsForMerging() throws {
+        let post = try decodePost("mastodon_reply") { json in
+            var account = json["account"] as? [String: Any] ?? [:]
+            account["note"] = "<p>Puppets</p>"
+            account["fields"] = [["name": "Bluesky",
+                                  "value": #"<a href="https://bsky.app/profile/pup.bsky.social">pup</a>"#]]
+            json["account"] = account
+        }
+        let candidate = MastodonFeedService.mentionCandidate(from: post.account)
+        XCTAssertEqual(candidate.target, .mastodon)
+        XCTAssertEqual(candidate.handle, post.account.acct)
+        XCTAssertTrue(candidate.profileText.contains("<p>Puppets</p>"))
+        XCTAssertTrue(candidate.profileText.contains("bsky.app/profile/pup.bsky.social"))
+    }
+
     private static let decoder: JSONDecoder = {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase

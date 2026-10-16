@@ -161,6 +161,17 @@ final class FakeFeedService: FeedService, @unchecked Sendable {
         return searchResultsToReturn
     }
 
+    var mentionCandidatesToReturn: [MentionCandidate] = []
+    var failMentionSearch = false
+    private(set) var mentionQueries: [String] = []
+    func mentionCandidates(matching query: String) async throws -> [MentionCandidate] {
+        mentionQueries.append(query)
+        if failMentionSearch {
+            throw FakeError.boom
+        }
+        return mentionCandidatesToReturn
+    }
+
     func bookmarkedPosts() async throws -> [FeedPost] {
         feed.filter(\.isBookmarked)
     }

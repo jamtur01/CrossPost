@@ -155,6 +155,12 @@ extension BlueskyFeedService {
         )
     }
 
+    /// Typeahead results carry no bio, so Bluesky candidates have no profile text.
+    static func mentionCandidate(from actor: AppBskyLexicon.Actor.ProfileViewBasicDefinition) -> MentionCandidate {
+        MentionCandidate(target: .bluesky, handle: actor.actorHandle, displayName: actor.displayName ?? "",
+                         avatarURL: actor.avatarImageURL, profileText: "")
+    }
+
     static func profile(fromBasic profile: AppBskyLexicon.Actor.ProfileViewDefinition) -> Profile {
         Profile(id: profile.actorDID,
                 name: displayOrHandle(profile.displayName, profile.actorHandle),
