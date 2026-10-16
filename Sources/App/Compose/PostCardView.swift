@@ -6,6 +6,9 @@ struct PostCardView: View {
     @Binding var post: DraftPost
     let index: Int
     let counter: PostCounter
+    /// A network's final text, shown read-only in place of the editor.
+    var preview: PostPreview?
+    var mentionEditing: MentionEditing?
     var showLabel: Bool = true // "Post N" + remove (thread mode)
     let canRemove: Bool
     let onRemove: () -> Void
@@ -41,6 +44,10 @@ struct PostCardView: View {
             }
 
             editor
+
+            if preview == nil, let completion = mentionEditing?.completion {
+                MentionSuggestionList(completion: completion)
+            }
 
             if !post.attachments.isEmpty {
                 AttachmentBar(attachments: $post.attachments)
@@ -119,8 +126,17 @@ struct PostCardView: View {
         )
     }
 
+    @ViewBuilder
     private var editor: some View {
-        PlainTextEditor(text: $post.text)
+        if let preview {
+            PostPreviewText(preview: preview)
+        } else {
+            textEditor
+        }
+    }
+
+    private var textEditor: some View {
+        PlainTextEditor(text: $post.text, mentions: $post.mentions, editing: mentionEditing)
             .frame(minHeight: 90, maxHeight: 200)
             .overlay(alignment: .topLeading) {
                 if post.text.isEmpty {
@@ -130,6 +146,59 @@ struct PostCardView: View {
                         .allowsHitTesting(false)
                 }
             }
+    }
+}
+
+/// One network's final text for a post, split into typed text and mentions.
+struct PostPreview {
+    let target: PostTarget
+    let parts: [RenderedPart]
+}
+
+/// A post as one network will receive it: mentions in the accent colour, and
+/// mentions that network gets as plain text underlined and named below.
+private struct PostPreviewText: View {
+    let preview: PostPreview
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(attributed)
+                .font(Theme.content)
+                .lineSpacing(Theme.bodyLineSpacing)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+            if !fallbacks.isEmpty {
+                Label("Not mentioned on \(preview.target.displayName): \(fallbacks.joined(separator: ", ")) "
+                    + "(no \(preview.target.displayName) account).", systemImage: "info.circle")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, minHeight: 90, alignment: .topLeading)
+        // Matches the editor's text inset so switching modes doesn't shift the text.
+        .padding(.leading, 7).padding(.top, 6)
+    }
+
+    private var attributed: AttributedString {
+        var result = AttributedString()
+        for part in preview.parts {
+            var run = AttributedString(part.text)
+            switch part.kind {
+            case .text:
+                break
+            case .mention:
+                run.foregroundColor = .accentColor
+            case .fallback:
+                run.underlineStyle = Text.LineStyle(pattern: .dot)
+            }
+            result += run
+        }
+        return result
+    }
+
+    private var fallbacks: [String] {
+        preview.parts.filter { $0.kind == .fallback }.map(\.text)
     }
 }
 

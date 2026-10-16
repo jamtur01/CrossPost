@@ -50,18 +50,47 @@ struct DraftPost: Identifiable, Equatable, Codable, Sendable {
     }
 
     /// This post as `target` receives it: each mention replaced with that
-    /// network's form. Spans are applied last to first so earlier offsets hold;
-    /// a span outside the text is left as typed.
+    /// network's form.
     func rendered(for target: PostTarget) -> DraftPost {
         var copy = self
         copy.mentions = []
-        guard !mentions.isEmpty else { return copy }
-        let output = NSMutableString(string: text)
-        for span in mentions.sorted(by: { $0.location > $1.location })
-            where span.location >= 0 && NSMaxRange(span.range) <= output.length {
-            output.replaceCharacters(in: span.range, with: span.person.rendered(for: target))
-        }
-        copy.text = output as String
+        copy.text = renderedParts(for: target).map(\.text).joined()
         return copy
     }
+
+    /// The text `target` receives, split into typed text and mentions so a
+    /// preview can show which mentions fell back to plain text. A span outside
+    /// the text, or overlapping an earlier one, is left as typed.
+    func renderedParts(for target: PostTarget) -> [RenderedPart] {
+        let source = text as NSString
+        var parts: [RenderedPart] = []
+        var cursor = 0
+        for span in mentions.sorted(by: { $0.location < $1.location })
+            where span.location >= cursor && NSMaxRange(span.range) <= source.length {
+            if span.location > cursor {
+                let typed = NSRange(location: cursor, length: span.location - cursor)
+                parts.append(RenderedPart(text: source.substring(with: typed), kind: .text))
+            }
+            parts.append(RenderedPart(text: span.person.rendered(for: target),
+                                      kind: span.person.hasAccount(on: target) ? .mention : .fallback))
+            cursor = NSMaxRange(span.range)
+        }
+        if cursor < source.length {
+            parts.append(RenderedPart(text: source.substring(from: cursor), kind: .text))
+        }
+        return parts
+    }
+}
+
+/// A run of a post as one network receives it: typed text, a mention in that
+/// network's form, or a mention that network gets as plain text.
+struct RenderedPart: Equatable, Sendable {
+    enum Kind: Equatable, Sendable {
+        case text
+        case mention
+        case fallback
+    }
+
+    let text: String
+    let kind: Kind
 }

@@ -10,6 +10,9 @@ struct ComposeColumnView: View {
     var body: some View {
         content(model)
             .background(Color(nsColor: .windowBackgroundColor))
+            .sheet(item: $model.pairing) { request in
+                MentionPairSheet(request: request, model: model)
+            }
             .confirmationDialog("Discard this draft and start a new one?", isPresented: $confirmingNewDraft) {
                 Button("Discard Draft", role: .destructive) { model.startNewDraft() }
                 Button("Cancel", role: .cancel) {}
@@ -28,6 +31,7 @@ struct ComposeColumnView: View {
                     .foregroundStyle(.secondary)
                 Text("New Post").font(Theme.columnTitle)
                 Spacer()
+                previewPicker(model)
                 Button("New draft…") { confirmingNewDraft = true }
                     .buttonStyle(.borderless)
                     .font(.caption)
@@ -49,6 +53,16 @@ struct ComposeColumnView: View {
                             post: $post,
                             index: index,
                             counter: model.counter(for: post),
+                            preview: model.previewTarget.map {
+                                PostPreview(target: $0, parts: post.renderedParts(for: $0))
+                            },
+                            mentionEditing: MentionEditing(
+                                completion: model.mentionCompletion(for: post.id),
+                                requestPairing: { span, target in
+                                    model.pairing = MentionPairingRequest(draftID: post.id, span: span,
+                                                                          target: target)
+                                }
+                            ),
                             showLabel: !isSinglePost,
                             canRemove: !isSinglePost,
                             onRemove: { model.removePost(at: index) },
@@ -63,6 +77,26 @@ struct ComposeColumnView: View {
                 .padding(14)
                 .frame(maxWidth: .infinity, alignment: .top)
             }
+        }
+    }
+
+    /// Edit, or a selected network's final text. Hidden until something is selected.
+    @ViewBuilder
+    private func previewPicker(_ model: ComposeModel) -> some View {
+        @Bindable var model = model
+        let targets = PostTarget.allCases.filter { model.selectedTargets.contains($0) }
+        if !targets.isEmpty {
+            Picker("Preview", selection: $model.previewTarget) {
+                Text("Edit").tag(PostTarget?.none)
+                ForEach(targets) { target in
+                    Text(target.displayName).tag(PostTarget?.some(target))
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
+            .controlSize(.small)
+            .help("Show the text each network will receive")
         }
     }
 

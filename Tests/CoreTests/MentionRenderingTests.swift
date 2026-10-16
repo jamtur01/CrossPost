@@ -35,6 +35,15 @@ final class MentionRenderingTests: XCTestCase {
         XCTAssertEqual(draft("@alice", blueskyOnly, at: 0).rendered(for: .mastodon).text, "alice.bsky.social")
     }
 
+    func testPartsMarkMentionsThatFallBackToPlainText() {
+        let mastodonOnly = MentionPerson(mastodonAcct: "bob@example.social", displayName: "Bob")
+        let post = draft("hi @bob!", mastodonOnly, at: 3)
+        XCTAssertEqual(post.renderedParts(for: .mastodon).map(\.kind), [.text, .mention, .text])
+        XCTAssertEqual(post.renderedParts(for: .bluesky),
+                       [RenderedPart(text: "hi ", kind: .text), RenderedPart(text: "Bob", kind: .fallback),
+                        RenderedPart(text: "!", kind: .text)])
+    }
+
     func testMultipleMentionsAfterEmojiUseUTF16Offsets() {
         let alice = MentionPerson(blueskyHandle: "alice.bsky.social", displayName: "Alice")
         let text = "👨‍👩‍👧‍👦 @puppetfather and @alice"

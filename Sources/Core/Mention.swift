@@ -27,6 +27,10 @@ struct MentionPerson: Codable, Hashable, Sendable {
         return "@" + (handle.hasSuffix(suffix) ? String(handle.dropLast(suffix.count)) : handle)
     }
 
+    func hasAccount(on target: PostTarget) -> Bool {
+        (target == .mastodon ? mastodonAcct : blueskyHandle) != nil
+    }
+
     /// What `target` receives in place of the mention: its own handle, else the
     /// display name, else the other network's handle as plain text.
     func rendered(for target: PostTarget) -> String {

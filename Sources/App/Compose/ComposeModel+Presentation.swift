@@ -20,17 +20,17 @@ extension ComposeModel {
     /// server counts it, reporting the network with the least room left.
     func counter(for post: DraftPost) -> PostCounter {
         let targets = previewTarget.map { [$0] } ?? PostTarget.allCases.filter { selectedTargets.contains($0) }
-        let counts: [(target: PostTarget, count: Int, limit: Int)] = targets.compactMap { target in
+        let counters: [PostCounter] = targets.compactMap { target in
             guard let limit = store.limits.maxGraphemes[target] else { return nil }
-            return (target, PostValidator.countedGraphemes(post.rendered(for: target).text, for: target), limit)
+            let count = PostValidator.countedGraphemes(post.rendered(for: target).text, for: target)
+            return PostCounter(count: count, limit: limit, label: target.displayName)
         }
-        guard let tightest = counts.min(by: { $0.limit - $0.count < $1.limit - $1.count }) else {
+        guard let tightest = counters.min(by: { $0.remaining < $1.remaining }) else {
             return PostCounter(count: PostValidator.graphemeCount(post.text), limit: TargetLimits.blueskyMax,
                                label: nil)
         }
-        let tied = counts.filter { $0.limit - $0.count == tightest.limit - tightest.count }
-        return PostCounter(count: tightest.count, limit: tightest.limit,
-                           label: tied.count > 1 ? "Both networks" : tightest.target.displayName)
+        let tied = counters.filter { $0.remaining == tightest.remaining }.count > 1
+        return tied ? PostCounter(count: tightest.count, limit: tightest.limit, label: "Both networks") : tightest
     }
 
     /// Networks mention search uses: selected, with an account configured.
@@ -42,6 +42,18 @@ extension ComposeModel {
 
     func searchMentions(_ query: String) async -> MentionDirectory.Results {
         await mentionDirectory.search(query, on: mentionTargets)
+    }
+
+    /// The autocomplete state for one post card, created on first use.
+    func mentionCompletion(for draftID: UUID) -> MentionCompletion {
+        if let existing = mentionCompletions[draftID] {
+            return existing
+        }
+        let completion = MentionCompletion { [weak self] query in
+            await self?.searchMentions(query) ?? MentionDirectory.Results(people: [], failed: [])
+        }
+        mentionCompletions[draftID] = completion
+        return completion
     }
 
     /// Fills the requested network's account on the mention being paired and
@@ -109,6 +121,10 @@ struct PostCounter: Equatable {
     let count: Int
     let limit: Int
     let label: String?
+
+    var remaining: Int {
+        limit - count
+    }
 }
 
 extension MentionPairStore {

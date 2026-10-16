@@ -50,6 +50,8 @@ final class ComposeModel {
     /// A mention whose account on one network the user is choosing by hand.
     var pairing: MentionPairingRequest?
     let mentionDirectory: MentionDirectory
+    /// Each post card's autocomplete state, kept here so it outlives view updates.
+    @ObservationIgnored var mentionCompletions: [UUID: MentionCompletion] = [:]
 
     /// Mastodon visibility applied to every post in the thread at submit; Bluesky ignores it.
     var visibility: PostVisibility = .public {
@@ -161,6 +163,7 @@ final class ComposeModel {
 
     func removePost(at index: Int) {
         guard thread.count > 1, thread.indices.contains(index) else { return }
+        mentionCompletions[thread[index].id] = nil
         thread.remove(at: index)
     }
 
