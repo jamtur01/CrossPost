@@ -1,5 +1,5 @@
 # SwiftFormat is the formatting arbiter. Run `./lint.sh --fix` to apply.
---swiftversion 6.0
+--swiftversion 6.2
 --exclude build,DerivedData,CrossPost.xcodeproj
 
 --indent 4
