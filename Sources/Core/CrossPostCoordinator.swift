@@ -49,7 +49,7 @@ struct CrossPostCoordinator: Sendable {
                                                     + "without re-sending."))
         }
         // Skip the posts that already landed; resume the rest onto the last one.
-        let suffix = Array(thread.dropFirst(landed.count))
+        let suffix = thread.dropFirst(landed.count).map { $0.rendered(for: target) }
         guard !suffix.isEmpty else { return PostResult(target: target, outcome: .success(posted: landed)) }
         // Resuming needs the last landed post's native ref to thread onto; without it
         // the suffix would post as a fresh, unthreaded thread. Retrying can never

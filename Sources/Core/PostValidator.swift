@@ -93,9 +93,10 @@ enum PostValidator {
                 issues.append(.empty(postIndex: index))
                 continue
             }
-            let byteCount = post.text.utf8.count
             for target in targets {
-                let count = countedGraphemes(post.text, for: target)
+                let text = post.rendered(for: target).text
+                let count = countedGraphemes(text, for: target)
+                let byteCount = text.utf8.count
                 if let limit = limits.maxGraphemes[target], count > limit {
                     issues.append(.tooLong(postIndex: index, target: target, count: count, limit: limit))
                 } else if let byteLimit = limits.maxBytes[target], byteCount > byteLimit {

@@ -207,4 +207,16 @@ final class CrossPostCoordinatorTests: XCTestCase {
         XCTAssertTrue(message.contains("already landed"), message)
         XCTAssertTrue(message.contains("Reconnect"), message)
     }
+
+    func testEachPosterReceivesItsOwnRenderedText() async {
+        let person = MentionPerson(mastodonAcct: "pup@hachyderm.io",
+                                   blueskyHandle: "pup.bsky.social", displayName: "Pup")
+        let post = DraftPost(text: "hi @pup", mentions: [MentionSpan(location: 3, length: 4, person: person)])
+        let mastodon = StubPoster(target: .mastodon, behavior: .ok([PostedItem(url: "m")]))
+        let bluesky = StubPoster(target: .bluesky, behavior: .ok([PostedItem(url: "b")]))
+        _ = await CrossPostCoordinator().publish(thread: [post], to: [.mastodon, .bluesky],
+                                                 using: [mastodon, bluesky], limits: TargetLimits())
+        XCTAssertEqual(mastodon.postedThread.map(\.text), ["hi @pup@hachyderm.io"])
+        XCTAssertEqual(bluesky.postedThread.map(\.text), ["hi @pup.bsky.social"])
+    }
 }

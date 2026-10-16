@@ -180,4 +180,13 @@ final class PostValidatorTests: XCTestCase {
         XCTAssertThrowsError(try limits.checkImageCount(5, for: .bluesky))
         XCTAssertNoThrow(try limits.checkImageCount(4, for: .bluesky))
     }
+
+    func testMentionCountsAgainstEachNetworksRenderedText() {
+        let person = MentionPerson(mastodonAcct: "a@b.c",
+                                   blueskyHandle: String(repeating: "x", count: 290) + ".bsky.social",
+                                   displayName: "X")
+        let post = DraftPost(text: "@a", mentions: [MentionSpan(location: 0, length: 2, person: person)])
+        let issues = PostValidator.validate(thread: [post], targets: [.mastodon, .bluesky], limits: limits)
+        XCTAssertEqual(issues, [.tooLong(postIndex: 0, target: .bluesky, count: 303, limit: 300)])
+    }
 }
