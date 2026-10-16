@@ -75,6 +75,26 @@ final class MentionMergerTests: XCTestCase {
         XCTAssertEqual(people.map(\.blueskyHandle), ["pup.bsky.social", nil])
     }
 
+    func testSavedPairBeatsAutomaticMatch() {
+        let pairs = [MentionPair(mastodonAcct: "alice@x.y", blueskyHandle: "alice-new.bsky.social")]
+        let people = MentionMerger.merge(
+            mastodon: [mastodon("alice@x.y", profile: "@alice-old.bsky.social")],
+            bluesky: [bluesky("alice-old.bsky.social"), bluesky("alice-new.bsky.social")], pairs: pairs
+        )
+        XCTAssertEqual(people.map(\.mastodonAcct), ["alice@x.y", nil])
+        XCTAssertEqual(people.map(\.blueskyHandle), ["alice-new.bsky.social", "alice-old.bsky.social"])
+    }
+
+    func testAccountPairedElsewhereIsNotMatchedAutomatically() {
+        let pairs = [MentionPair(mastodonAcct: "bob@x.y", blueskyHandle: "bob.bsky.social")]
+        let people = MentionMerger.merge(
+            mastodon: [mastodon("impostor@x.y", profile: "@bob.bsky.social")],
+            bluesky: [bluesky("bob.bsky.social")], pairs: pairs
+        )
+        XCTAssertEqual(people.map(\.mastodonAcct), ["impostor@x.y", "bob@x.y"])
+        XCTAssertEqual(people.map(\.blueskyHandle), [nil, "bob.bsky.social"])
+    }
+
     func testSavedPairCompletesSingleNetworkRow() {
         let pairs = [MentionPair(mastodonAcct: "pup@hachyderm.io", blueskyHandle: "lk.example.com")]
         let people = MentionMerger.merge(mastodon: [mastodon("pup@hachyderm.io")], bluesky: [], pairs: pairs)

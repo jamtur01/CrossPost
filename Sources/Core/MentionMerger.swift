@@ -25,9 +25,10 @@ struct MentionPair: Codable, Equatable, Sendable {
     }
 }
 
-/// Combines one search's Mastodon and Bluesky results into people. Two accounts
-/// merge only on evidence: a profile pointing at the other account, a Bridgy Fed
-/// bridge address, or a saved pair. Matching names alone never merge.
+/// Combines one search's Mastodon and Bluesky results into people. A saved pair
+/// is the user's own answer and always wins; otherwise two accounts merge only on
+/// evidence: a profile pointing at the other account or a Bridgy Fed bridge
+/// address. Matching names alone never merge.
 enum MentionMerger {
     static func merge(mastodon: [MentionCandidate], bluesky: [MentionCandidate],
                       pairs: [MentionPair]) -> [MentionPerson] {
@@ -36,7 +37,13 @@ enum MentionMerger {
         for candidate in mastodon {
             var person = MentionPerson(mastodonAcct: candidate.handle, displayName: candidate.displayName,
                                        avatarURL: candidate.avatarURL)
-            if let index = unmatched.firstIndex(where: { sameAccount(candidate, $0, pairs) }) {
+            if let pair = pairs.first(where: { $0.matches(mastodonAcct: candidate.handle) }) {
+                person.blueskyHandle = pair.blueskyHandle
+                unmatched.removeAll { pair.matches(blueskyHandle: $0.handle) }
+            } else if let index = unmatched.firstIndex(where: { other in
+                // An account paired with someone else is never matched automatically.
+                !pairs.contains { $0.matches(blueskyHandle: other.handle) } && sameAccount(candidate, other)
+            }) {
                 person.blueskyHandle = unmatched.remove(at: index).handle
             }
             mastodonPeople.append(person)
@@ -47,13 +54,11 @@ enum MentionMerger {
         return interleave(mastodonPeople, blueskyPeople).map { completed($0, pairs) }
     }
 
-    private static func sameAccount(_ mastodon: MentionCandidate, _ bluesky: MentionCandidate,
-                                    _ pairs: [MentionPair]) -> Bool {
+    /// Evidence that two accounts are one person: a Bridgy Fed bridge address,
+    /// or the Mastodon profile linking or naming the Bluesky handle.
+    private static func sameAccount(_ mastodon: MentionCandidate, _ bluesky: MentionCandidate) -> Bool {
         let acct = mastodon.handle.lowercased()
         let handle = bluesky.handle.lowercased()
-        if pairs.contains(where: { $0.matches(mastodonAcct: acct) && $0.matches(blueskyHandle: handle) }) {
-            return true
-        }
         if acct == "\(handle)@bsky.brid.gy" {
             return true
         }
