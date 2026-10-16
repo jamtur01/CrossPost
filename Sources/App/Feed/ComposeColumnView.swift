@@ -48,8 +48,7 @@ struct ComposeColumnView: View {
                         PostCardView(
                             post: $post,
                             index: index,
-                            limit: model.characterLimit,
-                            limitLabel: model.limitingNetwork,
+                            counter: model.counter(for: post),
                             showLabel: !isSinglePost,
                             canRemove: !isSinglePost,
                             onRemove: { model.removePost(at: index) },

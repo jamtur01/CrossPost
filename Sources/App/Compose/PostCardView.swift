@@ -5,8 +5,7 @@ import UniformTypeIdentifiers
 struct PostCardView: View {
     @Binding var post: DraftPost
     let index: Int
-    let limit: Int
-    var limitLabel: String?
+    let counter: PostCounter
     var showLabel: Bool = true // "Post N" + remove (thread mode)
     let canRemove: Bool
     let onRemove: () -> Void
@@ -14,10 +13,6 @@ struct PostCardView: View {
 
     @State private var isDropTarget = false
     @State private var attachmentPreparation = AttachmentPreparationOwner()
-
-    private var count: Int {
-        PostValidator.graphemeCount(post.text)
-    }
 
     private var canAddImages: Bool {
         post.attachments.count < TargetLimits.imageMax
@@ -64,9 +59,9 @@ struct PostCardView: View {
 
                 Spacer()
 
-                Text("\(count)/\(limit)" + (limitLabel.map { " · \($0)" } ?? ""))
+                Text("\(counter.count)/\(counter.limit)" + (counter.label.map { " · \($0)" } ?? ""))
                     .font(.caption.monospacedDigit())
-                    .foregroundStyle(counterColor(count: count, limit: limit))
+                    .foregroundStyle(counterColor(count: counter.count, limit: counter.limit))
             }
         }
         .padding(14)

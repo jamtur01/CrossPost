@@ -74,22 +74,55 @@ final class ComposeModelTests: XCTestCase {
 
     // MARK: handleCompletion — post-publish reconciliation
 
-    func testCounterUsesStrictestSelectedNetwork() {
+    func testCounterShowsNetworkWithLeastRoom() {
         let store = AccountStore()
         let previous = store.mastodonMaxChars
         defer { store.mastodonMaxChars = previous }
         let model = ComposeModel(store: store)
         store.mastodonMaxChars = 200
-        XCTAssertEqual(model.characterLimit, 200)
-        XCTAssertEqual(model.limitingNetwork, "Mastodon")
+        XCTAssertEqual(model.counter(for: DraftPost()), PostCounter(count: 0, limit: 200, label: "Mastodon"))
         store.mastodonMaxChars = 500
-        XCTAssertEqual(model.characterLimit, 300)
-        XCTAssertEqual(model.limitingNetwork, "Bluesky")
-        model.selectedTargets = [.mastodon]
-        XCTAssertEqual(model.characterLimit, 500)
+        XCTAssertEqual(model.counter(for: DraftPost()).label, "Bluesky")
         store.mastodonMaxChars = 300
-        model.selectedTargets.insert(.bluesky)
-        XCTAssertEqual(model.limitingNetwork, "Both networks")
+        XCTAssertEqual(model.counter(for: DraftPost()).label, "Both networks")
+
+        let person = MentionPerson(mastodonAcct: "pup@hachyderm.io", displayName: "Pup")
+        let post = DraftPost(text: "@pup", mentions: [MentionSpan(location: 0, length: 4, person: person)])
+        XCTAssertEqual(model.counter(for: post), PostCounter(count: 4, limit: 300, label: "Mastodon"))
+        model.previewTarget = .bluesky
+        XCTAssertEqual(model.counter(for: post), PostCounter(count: 3, limit: 300, label: "Bluesky"))
+    }
+
+    func testDeselectingPreviewedNetworkReturnsToEdit() {
+        let model = makeModel()
+        model.previewTarget = .bluesky
+        model.toggle(.bluesky)
+        XCTAssertNil(model.previewTarget)
+    }
+
+    func testChoosingPairedAccountUpdatesMentionAndSavesPair() {
+        let url = URL.temporaryDirectory.appending(path: "pairs-\(UUID()).json")
+        let model = ComposeModel(store: AccountStore(), mentionPairStore: MentionPairStore(url: url))
+        let person = MentionPerson(mastodonAcct: "pup@hachyderm.io", displayName: "Pup")
+        let span = MentionSpan(location: 0, length: 4, person: person)
+        model.thread[0] = DraftPost(text: "@pup", mentions: [span])
+        model.pairing = MentionPairingRequest(draftID: model.thread[0].id, span: span, target: .bluesky)
+        model.completePairing(with: MentionPerson(blueskyHandle: "lk.example.com", displayName: "Luke"))
+        XCTAssertEqual(model.thread[0].mentions.first?.person.blueskyHandle, "lk.example.com")
+        XCTAssertEqual(model.thread[0].mentions.first?.person.mastodonAcct, "pup@hachyderm.io")
+        XCTAssertNil(model.pairing)
+        XCTAssertEqual(MentionPairStore(url: url).load(),
+                       [MentionPair(mastodonAcct: "pup@hachyderm.io", blueskyHandle: "lk.example.com")])
+    }
+
+    func testRepointingLandedMentionLocksThatNetwork() {
+        let model = makeModel()
+        let person = MentionPerson(mastodonAcct: "pup@hachyderm.io", displayName: "Pup")
+        model.thread[0] = DraftPost(text: "@pup", mentions: [MentionSpan(location: 0, length: 4, person: person)])
+        model.handleCompletion([result(.bluesky, .partial(posted: posted, failedIndex: 1, message: "x"))])
+        XCTAssertEqual(model.lockReason(.bluesky), .fullySent)
+        model.thread[0].mentions[0].person.blueskyHandle = "lk.example.com"
+        XCTAssertEqual(model.lockReason(.bluesky), .prefixEdited)
     }
 
     func testPartialPublicationShowsNetworkResultsAndRetryDestination() {

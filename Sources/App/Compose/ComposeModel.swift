@@ -37,8 +37,19 @@ final class ComposeModel {
     }
 
     var selectedTargets: Set<PostTarget> = [.mastodon, .bluesky] {
-        didSet { scheduleDraftSave() }
+        didSet {
+            if let previewTarget, !selectedTargets.contains(previewTarget) {
+                self.previewTarget = nil
+            }
+            scheduleDraftSave()
+        }
     }
+
+    /// The network whose final text the post cards show read-only; nil while editing.
+    var previewTarget: PostTarget?
+    /// A mention whose account on one network the user is choosing by hand.
+    var pairing: MentionPairingRequest?
+    let mentionDirectory: MentionDirectory
 
     /// Mastodon visibility applied to every post in the thread at submit; Bluesky ignores it.
     var visibility: PostVisibility = .public {
@@ -87,6 +98,9 @@ final class ComposeModel {
     init(
         store: AccountStore,
         draftStore: DraftStore? = nil,
+        mentionPairStore: MentionPairStore = .application,
+        makeFeedService: @escaping @MainActor (PostTarget, AccountStore) async throws -> FeedService =
+            FeedServiceFactory.make,
         findUnreadablePost: @escaping UnreadablePostFinder =
             { OutgoingImageValidation.firstUnreadablePost($0) },
         makePosters: @escaping @MainActor ([PostTarget], AccountStore) async throws -> [Poster] =
@@ -96,6 +110,9 @@ final class ComposeModel {
         self.draftStore = draftStore
         self.findUnreadablePost = findUnreadablePost
         self.makePosters = makePosters
+        mentionDirectory = MentionDirectory(pairStore: mentionPairStore) { [store] target in
+            try await makeFeedService(target, store)
+        }
         restoreDraft()
     }
 
@@ -121,17 +138,18 @@ final class ComposeModel {
         guard !pendingTargets.contains(target) else { return .interrupted }
         guard let landed = landedByTarget[target] else { return nil }
         guard landed.account == accountKey(for: target) else { return .accountChanged }
-        guard prefixIntact(landed) else { return .prefixEdited }
+        guard prefixIntact(landed, for: target) else { return .prefixEdited }
         return thread.count <= landed.items.count ? .fullySent : nil
     }
 
     /// Whether the current thread still begins with every landed post unchanged, so
     /// resuming would thread onto exactly what's live. A shorter thread (a landed
-    /// post removed) or any changed prefix post fails this.
-    private func prefixIntact(_ landed: LandedThread) -> Bool {
+    /// post removed) or any changed prefix post fails this. Posts are compared as
+    /// `target` received them, so re-pointing a mention counts as an edit there.
+    private func prefixIntact(_ landed: LandedThread, for target: PostTarget) -> Bool {
         guard thread.count >= landed.signatures.count else { return false }
         for (index, signature) in landed.signatures.enumerated()
-            where PostSignature(thread[index]) != signature {
+            where PostSignature(thread[index].rendered(for: target)) != signature {
             return false
         }
         return true
@@ -332,7 +350,7 @@ final class ComposeModel {
             guard !items.isEmpty else { continue }
             anyLanded.append(result.target)
             let count = min(items.count, published.count)
-            let signatures = (0 ..< count).map { PostSignature(published[$0]) }
+            let signatures = (0 ..< count).map { PostSignature(published[$0].rendered(for: result.target)) }
             landedByTarget[result.target] = LandedThread(
                 items: items, signatures: signatures,
                 account: publishingAccounts[result.target] ?? accountKey(for: result.target)
@@ -389,6 +407,17 @@ final class ComposeModel {
         case let .partial(_, failedIndex, message):
             "\(result.target.displayName): post \(failedIndex + 1) failed — \(message)"
         }
+    }
+}
+
+/// A mention whose account on `target` the user is choosing by hand.
+struct MentionPairingRequest: Identifiable, Equatable {
+    let draftID: UUID
+    let span: MentionSpan
+    let target: PostTarget
+
+    var id: String {
+        "\(draftID)-\(span.location)-\(target.rawValue)"
     }
 }
 
