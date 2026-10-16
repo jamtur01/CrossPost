@@ -4,74 +4,92 @@ extension NSAttributedString.Key {
     static let crossPostMention = NSAttributedString.Key("net.kartar.crosspost.mention")
 }
 
-/// Boxed per mention so adjacent mentions stay separate attribute runs (an
-/// `NSObject` compares by identity, so runs never coalesce).
+/// Who a mention addresses and the text it was inserted as. Boxed per mention so
+/// adjacent mentions stay separate attribute runs (an `NSObject` compares by
+/// identity, so runs never coalesce).
 final class MentionMark: NSObject {
     let person: MentionPerson
-    init(_ person: MentionPerson) {
+    let label: String
+
+    init(_ person: MentionPerson, label: String) {
         self.person = person
+        self.label = label
     }
 }
 
 /// Mentions live in the text storage as `MentionMark` attribute runs, so AppKit
-/// moves them with every edit and the spans are read back rather than tracked.
+/// moves them with every edit and undo restores them with their text. A run
+/// counts as a mention only while its text is still exactly its label: an edit
+/// inside one makes it plain text without removing the mark, so undoing that edit
+/// makes it a mention again.
 @MainActor
 enum MentionText {
     static func plainAttributes(for textView: NSTextView) -> [NSAttributedString.Key: Any] {
         [.font: textView.font ?? .systemFont(ofSize: 15), .foregroundColor: NSColor.textColor]
     }
 
-    static func markAttributes(_ person: MentionPerson) -> [NSAttributedString.Key: Any] {
-        [.crossPostMention: MentionMark(person), .foregroundColor: NSColor.controlAccentColor]
+    static func markAttributes(_ person: MentionPerson, label: String) -> [NSAttributedString.Key: Any] {
+        [.crossPostMention: MentionMark(person, label: label)]
     }
 
     private static func whole(_ storage: NSAttributedString) -> NSRange {
         NSRange(location: 0, length: storage.length)
     }
 
-    static func spans(in storage: NSAttributedString) -> [MentionSpan] {
-        var spans: [MentionSpan] = []
+    private struct MarkRun {
+        let mark: MentionMark
+        let range: NSRange
+        /// The run's text is still exactly the mark's label.
+        let intact: Bool
+    }
+
+    private static func runs(in storage: NSAttributedString) -> [MarkRun] {
+        var runs: [MarkRun] = []
+        let text = storage.string as NSString
         storage.enumerateAttribute(.crossPostMention, in: whole(storage)) { value, range, _ in
             guard let mark = value as? MentionMark else { return }
-            spans.append(MentionSpan(location: range.location, length: range.length, person: mark.person))
+            runs.append(MarkRun(mark: mark, range: range, intact: text.substring(with: range) == mark.label))
         }
-        return spans
+        return runs
+    }
+
+    /// The intact mentions, in text order.
+    static func spans(in storage: NSAttributedString) -> [MentionSpan] {
+        runs(in: storage).filter(\.intact).map {
+            MentionSpan(location: $0.range.location, length: $0.range.length, person: $0.mark.person)
+        }
+    }
+
+    /// Accent-colours intact mentions and resets broken ones to plain text.
+    /// Attribute-only, so it is safe while the storage is processing an edit.
+    static func recolor(_ storage: NSTextStorage) {
+        for run in runs(in: storage) {
+            let color = run.intact ? NSColor.controlAccentColor : NSColor.textColor
+            storage.addAttribute(.foregroundColor, value: color, range: run.range)
+        }
     }
 
     /// Replaces all marks in `textView` with `spans` (skipping any outside the text).
     static func apply(_ spans: [MentionSpan], to textView: NSTextView) {
         guard let storage = textView.textStorage else { return }
+        let text = storage.string as NSString
         storage.beginEditing()
         storage.removeAttribute(.crossPostMention, range: whole(storage))
         storage.addAttributes(plainAttributes(for: textView), range: whole(storage))
         for span in spans where NSMaxRange(span.range) <= storage.length {
-            storage.addAttributes(markAttributes(span.person), range: span.range)
+            storage.addAttributes(markAttributes(span.person, label: text.substring(with: span.range)),
+                                  range: span.range)
         }
         storage.endEditing()
     }
 
-    /// The mention run ending exactly at `location`, if any.
+    /// The intact mention ending exactly at `location`, if any.
     static func mention(endingAt location: Int, in storage: NSAttributedString) -> NSRange? {
-        guard location > 0, location <= storage.length else { return nil }
-        var range = NSRange()
-        guard storage.attribute(.crossPostMention, at: location - 1, effectiveRange: &range) is MentionMark,
-              NSMaxRange(range) == location else { return nil }
-        return range
+        runs(in: storage).first { $0.intact && NSMaxRange($0.range) == location }?.range
     }
 
-    /// Mention runs an edit of `range` would break: any it overlaps, or an
-    /// insertion strictly inside one. Edits at a run's edges leave it intact.
-    static func brokenMentions(by range: NSRange, in storage: NSAttributedString) -> [NSRange] {
-        var broken: [NSRange] = []
-        storage.enumerateAttribute(.crossPostMention, in: whole(storage)) { value, run, _ in
-            guard value is MentionMark else { return }
-            let overlaps = NSIntersectionRange(run, range).length > 0
-            let insideInsertion = range.length == 0 && range.location > run.location
-                && range.location < NSMaxRange(run)
-            if overlaps || insideInsertion {
-                broken.append(run)
-            }
-        }
-        return broken
+    /// The intact mention covering `index`, if any.
+    static func mention(at index: Int, in storage: NSAttributedString) -> MentionSpan? {
+        spans(in: storage).first { NSLocationInRange(index, $0.range) }
     }
 }

@@ -30,8 +30,7 @@ struct PlainTextEditor: NSViewRepresentable {
         scrollView.scrollerStyle = .overlay
 
         if let textView = scrollView.documentView as? NSTextView {
-            textView.delegate = context.coordinator
-            context.coordinator.textView = textView
+            context.coordinator.attach(to: textView)
             textView.drawsBackground = false
             textView.font = .systemFont(ofSize: 15)
             textView.textContainerInset = NSSize(width: 2, height: 6)
@@ -39,11 +38,8 @@ struct PlainTextEditor: NSViewRepresentable {
             textView.allowsUndo = true
             // Seed prefilled text (e.g. reply mentions) with the caret at the end,
             // so typing continues after the @handles rather than before them.
-            textView.string = text
+            context.coordinator.show(text: text, mentions: mentions?.wrappedValue, in: textView)
             textView.typingAttributes = MentionText.plainAttributes(for: textView)
-            if let mentions {
-                MentionText.apply(mentions.wrappedValue, to: textView)
-            }
             textView.setSelectedRange(NSRange(location: text.utf16.count, length: 0))
         }
         return scrollView
@@ -58,16 +54,13 @@ struct PlainTextEditor: NSViewRepresentable {
             // Setting `string` resets the selection to the start; preserve the caret,
             // clamped to the new length (e.g. after a programmatic prefill or clear).
             let selected = textView.selectedRange()
-            textView.string = text
-            if let mentions {
-                MentionText.apply(mentions.wrappedValue, to: textView)
-            }
+            context.coordinator.show(text: text, mentions: mentions?.wrappedValue, in: textView)
             let clamped = NSRange(location: min(selected.location, text.utf16.count), length: 0)
             textView.setSelectedRange(clamped)
         } else if let mentions, let storage = textView.textStorage,
                   MentionText.spans(in: storage) != mentions.wrappedValue {
             // A mention changed outside the editor (an account chosen by hand).
-            MentionText.apply(mentions.wrappedValue, to: textView)
+            context.coordinator.show(text: nil, mentions: mentions.wrappedValue, in: textView)
         }
     }
 
@@ -77,9 +70,14 @@ struct PlainTextEditor: NSViewRepresentable {
         return coordinator
     }
 
+    /// Keeps the bindings and the text view in step. AppKit edits a text view's
+    /// storage on the main thread; `@preconcurrency` checks that at runtime.
     @MainActor
-    final class Coordinator: NSObject, NSTextViewDelegate {
+    final class Coordinator: NSObject, NSTextViewDelegate, @preconcurrency NSTextStorageDelegate {
         weak var textView: NSTextView?
+        /// Set while the view is being given the model's values, so the storage
+        /// sync doesn't echo half-applied state back into the bindings.
+        private var isShowingModel = false
         private var text: Binding<String>
         private var mentions: Binding<[MentionSpan]>?
         private var editing: MentionEditing?
@@ -88,6 +86,25 @@ struct PlainTextEditor: NSViewRepresentable {
             self.text = text
             self.mentions = mentions
             self.editing = editing
+        }
+
+        /// Becomes `textView`'s delegate and its storage's, so it sees every change.
+        func attach(to textView: NSTextView) {
+            self.textView = textView
+            textView.delegate = self
+            textView.textStorage?.delegate = self
+        }
+
+        /// Puts the model's text (when given) and mentions into `textView`.
+        func show(text newText: String?, mentions spans: [MentionSpan]?, in textView: NSTextView) {
+            isShowingModel = true
+            defer { isShowingModel = false }
+            if let newText {
+                textView.string = newText
+            }
+            if let spans {
+                MentionText.apply(spans, to: textView)
+            }
         }
 
         /// Takes the latest bindings and points the completion's insertions here.
@@ -108,21 +125,40 @@ struct PlainTextEditor: NSViewRepresentable {
                 deleteMention(whole, in: textView)
                 return false
             }
-            for run in MentionText.brokenMentions(by: range, in: storage) {
-                storage.removeAttribute(.crossPostMention, range: run)
-                storage.addAttribute(.foregroundColor, value: NSColor.textColor, range: run)
-            }
+            // New text is never part of a mention, even typed at a mention's edge.
             textView.typingAttributes = MentionText.plainAttributes(for: textView)
             return true
         }
 
         func textDidChange(_ notification: Notification) {
             guard let textView = notification.object as? NSTextView else { return }
-            text.wrappedValue = textView.string
-            if let mentions, let storage = textView.textStorage {
-                mentions.wrappedValue = MentionText.spans(in: storage)
-            }
             updateCompletion(textView)
+        }
+
+        func textStorage(_ textStorage: NSTextStorage, willProcessEditing _: NSTextStorageEditActions,
+                         range _: NSRange, changeInLength _: Int) {
+            guard mentions != nil else { return }
+            MentionText.recolor(textStorage)
+        }
+
+        /// Every change passes through the storage, including undo and redo,
+        /// which don't send `textDidChange`; so the bindings are synced here.
+        func textStorage(_ textStorage: NSTextStorage, didProcessEditing _: NSTextStorageEditActions,
+                         range _: NSRange, changeInLength _: Int) {
+            sync(from: textStorage)
+        }
+
+        private func sync(from storage: NSTextStorage) {
+            guard !isShowingModel else { return }
+            if text.wrappedValue != storage.string {
+                text.wrappedValue = storage.string
+            }
+            if let mentions {
+                let spans = MentionText.spans(in: storage)
+                if mentions.wrappedValue != spans {
+                    mentions.wrappedValue = spans
+                }
+            }
         }
 
         func textViewDidChangeSelection(_ notification: Notification) {
@@ -184,11 +220,13 @@ struct PlainTextEditor: NSViewRepresentable {
             let visible = person.visibleText
             let inserted = visible + " "
             guard textView.shouldChangeText(in: range, replacementString: inserted) else { return }
+            storage.beginEditing()
             storage.replaceCharacters(in: range, with: NSAttributedString(
                 string: inserted, attributes: MentionText.plainAttributes(for: textView)
             ))
-            storage.addAttributes(MentionText.markAttributes(person),
+            storage.addAttributes(MentionText.markAttributes(person, label: visible),
                                   range: NSRange(location: range.location, length: visible.utf16.count))
+            storage.endEditing()
             textView.didChangeText()
             textView.setSelectedRange(NSRange(location: range.location + inserted.utf16.count, length: 0))
         }
@@ -203,11 +241,8 @@ struct PlainTextEditor: NSViewRepresentable {
         /// Right-clicking a mention offers choosing its account on either network,
         /// to fill a missing one or re-point an existing one.
         func textView(_ view: NSTextView, menu: NSMenu, for _: NSEvent, at charIndex: Int) -> NSMenu? {
-            guard editing != nil, let storage = view.textStorage, charIndex < storage.length else { return menu }
-            var run = NSRange()
-            guard let mark = storage.attribute(.crossPostMention, at: charIndex, effectiveRange: &run)
-                as? MentionMark else { return menu }
-            let span = MentionSpan(location: run.location, length: run.length, person: mark.person)
+            guard editing != nil, let storage = view.textStorage,
+                  let span = MentionText.mention(at: charIndex, in: storage) else { return menu }
             menu.insertItem(.separator(), at: 0)
             for target in PostTarget.allCases.reversed() {
                 let item = NSMenuItem(title: "Choose \(target.displayName) Account…",
