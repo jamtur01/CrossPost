@@ -37,16 +37,16 @@ final class PostListLifecycleTests: FeedPanelTestCase {
     func testMutationStartedAfterCredentialRestartUsesFreshService() async {
         let oldService = FakeFeedService()
         let freshService = FakeFeedService()
-        var activeService = oldService
+        let activeService = TestBox(oldService)
         let store = makeStore()
         let panel = FeedPanelModel(target: .bluesky, store: store) { _, _ in
-            activeService
+            activeService.value
         }
         let list = PostList(panel: panel)
         let post = TestFactory.feedPost(target: .bluesky)
         list.posts = [post]
 
-        activeService = freshService
+        activeService.value = freshService
         panel.restartAfterCredentialsChange()
         list.toggleLike(post)
         await waitUntil { list.inFlight.isEmpty }

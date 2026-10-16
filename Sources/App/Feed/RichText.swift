@@ -11,10 +11,14 @@ enum RichText {
         types: NSTextCheckingResult.CheckingType.link.rawValue
     )
 
-    private final class Box { let value: AttributedString; init(_ value: AttributedString) {
-        self.value = value
-    } }
-    private static let cache: NSCache<NSString, Box> = {
+    private final class Box: Sendable {
+        let value: AttributedString
+        init(_ value: AttributedString) {
+            self.value = value
+        }
+    }
+
+    private nonisolated(unsafe) static let cache: NSCache<NSString, Box> = { // NSCache is thread-safe
         let cache = NSCache<NSString, Box>()
         cache.countLimit = 500
         return cache

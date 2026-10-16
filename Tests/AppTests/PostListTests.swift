@@ -6,11 +6,11 @@ import XCTest
 /// rows (not the panel's separate timeline array).
 @MainActor
 final class PostListTests: XCTestCase {
-    override func tearDown() {
+    override func tearDown() async throws {
         let store = AccountStore()
         store.mastodonInstanceURL = ""
         store.blueskyHandle = ""
-        super.tearDown()
+        try await super.tearDown()
     }
 
     private func makeModel(_ fake: FakeFeedService) -> FeedPanelModel {

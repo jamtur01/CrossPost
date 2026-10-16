@@ -143,15 +143,15 @@ final class ComposeSubmissionTests: XCTestCase {
         let model = model(with: recorder)
         model.thread[0].text = "hi"
 
-        var refreshCount = 0
+        let refreshCount = TestBox(0)
         let token = NotificationCenter.default.addObserver(
             forName: .crossPostDidPost, object: nil, queue: nil
-        ) { _ in refreshCount += 1 }
+        ) { _ in refreshCount.value += 1 }
         defer { NotificationCenter.default.removeObserver(token) }
 
         await model.submit()
 
-        XCTAssertEqual(refreshCount, 1)
+        XCTAssertEqual(refreshCount.value, 1)
         XCTAssertEqual(model.thread.count, 1)
         XCTAssertTrue(model.thread[0].isEmpty) // box cleared on a clean run
         XCTAssertNil(model.errorMessage)

@@ -3,12 +3,12 @@ import XCTest
 
 @MainActor
 class FeedPanelTestCase: XCTestCase {
-    override func tearDown() {
+    override func tearDown() async throws {
         let store = AccountStore()
         store.mastodonInstanceURL = ""
         store.mastodonUsername = ""
         store.blueskyHandle = ""
-        super.tearDown()
+        try await super.tearDown()
     }
 
     func makeStore() -> AccountStore {

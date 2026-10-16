@@ -3,7 +3,7 @@ import XCTest
 
 @MainActor
 final class ComposeCompletionTests: XCTestCase {
-    func testSuccessfulPublicationClearsConfirmationAndCountsAfterFiveSeconds() async throws {
+    func testSuccessfulPublicationClearsConfirmationAndCountsAfterFiveSeconds() async {
         let model = ComposeModel(store: AccountStore())
         model.thread[0].text = "Published post"
         model.handleCompletion(successes)
@@ -13,7 +13,11 @@ final class ComposeCompletionTests: XCTestCase {
         XCTAssertEqual(model.publicationStatus(for: .bluesky), "Bluesky: 1 posted")
         model.thread[0].text = "Next draft"
 
-        try await Task.sleep(for: .milliseconds(5100))
+        // Await the 5-second dismissal itself: a fixed sleep with a small margin
+        // flakes when the main actor is busy under the full suite.
+        let started = ContinuousClock.now
+        await model.completionDismissTask?.value
+        XCTAssertGreaterThanOrEqual(ContinuousClock.now - started, .seconds(5))
 
         XCTAssertNil(model.completionMessage)
         XCTAssertNil(model.publicationStatus(for: .mastodon))

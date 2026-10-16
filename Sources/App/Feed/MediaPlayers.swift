@@ -80,7 +80,7 @@ final class LoopingPlayerNSView: NSView {
         unloadItem()
     }
 
-    deinit { stop() }
+    isolated deinit { stop() }
 
     override func layout() {
         super.layout()
@@ -100,11 +100,16 @@ final class LoopingPlayerNSView: NSView {
         endObserver = NotificationCenter.default.addObserver(
             forName: .AVPlayerItemDidPlayToEndTime, object: item, queue: .main
         ) { [weak self, weak item] _ in
-            guard let self, isActive, player.currentItem === item else { return }
-            player.seek(to: .zero)
-            player.play()
+            // Delivered on the main queue, so the view's main-actor state is safe to touch.
+            MainActor.assumeIsolated { self?.loop(item) }
         }
         itemLoaded = true
+    }
+
+    private func loop(_ item: AVPlayerItem?) {
+        guard isActive, player.currentItem === item else { return }
+        player.seek(to: .zero)
+        player.play()
     }
 
     private func unloadItem() {

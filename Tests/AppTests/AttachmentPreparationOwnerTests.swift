@@ -139,7 +139,7 @@ final class AttachmentPreparationOwnerTests: XCTestCase {
 
     func testProviderBridgeCancellationCancelsTransferBeforeCallback() async {
         let provider = FakeAttachmentProvider<Data>()
-        let task = Task {
+        let task = Task.detached {
             try await ImageAttaching.loadProviderValue { completion in
                 provider.load(completion)
             }
@@ -162,7 +162,7 @@ final class AttachmentPreparationOwnerTests: XCTestCase {
     func testProviderBridgeCallbackWinsLaterCancellation() async throws {
         let provider = FakeAttachmentProvider<Data>()
         let expected = Data([0x01])
-        let task = Task {
+        let task = Task.detached {
             try await ImageAttaching.loadProviderValue { completion in
                 provider.load(completion)
             }
@@ -179,7 +179,7 @@ final class AttachmentPreparationOwnerTests: XCTestCase {
 
     func testProviderBridgeResumesOnlyOnceForDuplicateCallbacks() async throws {
         let provider = FakeAttachmentProvider<Data>()
-        let task = Task {
+        let task = Task.detached {
             try await ImageAttaching.loadProviderValue { completion in
                 provider.load(completion)
             }

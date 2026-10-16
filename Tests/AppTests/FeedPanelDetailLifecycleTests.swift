@@ -6,11 +6,11 @@ final class FeedPanelDetailLifecycleTests: FeedPanelTestCase {
     // MARK: Quote / edit / report / saved feeds
 
     private func expectRefreshNotification() -> (count: () -> Int, stop: () -> Void) {
-        var count = 0
+        let count = TestBox(0)
         let token = NotificationCenter.default.addObserver(
             forName: .crossPostDidPost, object: nil, queue: nil
-        ) { _ in count += 1 }
-        return ({ count }, { NotificationCenter.default.removeObserver(token) })
+        ) { _ in count.value += 1 }
+        return ({ count.value }, { NotificationCenter.default.removeObserver(token) })
     }
 
     func testQuoteForwardsArgsAndRefreshesOnce() async throws {

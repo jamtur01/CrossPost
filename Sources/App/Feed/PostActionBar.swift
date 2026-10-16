@@ -11,6 +11,7 @@ import SwiftUI
 ///   - help: Accessibility tooltip.
 ///   - compact: When true, uses the notification-row font and hides counts.
 ///   - action: Callback invoked on tap.
+@MainActor
 func postActionButton(
     _ symbol: String,
     count: Int? = nil,

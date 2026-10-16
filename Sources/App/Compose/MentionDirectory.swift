@@ -26,7 +26,7 @@ final class MentionDirectory {
         }
     }
 
-    deinit {
+    isolated deinit {
         credentialsObserver.map(NotificationCenter.default.removeObserver)
     }
 

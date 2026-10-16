@@ -1,6 +1,6 @@
 import Foundation
 
-class ImageURLProtocolStub: URLProtocol {
+class ImageURLProtocolStub: URLProtocol, @unchecked Sendable { // state behind `lock` / `stateLock`
     struct Options {
         var delay: TimeInterval = 0
         var declaredContentLength: Int?
@@ -19,10 +19,10 @@ class ImageURLProtocolStub: URLProtocol {
     }
 
     private static let lock = NSLock()
-    private static var stubs: [URL: Stub] = [:]
-    private static var requests: [URL: Int] = [:]
-    private static var deliveredBytes: [URL: Int] = [:]
-    private static var stops: [URL: Int] = [:]
+    private nonisolated(unsafe) static var stubs: [URL: Stub] = [:] // behind `lock`
+    private nonisolated(unsafe) static var requests: [URL: Int] = [:] // behind `lock`
+    private nonisolated(unsafe) static var deliveredBytes: [URL: Int] = [:] // behind `lock`
+    private nonisolated(unsafe) static var stops: [URL: Int] = [:] // behind `lock`
 
     private let stateLock = NSLock()
     private var stopped = false

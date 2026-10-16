@@ -6,17 +6,17 @@ final class ComposeDraftRecoveryTests: XCTestCase {
     private var directory: URL!
     private var draftStore: DraftStore!
 
-    override func setUp() {
-        super.setUp()
+    override func setUp() async throws {
+        try await super.setUp()
         directory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
         draftStore = DraftStore(url: directory.appending(path: "draft.plist"))
     }
 
-    override func tearDownWithError() throws {
+    override func tearDown() async throws {
         if FileManager.default.fileExists(atPath: directory.path) {
             try FileManager.default.removeItem(at: directory)
         }
-        try super.tearDownWithError()
+        try await super.tearDown()
     }
 
     func testApplicationDraftStorageIsIsolatedUnderHostedTests() {

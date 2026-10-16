@@ -151,15 +151,8 @@ struct SkeletonRow: View {
     }
 }
 
-private struct RelativeTimestampNowKey: EnvironmentKey {
-    static let defaultValue = Date()
-}
-
 extension EnvironmentValues {
-    var relativeTimestampNow: Date {
-        get { self[RelativeTimestampNowKey.self] }
-        set { self[RelativeTimestampNowKey.self] = newValue }
-    }
+    @Entry var relativeTimestampNow: Date = .init()
 }
 
 @MainActor
@@ -242,6 +235,7 @@ extension View {
 /// present these three states identically. (Thread/profile keep their own, since
 /// they show errors alongside already-visible content.)
 @ViewBuilder
+@MainActor
 func listLoadFooter(
     loading: Bool,
     loadError: String?,

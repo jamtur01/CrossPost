@@ -47,3 +47,13 @@ enum TestFactory {
         )
     }
 }
+
+/// A mutable value a test shares with `@Sendable` closures (notification
+/// observers, fake service factories) that it reads back after awaiting them.
+final class TestBox<Value>: @unchecked Sendable { // one test touches it at a time, never concurrently
+    var value: Value
+
+    init(_ value: Value) {
+        self.value = value
+    }
+}

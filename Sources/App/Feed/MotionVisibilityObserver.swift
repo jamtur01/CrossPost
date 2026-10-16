@@ -92,7 +92,7 @@ final class MotionVisibilityObserverNSView: NSView {
         lastState = nil
     }
 
-    deinit { stopObserving() }
+    isolated deinit { stopObserving() }
 
     private func refreshObservations() {
         let currentWindow = window
@@ -146,10 +146,14 @@ final class MotionVisibilityObserverNSView: NSView {
             object: object,
             queue: .main
         ) { [weak self] notification in
-            if notification.name == NSWindow.willCloseNotification {
-                self?.publish(.unavailable)
-            } else {
-                self?.publishCurrentState()
+            // Delivered on the main queue, so the view's main-actor state is safe to touch.
+            let closing = notification.name == NSWindow.willCloseNotification
+            MainActor.assumeIsolated {
+                if closing {
+                    self?.publish(.unavailable)
+                } else {
+                    self?.publishCurrentState()
+                }
             }
         }
         observers.append(observer)

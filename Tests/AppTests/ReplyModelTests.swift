@@ -3,9 +3,9 @@ import XCTest
 
 @MainActor
 final class ReplyModelTests: XCTestCase {
-    override func tearDown() {
+    override func tearDown() async throws {
         AccountStore().mastodonUsername = "" // don't leak the self-handle into other tests
-        super.tearDown()
+        try await super.tearDown()
     }
 
     func testBlueskyReplyStartsEmpty() {
@@ -207,10 +207,10 @@ final class ReplyModelTests: XCTestCase {
         model.text = "" // no text…
         model.attachments = [Attachment(imageData: TestFactory.pngData(), altText: "alt")] // …just an image
 
-        var refreshCount = 0
+        let refreshCount = TestBox(0)
         let token = NotificationCenter.default.addObserver(
             forName: .crossPostDidPost, object: nil, queue: nil
-        ) { _ in refreshCount += 1 }
+        ) { _ in refreshCount.value += 1 }
         defer { NotificationCenter.default.removeObserver(token) }
 
         let posted = await model.send()
@@ -220,7 +220,7 @@ final class ReplyModelTests: XCTestCase {
         XCTAssertTrue(model.didPost)
         XCTAssertEqual(model.postedURL, URL(string: "https://example/reply"),
                        "the permalink is a real URL now, never a sentinel string")
-        XCTAssertEqual(refreshCount, 1)
+        XCTAssertEqual(refreshCount.value, 1)
     }
 
     func testSendIgnoresReentrantCallWhileSending() async {

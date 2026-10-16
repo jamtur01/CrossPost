@@ -47,12 +47,12 @@ final class AccountStoreTests: XCTestCase {
 
 @MainActor
 final class AccountStoreCredentialTests: XCTestCase {
-    override func tearDown() {
+    override func tearDown() async throws {
         let store = AccountStore(credentials: EphemeralSecretStore())
         store.mastodonInstanceURL = ""
         store.mastodonUsername = ""
         store.blueskyHandle = ""
-        super.tearDown()
+        try await super.tearDown()
     }
 
     func testTokenPersistsAndEmptyClearsIt() {

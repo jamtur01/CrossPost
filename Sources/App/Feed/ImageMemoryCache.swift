@@ -1,7 +1,7 @@
 import AppKit
 import Foundation
 
-final class CachedImageEntry {
+final class CachedImageEntry: @unchecked Sendable { // immutable after decode; NSImage only read
     let image: NSImage
     let cost: Int
 

@@ -110,10 +110,10 @@ final class FeedPanelRefreshLifecycleTests: FeedPanelTestCase {
         let staleStreamGate = FeedPanelGate()
         let pollGate = FeedPanelGate()
         var replacementContinuation: AsyncStream<FeedUpdate>.Continuation?
-        var sentConnection = false
+        let sentConnection = TestBox(false)
         stale.liveStream = AsyncStream(unfolding: {
-            if !sentConnection {
-                sentConnection = true
+            if !sentConnection.value {
+                sentConnection.value = true
                 return .connected
             }
             await staleStreamGate.wait()

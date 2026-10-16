@@ -212,13 +212,13 @@ final class NotificationActionOwnerTests: XCTestCase {
     func testExternalGenerationChangeSuppressesEveryCompletionCallback() async {
         let owner = NotificationActionOwner()
         let gate = TestGate()
-        var isCurrent = true
+        let isCurrent = TestBox(true)
         var successCount = 0
         var failureCount = 0
         var finishCount = 0
 
         let stale = owner.startPostMutation(
-            isCurrent: { isCurrent },
+            isCurrent: { isCurrent.value },
             operation: {
                 await gate.wait()
                 return self.likedPost(id: "post")
@@ -229,7 +229,7 @@ final class NotificationActionOwnerTests: XCTestCase {
         )
         await waitUntil { gate.arrivals == 1 }
 
-        isCurrent = false
+        isCurrent.value = false
         gate.open()
         await stale.value
 
