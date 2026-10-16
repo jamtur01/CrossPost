@@ -67,4 +67,26 @@ final class MentionTextTests: XCTestCase {
             [MentionSpan(location: 2, length: 4, person: person)]
         )
     }
+
+    func testArrowAndReturnPickFromSuggestions() async throws {
+        let (textView, coordinator) = makeEditor()
+        let people = [MentionPerson(blueskyHandle: "first.bsky.social", displayName: "First"),
+                      MentionPerson(blueskyHandle: "second.bsky.social", displayName: "Second")]
+        let completion = MentionCompletion(debounce: .zero) { _ in
+            MentionDirectory.Results(people: people, failed: [])
+        }
+        coordinator.update(text: Binding(get: { self.text }, set: { self.text = $0 }),
+                           mentions: Binding(get: { self.mentions }, set: { self.mentions = $0 }),
+                           editing: MentionEditing(completion: completion, requestPairing: { _, _ in }))
+        textView.insertText("hi @se", replacementRange: NSRange(location: 0, length: 0))
+        try await Task.sleep(for: .milliseconds(50))
+        XCTAssertTrue(completion.isActive)
+
+        XCTAssertTrue(coordinator.textView(textView, doCommandBy: #selector(NSResponder.moveDown(_:))))
+        XCTAssertTrue(coordinator.textView(textView, doCommandBy: #selector(NSResponder.insertNewline(_:))))
+        XCTAssertEqual(text, "hi @second ")
+        XCTAssertEqual(mentions.map(\.person), [people[1]])
+        XCTAssertFalse(completion.isActive)
+        XCTAssertFalse(coordinator.textView(textView, doCommandBy: #selector(NSResponder.insertNewline(_:))))
+    }
 }
