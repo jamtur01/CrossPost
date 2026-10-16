@@ -28,7 +28,7 @@ private final class ImageRequestKey: NSObject {
     }
 }
 
-final class ImageMemoryCache: @unchecked Sendable {
+final class ImageMemoryCache: @unchecked Sendable { // NSCache is thread-safe
     private let staticImages = NSCache<ImageRequestKey, CachedImageEntry>()
     private let animatedImages = NSCache<ImageRequestKey, CachedImageEntry>()
 

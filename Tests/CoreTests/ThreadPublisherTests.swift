@@ -63,9 +63,9 @@ final class ThreadPublisherTests: XCTestCase {
         do {
             _ = try await runThread(drafts, using: pub)
             XCTFail("expected throw")
-        } catch let e as ThreadPostError {
-            XCTAssertEqual(e.failedIndex, 1)
-            XCTAssertEqual(e.posted.map(\.url), ["url-1"])
+        } catch let failure as ThreadPostError {
+            XCTAssertEqual(failure.failedIndex, 1)
+            XCTAssertEqual(failure.posted.map(\.url), ["url-1"])
         } catch {
             XCTFail("wrong error: \(error)")
         }

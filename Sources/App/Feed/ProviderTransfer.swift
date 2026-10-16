@@ -1,6 +1,6 @@
 import Foundation
 
-final class ProviderTransfer<Value: Sendable>: @unchecked Sendable {
+final class ProviderTransfer<Value: Sendable>: @unchecked Sendable { // state behind `lock`
     typealias Completion = @Sendable (Value) -> Void
 
     private enum State: Equatable {

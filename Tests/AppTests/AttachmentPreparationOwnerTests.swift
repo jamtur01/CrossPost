@@ -239,7 +239,7 @@ private final class PreparationFlag {
     }
 }
 
-private final class FakeAttachmentProvider<Value: Sendable>: @unchecked Sendable {
+private final class FakeAttachmentProvider<Value: Sendable>: @unchecked Sendable { // state behind `lock`
     typealias Completion = @Sendable (Value) -> Void
 
     let progress = Progress(totalUnitCount: 1)

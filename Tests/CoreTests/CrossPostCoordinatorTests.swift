@@ -1,13 +1,13 @@
 @testable import CrossPost
 import XCTest
 
-private final class StubPoster: Poster, @unchecked Sendable {
+private final class StubPoster: Poster, @unchecked Sendable { // each test drives one poster serially
     let target: PostTarget
     let behavior: Behavior
     private(set) var continuedFrom: NativeRef?
     private(set) var postedThread: [DraftPost] = []
     enum Behavior {
-        case ok([PostedItem])
+        case succeed([PostedItem])
         case partial(ThreadPostError)
         case fail(Error)
     }
@@ -21,9 +21,9 @@ private final class StubPoster: Poster, @unchecked Sendable {
         continuedFrom = ref
         postedThread = thread
         switch behavior {
-        case let .ok(items): return items
-        case let .partial(e): throw e
-        case let .fail(e): throw e
+        case let .succeed(items): return items
+        case let .partial(error): throw error
+        case let .fail(error): throw error
         }
     }
 }
@@ -66,8 +66,8 @@ final class CrossPostCoordinatorTests: XCTestCase {
     func testSuccessForBothTargets() async {
         let thread = [DraftPost(text: "hi")]
         let posters: [Poster] = [
-            StubPoster(target: .mastodon, behavior: .ok([PostedItem(url: "m1")])),
-            StubPoster(target: .bluesky, behavior: .ok([PostedItem(url: "b1")]))
+            StubPoster(target: .mastodon, behavior: .succeed([PostedItem(url: "m1")])),
+            StubPoster(target: .bluesky, behavior: .succeed([PostedItem(url: "b1")]))
         ]
         let outcome = await coordinator.publish(
             thread: thread,
@@ -78,8 +78,8 @@ final class CrossPostCoordinatorTests: XCTestCase {
         guard case let .completed(results) = outcome else { return XCTFail("expected completed") }
         XCTAssertEqual(results.count, 2)
         XCTAssertEqual(results.map(\.target), [.mastodon, .bluesky])
-        for r in results {
-            guard case let .success(posted) = r.outcome else { return XCTFail("expected success") }
+        for result in results {
+            guard case let .success(posted) = result.outcome else { return XCTFail("expected success") }
             XCTAssertEqual(posted.count, 1)
         }
     }
@@ -103,7 +103,7 @@ final class CrossPostCoordinatorTests: XCTestCase {
     func testPartialFailureIsReportedPerTarget() async {
         let thread = [DraftPost(text: "hi")]
         let posters: [Poster] = [
-            StubPoster(target: .mastodon, behavior: .ok([PostedItem(url: "m1")])),
+            StubPoster(target: .mastodon, behavior: .succeed([PostedItem(url: "m1")])),
             StubPoster(target: .bluesky, behavior: .fail(Boom()))
         ]
         let outcome = await coordinator.publish(
@@ -144,8 +144,8 @@ final class CrossPostCoordinatorTests: XCTestCase {
         let thread = [DraftPost(text: "a"), DraftPost(text: "b"), DraftPost(text: "c")]
         let landed = [PostedItem(url: "m1", ref: .mastodon(statusID: "1"))]
         let poster = StubPoster(target: .mastodon,
-                                behavior: .ok([PostedItem(url: "m2", ref: .mastodon(statusID: "2")),
-                                               PostedItem(url: "m3", ref: .mastodon(statusID: "3"))]))
+                                behavior: .succeed([PostedItem(url: "m2", ref: .mastodon(statusID: "2")),
+                                                    PostedItem(url: "m3", ref: .mastodon(statusID: "3"))]))
         let outcome = await coordinator.publish(thread: thread, to: [.mastodon], using: [poster],
                                                 limits: limits, resuming: [.mastodon: landed])
         guard case let .completed(results) = outcome,
@@ -189,7 +189,7 @@ final class CrossPostCoordinatorTests: XCTestCase {
     func testResumeRefusedWhenLandedRefMissing() async {
         let thread = [DraftPost(text: "a"), DraftPost(text: "b")]
         let landed = [PostedItem(url: "m1")] // no native ref → can't thread onto it
-        let poster = StubPoster(target: .mastodon, behavior: .ok([PostedItem(url: "m2")]))
+        let poster = StubPoster(target: .mastodon, behavior: .succeed([PostedItem(url: "m2")]))
         let outcome = await coordinator.publish(thread: thread, to: [.mastodon], using: [poster],
                                                 limits: limits, resuming: [.mastodon: landed])
         guard case let .completed(results) = outcome,
@@ -228,8 +228,8 @@ final class CrossPostCoordinatorTests: XCTestCase {
         let person = MentionPerson(mastodonAcct: "pup@hachyderm.io",
                                    blueskyHandle: "pup.bsky.social", displayName: "Pup")
         let post = DraftPost(text: "hi @pup", mentions: [MentionSpan(location: 3, length: 4, person: person)])
-        let mastodon = StubPoster(target: .mastodon, behavior: .ok([PostedItem(url: "m")]))
-        let bluesky = StubPoster(target: .bluesky, behavior: .ok([PostedItem(url: "b")]))
+        let mastodon = StubPoster(target: .mastodon, behavior: .succeed([PostedItem(url: "m")]))
+        let bluesky = StubPoster(target: .bluesky, behavior: .succeed([PostedItem(url: "b")]))
         _ = await CrossPostCoordinator().publish(thread: [post], to: [.mastodon, .bluesky],
                                                  using: [mastodon, bluesky], limits: TargetLimits())
         XCTAssertEqual(mastodon.postedThread.map(\.text), ["hi @pup@hachyderm.io"])

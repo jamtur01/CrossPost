@@ -18,11 +18,11 @@ enum ImageAttaching {
         return cache
     }()
 
-    fileprivate struct SendableProvider: @unchecked Sendable {
+    fileprivate struct SendableProvider: @unchecked Sendable { // NSItemProvider loads are thread-safe
         let value: NSItemProvider
     }
 
-    fileprivate struct PreparedImage: @unchecked Sendable {
+    fileprivate struct PreparedImage: @unchecked Sendable { // CGImage is immutable
         let attachment: Attachment
         let thumbnail: CGImage?
     }

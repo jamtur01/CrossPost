@@ -115,8 +115,8 @@ final class PostValidatorTests: XCTestCase {
                                             targets: [.mastodon, .bluesky], limits: limits)
         XCTAssertEqual(issues.count, 2) // post 1 over both targets
         XCTAssertTrue(issues.allSatisfy {
-            if case let .tooLong(i, _, _, _) = $0 {
-                i == 1
+            if case let .tooLong(postIndex, _, _, _) = $0 {
+                postIndex == 1
             } else {
                 false
             }

@@ -4,7 +4,7 @@ import Foundation
 /// A configurable in-memory `FeedService` for model tests: returns canned data,
 /// records calls, and never touches the network. Tests drive it on the main actor,
 /// so the unsynchronised mutable state is safe.
-final class FakeFeedService: FeedService, @unchecked Sendable {
+final class FakeFeedService: FeedService, @unchecked Sendable { // tests drive it on the main actor
     enum FakeError: Error { case boom }
 
     struct ReportAccountCall: Equatable {

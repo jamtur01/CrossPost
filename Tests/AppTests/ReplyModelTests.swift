@@ -257,7 +257,7 @@ final class ReplyModelTests: XCTestCase {
     }
 }
 
-private final class ReplyValidationProbe: @unchecked Sendable {
+private final class ReplyValidationProbe: @unchecked Sendable { // state behind `lock`
     private let lock = NSLock()
     private let releaseSemaphore = DispatchSemaphore(value: 0)
     private let result: Int?

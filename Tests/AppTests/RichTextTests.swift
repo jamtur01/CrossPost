@@ -5,16 +5,16 @@ import XCTest
 final class RichTextTests: XCTestCase {
     private let accent = Color.red
 
-    private func links(_ s: AttributedString) -> [(text: String, url: URL)] {
-        s.runs.compactMap { run in
+    private func links(_ styled: AttributedString) -> [(text: String, url: URL)] {
+        styled.runs.compactMap { run in
             guard let url = run.link else { return nil }
-            return (String(s[run.range].characters), url)
+            return (String(styled[run.range].characters), url)
         }
     }
 
-    private func colored(_ s: AttributedString) -> [String] {
-        s.runs.compactMap { run in
-            run.foregroundColor == accent ? String(s[run.range].characters) : nil
+    private func colored(_ styled: AttributedString) -> [String] {
+        styled.runs.compactMap { run in
+            run.foregroundColor == accent ? String(styled[run.range].characters) : nil
         }
     }
 
@@ -85,12 +85,12 @@ final class RichTextTests: XCTestCase {
     func testSameLabelDifferentLinkRecomputes() {
         var first = AttributedString("profile")
         first.link = URL(string: "https://x.com/a")
-        let a = RichText.styled(first, accent: accent, cacheKey: "bluesky:1")
-        XCTAssertEqual(links(a).first?.url, URL(string: "https://x.com/a"))
+        let firstStyled = RichText.styled(first, accent: accent, cacheKey: "bluesky:1")
+        XCTAssertEqual(links(firstStyled).first?.url, URL(string: "https://x.com/a"))
 
         var second = AttributedString("profile")
         second.link = URL(string: "https://x.com/b")
-        let b = RichText.styled(second, accent: accent, cacheKey: "bluesky:1")
-        XCTAssertEqual(links(b).first?.url, URL(string: "https://x.com/b"))
+        let secondStyled = RichText.styled(second, accent: accent, cacheKey: "bluesky:1")
+        XCTAssertEqual(links(secondStyled).first?.url, URL(string: "https://x.com/b"))
     }
 }

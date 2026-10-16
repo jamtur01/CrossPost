@@ -9,7 +9,6 @@ excluded:
 opt_in_rules:
   - force_unwrapping
   - implicitly_unwrapped_optional
-  - empty_count
   - first_where
   - contains_over_first_not_nil
   - redundant_nil_coalescing
@@ -25,6 +24,8 @@ function_body_length:
   warning: 100
 cyclomatic_complexity:
   warning: 8
+  # A flat switch (e.g. mapping error cases to messages) reads better unsplit.
+  ignores_case_statements: true
 function_parameter_count:
   warning: 6
 file_length:

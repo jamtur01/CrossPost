@@ -74,7 +74,7 @@ extension TootClient {
     /// documented 10 MB default when the instance doesn't report one.
     func mastodonImageByteLimit() async -> Int {
         let reported = try? await getInstanceInfoV2().configuration?.mediaAttachments?.imageSizeLimit
-        return (reported ?? nil) ?? TargetLimits.mastodonImageBytes
+        return reported ?? TargetLimits.mastodonImageBytes
     }
 
     /// Transcode and upload images concurrently — they're independent — returning

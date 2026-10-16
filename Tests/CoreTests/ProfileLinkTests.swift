@@ -2,8 +2,8 @@
 import XCTest
 
 final class ProfileLinkTests: XCTestCase {
-    private func url(_ s: String) -> URL {
-        URL(string: s)!
+    private func url(_ string: String) -> URL {
+        URL(string: string)!
     }
 
     func testBlueskyProfileURLYieldsHandle() {

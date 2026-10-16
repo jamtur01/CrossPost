@@ -5,24 +5,24 @@ enum HTMLRenderer {
     /// line, `<br>` → newline, `<a href>` → a link run (visible label as text,
     /// href as `.link`), other tags stripped, entities decoded.
     static func renderAttributed(_ html: String) -> AttributedString {
-        var s = html
+        var html = html
         // Match the closing/self-closing tags tolerant of attributes and whitespace
         // (e.g. a federated instance's `<br class="…">`), which a literal match misses.
-        s = s.replacingOccurrences(of: "</p\\s*>", with: "\n\n",
-                                   options: [.regularExpression, .caseInsensitive])
-        s = s.replacingOccurrences(of: "<br[^>]*>", with: "\n",
-                                   options: [.regularExpression, .caseInsensitive])
+        html = html.replacingOccurrences(of: "</p\\s*>", with: "\n\n",
+                                         options: [.regularExpression, .caseInsensitive])
+        html = html.replacingOccurrences(of: "<br[^>]*>", with: "\n",
+                                         options: [.regularExpression, .caseInsensitive])
 
         var result = AttributedString()
-        let nsInput = s as NSString
+        let nsInput = html as NSString
         var cursor = 0
-        for match in anchorMatches(in: s) {
+        for match in anchorMatches(in: html) {
             if match.range.location > cursor {
                 let preLength = match.range.location - cursor
                 let pre = nsInput.substring(with: NSRange(location: cursor, length: preLength))
                 result.append(AttributedString(plainText(pre)))
             }
-            result.append(anchorPiece(match, in: s))
+            result.append(anchorPiece(match, in: html))
             cursor = match.range.location + match.range.length
         }
         if cursor < nsInput.length {
@@ -95,20 +95,20 @@ enum HTMLRenderer {
         guard input.contains("&") else { return input }
         var out = ""
         out.reserveCapacity(input.count)
-        var i = input.startIndex
-        while i < input.endIndex {
-            let ch = input[i]
-            guard ch == "&" else {
-                out.append(ch)
-                i = input.index(after: i)
+        var index = input.startIndex
+        while index < input.endIndex {
+            let character = input[index]
+            guard character == "&" else {
+                out.append(character)
+                index = input.index(after: index)
                 continue
             }
-            if let (decoded, next) = decodeEntity(in: input, at: i) {
+            if let (decoded, next) = decodeEntity(in: input, at: index) {
                 out.append(decoded)
-                i = next
+                index = next
             } else {
                 out.append("&")
-                i = input.index(after: i)
+                index = input.index(after: index)
             }
         }
         return out
@@ -118,35 +118,35 @@ enum HTMLRenderer {
     /// just past it, or nil when what follows isn't a recognized entity. An
     /// invalid numeric scalar (e.g. a lone surrogate) is consumed but decodes
     /// to nothing, matching the previous behavior.
-    private static func decodeEntity(in s: String, at start: String.Index)
+    private static func decodeEntity(in text: String, at start: String.Index)
         -> (String, String.Index)? {
-        for (entity, value) in namedEntities where s[start...].hasPrefix(entity) {
-            return (value, s.index(start, offsetBy: entity.count))
+        for (entity, value) in namedEntities where text[start...].hasPrefix(entity) {
+            return (value, text.index(start, offsetBy: entity.count))
         }
-        var j = s.index(after: start)
-        guard j < s.endIndex, s[j] == "#" else { return nil }
-        j = s.index(after: j)
-        let isHex = j < s.endIndex && (s[j] == "x" || s[j] == "X")
+        var cursor = text.index(after: start)
+        guard cursor < text.endIndex, text[cursor] == "#" else { return nil }
+        cursor = text.index(after: cursor)
+        let isHex = cursor < text.endIndex && (text[cursor] == "x" || text[cursor] == "X")
         if isHex {
-            j = s.index(after: j)
+            cursor = text.index(after: cursor)
         }
-        let digitsStart = j
-        while j < s.endIndex, isEntityDigit(s[j], hex: isHex) {
-            j = s.index(after: j)
+        let digitsStart = cursor
+        while cursor < text.endIndex, isEntityDigit(text[cursor], hex: isHex) {
+            cursor = text.index(after: cursor)
         }
-        guard j > digitsStart, j < s.endIndex, s[j] == ";" else { return nil }
-        let end = s.index(after: j)
-        guard let code = UInt32(s[digitsStart ..< j], radix: isHex ? 16 : 10),
+        guard cursor > digitsStart, cursor < text.endIndex, text[cursor] == ";" else { return nil }
+        let end = text.index(after: cursor)
+        guard let code = UInt32(text[digitsStart ..< cursor], radix: isHex ? 16 : 10),
               let scalar = Unicode.Scalar(code) else { return ("", end) }
         return (String(scalar), end)
     }
 
     /// ASCII-only on purpose: `Character.isHexDigit` also accepts fullwidth
     /// compatibility forms, which UInt32(_:radix:) would then fail to parse.
-    private static func isEntityDigit(_ c: Character, hex: Bool) -> Bool {
-        if ("0" ... "9").contains(c) {
+    private static func isEntityDigit(_ character: Character, hex: Bool) -> Bool {
+        if ("0" ... "9").contains(character) {
             return true
         }
-        return hex && (("a" ... "f").contains(c) || ("A" ... "F").contains(c))
+        return hex && (("a" ... "f").contains(character) || ("A" ... "F").contains(character))
     }
 }

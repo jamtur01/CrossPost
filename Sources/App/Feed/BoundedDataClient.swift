@@ -4,7 +4,7 @@ protocol BoundedImageDataLoading: Sendable {
     func data(from url: URL, limit: Int) async throws -> Data
 }
 
-final class BoundedDataClient: NSObject, URLSessionDataDelegate, @unchecked Sendable {
+final class BoundedDataClient: NSObject, URLSessionDataDelegate, @unchecked Sendable { // state behind `lock`
     private final class RequestState {
         let byteLimit: Int
         let continuation: CheckedContinuation<Data, Error>
@@ -17,7 +17,7 @@ final class BoundedDataClient: NSObject, URLSessionDataDelegate, @unchecked Send
         }
     }
 
-    private final class RequestHandle: @unchecked Sendable {
+    private final class RequestHandle: @unchecked Sendable { // state behind `lock`
         private let lock = NSLock()
         private var task: URLSessionTask?
         private var isCancelled = false

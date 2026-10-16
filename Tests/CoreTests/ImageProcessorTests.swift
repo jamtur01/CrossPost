@@ -100,7 +100,13 @@ final class ImageProcessorTests: XCTestCase {
     }
 
     /// Average colour of the decoded image, drawn into a single pixel.
-    private func averagePixel(of data: Data) throws -> (r: UInt8, g: UInt8, b: UInt8) {
+    private struct RGB {
+        let red: UInt8
+        let green: UInt8
+        let blue: UInt8
+    }
+
+    private func averagePixel(of data: Data) throws -> RGB {
         let source = try XCTUnwrap(CGImageSourceCreateWithData(data as CFData, nil))
         let image = try XCTUnwrap(CGImageSourceCreateImageAtIndex(source, 0, nil))
         var pixel = [UInt8](repeating: 0, count: 4)
@@ -111,7 +117,7 @@ final class ImageProcessorTests: XCTestCase {
         ))
         context.interpolationQuality = .high
         context.draw(image, in: CGRect(x: 0, y: 0, width: 1, height: 1))
-        return (pixel[0], pixel[1], pixel[2])
+        return RGB(red: pixel[0], green: pixel[1], blue: pixel[2])
     }
 
     func testExifOrientationIsBakedInUpright() throws {
@@ -143,9 +149,9 @@ final class ImageProcessorTests: XCTestCase {
         let png = try encoded(XCTUnwrap(context.makeImage()), as: .png)
         let output = try ImageProcessor.jpegUnderBudget(png, maxBytes: 10_000_000)
         let pixel = try averagePixel(of: output)
-        XCTAssertGreaterThan(pixel.r, 240)
-        XCTAssertGreaterThan(pixel.g, 240)
-        XCTAssertGreaterThan(pixel.b, 240)
+        XCTAssertGreaterThan(pixel.red, 240)
+        XCTAssertGreaterThan(pixel.green, 240)
+        XCTAssertGreaterThan(pixel.blue, 240)
     }
 
     func testOutputStripsGPSAndCameraMetadata() throws {

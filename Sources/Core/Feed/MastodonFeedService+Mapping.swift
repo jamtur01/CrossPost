@@ -103,7 +103,7 @@ extension MastodonFeedService {
 
     static func linkCard(from card: Card?) -> LinkCard? {
         guard let card, let url = URL(string: card.url) else { return nil }
-        let provider = card.providerName?.isEmpty == false ? card.providerName! : (url.host ?? "")
+        let provider = card.providerName.flatMap { $0.isEmpty ? nil : $0 } ?? url.host ?? ""
         return LinkCard(url: url, title: card.title, description: card.description,
                         imageURL: card.image.flatMap(URL.init(string:)), providerName: provider)
     }

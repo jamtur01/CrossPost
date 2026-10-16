@@ -95,25 +95,7 @@ final class ReplyModel {
 
         let draft = DraftPost(text: text, attachments: attachments)
         let outgoingVisibility = visibility
-        let issues = PostValidator.validate(
-            thread: [draft],
-            targets: [post.target],
-            limits: store.limits
-        )
-        guard issues.isEmpty else {
-            blockedIssues = issues
-            return false
-        }
-
-        let badIndex = await OutgoingImageValidation.run(
-            on: [draft.attachments.map(\.imageData)],
-            using: findUnreadablePost
-        )
-        guard !Task.isCancelled else { return false }
-        guard badIndex == nil else {
-            errorMessage = "An image can't be read. Remove it and try again."
-            return false
-        }
+        guard await passesPreflight(draft) else { return false }
 
         do {
             let service = try await makeService(post.target, store)
@@ -140,5 +122,28 @@ final class ReplyModel {
             errorMessage = error.userMessage
             return false
         }
+    }
+
+    /// Validates the reply and checks its images decode, surfacing the problem.
+    private func passesPreflight(_ draft: DraftPost) async -> Bool {
+        let issues = PostValidator.validate(
+            thread: [draft],
+            targets: [post.target],
+            limits: store.limits
+        )
+        guard issues.isEmpty else {
+            blockedIssues = issues
+            return false
+        }
+        let badIndex = await OutgoingImageValidation.run(
+            on: [draft.attachments.map(\.imageData)],
+            using: findUnreadablePost
+        )
+        guard !Task.isCancelled else { return false }
+        guard badIndex == nil else {
+            errorMessage = "An image can't be read. Remove it and try again."
+            return false
+        }
+        return true
     }
 }

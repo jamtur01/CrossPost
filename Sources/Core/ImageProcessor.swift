@@ -12,8 +12,8 @@ enum ImageProcessor {
             switch self {
             case .decodeFailed: "Could not read image data"
             case .encodeFailed: "Could not encode image data"
-            case let .cannotFitBudget(b, budget):
-                "Image is \(b) bytes; could not compress under \(budget) bytes"
+            case let .cannotFitBudget(size, budget):
+                "Image is \(size) bytes; could not compress under \(budget) bytes"
             }
         }
 

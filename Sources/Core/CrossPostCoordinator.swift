@@ -1,8 +1,6 @@
 import Foundation
 
 struct CrossPostCoordinator: Sendable {
-    init() {}
-
     /// Publish `thread` to each target. `resuming` carries the posts that already
     /// landed on a target from an interrupted attempt: only the unsent suffix is
     /// published, threaded onto the last landed post, so nothing is sent twice.
@@ -72,12 +70,12 @@ struct CrossPostCoordinator: Sendable {
             let resumeRef = landed.last?.ref
             let posted = try await poster.post(thread: suffix, continuingFrom: resumeRef)
             return PostResult(target: target, outcome: .success(posted: landed + posted))
-        } catch let e as ThreadPostError {
+        } catch let error as ThreadPostError {
             // Index is absolute over the full thread, posted includes the resumed prefix.
             return PostResult(target: target,
-                              outcome: .partial(posted: landed + e.posted,
-                                                failedIndex: landed.count + e.failedIndex,
-                                                message: e.underlying.userMessage))
+                              outcome: .partial(posted: landed + error.posted,
+                                                failedIndex: landed.count + error.failedIndex,
+                                                message: error.underlying.userMessage))
         } catch {
             // A resume whose first new post fails keeps the landed prefix so a later
             // retry doesn't re-send it; a fresh attempt with nothing landed is a plain failure.

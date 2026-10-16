@@ -96,7 +96,7 @@ final class AccountStoreCredentialTests: XCTestCase {
 
     /// A SecretStoring whose writes fail on demand, standing in for a locked or
     /// ACL-denied Keychain.
-    private final class FailingSecretStore: SecretStoring, @unchecked Sendable {
+    private final class FailingSecretStore: SecretStoring, @unchecked Sendable { // used on the main actor only
         var failWrites = true
         private(set) var loadCalls = 0
         private var items: [String: String] = [:]

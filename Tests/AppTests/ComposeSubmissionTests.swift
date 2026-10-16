@@ -304,7 +304,7 @@ final class ComposeSubmissionTests: XCTestCase {
     }
 }
 
-private final class ComposeValidationProbe: @unchecked Sendable {
+private final class ComposeValidationProbe: @unchecked Sendable { // state behind `lock`
     private let lock = NSLock()
     private let releaseSemaphore = DispatchSemaphore(value: 0)
     private let result: Int?

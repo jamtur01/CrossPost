@@ -7,7 +7,7 @@ import SwiftUI
 /// Plain "@…"/"#…" text that isn't a real, resolvable link is left untouched — so
 /// anything coloured is genuinely tappable (e.g. "@cat" in a bio stays plain text).
 enum RichText {
-    private static let linkDetector = try! NSDataDetector(
+    private static let linkDetector = try! NSDataDetector( // constant; swiftlint:disable:this force_try
         types: NSTextCheckingResult.CheckingType.link.rawValue
     )
 

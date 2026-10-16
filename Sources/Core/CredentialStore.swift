@@ -12,7 +12,7 @@ protocol SecretStoring: Sendable {
 /// Non-persistent secret storage. Used when the app runs as a unit-test host, where
 /// touching the real Keychain triggers a SecurityAgent password prompt on every
 /// rebuild (the re-signed binary is no longer in the item's ACL).
-final class EphemeralSecretStore: SecretStoring, @unchecked Sendable {
+final class EphemeralSecretStore: SecretStoring, @unchecked Sendable { // `items` behind `lock`
     private let lock = NSLock()
     private var items: [String: String] = [:]
 
@@ -38,7 +38,7 @@ struct CredentialStore: SecretStoring, Sendable {
         case dataEncoding
         var description: String {
             switch self {
-            case let .unexpectedStatus(s): "Keychain error (OSStatus \(s))"
+            case let .unexpectedStatus(status): "Keychain error (OSStatus \(status))"
             case .dataEncoding: "Could not encode/decode Keychain value"
             }
         }

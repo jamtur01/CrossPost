@@ -6,10 +6,10 @@ final class RichTextLinksTests: XCTestCase {
         RichTextLinks.Span(byteStart: start, byteEnd: end, url: URL(string: url)!)
     }
 
-    private func links(_ s: AttributedString) -> [(text: String, url: URL)] {
-        s.runs.compactMap { run in
+    private func links(_ text: AttributedString) -> [(text: String, url: URL)] {
+        text.runs.compactMap { run in
             guard let url = run.link else { return nil }
-            return (String(s[run.range].characters), url)
+            return (String(text[run.range].characters), url)
         }
     }
 
