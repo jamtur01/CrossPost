@@ -1,5 +1,5 @@
-import XCTest
 @testable import CrossPost
+import XCTest
 
 final class RichTextLinksTests: XCTestCase {
     private func span(_ start: Int, _ end: Int, _ url: String) -> RichTextLinks.Span {
@@ -15,7 +15,10 @@ final class RichTextLinksTests: XCTestCase {
 
     func testLinksAnASCIIRange() {
         // "hi @bob there": "@bob" is bytes [3, 7).
-        let result = RichTextLinks.attributed("hi @bob there", spans: [span(3, 7, "https://bsky.app/profile/did:plc:bob")])
+        let result = RichTextLinks.attributed(
+            "hi @bob there",
+            spans: [span(3, 7, "https://bsky.app/profile/did:plc:bob")]
+        )
         XCTAssertEqual(links(result).map(\.text), ["@bob"])
         XCTAssertEqual(links(result).first?.url, URL(string: "https://bsky.app/profile/did:plc:bob"))
     }
@@ -30,7 +33,7 @@ final class RichTextLinksTests: XCTestCase {
         // "@a #b": "@a" is [0,2), "#b" is [3,5).
         let result = RichTextLinks.attributed("@a #b", spans: [
             span(0, 2, "https://bsky.app/profile/a"),
-            span(3, 5, "https://bsky.app/hashtag/b"),
+            span(3, 5, "https://bsky.app/hashtag/b")
         ])
         XCTAssertEqual(links(result).map(\.text), ["@a", "#b"])
     }

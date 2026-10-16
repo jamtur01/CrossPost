@@ -5,12 +5,15 @@ enum FeedKind: String, CaseIterable, Sendable, Identifiable {
     case notifications
     case messages
 
-    var id: String { rawValue }
+    var id: String {
+        rawValue
+    }
+
     var title: String {
         switch self {
-        case .home: return "Home"
-        case .notifications: return "Notifications"
-        case .messages: return "Messages"
+        case .home: "Home"
+        case .notifications: "Notifications"
+        case .messages: "Messages"
         }
     }
 }

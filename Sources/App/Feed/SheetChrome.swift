@@ -9,7 +9,6 @@ extension View {
 
 /// The header row for a sheet: an accent dot (no icon) or an accent SF Symbol,
 /// followed by the title.
-@ViewBuilder
 func sheetHeader(icon: String?, label: String, accent: Color) -> some View {
     HStack(spacing: 8) {
         if let icon {

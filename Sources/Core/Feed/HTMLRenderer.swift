@@ -31,11 +31,12 @@ enum HTMLRenderer {
         return trimmed(result)
     }
 
-    // Compiled once: this runs for every Mastodon post mapped, and compiling an
-    // NSRegularExpression costs far more than executing it.
+    /// Compiled once: this runs for every Mastodon post mapped, and compiling an
+    /// NSRegularExpression costs far more than executing it.
     private static let anchorRegex = try? NSRegularExpression(
         pattern: #"<a\b[^>]*\bhref\s*=\s*(['"])(.*?)\1[^>]*>(.*?)</a>"#,
-        options: [.caseInsensitive, .dotMatchesLineSeparators])
+        options: [.caseInsensitive, .dotMatchesLineSeparators]
+    )
 
     private static func anchorMatches(in input: String) -> [NSTextCheckingResult] {
         guard let regex = anchorRegex else { return [] }
@@ -52,7 +53,9 @@ enum HTMLRenderer {
         let href = decodeEntities(String(input[hrefRange]))
         let label = plainText(String(input[labelRange]))
         var piece = AttributedString(label.isEmpty ? href : label)
-        if let url = URL(string: href), WebLink.isOpenable(url) { piece.link = url }
+        if let url = URL(string: href), WebLink.isOpenable(url) {
+            piece.link = url
+        }
         return piece
     }
 
@@ -70,14 +73,18 @@ enum HTMLRenderer {
         var end = attributed.endIndex
         while end > start {
             let previous = attributed.index(beforeCharacter: end)
-            if attributed.characters[previous].isWhitespace { end = previous } else { break }
+            if attributed.characters[previous].isWhitespace {
+                end = previous
+            } else {
+                break
+            }
         }
-        return AttributedString(attributed[start..<end])
+        return AttributedString(attributed[start ..< end])
     }
 
     private static let namedEntities: [(String, String)] = [
         ("&lt;", "<"), ("&gt;", ">"), ("&quot;", "\""),
-        ("&apos;", "'"), ("&nbsp;", " "), ("&amp;", "&"),
+        ("&apos;", "'"), ("&nbsp;", " "), ("&amp;", "&")
     ]
 
     /// Decode entities in one left-to-right pass: each `&` is inspected once and
@@ -120,20 +127,26 @@ enum HTMLRenderer {
         guard j < s.endIndex, s[j] == "#" else { return nil }
         j = s.index(after: j)
         let isHex = j < s.endIndex && (s[j] == "x" || s[j] == "X")
-        if isHex { j = s.index(after: j) }
+        if isHex {
+            j = s.index(after: j)
+        }
         let digitsStart = j
-        while j < s.endIndex, isEntityDigit(s[j], hex: isHex) { j = s.index(after: j) }
+        while j < s.endIndex, isEntityDigit(s[j], hex: isHex) {
+            j = s.index(after: j)
+        }
         guard j > digitsStart, j < s.endIndex, s[j] == ";" else { return nil }
         let end = s.index(after: j)
-        guard let code = UInt32(s[digitsStart..<j], radix: isHex ? 16 : 10),
+        guard let code = UInt32(s[digitsStart ..< j], radix: isHex ? 16 : 10),
               let scalar = Unicode.Scalar(code) else { return ("", end) }
         return (String(scalar), end)
     }
 
-    // ASCII-only on purpose: `Character.isHexDigit` also accepts fullwidth
-    // compatibility forms, which UInt32(_:radix:) would then fail to parse.
+    /// ASCII-only on purpose: `Character.isHexDigit` also accepts fullwidth
+    /// compatibility forms, which UInt32(_:radix:) would then fail to parse.
     private static func isEntityDigit(_ c: Character, hex: Bool) -> Bool {
-        if ("0"..."9").contains(c) { return true }
-        return hex && (("a"..."f").contains(c) || ("A"..."F").contains(c))
+        if ("0" ... "9").contains(c) {
+            return true
+        }
+        return hex && (("a" ... "f").contains(c) || ("A" ... "F").contains(c))
     }
 }

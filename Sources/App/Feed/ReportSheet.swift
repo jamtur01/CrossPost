@@ -37,7 +37,8 @@ struct ReportSheet: View {
             SheetFooter(
                 sending: isSending, sent: sent,
                 successLabel: "Report sent", submitLabel: "Report", submittingLabel: "Reporting…",
-                role: .destructive, canSubmit: true, onCancel: onClose, onSubmit: send)
+                role: .destructive, canSubmit: true, onCancel: onClose, onSubmit: send
+            )
         }
         .sheetContainer()
     }

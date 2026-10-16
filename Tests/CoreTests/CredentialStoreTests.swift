@@ -1,5 +1,5 @@
-import XCTest
 @testable import CrossPost
+import XCTest
 
 /// Covers `EphemeralSecretStore`, the in-process `SecretStoring` used as the
 /// Keychain substitute under test. The real `CredentialStore` talks to the

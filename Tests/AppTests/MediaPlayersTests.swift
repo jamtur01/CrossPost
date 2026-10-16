@@ -1,5 +1,5 @@
-import XCTest
 @testable import CrossPost
+import XCTest
 
 final class MediaPlayersTests: XCTestCase {
     func testMotionRequiresEveryVisibilityPredicate() {

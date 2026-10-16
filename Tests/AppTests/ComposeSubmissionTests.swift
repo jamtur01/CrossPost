@@ -1,5 +1,5 @@
-import XCTest
 @testable import CrossPost
+import XCTest
 
 @MainActor
 final class ComposeSubmissionTests: XCTestCase {
@@ -29,20 +29,20 @@ final class ComposeSubmissionTests: XCTestCase {
     func testValidationFailureBlocksBeforePosterCreation() async {
         let recorder = PosterRecorder()
         let model = model(with: recorder)
-        model.thread[0].text = String(repeating: "a", count: TargetLimits.blueskyMax + 1)  // over Bluesky's limit
+        model.thread[0].text = String(repeating: "a", count: TargetLimits.blueskyMax + 1) // over Bluesky's limit
 
         await model.submit()
 
         XCTAssertNotNil(model.blockedIssues)
-        XCTAssertTrue(recorder.requestedTargets.isEmpty)   // never reached poster creation
-        XCTAssertFalse(model.thread[0].isEmpty)            // draft kept
+        XCTAssertTrue(recorder.requestedTargets.isEmpty) // never reached poster creation
+        XCTAssertFalse(model.thread[0].isEmpty) // draft kept
     }
 
     func testOnlySelectedTargetsGetPosters() async {
         let recorder = PosterRecorder()
         let model = model(with: recorder)
         model.thread[0].text = "hi"
-        model.toggle(.bluesky)   // leave only Mastodon selected
+        model.toggle(.bluesky) // leave only Mastodon selected
 
         await model.submit()
 
@@ -54,7 +54,7 @@ final class ComposeSubmissionTests: XCTestCase {
         let masto = FakePoster(target: .mastodon)
         recorder.postersByTarget = [.mastodon: masto]
         let model = model(with: recorder)
-        model.toggle(.bluesky)                                  // Mastodon only
+        model.toggle(.bluesky) // Mastodon only
         model.thread = [DraftPost(text: "one"), DraftPost(text: "two")]
         model.visibility = .private
 
@@ -82,9 +82,9 @@ final class ComposeSubmissionTests: XCTestCase {
         let masto = FakePoster(target: .mastodon)
         recorder.postersByTarget = [.mastodon: masto]
         let model = model(with: recorder)
-        model.toggle(.bluesky)                                   // Mastodon only
+        model.toggle(.bluesky) // Mastodon only
         model.thread[0].text = "hi"
-        model.thread[0].attachments = [Attachment(imageData: Data([0x00, 0x01]))]   // not an image
+        model.thread[0].attachments = [Attachment(imageData: Data([0x00, 0x01]))] // not an image
 
         await model.submit()
 
@@ -145,22 +145,23 @@ final class ComposeSubmissionTests: XCTestCase {
 
         var refreshCount = 0
         let token = NotificationCenter.default.addObserver(
-            forName: .crossPostDidPost, object: nil, queue: nil) { _ in refreshCount += 1 }
+            forName: .crossPostDidPost, object: nil, queue: nil
+        ) { _ in refreshCount += 1 }
         defer { NotificationCenter.default.removeObserver(token) }
 
         await model.submit()
 
         XCTAssertEqual(refreshCount, 1)
         XCTAssertEqual(model.thread.count, 1)
-        XCTAssertTrue(model.thread[0].isEmpty)   // box cleared on a clean run
+        XCTAssertTrue(model.thread[0].isEmpty) // box cleared on a clean run
         XCTAssertNil(model.errorMessage)
     }
 
     func testPartialFailureKeepsDraftAndDeselectsOnlyLanded() async {
         let recorder = PosterRecorder()
         let bluesky = FakePoster(target: .bluesky)
-        bluesky.result = .failure(FakePostError.boom)   // Bluesky fails entirely
-        recorder.postersByTarget = [.bluesky: bluesky]  // Mastodon defaults to success
+        bluesky.result = .failure(FakePostError.boom) // Bluesky fails entirely
+        recorder.postersByTarget = [.bluesky: bluesky] // Mastodon defaults to success
         let model = model(with: recorder)
         model.thread[0].text = "hi"
 
@@ -168,7 +169,7 @@ final class ComposeSubmissionTests: XCTestCase {
 
         XCTAssertNotNil(model.errorMessage)
         XCTAssertEqual(model.thread.count, 1)
-        XCTAssertFalse(model.thread[0].isEmpty)          // draft kept
+        XCTAssertFalse(model.thread[0].isEmpty) // draft kept
         XCTAssertEqual(model.selectedTargets, [.bluesky]) // only landed Mastodon de-selected
     }
 
@@ -186,8 +187,8 @@ final class ComposeSubmissionTests: XCTestCase {
         ])
         XCTAssertEqual(model.lockReason(.bluesky), .fullySent)
 
-        model.thread[0].attachments[0].altText = "new alt text"   // same image id
-        XCTAssertEqual(model.lockReason(.bluesky), .fullySent)    // not .prefixEdited
+        model.thread[0].attachments[0].altText = "new alt text" // same image id
+        XCTAssertEqual(model.lockReason(.bluesky), .fullySent) // not .prefixEdited
     }
 
     /// The signature captures attachment identity, not just text: swapping a landed
@@ -212,7 +213,7 @@ final class ComposeSubmissionTests: XCTestCase {
         let recorder = PosterRecorder()
         let model = model(with: recorder)
         model.thread[0].text = "hi"
-        model.isPosting = true   // simulate a submit already in flight
+        model.isPosting = true // simulate a submit already in flight
 
         await model.submit()
 
@@ -223,7 +224,7 @@ final class ComposeSubmissionTests: XCTestCase {
         let recorder = PosterRecorder()
         let model = model(with: recorder)
         model.thread[0].text = "hi"
-        model.toggle(.mastodon); model.toggle(.bluesky)   // deselect both
+        model.toggle(.mastodon); model.toggle(.bluesky) // deselect both
         XCTAssertTrue(model.selectedTargets.isEmpty)
 
         await model.submit()
@@ -245,22 +246,22 @@ final class ComposeSubmissionTests: XCTestCase {
         ]
         recorder.postersByTarget = [.bluesky: bluesky]
         let model = model(with: recorder)
-        model.toggle(.mastodon)   // Bluesky only
+        model.toggle(.mastodon) // Bluesky only
         model.thread = [DraftPost(text: "first"), DraftPost(text: "second")]
 
-        await model.submit()   // first attempt → partial, Bluesky stays selected
+        await model.submit() // first attempt → partial, Bluesky stays selected
         XCTAssertTrue(model.selectedTargets.contains(.bluesky))
         XCTAssertFalse(model.isLocked(.bluesky))
 
-        await model.submit()   // retry → resumes the suffix
+        await model.submit() // retry → resumes the suffix
 
         XCTAssertEqual(bluesky.postedThreads.count, 2)
-        XCTAssertEqual(bluesky.postedThreads[0].map(\.text), ["first", "second"])  // fresh: whole thread
-        XCTAssertEqual(bluesky.postedThreads[1].map(\.text), ["second"])           // retry: only the unsent post
-        XCTAssertNil(bluesky.continuedFrom[0])                                     // fresh: no resume ref
-        XCTAssertEqual(bluesky.continuedFrom[1], landed1.ref)                      // retry: threads onto post 1
+        XCTAssertEqual(bluesky.postedThreads[0].map(\.text), ["first", "second"]) // fresh: whole thread
+        XCTAssertEqual(bluesky.postedThreads[1].map(\.text), ["second"]) // retry: only the unsent post
+        XCTAssertNil(bluesky.continuedFrom[0]) // fresh: no resume ref
+        XCTAssertEqual(bluesky.continuedFrom[1], landed1.ref) // retry: threads onto post 1
         XCTAssertNil(model.errorMessage)
-        XCTAssertTrue(model.thread[0].isEmpty)   // clean run after resume → box cleared
+        XCTAssertTrue(model.thread[0].isEmpty) // clean run after resume → box cleared
     }
 
     func testSubmitRefusesATargetWhosePublishedPrefixWasEdited() async {
@@ -269,17 +270,18 @@ final class ComposeSubmissionTests: XCTestCase {
         let landed1 = PostedItem(url: "https://x/1",
                                  ref: .bluesky(uri: "at://1", cid: "c1", rootURI: "at://1", rootCID: "c1"))
         bluesky.result = .failure(
-            ThreadPostError(posted: [landed1], failedIndex: 1, underlying: FakePostError.boom))
+            ThreadPostError(posted: [landed1], failedIndex: 1, underlying: FakePostError.boom)
+        )
         recorder.postersByTarget = [.bluesky: bluesky]
         let model = model(with: recorder)
-        model.toggle(.mastodon)   // Bluesky only
+        model.toggle(.mastodon) // Bluesky only
         model.thread = [DraftPost(text: "first"), DraftPost(text: "second")]
 
-        await model.submit()   // post 1 lands, post 2 fails
+        await model.submit() // post 1 lands, post 2 fails
         XCTAssertEqual(bluesky.postedThreads.count, 1)
 
-        model.thread[0].text = "first, edited"   // edit the already-published post
-        await model.submit()                     // must refuse, not resend
+        model.thread[0].text = "first, edited" // edit the already-published post
+        await model.submit() // must refuse, not resend
 
         XCTAssertEqual(bluesky.postedThreads.count, 1, "an edited published prefix must not be resent")
         XCTAssertNotNil(model.errorMessage)
@@ -316,11 +318,19 @@ private final class ComposeValidationProbe: @unchecked Sendable {
         self.blocks = blocks
     }
 
-    var hasEntered: Bool { lock.withLock { entered } }
-    var ranOnMainThread: Bool { lock.withLock { mainThread } }
-    var observedCancellation: Bool { lock.withLock { cancelled } }
+    var hasEntered: Bool {
+        lock.withLock { entered }
+    }
 
-    func validate(_ attachmentDataByPost: [[Data]]) -> Int? {
+    var ranOnMainThread: Bool {
+        lock.withLock { mainThread }
+    }
+
+    var observedCancellation: Bool {
+        lock.withLock { cancelled }
+    }
+
+    func validate(_: [[Data]]) -> Int? {
         lock.withLock {
             entered = true
             mainThread = Thread.isMainThread

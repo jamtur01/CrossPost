@@ -1,5 +1,5 @@
-import XCTest
 @testable import CrossPost
+import XCTest
 
 /// Records the (root, parent) refs passed for each post and hands back an incrementing Int ref.
 private actor FakePublisher: ThreadPublisher {
@@ -9,9 +9,11 @@ private actor FakePublisher: ThreadPublisher {
     private var next = 0
     let failAt: Int?
 
-    init(failAt: Int? = nil) { self.failAt = failAt }
+    init(failAt: Int? = nil) {
+        self.failAt = failAt
+    }
 
-    func publishOne(_ draft: DraftPost, root: Int?, parent: Int?) async throws -> (ref: Int, item: PostedItem) {
+    func publishOne(_: DraftPost, root: Int?, parent: Int?) async throws -> (ref: Int, item: PostedItem) {
         calls.append(Call(root: root, parent: parent))
         if calls.count - 1 == failAt {
             struct Boom: Error {}
@@ -21,11 +23,13 @@ private actor FakePublisher: ThreadPublisher {
         return (ref: next, item: PostedItem(url: "url-\(next)"))
     }
 
-    func recordedCalls() -> [Call] { calls }
+    func recordedCalls() -> [Call] {
+        calls
+    }
 
-    // Map a Mastodon statusID ("5") to Int refs so resume can be exercised here.
+    /// Map a Mastodon statusID ("5") to Int refs so resume can be exercised here.
     nonisolated func resumeRefs(from ref: NativeRef) -> (root: Int, parent: Int)? {
-        guard case .mastodon(let statusID) = ref, let value = Int(statusID) else { return nil }
+        guard case let .mastodon(statusID) = ref, let value = Int(statusID) else { return nil }
         return (root: value, parent: value)
     }
 }
@@ -49,7 +53,7 @@ final class ThreadPublisherTests: XCTestCase {
         XCTAssertEqual(calls, [
             .init(root: nil, parent: nil),
             .init(root: 1, parent: 1),
-            .init(root: 1, parent: 2),
+            .init(root: 1, parent: 2)
         ])
     }
 
@@ -77,8 +81,8 @@ final class ThreadPublisherTests: XCTestCase {
         XCTAssertEqual(posted.map(\.url), ["url-1", "url-2"])
         let calls = await pub.recordedCalls()
         XCTAssertEqual(calls, [
-            .init(root: 5, parent: 5),   // first new post replies to the landed post
-            .init(root: 5, parent: 1),   // next keeps the landed root, parents on the new post
+            .init(root: 5, parent: 5), // first new post replies to the landed post
+            .init(root: 5, parent: 1) // next keeps the landed root, parents on the new post
         ])
     }
 }

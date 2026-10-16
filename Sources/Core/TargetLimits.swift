@@ -3,7 +3,7 @@ import Foundation
 struct TargetLimits: Sendable {
     static let blueskyMax = 300
     /// Bluesky's lexicon caps post text at 3000 UTF-8 bytes in addition to 300 graphemes.
-    static let blueskyMaxBytes = 3_000
+    static let blueskyMaxBytes = 3000
     static let mastodonFallback = 500
     static let imageMax = 4
     /// Bluesky's images lexicon caps blobs at 2 MB (raised from 1 MB in April 2026);
@@ -13,8 +13,8 @@ struct TargetLimits: Sendable {
     static let mastodonImageBytes = 10_000_000
     /// Image alt-text caps: Mastodon enforces 1,500 characters server-side; Bluesky's
     /// lexicon sets no limit, so we follow the official app's de-facto 2,000.
-    static let mastodonAltMax = 1_500
-    static let blueskyAltMax = 2_000
+    static let mastodonAltMax = 1500
+    static let blueskyAltMax = 2000
 
     let maxGraphemes: [PostTarget: Int]
     let maxBytes: [PostTarget: Int]
@@ -22,20 +22,20 @@ struct TargetLimits: Sendable {
     let maxAltText: [PostTarget: Int]
 
     init(mastodonMax: Int = TargetLimits.mastodonFallback) {
-        self.maxGraphemes = [
+        maxGraphemes = [
             .mastodon: mastodonMax,
-            .bluesky: TargetLimits.blueskyMax,
+            .bluesky: TargetLimits.blueskyMax
         ]
-        self.maxBytes = [
-            .bluesky: TargetLimits.blueskyMaxBytes,
+        maxBytes = [
+            .bluesky: TargetLimits.blueskyMaxBytes
         ]
-        self.maxImages = [
+        maxImages = [
             .mastodon: TargetLimits.imageMax,
-            .bluesky: TargetLimits.imageMax,
+            .bluesky: TargetLimits.imageMax
         ]
-        self.maxAltText = [
+        maxAltText = [
             .mastodon: TargetLimits.mastodonAltMax,
-            .bluesky: TargetLimits.blueskyAltMax,
+            .bluesky: TargetLimits.blueskyAltMax
         ]
     }
 

@@ -35,8 +35,8 @@ final class ReplyModel {
         self.store = store
         self.findUnreadablePost = findUnreadablePost
         self.makeService = makeService
-        self.text = Self.prefill(for: post, store: store)
-        self.visibility = PostVisibility(mastodon: post.visibility) ?? .public
+        text = Self.prefill(for: post, store: store)
+        visibility = PostVisibility(mastodon: post.visibility) ?? .public
     }
 
     /// Mastodon needs the people a reply addresses named in the body to mention and
@@ -62,7 +62,9 @@ final class ReplyModel {
         post.target == .bluesky ? TargetLimits.blueskyMax : store.mastodonMaxChars
     }
 
-    var count: Int { PostValidator.graphemeCount(text) }
+    var count: Int {
+        PostValidator.graphemeCount(text)
+    }
 
     var canSend: Bool {
         !isSending && !DraftPost(text: text, attachments: attachments).isEmpty

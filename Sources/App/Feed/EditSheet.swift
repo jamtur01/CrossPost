@@ -21,7 +21,8 @@ func postEditActions(for post: FeedPost, _ panel: FeedPanelModel,
         submit: { text, spoiler in
             let updated = try await panel.edit(post: post, text: text, spoiler: spoiler)
             onUpdated(updated)
-        })
+        }
+    )
 }
 
 /// Edits one of your own posts: loads the raw source, lets you change the text
@@ -41,10 +42,16 @@ struct EditSheet: View {
     @State private var sent = false
     @State private var errorMessage: String?
 
-    // Edits are Mastodon-only (postEditActions gates on it), so the connected
-    // instance's limit always applies.
-    private var limit: Int { store.mastodonMaxChars }
-    private var count: Int { PostValidator.graphemeCount(text) }
+    /// Edits are Mastodon-only (postEditActions gates on it), so the connected
+    /// instance's limit always applies.
+    private var limit: Int {
+        store.mastodonMaxChars
+    }
+
+    private var count: Int {
+        PostValidator.graphemeCount(text)
+    }
+
     private var canSave: Bool {
         !isSending && !sent && count <= limit
             && (!text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !post.images.isEmpty)
@@ -68,7 +75,8 @@ struct EditSheet: View {
             SheetFooter(
                 sending: isSending, sent: sent,
                 successLabel: "Saved", submitLabel: "Save", submittingLabel: "Saving…",
-                canSubmit: canSave, onCancel: onClose, onSubmit: save)
+                canSubmit: canSave, onCancel: onClose, onSubmit: save
+            )
         }
         .sheetContainer()
         .task {
@@ -96,7 +104,9 @@ struct EditSheet: View {
         HStack {
             Button {
                 hasSpoiler.toggle()
-                if !hasSpoiler { spoiler = "" }
+                if !hasSpoiler {
+                    spoiler = ""
+                }
             } label: {
                 Label(hasSpoiler ? "Remove content warning" : "Add content warning",
                       systemImage: "exclamationmark.triangle")

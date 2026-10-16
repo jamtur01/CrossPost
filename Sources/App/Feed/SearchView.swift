@@ -73,7 +73,7 @@ struct SearchView: View {
             message(errorMessage, systemImage: "exclamationmark.triangle")
         } else if results.isEmpty {
             let trimmed = query.trimmingCharacters(in: .whitespaces)
-            if trimmed.count >= 2 && !isSearching {
+            if trimmed.count >= 2, !isSearching {
                 message("No results for “\(trimmed)”", systemImage: "magnifyingglass")
             } else {
                 message("Search for people and posts", systemImage: "magnifyingglass")

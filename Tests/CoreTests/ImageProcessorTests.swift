@@ -1,8 +1,8 @@
-import XCTest
 import AppKit
+@testable import CrossPost
 import ImageIO
 import UniformTypeIdentifiers
-@testable import CrossPost
+import XCTest
 
 final class ImageProcessorTests: XCTestCase {
     /// A solid-colour PNG built without `NSImage.lockFocus`, so it works headless.
@@ -10,7 +10,8 @@ final class ImageProcessorTests: XCTestCase {
         let rep = try XCTUnwrap(NSBitmapImageRep(
             bitmapDataPlanes: nil, pixelsWide: side, pixelsHigh: side,
             bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
-            colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
+            colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0
+        ))
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
         NSColor.red.setFill()
@@ -22,13 +23,13 @@ final class ImageProcessorTests: XCTestCase {
     func testJpegUnderBudgetProducesJPEGMagicBytes() throws {
         let output = try ImageProcessor.jpegUnderBudget(solidPNG(side: 64), maxBytes: 10_000_000)
         XCTAssertFalse(output.isEmpty)
-        XCTAssertEqual(Array(output.prefix(2)), [0xFF, 0xD8])   // JPEG SOI marker
+        XCTAssertEqual(Array(output.prefix(2)), [0xFF, 0xD8]) // JPEG SOI marker
     }
 
     func testJpegUnderBudgetStaysWithinBudget() throws {
-        let output = try ImageProcessor.jpegUnderBudget(solidPNG(side: 512), maxBytes: 20_000)
+        let output = try ImageProcessor.jpegUnderBudget(solidPNG(side: 512), maxBytes: 20000)
         XCTAssertFalse(output.isEmpty)
-        XCTAssertLessThanOrEqual(output.count, 20_000)
+        XCTAssertLessThanOrEqual(output.count, 20000)
         XCTAssertEqual(Array(output.prefix(2)), [0xFF, 0xD8])
     }
 
@@ -61,7 +62,7 @@ final class ImageProcessorTests: XCTestCase {
         // No JPEG fits in 1 byte, so even the smallest scale/quality fails the budget.
         let data = try solidPNG(side: 512)
         XCTAssertThrowsError(try ImageProcessor.jpegUnderBudget(data, maxBytes: 1)) { error in
-            guard case ImageProcessor.ProcessingError.cannotFitBudget(_, let budget) = error else {
+            guard case let ImageProcessor.ProcessingError.cannotFitBudget(_, budget) = error else {
                 return XCTFail("expected cannotFitBudget, got \(error)")
             }
             XCTAssertEqual(budget, 1)
@@ -75,7 +76,8 @@ final class ImageProcessorTests: XCTestCase {
         let context = try XCTUnwrap(CGContext(
             data: nil, width: width, height: height, bitsPerComponent: 8,
             bytesPerRow: 0, space: space,
-            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ))
         context.setFillColor(CGColor(red: 1, green: 0, blue: 0, alpha: 1))
         context.fill(CGRect(x: 0, y: 0, width: width, height: height))
         return try XCTUnwrap(context.makeImage())
@@ -85,7 +87,8 @@ final class ImageProcessorTests: XCTestCase {
                          properties: [CFString: Any] = [:]) throws -> Data {
         let output = NSMutableData()
         let destination = try XCTUnwrap(CGImageDestinationCreateWithData(
-            output, type.identifier as CFString, 1, nil))
+            output, type.identifier as CFString, 1, nil
+        ))
         CGImageDestinationAddImage(destination, image, properties as CFDictionary)
         XCTAssertTrue(CGImageDestinationFinalize(destination))
         return output as Data
@@ -104,7 +107,8 @@ final class ImageProcessorTests: XCTestCase {
         let space = try XCTUnwrap(CGColorSpace(name: CGColorSpace.sRGB))
         let context = try XCTUnwrap(CGContext(
             data: &pixel, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 4,
-            space: space, bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue))
+            space: space, bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue
+        ))
         context.interpolationQuality = .high
         context.draw(image, in: CGRect(x: 0, y: 0, width: 1, height: 1))
         return (pixel[0], pixel[1], pixel[2])
@@ -121,7 +125,10 @@ final class ImageProcessorTests: XCTestCase {
         XCTAssertEqual(props[kCGImagePropertyPixelHeight] as? Int, 80)
         // No orientation tag may remain, or a viewer would rotate a second time.
         let orientation = props[kCGImagePropertyOrientation] as? UInt32
-        XCTAssertTrue(orientation == nil || orientation == 1, "unexpected orientation \(String(describing: orientation))")
+        XCTAssertTrue(
+            orientation == nil || orientation == 1,
+            "unexpected orientation \(String(describing: orientation))"
+        )
     }
 
     func testTransparencyFlattensOntoWhite() throws {
@@ -130,7 +137,8 @@ final class ImageProcessorTests: XCTestCase {
         let space = try XCTUnwrap(CGColorSpace(name: CGColorSpace.sRGB))
         let context = try XCTUnwrap(CGContext(
             data: nil, width: 32, height: 32, bitsPerComponent: 8, bytesPerRow: 0,
-            space: space, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+            space: space, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ))
         context.clear(CGRect(x: 0, y: 0, width: 32, height: 32))
         let png = try encoded(XCTUnwrap(context.makeImage()), as: .png)
         let output = try ImageProcessor.jpegUnderBudget(png, maxBytes: 10_000_000)
@@ -148,14 +156,14 @@ final class ImageProcessorTests: XCTestCase {
                 kCGImagePropertyGPSLatitude: 51.5074,
                 kCGImagePropertyGPSLatitudeRef: "N",
                 kCGImagePropertyGPSLongitude: 0.1278,
-                kCGImagePropertyGPSLongitudeRef: "E",
+                kCGImagePropertyGPSLongitudeRef: "E"
             ] as [CFString: Any],
             kCGImagePropertyExifDictionary: [
-                kCGImagePropertyExifDateTimeOriginal: "2026:07:18 12:00:00",
+                kCGImagePropertyExifDateTimeOriginal: "2026:07:18 12:00:00"
             ] as [CFString: Any],
             kCGImagePropertyTIFFDictionary: [
-                kCGImagePropertyTIFFMake: "TestCam",
-            ] as [CFString: Any],
+                kCGImagePropertyTIFFMake: "TestCam"
+            ] as [CFString: Any]
         ])
         // The fixture really carries what the processor must strip.
         XCTAssertNotNil(try properties(of: fixture)[kCGImagePropertyGPSDictionary])

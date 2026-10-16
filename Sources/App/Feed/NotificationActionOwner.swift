@@ -81,22 +81,22 @@ final class NotificationActionOwner {
             }
             let result: Result<Value, Error>
             do {
-                result = .success(try await operation())
+                result = try await .success(operation())
             } catch {
                 result = .failure(error)
             }
-            guard let self, self.generation == startedGeneration else { return }
+            guard let self, generation == startedGeneration else { return }
             guard !Task.isCancelled else {
-                self.tasks[kind] = nil
+                tasks[kind] = nil
                 completion.onFinish()
                 return
             }
             guard isCurrent() else {
-                self.tasks[kind] = nil
+                tasks[kind] = nil
                 return
             }
             if case let .failure(error) = result, error is CancellationError {
-                self.tasks[kind] = nil
+                tasks[kind] = nil
                 completion.onFinish()
                 return
             }
@@ -106,11 +106,11 @@ final class NotificationActionOwner {
             case let .failure(error):
                 completion.onFailure(error)
             }
-            guard self.generation == startedGeneration, isCurrent() else {
-                self.tasks[kind] = nil
+            guard generation == startedGeneration, isCurrent() else {
+                tasks[kind] = nil
                 return
             }
-            self.tasks[kind] = nil
+            tasks[kind] = nil
             completion.onFinish()
         }
         tasks[kind] = task

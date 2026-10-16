@@ -277,5 +277,4 @@ final class PostListTests: XCTestCase {
         await waitUntil { list.inFlight.isEmpty } // no Task spawned to flip it
         XCTAssertEqual(fake.likeSetCalls, []) // remote never called
     }
-
 }

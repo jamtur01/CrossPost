@@ -1,5 +1,5 @@
-import Foundation
 @testable import CrossPost
+import Foundation
 
 enum FakePostError: Error { case boom }
 
@@ -13,12 +13,16 @@ final class FakePoster: Poster, @unchecked Sendable {
     private(set) var postedThreads: [[DraftPost]] = []
     private(set) var continuedFrom: [NativeRef?] = []
 
-    init(target: PostTarget) { self.target = target }
+    init(target: PostTarget) {
+        self.target = target
+    }
 
     func post(thread: [DraftPost], continuingFrom ref: NativeRef?) async throws -> [PostedItem] {
         postedThreads.append(thread)
         continuedFrom.append(ref)
-        if !resultQueue.isEmpty { return try resultQueue.removeFirst().get() }
+        if !resultQueue.isEmpty {
+            return try resultQueue.removeFirst().get()
+        }
         return try result.get()
     }
 }
@@ -28,7 +32,7 @@ final class PosterRecorder: @unchecked Sendable {
     var postersByTarget: [PostTarget: FakePoster] = [:]
     private(set) var requestedTargets: [[PostTarget]] = []
 
-    func make(_ targets: [PostTarget], _ store: AccountStore) -> [Poster] {
+    func make(_ targets: [PostTarget], _: AccountStore) -> [Poster] {
         requestedTargets.append(targets)
         return targets.map { postersByTarget[$0] ?? FakePoster(target: $0) }
     }

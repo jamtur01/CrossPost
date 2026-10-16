@@ -1,5 +1,5 @@
-import Foundation
 import ATProtoKit
+import Foundation
 
 extension Error {
     /// A message suitable to show a user. Prefers our `LocalizedError`/

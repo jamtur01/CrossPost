@@ -8,9 +8,12 @@ import SwiftUI
 /// anything coloured is genuinely tappable (e.g. "@cat" in a bio stays plain text).
 enum RichText {
     private static let linkDetector = try! NSDataDetector(
-        types: NSTextCheckingResult.CheckingType.link.rawValue)
+        types: NSTextCheckingResult.CheckingType.link.rawValue
+    )
 
-    private final class Box { let value: AttributedString; init(_ value: AttributedString) { self.value = value } }
+    private final class Box { let value: AttributedString; init(_ value: AttributedString) {
+        self.value = value
+    } }
     private static let cache: NSCache<NSString, Box> = {
         let cache = NSCache<NSString, Box>()
         cache.countLimit = 500
@@ -23,9 +26,13 @@ enum RichText {
     /// key so an edit (same id, new body) recomputes instead of serving stale text.
     static func styled(_ input: AttributedString, accent: Color, cacheKey: String? = nil) -> AttributedString {
         let key = cacheKey.map { "\($0)#\(fingerprint(input))" as NSString }
-        if let key, let hit = cache.object(forKey: key) { return hit.value }
+        if let key, let hit = cache.object(forKey: key) {
+            return hit.value
+        }
         let result = compute(input, accent: accent)
-        if let key { cache.setObject(Box(result), forKey: key) }
+        if let key {
+            cache.setObject(Box(result), forKey: key)
+        }
         return result
     }
 
@@ -44,7 +51,7 @@ enum RichText {
     private static func compute(_ input: AttributedString, accent: Color) -> AttributedString {
         var attributed = input
         let text = String(attributed.characters)
-        let full = NSRange(text.startIndex..<text.endIndex, in: text)
+        let full = NSRange(text.startIndex ..< text.endIndex, in: text)
 
         // Colour links that arrived pre-attributed (Mastodon anchors, Bluesky facets).
         for range in attributed.runs.compactMap({ $0.link == nil ? nil : $0.range }) {
@@ -69,6 +76,6 @@ enum RichText {
               let low = AttributedString.Index(stringRange.lowerBound, within: attributed),
               let high = AttributedString.Index(stringRange.upperBound, within: attributed)
         else { return nil }
-        return low..<high
+        return low ..< high
     }
 }

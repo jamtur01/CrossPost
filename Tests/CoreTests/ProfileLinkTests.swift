@@ -1,8 +1,10 @@
-import XCTest
 @testable import CrossPost
+import XCTest
 
 final class ProfileLinkTests: XCTestCase {
-    private func url(_ s: String) -> URL { URL(string: s)! }
+    private func url(_ s: String) -> URL {
+        URL(string: s)!
+    }
 
     func testBlueskyProfileURLYieldsHandle() {
         XCTAssertEqual(ProfileLink.blueskyID(from: url("https://bsky.app/profile/alice.bsky.social")),

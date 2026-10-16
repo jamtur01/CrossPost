@@ -17,10 +17,14 @@ enum BlueskyURL {
     }
 
     /// A profile page URL string for a handle or DID.
-    static func profile(_ handleOrID: String) -> String { "\(base)/profile/\(handleOrID)" }
+    static func profile(_ handleOrID: String) -> String {
+        "\(base)/profile/\(handleOrID)"
+    }
 
     /// A hashtag page URL string.
-    static func hashtag(_ tag: String) -> String { "\(base)/hashtag/\(tag)" }
+    static func hashtag(_ tag: String) -> String {
+        "\(base)/hashtag/\(tag)"
+    }
 
     /// A post's web URL from its at:// record URI and the author's handle, or nil
     /// when the URI carries no record key (so an unlinkable post stays nil).

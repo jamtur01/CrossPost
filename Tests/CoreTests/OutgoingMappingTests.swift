@@ -1,7 +1,7 @@
-import XCTest
-import TootSDK
 import ATProtoKit
 @testable import CrossPost
+import TootSDK
+import XCTest
 
 /// The outgoing mappings from CrossPost's platform-neutral enums onto the SDK
 /// types used when posting, reporting, and editing.

@@ -1,5 +1,5 @@
-import XCTest
 @testable import CrossPost
+import XCTest
 
 final class FeedMergeTests: XCTestCase {
     private func post(_ id: String, liked: Bool = false) -> FeedPost {
@@ -19,11 +19,11 @@ final class FeedMergeTests: XCTestCase {
     }
 
     func testCapsAtMaxCount() {
-        let existing = (0..<5).map { post("e\($0)") }
-        let fetched = (0..<5).map { post("f\($0)") }
+        let existing = (0 ..< 5).map { post("e\($0)") }
+        let fetched = (0 ..< 5).map { post("f\($0)") }
         let merged = FeedMerge.merge(existing: existing, fetched: fetched, maxCount: 6)
         XCTAssertEqual(merged.count, 6)
-        XCTAssertEqual(merged.first?.id, "f0")   // newest fetched kept at the front
+        XCTAssertEqual(merged.first?.id, "f0") // newest fetched kept at the front
     }
 
     func testFullOverlapIsUnchanged() {

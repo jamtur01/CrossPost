@@ -1,5 +1,5 @@
-import XCTest
 @testable import CrossPost
+import XCTest
 
 private final class StubPoster: Poster, @unchecked Sendable {
     let target: PostTarget
@@ -11,26 +11,32 @@ private final class StubPoster: Poster, @unchecked Sendable {
         case partial(ThreadPostError)
         case fail(Error)
     }
+
     init(target: PostTarget, behavior: Behavior) {
         self.target = target
         self.behavior = behavior
     }
+
     func post(thread: [DraftPost], continuingFrom ref: NativeRef?) async throws -> [PostedItem] {
         continuedFrom = ref
         postedThread = thread
         switch behavior {
-        case .ok(let items): return items
-        case .partial(let e): throw e
-        case .fail(let e): throw e
+        case let .ok(items): return items
+        case let .partial(e): throw e
+        case let .fail(e): throw e
         }
     }
 }
 
-private struct Boom: Error, LocalizedError { var errorDescription: String? { "boom" } }
+private struct Boom: Error, LocalizedError { var errorDescription: String? {
+    "boom"
+} }
 
 private actor EventLog {
     private(set) var events: [String] = []
-    func add(_ event: String) { events.append(event) }
+    func add(_ event: String) {
+        events.append(event)
+    }
 }
 
 /// Records begin/end around a sleep long enough that concurrent posters
@@ -38,7 +44,7 @@ private actor EventLog {
 private struct SlowPoster: Poster {
     let target: PostTarget
     let log: EventLog
-    func post(thread: [DraftPost], continuingFrom ref: NativeRef?) async throws -> [PostedItem] {
+    func post(thread _: [DraftPost], continuingFrom _: NativeRef?) async throws -> [PostedItem] {
         await log.add("\(target.rawValue) begin")
         try await Task.sleep(nanoseconds: 300_000_000)
         await log.add("\(target.rawValue) end")
@@ -53,7 +59,7 @@ final class CrossPostCoordinatorTests: XCTestCase {
     func testBlockedWhenValidationFails() async {
         let thread = [DraftPost(text: String(repeating: "a", count: 400))] // > bluesky 300
         let outcome = await coordinator.publish(thread: thread, to: [.bluesky], using: [], limits: limits)
-        guard case .blocked(let issues) = outcome else { return XCTFail("expected blocked") }
+        guard case let .blocked(issues) = outcome else { return XCTFail("expected blocked") }
         XCTAssertEqual(issues, [.tooLong(postIndex: 0, target: .bluesky, count: 400, limit: 300)])
     }
 
@@ -61,14 +67,19 @@ final class CrossPostCoordinatorTests: XCTestCase {
         let thread = [DraftPost(text: "hi")]
         let posters: [Poster] = [
             StubPoster(target: .mastodon, behavior: .ok([PostedItem(url: "m1")])),
-            StubPoster(target: .bluesky, behavior: .ok([PostedItem(url: "b1")])),
+            StubPoster(target: .bluesky, behavior: .ok([PostedItem(url: "b1")]))
         ]
-        let outcome = await coordinator.publish(thread: thread, to: [.mastodon, .bluesky], using: posters, limits: limits)
-        guard case .completed(let results) = outcome else { return XCTFail("expected completed") }
+        let outcome = await coordinator.publish(
+            thread: thread,
+            to: [.mastodon, .bluesky],
+            using: posters,
+            limits: limits
+        )
+        guard case let .completed(results) = outcome else { return XCTFail("expected completed") }
         XCTAssertEqual(results.count, 2)
         XCTAssertEqual(results.map(\.target), [.mastodon, .bluesky])
         for r in results {
-            guard case .success(let posted) = r.outcome else { return XCTFail("expected success") }
+            guard case let .success(posted) = r.outcome else { return XCTFail("expected success") }
             XCTAssertEqual(posted.count, 1)
         }
     }
@@ -77,12 +88,12 @@ final class CrossPostCoordinatorTests: XCTestCase {
         let log = EventLog()
         let posters: [Poster] = [
             SlowPoster(target: .mastodon, log: log),
-            SlowPoster(target: .bluesky, log: log),
+            SlowPoster(target: .bluesky, log: log)
         ]
         let outcome = await coordinator.publish(thread: [DraftPost(text: "hi")],
                                                 to: [.mastodon, .bluesky], using: posters, limits: limits)
-        guard case .completed(let results) = outcome else { return XCTFail("expected completed") }
-        XCTAssertEqual(results.map(\.target), [.mastodon, .bluesky])   // caller order kept
+        guard case let .completed(results) = outcome else { return XCTFail("expected completed") }
+        XCTAssertEqual(results.map(\.target), [.mastodon, .bluesky]) // caller order kept
         // Both posts must begin before either finishes its 300 ms of work.
         let firstTwo = await Set(log.events.prefix(2))
         XCTAssertEqual(firstTwo, ["mastodon begin", "bluesky begin"],
@@ -93,12 +104,17 @@ final class CrossPostCoordinatorTests: XCTestCase {
         let thread = [DraftPost(text: "hi")]
         let posters: [Poster] = [
             StubPoster(target: .mastodon, behavior: .ok([PostedItem(url: "m1")])),
-            StubPoster(target: .bluesky, behavior: .fail(Boom())),
+            StubPoster(target: .bluesky, behavior: .fail(Boom()))
         ]
-        let outcome = await coordinator.publish(thread: thread, to: [.mastodon, .bluesky], using: posters, limits: limits)
-        guard case .completed(let results) = outcome else { return XCTFail("expected completed") }
+        let outcome = await coordinator.publish(
+            thread: thread,
+            to: [.mastodon, .bluesky],
+            using: posters,
+            limits: limits
+        )
+        guard case let .completed(results) = outcome else { return XCTFail("expected completed") }
         guard case .success = results[0].outcome else { return XCTFail("mastodon should succeed") }
-        guard case .failure(let msg) = results[1].outcome else { return XCTFail("bluesky should fail") }
+        guard case let .failure(msg) = results[1].outcome else { return XCTFail("bluesky should fail") }
         XCTAssertTrue(msg.contains("boom"))
     }
 
@@ -107,8 +123,8 @@ final class CrossPostCoordinatorTests: XCTestCase {
         let err = ThreadPostError(posted: [PostedItem(url: "m1")], failedIndex: 1, underlying: Boom())
         let posters: [Poster] = [StubPoster(target: .mastodon, behavior: .partial(err))]
         let outcome = await coordinator.publish(thread: thread, to: [.mastodon], using: posters, limits: limits)
-        guard case .completed(let results) = outcome,
-              case .partial(let posted, let failedIndex, let msg) = results[0].outcome
+        guard case let .completed(results) = outcome,
+              case let .partial(posted, failedIndex, msg) = results[0].outcome
         else { return XCTFail("expected partial") }
         XCTAssertEqual(posted.map(\.url), ["m1"])
         XCTAssertEqual(failedIndex, 1)
@@ -118,8 +134,8 @@ final class CrossPostCoordinatorTests: XCTestCase {
     func testMissingPosterForTargetIsFailure() async {
         let thread = [DraftPost(text: "hi")]
         let outcome = await coordinator.publish(thread: thread, to: [.bluesky], using: [], limits: limits)
-        guard case .completed(let results) = outcome,
-              case .failure(let msg) = results[0].outcome
+        guard case let .completed(results) = outcome,
+              case let .failure(msg) = results[0].outcome
         else { return XCTFail("expected failure") }
         XCTAssertTrue(msg.contains("Bluesky"))
     }
@@ -132,8 +148,8 @@ final class CrossPostCoordinatorTests: XCTestCase {
                                                PostedItem(url: "m3", ref: .mastodon(statusID: "3"))]))
         let outcome = await coordinator.publish(thread: thread, to: [.mastodon], using: [poster],
                                                 limits: limits, resuming: [.mastodon: landed])
-        guard case .completed(let results) = outcome,
-              case .success(let posted) = results[0].outcome
+        guard case let .completed(results) = outcome,
+              case let .success(posted) = results[0].outcome
         else { return XCTFail("expected success") }
         // Only the unsent suffix is published, threaded onto the landed post.
         XCTAssertEqual(poster.postedThread.map(\.text), ["b", "c"])
@@ -145,11 +161,11 @@ final class CrossPostCoordinatorTests: XCTestCase {
     func testResumeWithFullyLandedThreadPostsNothing() async {
         let thread = [DraftPost(text: "a")]
         let landed = [PostedItem(url: "m1", ref: .mastodon(statusID: "1"))]
-        let poster = StubPoster(target: .mastodon, behavior: .fail(Boom()))  // must not be called
+        let poster = StubPoster(target: .mastodon, behavior: .fail(Boom())) // must not be called
         let outcome = await coordinator.publish(thread: thread, to: [.mastodon], using: [poster],
                                                 limits: limits, resuming: [.mastodon: landed])
-        guard case .completed(let results) = outcome,
-              case .success(let posted) = results[0].outcome
+        guard case let .completed(results) = outcome,
+              case let .success(posted) = results[0].outcome
         else { return XCTFail("expected success") }
         XCTAssertEqual(posted.map(\.url), ["m1"])
         XCTAssertTrue(poster.postedThread.isEmpty, "nothing left to send must not call the poster")
@@ -163,21 +179,21 @@ final class CrossPostCoordinatorTests: XCTestCase {
         let poster = StubPoster(target: .mastodon, behavior: .partial(err))
         let outcome = await coordinator.publish(thread: thread, to: [.mastodon], using: [poster],
                                                 limits: limits, resuming: [.mastodon: landed])
-        guard case .completed(let results) = outcome,
-              case .partial(let posted, let failedIndex, _) = results[0].outcome
+        guard case let .completed(results) = outcome,
+              case let .partial(posted, failedIndex, _) = results[0].outcome
         else { return XCTFail("expected partial") }
-        XCTAssertEqual(posted.map(\.url), ["m1"])      // landed prefix preserved
-        XCTAssertEqual(failedIndex, 1)                 // absolute over the full thread
+        XCTAssertEqual(posted.map(\.url), ["m1"]) // landed prefix preserved
+        XCTAssertEqual(failedIndex, 1) // absolute over the full thread
     }
 
     func testResumeRefusedWhenLandedRefMissing() async {
         let thread = [DraftPost(text: "a"), DraftPost(text: "b")]
-        let landed = [PostedItem(url: "m1")]   // no native ref → can't thread onto it
+        let landed = [PostedItem(url: "m1")] // no native ref → can't thread onto it
         let poster = StubPoster(target: .mastodon, behavior: .ok([PostedItem(url: "m2")]))
         let outcome = await coordinator.publish(thread: thread, to: [.mastodon], using: [poster],
                                                 limits: limits, resuming: [.mastodon: landed])
-        guard case .completed(let results) = outcome,
-              case .partial(let posted, let failedIndex, let message) = results[0].outcome
+        guard case let .completed(results) = outcome,
+              case let .partial(posted, failedIndex, message) = results[0].outcome
         else { return XCTFail("expected partial") }
         XCTAssertEqual(posted.map(\.url), ["m1"])
         XCTAssertEqual(failedIndex, 1)
@@ -198,8 +214,8 @@ final class CrossPostCoordinatorTests: XCTestCase {
         let landed = [PostedItem(url: "m1", ref: .mastodon(statusID: "1"))]
         let outcome = await coordinator.publish(thread: thread, to: [.mastodon], using: [],
                                                 limits: limits, resuming: [.mastodon: landed])
-        guard case .completed(let results) = outcome,
-              case .partial(let posted, let failedIndex, let message) = results[0].outcome
+        guard case let .completed(results) = outcome,
+              case let .partial(posted, failedIndex, message) = results[0].outcome
         else { return XCTFail("expected partial") }
         XCTAssertEqual(posted.map(\.url), ["m1"])
         XCTAssertEqual(failedIndex, 1)

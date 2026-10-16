@@ -6,16 +6,7 @@ struct LinkCard: Equatable, Sendable {
     let title: String
     let description: String
     let imageURL: URL?
-    let providerName: String   // e.g. "nytimes.com"
-
-    init(url: URL, title: String, description: String,
-                imageURL: URL?, providerName: String) {
-        self.url = url
-        self.title = title
-        self.description = description
-        self.imageURL = imageURL
-        self.providerName = providerName
-    }
+    let providerName: String // e.g. "nytimes.com"
 }
 
 /// A quoted post embedded in another (Mastodon quote, Bluesky record embed).
@@ -46,9 +37,9 @@ struct QuotedPost: Equatable, Sendable, Identifiable {
 
 /// A user profile: header details for the profile view.
 struct Profile: Sendable, Identifiable, Equatable {
-    let id: String          // account id (Mastodon) / handle (Bluesky)
+    let id: String // account id (Mastodon) / handle (Bluesky)
     let name: String
-    let handle: String      // "@..."
+    let handle: String // "@..."
     let avatarURL: URL?
     let bannerURL: URL?
     let bio: AttributedString
@@ -87,8 +78,8 @@ struct AccountRelationship: Sendable, Equatable {
     var blockRecordURI: String?
 
     init(isFollowing: Bool = false, isFollowedBy: Bool = false,
-                isMuting: Bool = false, isBlocking: Bool = false,
-                followRecordURI: String? = nil, blockRecordURI: String? = nil) {
+         isMuting: Bool = false, isBlocking: Bool = false,
+         followRecordURI: String? = nil, blockRecordURI: String? = nil) {
         self.isFollowing = isFollowing
         self.isFollowedBy = isFollowedBy
         self.isMuting = isMuting
@@ -103,9 +94,4 @@ struct AccountRelationship: Sendable, Equatable {
 struct PostThread: Sendable {
     let ancestors: [FeedPost]
     let descendants: [FeedPost]
-
-    init(ancestors: [FeedPost], descendants: [FeedPost]) {
-        self.ancestors = ancestors
-        self.descendants = descendants
-    }
 }

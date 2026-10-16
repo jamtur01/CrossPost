@@ -1,6 +1,6 @@
-import Foundation
 import AppKit
 @testable import CrossPost
+import Foundation
 
 /// Builds a `FeedPost` with sensible defaults so tests only specify what they care about.
 enum TestFactory {
@@ -9,7 +9,8 @@ enum TestFactory {
         let rep = NSBitmapImageRep(
             bitmapDataPlanes: nil, pixelsWide: side, pixelsHigh: side,
             bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
-            colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)
+            colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0
+        )
         return rep?.representation(using: .png, properties: [:]) ?? Data()
     }
 
@@ -42,6 +43,7 @@ enum TestFactory {
             isReposted: false,
             mentionHandles: mentionHandles,
             visibility: visibility,
-            nativeRef: nativeRef)
+            nativeRef: nativeRef
+        )
     }
 }

@@ -9,8 +9,12 @@ private let counterWarnWithin = 20
 /// Character-counter color shared by every composer surface: red over the
 /// limit, orange when close, secondary otherwise.
 func counterColor(count: Int, limit: Int) -> Color {
-    if count > limit { return .red }
-    if count >= limit - counterWarnWithin { return .orange }
+    if count > limit {
+        return .red
+    }
+    if count >= limit - counterWarnWithin {
+        return .orange
+    }
     return .secondary
 }
 
@@ -71,16 +75,16 @@ func submitSheet(isSending: Binding<Bool>, sent: Binding<Bool>, errorMessage: Bi
 /// ("Post 2"), a reply sheet just says "Reply".
 func validationMessage(_ issue: ValidationIssue, subject: (_ postIndex: Int) -> String) -> String {
     switch issue {
-    case .empty(let postIndex):
-        return "\(subject(postIndex)) is empty."
-    case .tooLong(let postIndex, let target, let count, let limit):
-        return "\(subject(postIndex)) is too long for \(target.displayName): \(count)/\(limit)."
-    case .tooLongBytes(let postIndex, let target, let count, let limit):
-        return "\(subject(postIndex)) is too long for \(target.displayName): \(count)/\(limit) bytes."
-    case .tooManyImages(let postIndex, let target, let count, let limit):
-        return "\(subject(postIndex)) has too many images for \(target.displayName): \(count)/\(limit)."
-    case .altTextTooLong(let postIndex, let imageIndex, let target, let count, let limit):
-        return "\(subject(postIndex)) image \(imageIndex + 1) alt text is too long for "
+    case let .empty(postIndex):
+        "\(subject(postIndex)) is empty."
+    case let .tooLong(postIndex, target, count, limit):
+        "\(subject(postIndex)) is too long for \(target.displayName): \(count)/\(limit)."
+    case let .tooLongBytes(postIndex, target, count, limit):
+        "\(subject(postIndex)) is too long for \(target.displayName): \(count)/\(limit) bytes."
+    case let .tooManyImages(postIndex, target, count, limit):
+        "\(subject(postIndex)) has too many images for \(target.displayName): \(count)/\(limit)."
+    case let .altTextTooLong(postIndex, imageIndex, target, count, limit):
+        "\(subject(postIndex)) image \(imageIndex + 1) alt text is too long for "
             + "\(target.displayName): \(count)/\(limit)."
     }
 }

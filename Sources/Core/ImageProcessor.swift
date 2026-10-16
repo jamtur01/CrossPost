@@ -1,5 +1,5 @@
-import Foundation
 import CoreGraphics
+import Foundation
 import ImageIO
 import UniformTypeIdentifiers
 
@@ -10,13 +10,16 @@ enum ImageProcessor {
         case cannotFitBudget(bytes: Int, budget: Int)
         var description: String {
             switch self {
-            case .decodeFailed: return "Could not read image data"
-            case .encodeFailed: return "Could not encode image data"
-            case .cannotFitBudget(let b, let budget):
-                return "Image is \(b) bytes; could not compress under \(budget) bytes"
+            case .decodeFailed: "Could not read image data"
+            case .encodeFailed: "Could not encode image data"
+            case let .cannotFitBudget(b, budget):
+                "Image is \(b) bytes; could not compress under \(budget) bytes"
             }
         }
-        var errorDescription: String? { description }
+
+        var errorDescription: String? {
+            description
+        }
     }
 
     /// Whether `data` is a decodable image. Used to reject a corrupt attachment
@@ -62,7 +65,7 @@ enum ImageProcessor {
         // ends (0.75^16 ≈ 0.01), so an image can't fail mid-thread and strand
         // already-published posts. Each scale step decodes and rasterises the
         // source once; only the JPEG quality varies inside it.
-        for _ in 0..<16 where maxPixel > 0 {
+        for _ in 0 ..< 16 where maxPixel > 0 {
             guard let bitmap = uprightBitmap(from: source, maxPixel: maxPixel) else {
                 throw ProcessingError.decodeFailed
             }
@@ -70,7 +73,9 @@ enum ImageProcessor {
                 guard let encoded = encodeJPEG(bitmap, quality: quality) else {
                     throw ProcessingError.encodeFailed
                 }
-                if encoded.count <= maxBytes { return encoded }
+                if encoded.count <= maxBytes {
+                    return encoded
+                }
                 lastOversize = encoded.count
             }
             maxPixel = Int(Double(maxPixel) * 0.75)
@@ -94,7 +99,7 @@ enum ImageProcessor {
         let options: [CFString: Any] = [
             kCGImageSourceCreateThumbnailWithTransform: true,
             kCGImageSourceCreateThumbnailFromImageAlways: true,
-            kCGImageSourceThumbnailMaxPixelSize: maxPixel,
+            kCGImageSourceThumbnailMaxPixelSize: maxPixel
         ]
         return CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
     }
@@ -119,7 +124,8 @@ enum ImageProcessor {
     private static func encodeJPEG(_ image: CGImage, quality: Double) -> Data? {
         let output = NSMutableData()
         guard let destination = CGImageDestinationCreateWithData(
-            output, UTType.jpeg.identifier as CFString, 1, nil) else { return nil }
+            output, UTType.jpeg.identifier as CFString, 1, nil
+        ) else { return nil }
         let options = [kCGImageDestinationLossyCompressionQuality: quality] as CFDictionary
         CGImageDestinationAddImage(destination, image, options)
         guard CGImageDestinationFinalize(destination) else { return nil }

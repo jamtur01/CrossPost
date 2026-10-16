@@ -38,11 +38,14 @@ struct CredentialStore: SecretStoring, Sendable {
         case dataEncoding
         var description: String {
             switch self {
-            case .unexpectedStatus(let s): return "Keychain error (OSStatus \(s))"
-            case .dataEncoding: return "Could not encode/decode Keychain value"
+            case let .unexpectedStatus(s): "Keychain error (OSStatus \(s))"
+            case .dataEncoding: "Could not encode/decode Keychain value"
             }
         }
-        var errorDescription: String? { description }
+
+        var errorDescription: String? {
+            description
+        }
     }
 
     private let service: String
@@ -56,7 +59,7 @@ struct CredentialStore: SecretStoring, Sendable {
         let base: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
+            kSecAttrAccount as String: account
         ]
         SecItemDelete(base as CFDictionary) // ignore result; ensures overwrite
         var add = base
@@ -74,11 +77,13 @@ struct CredentialStore: SecretStoring, Sendable {
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
             kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne,
+            kSecMatchLimit as String: kSecMatchLimitOne
         ]
         var item: CFTypeRef?
         let status = SecItemCopyMatching(query as CFDictionary, &item)
-        if status == errSecItemNotFound { return nil }
+        if status == errSecItemNotFound {
+            return nil
+        }
         guard status == errSecSuccess else { throw KeychainError.unexpectedStatus(status) }
         guard let data = item as? Data, let value = String(data: data, encoding: .utf8) else {
             throw KeychainError.dataEncoding
@@ -90,7 +95,7 @@ struct CredentialStore: SecretStoring, Sendable {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
+            kSecAttrAccount as String: account
         ]
         let status = SecItemDelete(query as CFDictionary)
         guard status == errSecSuccess || status == errSecItemNotFound else {

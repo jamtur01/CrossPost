@@ -1,10 +1,12 @@
-import XCTest
 import ATProtoKit
 @testable import CrossPost
+import XCTest
 
 final class ErrorMessageTests: XCTestCase {
     private struct Friendly: LocalizedError {
-        var errorDescription: String? { "a friendly message" }
+        var errorDescription: String? {
+            "a friendly message"
+        }
     }
 
     func testPrefersLocalizedErrorDescription() {
@@ -23,6 +25,7 @@ final class ErrorMessageTests: XCTestCase {
     }
 
     // MARK: ATProtoKit mapping
+
     //
     // ATProtoKit's errors don't conform to `LocalizedError`, so without mapping they
     // bridge to "The operation couldn't be completed. (ATProtoKit.ATAPIError error 0.)".

@@ -7,10 +7,10 @@ struct CrossPostCoordinator: Sendable {
     /// landed on a target from an interrupted attempt: only the unsent suffix is
     /// published, threaded onto the last landed post, so nothing is sent twice.
     func publish(thread: [DraftPost],
-                        to targets: [PostTarget],
-                        using posters: [Poster],
-                        limits: TargetLimits,
-                        resuming: [PostTarget: [PostedItem]] = [:]) async -> CrossPostOutcome {
+                 to targets: [PostTarget],
+                 using posters: [Poster],
+                 limits: TargetLimits,
+                 resuming: [PostTarget: [PostedItem]] = [:]) async -> CrossPostOutcome {
         let issues = PostValidator.validate(thread: thread, targets: targets, limits: limits)
         guard issues.isEmpty else { return .blocked(issues: issues) }
 
@@ -20,11 +20,13 @@ struct CrossPostCoordinator: Sendable {
             for (index, target) in targets.enumerated() {
                 let poster = posters.first(where: { $0.target == target })
                 let landed = resuming[target] ?? []
-                group.addTask { (index, await Self.publish(thread: thread, to: target,
+                group.addTask { await (index, Self.publish(thread: thread, to: target,
                                                            using: poster, landed: landed)) }
             }
             var indexed: [(Int, PostResult)] = []
-            for await entry in group { indexed.append(entry) }
+            for await entry in group {
+                indexed.append(entry)
+            }
             return indexed.sorted { $0.0 < $1.0 }.map(\.1)
         }
         return .completed(results: results)

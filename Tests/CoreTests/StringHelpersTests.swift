@@ -1,5 +1,5 @@
-import XCTest
 @testable import CrossPost
+import XCTest
 
 final class StringHelpersTests: XCTestCase {
     // MARK: displayOrHandle — the "blank display name → blank UI" trap, used at 12 sites.

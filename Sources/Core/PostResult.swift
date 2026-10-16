@@ -6,13 +6,9 @@ struct PostResult: Sendable {
         case partial(posted: [PostedItem], failedIndex: Int, message: String)
         case failure(message: String)
     }
+
     let target: PostTarget
     let outcome: Outcome
-
-    init(target: PostTarget, outcome: Outcome) {
-        self.target = target
-        self.outcome = outcome
-    }
 }
 
 enum CrossPostOutcome: Sendable {

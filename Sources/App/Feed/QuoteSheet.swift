@@ -18,7 +18,10 @@ struct QuoteSheet: View {
     private var limit: Int {
         post.target == .bluesky ? TargetLimits.blueskyMax : store.mastodonMaxChars
     }
-    private var count: Int { PostValidator.graphemeCount(text) }
+
+    private var count: Int {
+        PostValidator.graphemeCount(text)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -45,7 +48,8 @@ struct QuoteSheet: View {
             SheetFooter(
                 sending: isSending, sent: sent,
                 successLabel: "Quote posted", submitLabel: "Quote", submittingLabel: "Posting…",
-                canSubmit: count <= limit, onCancel: onClose, onSubmit: send)
+                canSubmit: count <= limit, onCancel: onClose, onSubmit: send
+            )
         }
         .sheetContainer()
     }

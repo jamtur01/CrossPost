@@ -1,5 +1,5 @@
-import XCTest
 @testable import CrossPost
+import XCTest
 
 final class ThreadReplyDisclosureTests: XCTestCase {
     func testLargeThreadInitiallyBoundsDescendantsAndPreservesContext() {
@@ -108,6 +108,6 @@ final class ThreadReplyDisclosureTests: XCTestCase {
     }
 
     private func posts(prefix: String, count: Int) -> [FeedPost] {
-        (0..<count).map { TestFactory.feedPost(id: "\(prefix)-\($0)") }
+        (0 ..< count).map { TestFactory.feedPost(id: "\(prefix)-\($0)") }
     }
 }

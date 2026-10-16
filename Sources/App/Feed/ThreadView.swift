@@ -15,13 +15,15 @@ struct ThreadView: View {
     @State private var loadToken = 0
 
     @State private var replyDisclosure = ThreadReplyDisclosure()
-    private var accent: Color { panel.target.accent }
+    private var accent: Color {
+        panel.target.accent
+    }
 
     init(panel: FeedPanelModel, store: AccountStore, post: FeedPost,
          push: @escaping (FeedRoute) -> Void) {
         self.panel = panel
         self.store = store
-        self.focusedPost = post
+        focusedPost = post
         self.push = push
         _list = State(initialValue: PostList(panel: panel))
     }
@@ -84,7 +86,7 @@ struct ThreadView: View {
             guard !Task.isCancelled else { return }
             let live = panel.posts.first { $0.id == focusedPost.id } ?? focusedPost
             replyDisclosure.reset()
-            list.posts = [live]   // keep the focused post; surface the context failure
+            list.posts = [live] // keep the focused post; surface the context failure
             loadError = error.userMessage
         }
         loading = false

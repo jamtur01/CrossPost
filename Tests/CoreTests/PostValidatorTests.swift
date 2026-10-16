@@ -1,5 +1,5 @@
-import XCTest
 @testable import CrossPost
+import XCTest
 
 final class PostValidatorTests: XCTestCase {
     private let limits = TargetLimits(mastodonMax: 500)
@@ -66,7 +66,7 @@ final class PostValidatorTests: XCTestCase {
     }
 
     func testTooManyImagesIsAnIssuePerTarget() {
-        let attachments = (0..<5).map { _ in Attachment(imageData: Data([0x1])) }
+        let attachments = (0 ..< 5).map { _ in Attachment(imageData: Data([0x1])) }
         let post = DraftPost(text: "images", attachments: attachments)
         let issues = PostValidator.validate(thread: [post], targets: [.bluesky], limits: limits)
         XCTAssertEqual(issues, [.tooManyImages(postIndex: 0, target: .bluesky, count: 5, limit: 4)])
@@ -84,14 +84,14 @@ final class PostValidatorTests: XCTestCase {
 
     func testAltTextOverBothLimitsReportsPerTargetAndImage() {
         let alt = String(repeating: "a", count: 2100) // over both 1500 and 2000
-        let attachments = [Attachment(imageData: Data([0x1])),                       // no alt — fine
-                           Attachment(imageData: Data([0x2]), altText: alt)]         // image index 1
+        let attachments = [Attachment(imageData: Data([0x1])), // no alt — fine
+                           Attachment(imageData: Data([0x2]), altText: alt)] // image index 1
         let post = DraftPost(text: "x", attachments: attachments)
         let issues = PostValidator.validate(thread: [post],
                                             targets: [.mastodon, .bluesky], limits: limits)
         XCTAssertEqual(issues, [
             .altTextTooLong(postIndex: 0, imageIndex: 1, target: .mastodon, count: 2100, limit: 1500),
-            .altTextTooLong(postIndex: 0, imageIndex: 1, target: .bluesky, count: 2100, limit: 2000),
+            .altTextTooLong(postIndex: 0, imageIndex: 1, target: .bluesky, count: 2100, limit: 2000)
         ])
     }
 
@@ -114,7 +114,13 @@ final class PostValidatorTests: XCTestCase {
         let issues = PostValidator.validate(thread: thread,
                                             targets: [.mastodon, .bluesky], limits: limits)
         XCTAssertEqual(issues.count, 2) // post 1 over both targets
-        XCTAssertTrue(issues.allSatisfy { if case .tooLong(let i, _, _, _) = $0 { return i == 1 } else { return false } })
+        XCTAssertTrue(issues.allSatisfy {
+            if case let .tooLong(i, _, _, _) = $0 {
+                i == 1
+            } else {
+                false
+            }
+        })
     }
 
     // MARK: - Mastodon countable text
@@ -123,7 +129,8 @@ final class PostValidatorTests: XCTestCase {
         XCTAssertEqual(PostValidator.mastodonCountableText("hi @alice@example.social"), "hi @alice")
         XCTAssertEqual(
             PostValidator.mastodonCountableText("see https://example.com/some/very/long/path?q=1."),
-            "see " + String(repeating: "x", count: 23) + ".")
+            "see " + String(repeating: "x", count: 23) + "."
+        )
         // Emails and local mentions are not remote mentions.
         XCTAssertEqual(PostValidator.mastodonCountableText("mail bob@example.com or @carol"),
                        "mail bob@example.com or @carol")
@@ -170,8 +177,8 @@ final class PostValidatorTests: XCTestCase {
 
     func testImageCapViolationComesFromTargetLimits() {
         XCTAssertNil(limits.imageCountViolation(count: 4, for: .bluesky))
-        guard case .tooManyImages(let target, let count, let limit)? =
-                limits.imageCountViolation(count: 5, for: .mastodon) else {
+        guard case let .tooManyImages(target, count, limit)? =
+            limits.imageCountViolation(count: 5, for: .mastodon) else {
             return XCTFail("expected a violation for 5 images")
         }
         XCTAssertEqual(target, .mastodon)

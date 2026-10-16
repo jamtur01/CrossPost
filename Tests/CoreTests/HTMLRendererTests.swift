@@ -1,5 +1,5 @@
-import XCTest
 @testable import CrossPost
+import XCTest
 
 final class HTMLRendererTests: XCTestCase {
     private func plain(_ html: String) -> String {

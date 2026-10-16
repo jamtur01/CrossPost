@@ -10,16 +10,18 @@ enum ReportReason: String, CaseIterable, Sendable, Identifiable {
     case illegal
     case other
 
-    var id: String { rawValue }
+    var id: String {
+        rawValue
+    }
 
     var title: String {
         switch self {
-        case .spam: return "Spam"
-        case .harassment: return "Harassment or abuse"
-        case .misleading: return "Misleading or false"
-        case .sexual: return "Unwanted sexual content"
-        case .illegal: return "Illegal content"
-        case .other: return "Other"
+        case .spam: "Spam"
+        case .harassment: "Harassment or abuse"
+        case .misleading: "Misleading or false"
+        case .sexual: "Unwanted sexual content"
+        case .illegal: "Illegal content"
+        case .other: "Other"
         }
     }
 }

@@ -36,6 +36,6 @@ enum RichTextLinks {
               let attrLow = AttributedString.Index(low, within: attributed),
               let attrHigh = AttributedString.Index(high, within: attributed)
         else { return nil }
-        return attrLow..<attrHigh
+        return attrLow ..< attrHigh
     }
 }

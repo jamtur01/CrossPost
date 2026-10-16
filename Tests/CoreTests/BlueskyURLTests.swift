@@ -1,10 +1,11 @@
-import XCTest
 @testable import CrossPost
+import XCTest
 
 final class BlueskyURLTests: XCTestCase {
     func testRkeyFromFullRecordURI() {
         XCTAssertEqual(
-            BlueskyURL.rkey(from: "at://did:plc:abc123/app.bsky.feed.post/3kxyz"), "3kxyz")
+            BlueskyURL.rkey(from: "at://did:plc:abc123/app.bsky.feed.post/3kxyz"), "3kxyz"
+        )
     }
 
     func testRkeyRequiresAuthorityCollectionAndKey() {
@@ -25,6 +26,7 @@ final class BlueskyURLTests: XCTestCase {
         XCTAssertEqual(
             BlueskyURL.post(recordURI: "at://did:plc:abc123/app.bsky.feed.post/3kxyz",
                             handle: "user.bsky.social"),
-            "https://bsky.app/profile/user.bsky.social/post/3kxyz")
+            "https://bsky.app/profile/user.bsky.social/post/3kxyz"
+        )
     }
 }

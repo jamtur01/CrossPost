@@ -1,6 +1,6 @@
-import XCTest
-import SwiftUI
 @testable import CrossPost
+import SwiftUI
+import XCTest
 
 final class RichTextTests: XCTestCase {
     private let accent = Color.red

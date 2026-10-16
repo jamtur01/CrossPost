@@ -1,5 +1,5 @@
-import Foundation
 import ATProtoKit
+import Foundation
 
 /// Posts to Bluesky via ATProtoKit. Ref is the StrongReference used for reply root/parent.
 struct BlueskyPoster: Poster, ThreadPublisher {
@@ -21,7 +21,7 @@ struct BlueskyPoster: Poster, ThreadPublisher {
     /// Rebuild the StrongReferences to resume a thread: parent is the landed post,
     /// root is its stored thread root, so the next post threads under the same root.
     func resumeRefs(from ref: NativeRef) -> (root: Ref, parent: Ref)? {
-        guard case .bluesky(let uri, let cid, let rootURI, let rootCID) = ref else { return nil }
+        guard case let .bluesky(uri, cid, rootURI, rootCID) = ref else { return nil }
         return (root: .init(recordURI: rootURI, cidHash: rootCID),
                 parent: .init(recordURI: uri, cidHash: cid))
     }
@@ -57,11 +57,12 @@ struct BlueskyPoster: Poster, ThreadPublisher {
         guard !attachments.isEmpty else { return nil }
         try limits.checkImageCount(attachments.count, for: .bluesky)
         let queries = try attachments.map { attachment in
-            ATProtoTools.ImageQuery(
-                imageData: try ImageProcessor.jpegUnderBudget(attachment.imageData),
+            try ATProtoTools.ImageQuery(
+                imageData: ImageProcessor.jpegUnderBudget(attachment.imageData),
                 fileName: "\(attachment.id.uuidString).jpg",
                 altText: attachment.altText.nilIfBlank,
-                aspectRatio: nil)
+                aspectRatio: nil
+            )
         }
         return .images(images: queries)
     }

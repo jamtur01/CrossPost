@@ -13,8 +13,8 @@ enum MediaValidationError: Error, LocalizedError, Sendable {
 
     var errorDescription: String? {
         switch self {
-        case .tooManyImages(let target, let count, let limit):
-            return "\(target.displayName) supports at most \(limit) images per post; \(count) were attached."
+        case let .tooManyImages(target, count, limit):
+            "\(target.displayName) supports at most \(limit) images per post; \(count) were attached."
         }
     }
 }
@@ -30,20 +30,22 @@ enum PostValidator {
     /// "countable" transform of the text, Bluesky counts the raw text.
     static func countedGraphemes(_ text: String, for target: PostTarget) -> Int {
         switch target {
-        case .mastodon: return graphemeCount(mastodonCountableText(text))
-        case .bluesky: return graphemeCount(text)
+        case .mastodon: graphemeCount(mastodonCountableText(text))
+        case .bluesky: graphemeCount(text)
         }
     }
 
     /// Matches http(s) links the way Mastodon linkifies them: scheme required,
     /// running to whitespace, with trailing punctuation left outside the link.
     private static let urlPattern = try! NSRegularExpression(
-        pattern: #"https?://\S+"#, options: [.caseInsensitive])
+        pattern: #"https?://\S+"#, options: [.caseInsensitive]
+    )
 
     /// Remote mention `@user@domain`, preceded by start of text or a non-word,
     /// non-slash character so emails (`bob@example.com`) and URL paths are left alone.
     private static let remoteMentionPattern = try! NSRegularExpression(
-        pattern: #"(?<![\w/])@([a-zA-Z0-9_]+)@[a-zA-Z0-9.\-]+"#)
+        pattern: #"(?<![\w/])@([a-zA-Z0-9_]+)@[a-zA-Z0-9.\-]+"#
+    )
 
     /// Punctuation Mastodon treats as prose after a link, not part of it.
     private static let trailingPunctuation = CharacterSet(charactersIn: ".,;:!?…'\")]}")
@@ -85,8 +87,8 @@ enum PostValidator {
     }
 
     static func validate(thread: [DraftPost],
-                                targets: [PostTarget],
-                                limits: TargetLimits) -> [ValidationIssue] {
+                         targets: [PostTarget],
+                         limits: TargetLimits) -> [ValidationIssue] {
         var issues: [ValidationIssue] = []
         for (index, post) in thread.enumerated() {
             if post.isEmpty {
@@ -105,8 +107,8 @@ enum PostValidator {
                     issues.append(.tooLongBytes(postIndex: index, target: target,
                                                 count: byteCount, limit: byteLimit))
                 }
-                if case .tooManyImages(_, let imageCount, let imageLimit)? =
-                        limits.imageCountViolation(count: post.attachments.count, for: target) {
+                if case let .tooManyImages(_, imageCount, imageLimit)? =
+                    limits.imageCountViolation(count: post.attachments.count, for: target) {
                     issues.append(.tooManyImages(postIndex: index,
                                                  target: target,
                                                  count: imageCount,

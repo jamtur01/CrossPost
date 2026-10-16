@@ -29,7 +29,9 @@ func runThread<P: ThreadPublisher>(_ drafts: [DraftPost], using publisher: P,
         do {
             let (ref, item) = try await publisher.publishOne(draft, root: root, parent: parent)
             posted.append(item)
-            if root == nil { root = ref }
+            if root == nil {
+                root = ref
+            }
             parent = ref
         } catch {
             throw ThreadPostError(posted: posted, failedIndex: index, underlying: error)

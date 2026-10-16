@@ -25,17 +25,17 @@ struct MotionVisibilityState: Equatable {
 struct MotionVisibilityObserver: NSViewRepresentable {
     let onChange: (MotionVisibilityState) -> Void
 
-    func makeNSView(context: Context) -> MotionVisibilityObserverNSView {
+    func makeNSView(context _: Context) -> MotionVisibilityObserverNSView {
         MotionVisibilityObserverNSView(onChange: onChange)
     }
 
-    func updateNSView(_ nsView: MotionVisibilityObserverNSView, context: Context) {
+    func updateNSView(_ nsView: MotionVisibilityObserverNSView, context _: Context) {
         nsView.update(onChange: onChange)
     }
 
     static func dismantleNSView(
         _ nsView: MotionVisibilityObserverNSView,
-        coordinator: ()
+        coordinator _: ()
     ) {
         nsView.stopObserving()
     }
@@ -53,7 +53,10 @@ final class MotionVisibilityObserverNSView: NSView {
         super.init(frame: .zero)
     }
 
-    required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
+    @available(*, unavailable)
+    required init?(coder _: NSCoder) {
+        fatalError("init(coder:) is not used")
+    }
 
     override func viewDidMoveToSuperview() {
         super.viewDidMoveToSuperview()
@@ -70,7 +73,9 @@ final class MotionVisibilityObserverNSView: NSView {
         publishCurrentState()
     }
 
-    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+    override func hitTest(_: NSPoint) -> NSView? {
+        nil
+    }
 
     func update(onChange: @escaping (MotionVisibilityState) -> Void) {
         self.onChange = onChange
@@ -172,8 +177,8 @@ final class MotionVisibilityObserverNSView: NSView {
         guard state != lastState else { return }
         lastState = state
         DispatchQueue.main.async { [weak self] in
-            guard let self, self.lastState == state else { return }
-            self.onChange(state)
+            guard let self, lastState == state else { return }
+            onChange(state)
         }
     }
 }
