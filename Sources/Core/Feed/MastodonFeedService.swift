@@ -12,6 +12,7 @@ extension PagedResult {
 struct MastodonFeedService: FeedService {
     private let client: TootClient
     private let quoteSupport = QuoteSupportCache()
+    private let localDomain = LocalDomainCache()
     private let streamOwner = MastodonStreamOwner()
 
     init(client: TootClient) {
@@ -181,7 +182,9 @@ struct MastodonFeedService: FeedService {
         // Resolve only a full "user@instance", so a remote account the instance
         // hasn't seen can be found without a WebFinger lookup per keystroke.
         let params = SearchAccountsParams(query: query, resolve: query.contains("@"))
-        return try await client.searchAccounts(params: params, limit: 8).map(Self.mentionCandidate(from:))
+        let accounts = try await client.searchAccounts(params: params, limit: 8)
+        let domain = await localDomain.get(client)
+        return accounts.map { Self.mentionCandidate(from: $0, localDomain: domain) }
     }
 
     func bookmarkedPosts() async throws -> [FeedPost] {
@@ -430,5 +433,23 @@ private actor QuoteSupportCache {
 
     func set(_ value: Bool) {
         supported = value
+    }
+}
+
+/// The instance's own domain, which local accounts' accts omit. Fetched once per
+/// service; a failed fetch isn't cached, and callers fall back to profile URLs.
+private actor LocalDomainCache {
+    private var domain: String?
+
+    func get(_ client: TootClient) async -> String? {
+        if let domain {
+            return domain
+        }
+        do {
+            domain = try await client.getInstanceInfoV2().domain
+        } catch {
+            Log.mentions.error("Couldn't read the Mastodon instance domain: \(error)")
+        }
+        return domain
     }
 }

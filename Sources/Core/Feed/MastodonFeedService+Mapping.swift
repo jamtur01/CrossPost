@@ -44,11 +44,18 @@ extension MastodonFeedService {
 
     /// The bio and profile field values are kept as profile text so a link to
     /// the person's Bluesky account can merge the two in mention search.
-    static func mentionCandidate(from account: Account) -> MentionCandidate {
-        MentionCandidate(target: .mastodon, handle: account.acct,
-                         displayName: account.displayName ?? "",
-                         avatarURL: URL(string: account.avatar),
-                         profileText: ([account.note] + account.fields.map(\.value)).joined(separator: "\n"))
+    /// Mastodon gives a local account's acct without a domain; the handle is
+    /// qualified with `localDomain` (the instance's own domain, else the profile
+    /// URL's host) so a stored mention or pair names one person on any server.
+    static func mentionCandidate(from account: Account, localDomain: String?) -> MentionCandidate {
+        var handle = account.acct
+        if !handle.contains("@"), let domain = localDomain ?? URL(string: account.url)?.host() {
+            handle += "@\(domain)"
+        }
+        return MentionCandidate(target: .mastodon, handle: handle,
+                                displayName: account.displayName ?? "",
+                                avatarURL: URL(string: account.avatar),
+                                profileText: ([account.note] + account.fields.map(\.value)).joined(separator: "\n"))
     }
 
     static func profile(from account: Account) -> Profile {

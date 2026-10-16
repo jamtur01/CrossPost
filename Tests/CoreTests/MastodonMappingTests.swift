@@ -24,11 +24,33 @@ final class MastodonMappingTests: XCTestCase {
                                   "value": #"<a href="https://bsky.app/profile/pup.bsky.social">pup</a>"#]]
             json["account"] = account
         }
-        let candidate = MastodonFeedService.mentionCandidate(from: post.account)
+        let candidate = MastodonFeedService.mentionCandidate(from: post.account, localDomain: "a.example")
         XCTAssertEqual(candidate.target, .mastodon)
-        XCTAssertEqual(candidate.handle, post.account.acct)
         XCTAssertTrue(candidate.profileText.contains("<p>Puppets</p>"))
         XCTAssertTrue(candidate.profileText.contains("bsky.app/profile/pup.bsky.social"))
+    }
+
+    func testLocalMentionCandidateIsQualifiedWithItsServer() throws {
+        let local = try decodePost("mastodon_reply") { json in
+            var account = json["account"] as? [String: Any] ?? [:]
+            account["acct"] = "alice"
+            account["url"] = "https://web.a.example/@alice"
+            json["account"] = account
+        }.account
+        XCTAssertEqual(MastodonFeedService.mentionCandidate(from: local, localDomain: "a.example").handle,
+                       "alice@a.example")
+        XCTAssertEqual(MastodonFeedService.mentionCandidate(from: local, localDomain: "b.example").handle,
+                       "alice@b.example")
+        // Without the instance's domain, fall back to the profile URL's host.
+        XCTAssertEqual(MastodonFeedService.mentionCandidate(from: local, localDomain: nil).handle,
+                       "alice@web.a.example")
+        let remote = try decodePost("mastodon_reply") { json in
+            var account = json["account"] as? [String: Any] ?? [:]
+            account["acct"] = "bob@elsewhere.example"
+            json["account"] = account
+        }.account
+        XCTAssertEqual(MastodonFeedService.mentionCandidate(from: remote, localDomain: "a.example").handle,
+                       "bob@elsewhere.example")
     }
 
     private static let decoder: JSONDecoder = {
