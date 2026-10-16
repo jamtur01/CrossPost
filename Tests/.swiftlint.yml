@@ -1,0 +1,6 @@
+# Tests may force-unwrap, force-try and force-cast: a crash there is a failure.
+disabled_rules:
+  - force_unwrapping
+  - force_try
+  - force_cast
+  - implicitly_unwrapped_optional

@@ -1,6 +1,16 @@
---swift-version 5.9
---maxwidth 120
+# SwiftFormat is the formatting arbiter. Run `./lint.sh --fix` to apply.
+--swiftversion 5.9
+--exclude build,DerivedData,CrossPost.xcodeproj
+
 --indent 4
+--maxwidth 120
 --self remove
+# No trailing commas: matches SwiftLint's trailing_comma rule.
+--commas inline
+
+# K&R braces. SwiftLint's opening_brace wins where the two disagree, so the
+# SwiftFormat rule that moves `{` onto its own line after a wrapped condition is off.
 --disable wrapMultilineStatementBraces
---trailing-commas never
+
+# Tests may force-unwrap (see Tests/.swiftlint.yml); don't rewrite them.
+--disable noForceUnwrapInTests

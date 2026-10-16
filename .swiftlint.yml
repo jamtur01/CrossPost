@@ -1,6 +1,51 @@
-line_length: 120
-function_body_length: 100
-type_body_length: 400
-file_length: 600
-cyclomatic_complexity: 8
-function_parameter_count: 6
+# Run with `./lint.sh` (SwiftLint --strict: every warning fails).
+included:
+  - Sources
+  - Tests
+excluded:
+  - build
+  - DerivedData
+
+opt_in_rules:
+  - force_unwrapping
+  - implicitly_unwrapped_optional
+  - empty_count
+  - first_where
+  - contains_over_first_not_nil
+  - redundant_nil_coalescing
+
+force_cast: error
+force_try: error
+force_unwrapping: error
+
+line_length:
+  warning: 120
+  ignores_urls: true
+function_body_length:
+  warning: 100
+cyclomatic_complexity:
+  warning: 8
+function_parameter_count:
+  warning: 6
+file_length:
+  warning: 600
+type_body_length:
+  warning: 400
+
+custom_rules:
+  unjustified_unchecked_sendable:
+    name: "Unjustified unsafe concurrency"
+    regex: '(@unchecked Sendable|nonisolated\(unsafe\))(?![^\n]*//)'
+    message: "@unchecked Sendable and nonisolated(unsafe) need a trailing comment justifying them."
+    severity: error
+  bare_todo:
+    name: "Bare TODO"
+    regex: '\b(TODO|FIXME)\b(?![^\n]*(#\d+|§|spec))'
+    match_kinds: comment
+    message: "TODO/FIXME must reference an issue (#123) or a spec section."
+    severity: error
+  banned_type_suffix:
+    name: "Vague type name"
+    regex: '\b(class|struct|enum|actor|protocol)\s+\w*(Manager|Helper|Util|Utils)\b'
+    message: "Name the type for its role, not Manager/Helper/Util."
+    severity: error
