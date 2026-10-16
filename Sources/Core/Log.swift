@@ -11,4 +11,5 @@ enum Log {
 
     static let feed = Logger(subsystem: subsystem, category: "feed")
     static let auth = Logger(subsystem: subsystem, category: "auth")
+    static let mentions = Logger(subsystem: subsystem, category: "mentions")
 }
