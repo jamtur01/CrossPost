@@ -69,14 +69,28 @@ enum MentionMerger {
     private static func containsHandle(_ text: String, _ needle: String) -> Bool {
         var searchRange = text.startIndex ..< text.endIndex
         while let found = text.range(of: needle, range: searchRange) {
-            guard found.upperBound < text.endIndex else { return true }
-            let next = text[found.upperBound]
-            if !(next.isLetter || next.isNumber || next == "-") {
+            if !continuesHandle(text[found.upperBound...]) {
                 return true
             }
             searchRange = found.upperBound ..< text.endIndex
         }
         return false
+    }
+
+    /// Whether `rest` carries on the handle just matched: another handle
+    /// character, or a dot that starts a further domain label
+    /// (`alice.example.com` inside `alice.example.com.au`). A dot ending a
+    /// sentence doesn't.
+    private static func continuesHandle(_ rest: Substring) -> Bool {
+        guard let next = rest.first else { return false }
+        if next == "." {
+            return rest.dropFirst().first.map(isHandleCharacter) ?? false
+        }
+        return isHandleCharacter(next)
+    }
+
+    private static func isHandleCharacter(_ character: Character) -> Bool {
+        character.isLetter || character.isNumber || character == "-"
     }
 
     private static func interleave(_ first: [MentionPerson], _ second: [MentionPerson]) -> [MentionPerson] {

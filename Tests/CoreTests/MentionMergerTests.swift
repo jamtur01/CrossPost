@@ -23,6 +23,14 @@ final class MentionMergerTests: XCTestCase {
         XCTAssertEqual(handle.count, 1)
     }
 
+    func testLinkToLongerDomainDoesNotMerge() {
+        let people = MentionMerger.merge(
+            mastodon: [mastodon("alice@x.y", profile: "https://bsky.app/profile/alice.example.com.au")],
+            bluesky: [bluesky("alice.example.com")], pairs: []
+        )
+        XCTAssertEqual(people.count, 2)
+    }
+
     func testHandleMustNotContinue() {
         let people = MentionMerger.merge(
             mastodon: [mastodon("pup@hachyderm.io", profile: "@pup.bsky.socialite")],
