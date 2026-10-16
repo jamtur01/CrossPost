@@ -15,6 +15,11 @@ xcodegen generate
 - Build: `./build.sh` (add `--run` to launch, `--release` for Release).
 - Build directly: `xcodebuild build -project CrossPost.xcodeproj -scheme CrossPost -destination 'platform=macOS'`
 - Test: `xcodebuild test -project CrossPost.xcodeproj -scheme CrossPost -destination 'platform=macOS'`
+- Lint: `./lint.sh` (SwiftFormat check + `swiftlint --strict`; `--fix` applies
+  autocorrections). Config: `.swiftformat`, `.swiftlint.yml`, `Tests/.swiftlint.yml`
+  (tests may force-unwrap). CI runs the same script with pinned tool versions in
+  `.github/workflows/test.yml`; keep those versions in step with your local tools.
+- Pre-commit hook: `git config core.hooksPath .githooks` runs `./lint.sh` on commit.
 
 ## Layout
 
