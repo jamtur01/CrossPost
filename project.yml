@@ -52,10 +52,12 @@ targets:
       - path: Tests
         excludes:
           - "**/CLAUDE.md"
+    # The tests run inside the app (TEST_HOST), which already links TootSDK and
+    # ATProtoKit; their modules are importable from the build products. Linking
+    # the packages here as well made Xcode emit 40 dependency warnings from
+    # swift-nio, swift-collections and swift-url on every clean build.
     dependencies:
       - target: CrossPost
-      - package: TootSDK
-      - package: ATProtoKit
     settings:
       base:
         BUNDLE_LOADER: "$(TEST_HOST)"
