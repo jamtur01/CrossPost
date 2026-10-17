@@ -32,14 +32,15 @@ jobs:
 
   create-release:
     needs: [changelog-check, build-and-test]
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 30
     permissions:
       contents: write
-    # Xcode 26.3 ships Swift 6.2, the minimum this project compiles with
-    # (isolated deinit, SE-0371). The runner's default Xcode is older.
+    # Pinned to the Xcode the project is tested with locally. Xcode 26.0–26.3
+    # build test hosts that crash freeing @MainActor objects ("pointer being
+    # freed was not allocated"); fixed in 26.4, which macos-15 doesn't have.
     env:
-      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
     steps:
       - uses: actions/checkout@v5
 
@@ -54,8 +55,8 @@ jobs:
         uses: actions/cache@v5
         with:
           path: build/DerivedData
-          key: dd-release-${{ runner.os }}-xcode26.3-${{ hashFiles('project.yml') }}
-          restore-keys: dd-release-${{ runner.os }}-xcode26.3-
+          key: dd-release-${{ runner.os }}-xcode26.6-${{ hashFiles('project.yml') }}
+          restore-keys: dd-release-${{ runner.os }}-xcode26.6-
 
       - name: Install XcodeGen
         run: brew install xcodegen
