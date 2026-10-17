@@ -78,6 +78,7 @@ struct PlainTextEditor: NSViewRepresentable {
         /// Set while the view is being given the model's values, so the storage
         /// sync doesn't echo half-applied state back into the bindings.
         private var isShowingModel = false
+        private var recolorScheduled = false
         private var text: Binding<String>
         private var mentions: Binding<[MentionSpan]>?
         private var editing: MentionEditing?
@@ -104,6 +105,9 @@ struct PlainTextEditor: NSViewRepresentable {
             }
             if let spans {
                 MentionText.apply(spans, to: textView)
+                if let storage = textView.textStorage {
+                    MentionText.recolor(storage)
+                }
             }
         }
 
@@ -135,17 +139,29 @@ struct PlainTextEditor: NSViewRepresentable {
             updateCompletion(textView)
         }
 
-        func textStorage(_ textStorage: NSTextStorage, willProcessEditing _: NSTextStorageEditActions,
-                         range _: NSRange, changeInLength _: Int) {
-            guard mentions != nil else { return }
-            MentionText.recolor(textStorage)
-        }
-
         /// Every change passes through the storage, including undo and redo,
         /// which don't send `textDidChange`; so the bindings are synced here.
-        func textStorage(_ textStorage: NSTextStorage, didProcessEditing _: NSTextStorageEditActions,
+        func textStorage(_ textStorage: NSTextStorage, didProcessEditing editedMask: NSTextStorageEditActions,
                          range _: NSRange, changeInLength _: Int) {
             sync(from: textStorage)
+            if editedMask.contains(.editedCharacters) {
+                scheduleRecolor()
+            }
+        }
+
+        /// Recolours mentions once the current edit has finished. Changing
+        /// attributes while the storage is processing an edit widens the edited
+        /// range, and the text view then moves the caret to its end.
+        private func scheduleRecolor() {
+            guard mentions != nil, !recolorScheduled else { return }
+            recolorScheduled = true
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                recolorScheduled = false
+                if let storage = textView?.textStorage {
+                    MentionText.recolor(storage)
+                }
+            }
         }
 
         private func sync(from storage: NSTextStorage) {

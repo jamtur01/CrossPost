@@ -31,6 +31,22 @@ final class MentionTextTests: XCTestCase {
         XCTAssertEqual(mentions.map(\.location), [6])
     }
 
+    func testTypingBeforeMentionKeepsCaretThere() async throws {
+        let (textView, coordinator) = makeEditor()
+        coordinator.insert(person, replacing: NSRange(location: 0, length: 0))
+        textView.setSelectedRange(NSRange(location: 0, length: 0))
+        textView.insertText("hi ", replacementRange: textView.selectedRange())
+        XCTAssertEqual(textView.selectedRange(), NSRange(location: 3, length: 0))
+        textView.insertText("x", replacementRange: textView.selectedRange())
+        XCTAssertEqual(text, "hi x@pup ")
+        XCTAssertEqual(mentions.map(\.location), [4])
+
+        try await Task.sleep(for: .milliseconds(20)) // colours update after the edit
+        let storage = try XCTUnwrap(textView.textStorage)
+        XCTAssertEqual(storage.attribute(.foregroundColor, at: 4, effectiveRange: nil) as? NSColor,
+                       .controlAccentColor)
+    }
+
     func testTypingAfterMentionIsPlainText() {
         let (textView, coordinator) = makeEditor()
         coordinator.insert(person, replacing: NSRange(location: 0, length: 0))

@@ -61,12 +61,16 @@ enum MentionText {
     }
 
     /// Accent-colours intact mentions and resets broken ones to plain text.
-    /// Attribute-only, so it is safe while the storage is processing an edit.
+    /// Attribute-only: call it outside an edit, or the caret can move.
     static func recolor(_ storage: NSTextStorage) {
-        for run in runs(in: storage) {
+        let runs = runs(in: storage)
+        guard !runs.isEmpty else { return }
+        storage.beginEditing()
+        for run in runs {
             let color = run.intact ? NSColor.controlAccentColor : NSColor.textColor
             storage.addAttribute(.foregroundColor, value: color, range: run.range)
         }
+        storage.endEditing()
     }
 
     /// Replaces all marks in `textView` with `spans` (skipping any outside the text).
