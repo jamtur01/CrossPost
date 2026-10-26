@@ -273,6 +273,10 @@ struct MastodonFeedService: FeedService {
         throw FeedError.notSupported("Direct messages aren't supported for Mastodon yet.")
     }
 
+    func conversation(with _: String) async throws -> Conversation {
+        throw FeedError.notSupported("Direct messages aren't supported for Mastodon yet.")
+    }
+
     func liveUpdates() async -> AsyncStream<FeedUpdate>? {
         do {
             let (id, stream) = try await streamOwner.subscribe(client.streaming)

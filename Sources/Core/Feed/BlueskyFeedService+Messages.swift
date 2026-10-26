@@ -53,4 +53,16 @@ extension BlueskyFeedService {
             message: ChatBskyLexicon.Conversation.MessageInputDefinition(text: text)
         )
     }
+
+    func conversation(with accountID: String) async throws -> Conversation {
+        let myDID = try await ownDID()
+        let did = accountID.hasPrefix("did:")
+            ? accountID
+            : try await kit.resolveHandle(from: accountID.trimmingPrefix("@").description).did
+        let output = try await chat.getConversaionForMembers([did])
+        guard let convo = Self.conversations(from: [output.conversation], ownDID: myDID).first else {
+            throw FeedError.notSupported("Bluesky returned a conversation with no members.")
+        }
+        return convo
+    }
 }

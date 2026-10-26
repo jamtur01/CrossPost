@@ -132,6 +132,8 @@ protocol FeedService: Sendable {
     func messages(in conversationID: String) async throws -> [DirectMessage]
     /// Send a message to a conversation.
     func sendMessage(_ text: String, to conversationID: String) async throws
+    /// The conversation with one account (Bluesky DID or handle), created if it doesn't exist.
+    func conversation(with accountID: String) async throws -> Conversation
 
     // MARK: Real-time
 

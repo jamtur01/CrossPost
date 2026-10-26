@@ -178,6 +178,20 @@ extension FeedPanelModel {
         }
     }
 
+    /// The conversation with an account (DID or handle), created on first message.
+    func conversation(with accountID: String) async throws -> Conversation {
+        let generation = mutationGeneration
+        return try await lifecycleOperation(generation: generation) { service in
+            try self.requireOtherAccount(accountID)
+            return try await service.conversation(with: accountID)
+        }
+    }
+
+    /// People to start a conversation with, from the platform's account typeahead.
+    func messageCandidates(matching query: String) async throws -> [MentionCandidate] {
+        try await resolveService().mentionCandidates(matching: query)
+    }
+
     /// Refresh the conversation list (last-message previews, ordering) after activity.
     func reloadConversations(generation: UInt) async throws {
         let fetched = try await lifecycleOperation(generation: generation) { service in

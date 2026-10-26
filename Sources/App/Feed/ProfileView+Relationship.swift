@@ -45,6 +45,9 @@ extension ProfileView {
 
     private func loadedRelationshipControls(_ relationship: AccountRelationship) -> some View {
         HStack(spacing: 8) {
+            if panel.target == .bluesky {
+                messageButton
+            }
             Group {
                 if relationship.isFollowing {
                     Button("Following") { startRelationshipAction(.follow) }
@@ -76,6 +79,30 @@ extension ProfileView {
             .fixedSize()
             .foregroundStyle(.secondary)
             .disabled(isUpdatingRelationship)
+        }
+    }
+
+    private var messageButton: some View {
+        Button(action: openConversation) {
+            Image(systemName: "bubble.left").font(.system(size: 14, weight: .semibold))
+        }
+        .buttonStyle(.bordered)
+        .disabled(openingConversation || isUpdatingRelationship)
+        .accessibilityLabel("Message")
+        .help("Send a direct message")
+    }
+
+    private func openConversation() {
+        openingConversation = true
+        Task {
+            defer { openingConversation = false }
+            do {
+                try await push(.conversation(panel.conversation(with: accountID)))
+            } catch is CancellationError {
+                return
+            } catch {
+                panel.reportError("Couldn't start a conversation. \(error.userMessage)")
+            }
         }
     }
 

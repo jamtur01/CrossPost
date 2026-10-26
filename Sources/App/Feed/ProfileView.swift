@@ -26,6 +26,7 @@ struct ProfileView: View {
     @State var loadError: String?
     @State var postsLoadError: String?
     @State var reportingAccount = false
+    @State var openingConversation = false
     @State var loadToken = 0
     @State var relationshipLoadToken = 0
     @State var pinnedLoadToken = 0

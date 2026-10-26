@@ -390,6 +390,15 @@ extension FakeFeedService {
             throw FakeError.boom
         }
     }
+
+    func conversation(with accountID: String) async throws -> Conversation {
+        if failConversations {
+            throw FakeError.boom
+        }
+        return Conversation(id: "convo-\(accountID)", otherName: accountID, otherHandle: "@\(accountID)",
+                            otherID: accountID, otherAvatarURL: nil, lastMessage: nil, lastDate: nil,
+                            unreadCount: 0)
+    }
 }
 
 extension FeedNotification {

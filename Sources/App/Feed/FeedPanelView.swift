@@ -6,6 +6,7 @@ struct FeedPanelView: View {
     @EnvironmentObject var store: AccountStore
     @State var replyTarget: FeedPost?
     @State var routes: [FeedDestination] = []
+    @State private var composingMessage = false
     @Environment(\.accessibilityReduceMotion) var reduceMotion
 
     var accent: Color {
@@ -51,6 +52,14 @@ struct FeedPanelView: View {
         .background(Color(nsColor: .textBackgroundColor))
         .sheet(item: $replyTarget) { post in
             ReplySheet(model: ReplyModel(post: post, store: store)) { replyTarget = nil }
+        }
+        .sheet(isPresented: $composingMessage) {
+            NewMessageSheet(panel: model) { convo in
+                composingMessage = false
+                pushRoute(.conversation(convo))
+            } onCancel: {
+                composingMessage = false
+            }
         }
         .onAppear { model.start() }
         .onDisappear { model.stop() }
@@ -113,6 +122,11 @@ struct FeedPanelView: View {
             if model.isLoading {
                 ProgressView().controlSize(.small).scaleEffect(0.8)
                     .frame(width: 14, height: 14)
+            }
+            if model.kind == .messages {
+                headerIcon("square.and.pencil", help: "New Message") {
+                    composingMessage = true
+                }
             }
             headerIcon("magnifyingglass", help: "Search") {
                 pushRoute(.search)
