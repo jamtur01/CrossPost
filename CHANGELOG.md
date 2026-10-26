@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-26
+
+### Added
+
+- Mention autocomplete in the composer: typing `@` searches Mastodon and
+  Bluesky together, and the chosen person is mentioned in each network's own
+  format (`@user@instance` on Mastodon, `@handle` on Bluesky). A preview shows
+  exactly what each network will receive, and a person's two accounts can be
+  paired by hand when search doesn't match them.
+- Mastodon direct messages in the Messages tab: conversations show as chat
+  threads, and replies go to everyone in the conversation. A message that
+  @mentions someone outside the conversation is refused, because Mastodon
+  would deliver it to them too.
+- New conversations can be started from a profile's Message button or the
+  compose button in the Messages header, on both Mastodon and Bluesky.
+
+### Changed
+
+- CrossPost now requires macOS 15 (Sequoia) or later.
+
+### Fixed
+
+- Clicking a post's text opens the post, instead of only the space around it.
+- The pointer shows a pointing hand over links, cards, authors, and reply lines.
+- Incoming Mastodon messages refresh the Messages list while the live stream is
+  connected.
+
 ## [0.4.22] - 2026-10-05
 
 ### Added

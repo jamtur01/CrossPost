@@ -15,7 +15,7 @@ posts without leaving the window.
   images (and alt text). Posts are validated first: if anything is empty or over a
   network's limit (Bluesky 300, Mastodon from your instance), nothing is sent and
   the offending post/network is named.
-- **Feeds** per network with **Home**, **Notifications**, and (Bluesky) **Messages**
+- **Feeds** per network with **Home**, **Notifications**, and **Messages**
   tabs. Mastodon refreshes live over its streaming socket; both poll (~60s) and
   refresh manually. The notification tab carries an unread badge.
 - **Per-post actions** — reply (scoped to that one network), like/favourite,
@@ -28,7 +28,12 @@ posts without leaving the window.
   profile or expand a thread in place, with followers/following lists.
 - **Social graph** — follow/unfollow, mute, and block other accounts from a profile.
   Your own profile hides these controls.
-- **Direct messages** — read and send Bluesky DMs in the Messages tab.
+- **Mention autocomplete** — type `@` to search both networks; each network gets the
+  mention in its own format, with a per-network preview before posting.
+- **Direct messages** — read and send Bluesky and Mastodon DMs in the Messages tab, and
+  start a new conversation from a profile or the Messages header. Mastodon DMs that
+  @mention someone outside the conversation are refused, since Mastodon would deliver
+  them to that person too.
 - **Reading controls** — Standard, Larger, and Largest text in Settings; persistent network
   names in navigation headers; Retry and Open original actions for failed images.
 - **Active draft recovery** — text, images, alt text, audiences, destinations, and partial
