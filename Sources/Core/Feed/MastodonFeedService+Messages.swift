@@ -129,9 +129,22 @@ extension MastodonFeedService {
         .sorted { $0.createdAt < $1.createdAt }
     }
 
+    /// Ruby's `[[:word:]]`, which Mastodon's mention pattern is built on. ICU's `\w`
+    /// isn't the same: it also counts U+200C/U+200D, so a joiner before `@bob` would
+    /// hide a mention the server sees, and Apple's ICU marks some private-use code
+    /// points Alphabetic where Ruby doesn't.
+    private static let rubyWord = #"[[\p{Alphabetic}\p{M}\p{Nd}\p{Pc}]--[\x{E000}-\x{F8FF}\x{F0000}-\x{10FFFF}]]"#
+
+    /// Mastodon's `Account::MENTION_RE`, including its IDNA host-label extras.
+    private static let mentionPattern: String = {
+        let host = "(?:\(rubyWord)|[ßς۽۾་〇])"
+        return "(?<![=/])(?<!\(rubyWord))@((?i:[a-z0-9_]+(?:[.-]+[a-z0-9_]+)*)"
+            + "(?:@\(host)+(?:[.-]+\(host)+)*)?)"
+    }()
+
     /// Accounts `text` @mentions beyond `participants`. Mastodon delivers a direct
     /// status to everyone it mentions, so each would silently become a recipient.
-    /// Uses Mastodon's own mention pattern; local accts are qualified with
+    /// Matches the server's mention pattern exactly; local accts are qualified with
     /// `localDomain` so `@alice` and `@alice@home.example` compare equal.
     static func extraRecipients(in text: String, participants: [String],
                                 localDomain: String?) throws -> [String] {
@@ -141,8 +154,7 @@ extension MastodonFeedService {
             return "\(acct)@\(localDomain.lowercased())"
         }
         let known = Set(participants.map(qualified))
-        let pattern = #"(?<![=/\w])@([a-z0-9_]+(?:[.-]+[a-z0-9_]+)*(?:@\w+(?:[.-]+\w+)*)?)"#
-        let regex = try NSRegularExpression(pattern: pattern, options: .caseInsensitive)
+        let regex = try NSRegularExpression(pattern: mentionPattern)
         let range = NSRange(text.startIndex..., in: text)
         var extra: [String] = []
         for match in regex.matches(in: text, range: range) {

@@ -102,6 +102,11 @@ final class MastodonMappingTests: XCTestCase {
                        ["bob@example.com", "dee"])
         XCTAssertEqual(try extra("@Alice@home.example @alice @CY@b.example hi"), [])
         XCTAssertEqual(try extra("mail me@x.example or see https://x.example/@bob"), [])
+        // Expected values come from Mastodon's own Account::MENTION_RE in Ruby.
+        XCTAssertEqual(try extra("note\u{200C}@bob a\u{200D}@dee \u{F870}@eve"), ["bob", "dee", "eve"])
+        XCTAssertEqual(try extra("x@bob é@bob \u{2160}@bob =@bob /@bob"), [])
+        XCTAssertEqual(try extra("@cy@b.example\u{0F0B}x and @cy@b.example."), ["cy@b.example\u{0F0B}x"])
+        XCTAssertEqual(try extra("@Bob.Smith.@x"), ["Bob.Smith", "x"])
     }
 
     func testConversationKeepsOnlyItsOwnAudience() throws {
