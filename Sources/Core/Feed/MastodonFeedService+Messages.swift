@@ -41,6 +41,9 @@ extension MastodonFeedService {
 
     func sendMessage(_ text: String, to conversationID: String) async throws {
         let thread = try await dmThreads.thread(conversationID)
+        let extra = try await Self.extraRecipients(in: text, participants: thread.accts,
+                                                   localDomain: localDomain.get(client))
+        guard extra.isEmpty else { throw FeedError.extraRecipients(extra) }
         let mentions = thread.accts.map { "@\($0)" }.joined(separator: " ")
         var params = PostParams(post: "\(mentions) \(text)", visibility: .direct)
         params.inReplyToId = thread.lastStatusID
@@ -99,6 +102,32 @@ extension MastodonFeedService {
     static func directMessage(from post: Post, ownID: String) -> DirectMessage {
         DirectMessage(id: post.id, text: messageText(from: post), date: post.createdAt,
                       isFromMe: post.account.id == ownID)
+    }
+
+    /// Accounts `text` @mentions beyond `participants`. Mastodon delivers a direct
+    /// status to everyone it mentions, so each would silently become a recipient.
+    /// Uses Mastodon's own mention pattern; local accts are qualified with
+    /// `localDomain` so `@alice` and `@alice@home.example` compare equal.
+    static func extraRecipients(in text: String, participants: [String],
+                                localDomain: String?) throws -> [String] {
+        func qualified(_ acct: String) -> String {
+            let acct = acct.lowercased()
+            guard !acct.contains("@"), let localDomain else { return acct }
+            return "\(acct)@\(localDomain.lowercased())"
+        }
+        let known = Set(participants.map(qualified))
+        let pattern = #"(?<![=/\w])@([a-z0-9_]+(?:[.-]+[a-z0-9_]+)*(?:@\w+(?:[.-]+\w+)*)?)"#
+        let regex = try NSRegularExpression(pattern: pattern, options: .caseInsensitive)
+        let range = NSRange(text.startIndex..., in: text)
+        var extra: [String] = []
+        for match in regex.matches(in: text, range: range) {
+            guard let acctRange = Range(match.range(at: 1), in: text) else { continue }
+            let acct = String(text[acctRange])
+            if !known.contains(qualified(acct)), !extra.contains(acct) {
+                extra.append(acct)
+            }
+        }
+        return extra
     }
 
     /// A DM's text without the leading @mentions that address it.

@@ -13,7 +13,7 @@ struct MastodonFeedService: FeedService {
     let client: TootClient
     let dmThreads = MastodonDMThreads()
     private let quoteSupport = QuoteSupportCache()
-    private let localDomain = LocalDomainCache()
+    let localDomain = LocalDomainCache()
     private let streamOwner = MastodonStreamOwner()
 
     func loadFeed(_ kind: FeedKind, includeHistory: Bool,
@@ -393,11 +393,17 @@ private actor MastodonStreamOwner {
 enum FeedError: Error, CustomStringConvertible, LocalizedError {
     case wrongPlatform
     case notSupported(String)
+    /// A Mastodon DM that @mentions accounts outside its conversation.
+    case extraRecipients([String])
 
     var description: String {
         switch self {
         case .wrongPlatform: "This action does not apply to this post's platform"
         case let .notSupported(what): what
+        case let .extraRecipients(accts):
+            "Not sent: Mastodon would also deliver this message to "
+                + accts.map { "@\($0)" }.joined(separator: ", ")
+                + ", because it mentions them. Remove the @ to name someone without adding them."
         }
     }
 
@@ -422,7 +428,7 @@ private actor QuoteSupportCache {
 
 /// The instance's own domain, which local accounts' accts omit. Fetched once per
 /// service; a failed fetch isn't cached, and callers fall back to profile URLs.
-private actor LocalDomainCache {
+actor LocalDomainCache {
     private var domain: String?
 
     func get(_ client: TootClient) async -> String? {

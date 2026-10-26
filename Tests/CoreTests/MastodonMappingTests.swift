@@ -93,6 +93,17 @@ final class MastodonMappingTests: XCTestCase {
         )))
     }
 
+    func testDirectMessageCannotSilentlyAddRecipients() throws {
+        func extra(_ text: String) throws -> [String] {
+            try MastodonFeedService.extraRecipients(in: text, participants: ["alice", "cy@b.example"],
+                                                    localDomain: "Home.example")
+        }
+        XCTAssertEqual(try extra("I'm concerned about @bob@example.com and @dee, again @bob@example.com"),
+                       ["bob@example.com", "dee"])
+        XCTAssertEqual(try extra("@Alice@home.example @alice @CY@b.example hi"), [])
+        XCTAssertEqual(try extra("mail me@x.example or see https://x.example/@bob"), [])
+    }
+
     private static let decoder: JSONDecoder = {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
