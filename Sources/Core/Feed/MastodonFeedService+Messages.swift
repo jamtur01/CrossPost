@@ -114,9 +114,12 @@ extension MastodonFeedService {
     }
 
     /// Direct statuses whose audience (author and mentions, minus the viewer) is
-    /// exactly the conversation's participants, oldest first.
+    /// exactly the conversation's participants, oldest first. Mastodon lists the
+    /// viewer as the participant of a conversation with themselves, so the viewer
+    /// is dropped from both sides.
     static func conversationPosts(_ posts: [Post], participantIDs: Set<String>, ownID: String) -> [Post] {
-        posts.filter { post in
+        let participantIDs = participantIDs.subtracting([ownID])
+        return posts.filter { post in
             guard post.visibility.value == .direct else { return false }
             var audience = Set(post.mentions.map(\.id))
             audience.insert(post.account.id)

@@ -130,6 +130,13 @@ final class MastodonMappingTests: XCTestCase {
         ]
         let kept = MastodonFeedService.conversationPosts(posts, participantIDs: ["alice"], ownID: "me")
         XCTAssertEqual(kept.map(\.id), ["first", "later"])
+
+        let notes = try [
+            post("note", from: "me", mentioning: [], at: "40"),
+            post("noteToSelf", from: "me", mentioning: ["me"], at: "50")
+        ]
+        let selfKept = MastodonFeedService.conversationPosts(posts + notes, participantIDs: ["me"], ownID: "me")
+        XCTAssertEqual(selfKept.map(\.id), ["note", "noteToSelf"])
     }
 
     private static let decoder: JSONDecoder = {
