@@ -85,20 +85,26 @@ extension ProfileView {
             Image(systemName: "bubble.left").font(.system(size: 14, weight: .semibold))
         }
         .buttonStyle(.bordered)
-        .disabled(openingConversation || isUpdatingRelationship)
+        .disabled(conversationTask != nil || isUpdatingRelationship)
         .accessibilityLabel("Message")
         .help("Send a direct message")
     }
 
+    /// The task is cancelled when the profile disappears, so a slow lookup can't
+    /// push a conversation over wherever the user has since navigated.
     private func openConversation() {
-        openingConversation = true
-        Task {
-            defer { openingConversation = false }
+        conversationTask = Task {
+            defer {
+                if !Task.isCancelled {
+                    conversationTask = nil
+                }
+            }
             do {
-                try await push(.conversation(panel.conversation(with: accountID)))
-            } catch is CancellationError {
-                return
+                let convo = try await panel.conversation(with: accountID)
+                guard !Task.isCancelled else { return }
+                push(.conversation(convo))
             } catch {
+                guard !Task.isCancelled, !(error is CancellationError) else { return }
                 panel.reportError("Couldn't start a conversation. \(error.userMessage)")
             }
         }

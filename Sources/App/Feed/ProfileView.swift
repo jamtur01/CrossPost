@@ -26,7 +26,7 @@ struct ProfileView: View {
     @State var loadError: String?
     @State var postsLoadError: String?
     @State var reportingAccount = false
-    @State var openingConversation = false
+    @State var conversationTask: Task<Void, Never>?
     @State var loadToken = 0
     @State var relationshipLoadToken = 0
     @State var pinnedLoadToken = 0
@@ -102,6 +102,8 @@ struct ProfileView: View {
             list.invalidateOptimisticMutations()
             pinnedList.invalidateOptimisticMutations()
             invalidateRelationshipAction()
+            conversationTask?.cancel()
+            conversationTask = nil
         }
         .sheet(isPresented: $reportingAccount) {
             ReportSheet(

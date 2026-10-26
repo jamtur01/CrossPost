@@ -12,6 +12,7 @@ struct NewMessageSheet: View {
     @State private var searchFailed = false
     @State private var searching = false
     @State private var opening: String?
+    @State private var openTask: Task<Void, Never>?
     @State private var openError: String?
 
     var body: some View {
@@ -33,6 +34,7 @@ struct NewMessageSheet: View {
         }
         .sheetContainer()
         .task(id: query) { await search() }
+        .onDisappear { openTask?.cancel() }
     }
 
     @ViewBuilder
@@ -110,13 +112,14 @@ struct NewMessageSheet: View {
     private func open(_ candidate: MentionCandidate) {
         opening = candidate.handle
         openError = nil
-        Task {
+        openTask = Task {
             defer { opening = nil }
             do {
-                try await onOpen(panel.conversation(with: candidate.handle))
-            } catch is CancellationError {
-                return
+                let convo = try await panel.conversation(with: candidate.handle)
+                guard !Task.isCancelled else { return } // Cancelled or dismissed meanwhile.
+                onOpen(convo)
             } catch {
+                guard !Task.isCancelled, !(error is CancellationError) else { return }
                 openError = "Couldn't start a conversation with @\(candidate.handle). \(error.userMessage)"
             }
         }
