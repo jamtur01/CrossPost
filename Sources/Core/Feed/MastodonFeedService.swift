@@ -10,14 +10,11 @@ extension PagedResult {
 }
 
 struct MastodonFeedService: FeedService {
-    private let client: TootClient
+    let client: TootClient
+    let dmThreads = MastodonDMThreads()
     private let quoteSupport = QuoteSupportCache()
     private let localDomain = LocalDomainCache()
     private let streamOwner = MastodonStreamOwner()
-
-    init(client: TootClient) {
-        self.client = client
-    }
 
     func loadFeed(_ kind: FeedKind, includeHistory: Bool,
                   onPage: @Sendable ([FeedPost]) async -> Void) async throws -> [FeedPost] {
@@ -258,23 +255,6 @@ struct MastodonFeedService: FeedService {
         return try await paged(target: 200, maxPages: 3) {
             try await client.getAccountsBoosted(id: id, $0, limit: 80).page
         }.map { Self.profile(from: $0) }
-    }
-
-    func conversations(includeHistory _: Bool,
-                       onPage _: @Sendable ([Conversation]) async -> Void) async throws -> [Conversation] {
-        throw FeedError.notSupported("Direct messages aren't supported for Mastodon yet.")
-    }
-
-    func messages(in _: String) async throws -> [DirectMessage] {
-        throw FeedError.notSupported("Direct messages aren't supported for Mastodon yet.")
-    }
-
-    func sendMessage(_: String, to _: String) async throws {
-        throw FeedError.notSupported("Direct messages aren't supported for Mastodon yet.")
-    }
-
-    func conversation(with _: String) async throws -> Conversation {
-        throw FeedError.notSupported("Direct messages aren't supported for Mastodon yet.")
     }
 
     func liveUpdates() async -> AsyncStream<FeedUpdate>? {

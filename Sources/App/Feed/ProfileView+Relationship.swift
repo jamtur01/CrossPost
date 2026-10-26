@@ -45,9 +45,7 @@ extension ProfileView {
 
     private func loadedRelationshipControls(_ relationship: AccountRelationship) -> some View {
         HStack(spacing: 8) {
-            if panel.target == .bluesky {
-                messageButton
-            }
+            messageButton
             Group {
                 if relationship.isFollowing {
                     Button("Following") { startRelationshipAction(.follow) }

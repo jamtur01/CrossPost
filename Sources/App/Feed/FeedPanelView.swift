@@ -15,11 +15,6 @@ struct FeedPanelView: View {
 
     static let topAnchor = "feed-top"
 
-    /// Messages is only available where the platform supports DMs (Bluesky for now).
-    private var availableKinds: [FeedKind] {
-        model.target == .bluesky ? FeedKind.allCases : [.home, .notifications]
-    }
-
     var body: some View {
         VStack(spacing: 0) {
             if routes.isEmpty {
@@ -91,10 +86,8 @@ struct FeedPanelView: View {
             model.refresh()
         }
         .onReceive(NotificationCenter.default.publisher(for: .switchFeedKind)) { note in
-            // Switch this column's tab only if it offers that kind (Mastodon has no
-            // Messages), and pop any in-place navigation so the feed is visible.
-            guard let kind = note.userInfo?[feedKindKey] as? FeedKind,
-                  availableKinds.contains(kind) else { return }
+            // Switch this column's tab and pop any in-place navigation so the feed is visible.
+            guard let kind = note.userInfo?[feedKindKey] as? FeedKind else { return }
             clearRoutes()
             model.switchTo(kind)
         }
@@ -147,7 +140,7 @@ struct FeedPanelView: View {
 
     private var feedKindMenu: some View {
         Menu {
-            ForEach(availableKinds) { kind in
+            ForEach(FeedKind.allCases) { kind in
                 Button {
                     model.switchTo(kind)
                 } label: {

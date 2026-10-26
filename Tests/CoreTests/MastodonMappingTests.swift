@@ -53,6 +53,46 @@ final class MastodonMappingTests: XCTestCase {
                        "bob@elsewhere.example")
     }
 
+    func testDirectMessageMappingDropsAddressingMentions() throws {
+        let message = try decodePost("mastodon_reply") { json in
+            json["content"] = #"<p><span class="h-card"><a href="https://a.example/@bob">@<span>bob</span></a></span> "#
+                + #"<span class="h-card"><a href="https://b.example/@cy">@<span>cy@b.example</span></a></span> "#
+                + "see you at 5, @dee knows</p>"
+            json["visibility"] = "direct"
+        }
+        XCTAssertEqual(MastodonFeedService.messageText(from: message), "see you at 5, @dee knows")
+        XCTAssertTrue(MastodonFeedService.directMessage(from: message, ownID: message.account.id).isFromMe)
+        XCTAssertFalse(MastodonFeedService.directMessage(from: message, ownID: "someone-else").isFromMe)
+
+        let mentionOnly = try decodePost("mastodon_reply") { json in
+            json["content"] = "<p>@bob</p>"
+        }
+        XCTAssertEqual(MastodonFeedService.messageText(from: mentionOnly), "@bob")
+
+        let other = try decodePost("mastodon_reply") { json in
+            var account = json["account"] as? [String: Any] ?? [:]
+            account["id"] = "2"
+            account["acct"] = "cy@b.example"
+            account["display_name"] = ""
+            json["account"] = account
+        }.account
+        let group = TootSDK.Conversation(id: "c1", accounts: [message.account, other], unread: true, lastPost: message)
+        let convo = try XCTUnwrap(MastodonFeedService.conversation(from: group))
+        XCTAssertEqual(
+            convo.otherName,
+            "\(displayOrHandle(message.account.displayName, message.account.acct)), cy@b.example"
+        )
+        XCTAssertEqual(convo.otherID, message.account.id)
+        XCTAssertEqual(convo.lastMessage, "see you at 5, @dee knows")
+        XCTAssertEqual(convo.unreadCount, 1)
+        XCTAssertNil(MastodonFeedService.conversation(from: .init(
+            id: "c2",
+            accounts: [],
+            unread: false,
+            lastPost: nil
+        )))
+    }
+
     private static let decoder: JSONDecoder = {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
