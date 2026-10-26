@@ -4,9 +4,11 @@ import TootSDK
 // MARK: Direct messages
 
 /// Mastodon DMs are statuses with `direct` visibility; a conversation is the
-/// thread they form. Replying means posting another direct status that mentions
-/// every participant and replies to the newest one, so the service remembers
-/// those per conversation (Mastodon has no "get conversation by id").
+/// thread they form among one set of participants (Mastodon starts a separate
+/// conversation when a reply changes who is mentioned). Replying means posting
+/// another direct status that mentions every participant and replies to the
+/// newest one, so the service remembers those per conversation (Mastodon has no
+/// "get conversation by id").
 extension MastodonFeedService {
     func conversations(includeHistory: Bool,
                        onPage: @Sendable ([Conversation]) async -> Void) async throws -> [Conversation] {
@@ -23,20 +25,27 @@ extension MastodonFeedService {
     func messages(in conversationID: String) async throws -> [DirectMessage] {
         let state = try await dmThreads.thread(conversationID)
         guard let statusID = state.lastStatusID else { return [] }
-        async let status = client.getPost(id: statusID)
-        async let context = client.getContext(id: statusID)
         async let ownID = ownAccountID()
-        let thread = try await context
-        let posts = try await thread.ancestors + [status] + thread.descendants
-        let direct = posts.filter { $0.visibility.value == .direct }.sorted { $0.createdAt < $1.createdAt }
+        let posts = try await wholeThread(around: statusID)
+        let myID = try await ownID
+        let direct = Self.conversationPosts(posts, participantIDs: Set(state.accountIDs), ownID: myID)
         if let newest = direct.last {
             await dmThreads.setLastStatus(newest.id, for: conversationID)
         }
         if state.mastodonID != nil, state.isUnread {
             await markRead(conversationID)
         }
-        let myID = try await ownID
         return direct.map { Self.directMessage(from: $0, ownID: myID) }
+    }
+
+    /// Every status in the thread containing `statusID`, fetched from its root so
+    /// replies on sibling branches are included.
+    private func wholeThread(around statusID: String) async throws -> [Post] {
+        let context = try await client.getContext(id: statusID)
+        if let root = context.ancestors.first {
+            return try await [root] + client.getContext(id: root.id).descendants
+        }
+        return try await [client.getPost(id: statusID)] + context.descendants
     }
 
     func sendMessage(_ text: String, to conversationID: String) async throws {
@@ -63,7 +72,7 @@ extension MastodonFeedService {
             return convo
         }
         let id = "new:\(account.id)"
-        await dmThreads.start(id, acct: account.acct)
+        await dmThreads.start(id, account: account)
         return Conversation(id: id, otherName: displayOrHandle(account.displayName, account.acct),
                             otherHandle: "@\(account.acct)", otherID: account.id,
                             otherAvatarURL: URL(string: account.avatar),
@@ -102,6 +111,19 @@ extension MastodonFeedService {
     static func directMessage(from post: Post, ownID: String) -> DirectMessage {
         DirectMessage(id: post.id, text: messageText(from: post), date: post.createdAt,
                       isFromMe: post.account.id == ownID)
+    }
+
+    /// Direct statuses whose audience (author and mentions, minus the viewer) is
+    /// exactly the conversation's participants, oldest first.
+    static func conversationPosts(_ posts: [Post], participantIDs: Set<String>, ownID: String) -> [Post] {
+        posts.filter { post in
+            guard post.visibility.value == .direct else { return false }
+            var audience = Set(post.mentions.map(\.id))
+            audience.insert(post.account.id)
+            audience.remove(ownID)
+            return audience == participantIDs
+        }
+        .sorted { $0.createdAt < $1.createdAt }
     }
 
     /// Accounts `text` @mentions beyond `participants`. Mastodon delivers a direct
@@ -144,6 +166,7 @@ extension MastodonFeedService {
 actor MastodonDMThreads {
     struct Thread {
         var accts: [String]
+        var accountIDs: [String]
         var lastStatusID: String?
         var isUnread = false
         var mastodonID: String?
@@ -154,14 +177,15 @@ actor MastodonDMThreads {
 
     func remember(_ convos: [TootSDK.Conversation]) {
         for convo in convos {
-            threads[convo.id] = Thread(accts: convo.accounts.map(\.acct), lastStatusID: convo.lastPost?.id,
-                                       isUnread: convo.unread, mastodonID: convo.id)
+            threads[convo.id] = Thread(accts: convo.accounts.map(\.acct), accountIDs: convo.accounts.map(\.id),
+                                       lastStatusID: convo.lastPost?.id, isUnread: convo.unread,
+                                       mastodonID: convo.id)
         }
     }
 
-    func start(_ id: String, acct: String) {
+    func start(_ id: String, account: Account) {
         if threads[id] == nil {
-            threads[id] = Thread(accts: [acct])
+            threads[id] = Thread(accts: [account.acct], accountIDs: [account.id])
         }
     }
 

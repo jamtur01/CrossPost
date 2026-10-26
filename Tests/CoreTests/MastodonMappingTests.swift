@@ -104,6 +104,34 @@ final class MastodonMappingTests: XCTestCase {
         XCTAssertEqual(try extra("mail me@x.example or see https://x.example/@bob"), [])
     }
 
+    func testConversationKeepsOnlyItsOwnAudience() throws {
+        func post(_ id: String, from author: String, mentioning mentioned: [String],
+                  visibility: String = "direct", at time: String) throws -> Post {
+            try decodePost("mastodon_reply") { json in
+                json["id"] = id
+                json["visibility"] = visibility
+                json["created_at"] = "2026-10-26T10:00:\(time).000Z"
+                var account = json["account"] as? [String: Any] ?? [:]
+                account["id"] = author
+                json["account"] = account
+                json["mentions"] = mentioned.map { [
+                    "id": $0,
+                    "username": $0,
+                    "acct": $0,
+                    "url": "https://a.example/@\($0)"
+                ] }
+            }
+        }
+        let posts = try [
+            post("later", from: "me", mentioning: ["alice"], at: "30"),
+            post("first", from: "alice", mentioning: ["me"], at: "10"),
+            post("addsBob", from: "alice", mentioning: ["me", "bob"], at: "20"),
+            post("public", from: "alice", mentioning: ["me"], visibility: "public", at: "25")
+        ]
+        let kept = MastodonFeedService.conversationPosts(posts, participantIDs: ["alice"], ownID: "me")
+        XCTAssertEqual(kept.map(\.id), ["first", "later"])
+    }
+
     private static let decoder: JSONDecoder = {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
