@@ -2,9 +2,9 @@ import ATProtoKit
 import Foundation
 
 struct BlueskyFeedService: FeedService {
-    private let kit: ATProtoKit
+    let kit: ATProtoKit
     private let bluesky: ATProtoBluesky
-    private let chat: ATProtoBlueskyChat
+    let chat: ATProtoBlueskyChat
     private let handle: String
     private let didCache = OwnDIDCache()
     private let notificationPostCache = NotificationPostCache()
@@ -20,7 +20,7 @@ struct BlueskyFeedService: FeedService {
     /// cached — the chat endpoints would otherwise pay a getProfile call each time.
     /// The cache actor owns the in-flight fetch, so concurrent first callers share
     /// one getProfile round-trip instead of racing check-then-act.
-    private func ownDID() async throws -> String {
+    func ownDID() async throws -> String {
         let kit = kit
         let handle = handle
         return try await didCache.did { try await kit.getProfile(for: handle).actorDID }
@@ -274,56 +274,6 @@ struct BlueskyFeedService: FeedService {
             return (output.repostedBy, output.cursor)
         }
         return actors.map { Self.profile(fromBasic: $0) }
-    }
-
-    func conversations(includeHistory: Bool,
-                       onPage: @Sendable ([Conversation]) async -> Void) async throws -> [Conversation] {
-        let myDID = try await ownDID()
-        let convos = try await paged(target: 200, maxPages: includeHistory ? 3 : 1, onPage: { convos in
-            await onPage(Self.conversations(from: convos, ownDID: myDID))
-        }, {
-            let output = try await chat.listConversations(limit: 100, cursor: $0)
-            return (output.conversations, output.cursor)
-        })
-        return Self.conversations(from: convos, ownDID: myDID)
-    }
-
-    private static func conversations(
-        from convos: [ChatBskyLexicon.Conversation.ConversationViewDefinition], ownDID: String
-    ) -> [Conversation] {
-        convos.compactMap { convo in
-            // Fall back to the first member for a self-conversation (DM to yourself).
-            guard let other = convo.members.first(where: { $0.actorDID != ownDID }) ?? convo.members.first
-            else { return nil }
-            let last = Self.lastMessage(convo.lastMessage)
-            return Conversation(
-                id: convo.conversationID,
-                otherName: displayOrHandle(other.displayName, other.actorHandle),
-                otherHandle: "@\(other.actorHandle)", otherID: other.actorDID,
-                otherAvatarURL: other.avatarImageURL,
-                lastMessage: last.text, lastDate: last.date, unreadCount: convo.unreadCount
-            )
-        }
-    }
-
-    func messages(in conversationID: String) async throws -> [DirectMessage] {
-        let myDID = try await ownDID()
-        // ATProtoKit's getMessages exposes no cursor, so fetch its max page (100).
-        // Deep DM history beyond one page isn't reachable until the SDK adds a cursor.
-        let output = try await chat.getMessages(from: conversationID, limit: 100)
-        let messages = output.messages.compactMap { message -> DirectMessage? in
-            guard case let .messageView(message) = message else { return nil }
-            return DirectMessage(id: message.messageID, text: message.text, date: message.sentAt,
-                                 isFromMe: message.sender.authorDID == myDID)
-        }
-        return messages.reversed() // getMessages returns newest-first; show oldest-first
-    }
-
-    func sendMessage(_ text: String, to conversationID: String) async throws {
-        _ = try await chat.sendMessage(
-            to: conversationID,
-            message: ChatBskyLexicon.Conversation.MessageInputDefinition(text: text)
-        )
     }
 
     /// Bluesky has no per-user timeline stream (only the global firehose), so it polls.
