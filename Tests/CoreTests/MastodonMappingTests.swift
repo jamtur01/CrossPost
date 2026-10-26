@@ -13,6 +13,8 @@ final class MastodonMappingTests: XCTestCase {
         XCTAssertEqual(MastodonFeedService.feedUpdate(from: .connectionDown), .disconnected)
         XCTAssertEqual(MastodonFeedService.feedUpdate(from: .receivedEvent(.update(post))), .home)
         XCTAssertEqual(MastodonFeedService.feedUpdate(from: .receivedEvent(.delete("post"))), .postChanged)
+        let convo = TootSDK.Conversation(id: "c", accounts: [post.account], unread: true, lastPost: post)
+        XCTAssertEqual(MastodonFeedService.feedUpdate(from: .receivedEvent(.conversation(convo))), .messages)
         XCTAssertNil(MastodonFeedService.feedUpdate(from: .receivedEvent(.announcementDelete("announcement"))))
     }
 

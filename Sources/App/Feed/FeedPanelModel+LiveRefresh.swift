@@ -8,6 +8,7 @@ extension FeedPanelModel {
         case .connected: isLiveConnected = true
         case .disconnected: isLiveConnected = false
         case .home: pendingLiveKinds.insert(.home)
+        case .messages: pendingLiveKinds.insert(.messages)
         case .notifications:
             pendingLiveKinds.insert(.notifications)
             pendingLiveUnread = true

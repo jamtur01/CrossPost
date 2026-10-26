@@ -5,12 +5,13 @@ enum FeedUpdate: Sendable {
     case disconnected
     case home
     case notifications
+    case messages
     case postChanged
 
     var isContentChange: Bool {
         switch self {
         case .connected, .disconnected: false
-        case .home, .notifications, .postChanged: true
+        case .home, .notifications, .messages, .postChanged: true
         }
     }
 }

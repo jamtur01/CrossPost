@@ -303,8 +303,9 @@ struct MastodonFeedService: FeedService {
         switch content {
         case .update: .home
         case .notification: .notifications
+        case .conversation: .messages
         case .delete, .postUpdate, .filtersChanged: .postChanged
-        case .conversation, .announcement, .announcementReaction, .announcementDelete,
+        case .announcement, .announcementReaction, .announcementDelete,
              .encryptedMessage, .unsupportedEvent: nil
         }
     }
