@@ -45,8 +45,7 @@ fi
 # CFBundleShortVersionString matches what's shipped (see the release workflow).
 version_args=()
 if [ -n "${CROSSPOST_MARKETING_VERSION:-}" ]; then
-  # Sparkle compares CFBundleVersion, so it must rise with every release too.
-  version_args=(MARKETING_VERSION="$CROSSPOST_MARKETING_VERSION" CURRENT_PROJECT_VERSION="$CROSSPOST_MARKETING_VERSION")
+  version_args=(MARKETING_VERSION="$CROSSPOST_MARKETING_VERSION")
 fi
 
 # Show full build output in CI (so progress is visible); stay quiet locally.
