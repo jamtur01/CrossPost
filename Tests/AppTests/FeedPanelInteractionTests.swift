@@ -58,6 +58,38 @@ final class FeedPanelInteractionTests: FeedPanelTestCase {
         XCTAssertEqual(model.notifications.map { $0.post?.isLiked }, [true, true, false])
     }
 
+    /// A notifications page fetched before a like was confirmed must not put the
+    /// unliked post back: the like's record would be lost and Bluesky could be
+    /// liked twice.
+    func testStaleNotificationPageKeepsConfirmedLike() async {
+        let fake = FakeFeedService()
+        var note = FeedNotification.fixture(id: "n1", date: .now)
+        note.post = TestFactory.feedPost(id: "p")
+        fake.notificationsToReturn = [note]
+        let model = makeModel(fake)
+        model.switchTo(.notifications)
+        await waitUntil { !model.isLoading && model.notifications.count == 1 }
+
+        let gate = TestGate()
+        fake.notificationsDelay = { await gate.wait() }
+        model.refresh()
+        await waitUntil { gate.arrivals == 1 }
+        var confirmed = TestFactory.feedPost(id: "p")
+        confirmed.isLiked = true
+        confirmed.likeRecordURI = "at://like/p"
+        model.updateNotificationPosts(with: confirmed) // a row's like lands mid-refresh
+
+        fake.notificationsDelay = nil
+        gate.open()
+        await waitUntil { fake.notificationsCalls == 2 && !model.isLoading }
+        XCTAssertEqual(model.notifications.first?.post?.likeRecordURI, "at://like/p")
+
+        model.refresh() // a load that starts after the like trusts the server again
+        await waitUntil { fake.notificationsCalls == 3 && !model.isLoading }
+        XCTAssertNil(model.notifications.first?.post?.likeRecordURI)
+        model.stop()
+    }
+
     func testRemoteFollowSkipsWriteForAlreadyFollowedActor() async throws {
         let fake = FakeFeedService()
         fake.relationshipsToReturn = ["friend": AccountRelationship(isFollowing: true)]

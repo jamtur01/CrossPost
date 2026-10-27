@@ -212,9 +212,13 @@ final class FakeFeedService: FeedService, @unchecked Sendable { // tests drive i
     private(set) var setFollowingCalls: [String] = []
 
     private(set) var notificationsCalls = 0
+    var notificationsDelay: (() async -> Void)?
     func notifications(includeHistory _: Bool,
                        onPage: @Sendable ([FeedNotification]) async -> Void) async throws -> [FeedNotification] {
         notificationsCalls += 1
+        if let notificationsDelay {
+            await notificationsDelay()
+        }
         await onPage(notificationsToReturn)
         return notificationsToReturn
     }

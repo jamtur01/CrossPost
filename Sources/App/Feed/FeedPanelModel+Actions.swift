@@ -55,6 +55,8 @@ extension FeedPanelModel {
         for index in notifications.indices where notifications[index].post?.id == post.id {
             notifications[index].post = post
         }
+        mutationClock += 1
+        settledNotificationPosts[post.id] = mutationClock
     }
 
     /// Publishes a relationship only after the initiating UI lifecycle accepts it.

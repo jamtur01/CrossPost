@@ -124,8 +124,9 @@ extension FeedPanelModel {
 
     private func loadNotifications(from service: FeedService) async throws {
         let includeHistory = !loadedHistory.contains(.notifications)
+        let startedAt = mutationClock
         let fetched = try await service.notifications(includeHistory: includeHistory) { [weak self] page in
-            await self?.acceptNotifications(page)
+            await self?.acceptNotifications(page, fetchedSince: startedAt)
         }
         if Task.isCancelled {
             return
@@ -156,7 +157,7 @@ extension FeedPanelModel {
         }
     }
 
-    private func acceptNotifications(_ fetched: [FeedNotification]) {
+    private func acceptNotifications(_ fetched: [FeedNotification], fetchedSince startedAt: UInt) {
         guard !Task.isCancelled else { return }
         if errorMessage != nil {
             errorMessage = nil
@@ -164,9 +165,27 @@ extension FeedPanelModel {
         let visible = fetched.filter {
             $0.kind == .poll || !isOwnAccount(id: $0.actorID, handle: $0.actorHandle)
         }
-        let next = FeedMerge.retainingHistory(existing: notifications, fetched: visible)
+        let next = FeedMerge.retainingHistory(existing: notifications,
+                                              fetched: keepingConfirmedPosts(in: visible, since: startedAt))
         if notifications != next {
             notifications = next
+        }
+    }
+
+    /// A page fetched before a like or repost from a notification was confirmed
+    /// would put the old post back, losing the like's record; keep the confirmed one.
+    private func keepingConfirmedPosts(in fetched: [FeedNotification], since startedAt: UInt) -> [FeedNotification] {
+        let confirmedIDs = settledNotificationPosts.filter { $0.value > startedAt }.keys
+        guard !confirmedIDs.isEmpty else { return fetched }
+        var confirmed: [String: FeedPost] = [:]
+        for case let post? in notifications.map(\.post) where confirmedIDs.contains(post.id) {
+            confirmed[post.id] = post
+        }
+        return fetched.map { note in
+            guard let id = note.post?.id, let post = confirmed[id] else { return note }
+            var note = note
+            note.post = post
+            return note
         }
     }
 
