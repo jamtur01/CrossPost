@@ -183,11 +183,12 @@ extension MastodonFeedService {
     }
 
     /// A quote post's content starts with a `<p class="quote-inline">RE: link</p>`
-    /// for clients that can't show quotes. The quote card shows it, so drop the
-    /// line, as Mastodon's own web client does whenever the status has a quote.
+    /// for clients that can't show quotes. Drop the line only when the quote card
+    /// renders: a pending or unavailable quote has no card, so the link is the
+    /// only reference to the quoted post.
     private static func content(of post: Post) -> String {
         let html = post.content ?? ""
-        guard post.quote != nil else { return html }
+        guard quotedPost(from: post.quote) != nil else { return html }
         return html.replacingOccurrences(of: #"<p class="quote-inline">.*?</p>"#, with: "",
                                          options: .regularExpression)
     }

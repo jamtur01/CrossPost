@@ -344,9 +344,16 @@ final class MastodonMappingTests: XCTestCase {
             json["quote"] = ["state": "accepted", "quoted_status": quoted]
         }
         XCTAssertEqual(String(MastodonFeedService.feedPost(from: quotePost).text.characters), "my take")
-        // Without a quote the line is the only reference to the link, so it stays.
+        // Without a card (no quote, or one still pending) the line is the only
+        // reference to the quoted post, so it stays.
         let plain = try decodePost("mastodon_reply") { $0["content"] = fallback }
         XCTAssertTrue(String(MastodonFeedService.feedPost(from: plain).text.characters).hasPrefix("RE: "))
+        let pending = try decodePost("mastodon_reply") { json in
+            json["content"] = fallback
+            json["quote"] = ["state": "pending", "quoted_status": quoted]
+        }
+        XCTAssertNil(MastodonFeedService.feedPost(from: pending).quoted)
+        XCTAssertTrue(String(MastodonFeedService.feedPost(from: pending).text.characters).hasPrefix("RE: "))
     }
 
     func testQuoteSupportRequiresMastodon44() {
