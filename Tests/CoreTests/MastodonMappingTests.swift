@@ -16,6 +16,9 @@ final class MastodonMappingTests: XCTestCase {
         let convo = TootSDK.Conversation(id: "c", accounts: [post.account], unread: true, lastPost: post)
         XCTAssertEqual(MastodonFeedService.feedUpdate(from: .receivedEvent(.conversation(convo))), .messages)
         XCTAssertNil(MastodonFeedService.feedUpdate(from: .receivedEvent(.announcementDelete("announcement"))))
+        // The direct stream shares the user stream's socket, so it must not report connection changes twice.
+        XCTAssertEqual(MastodonFeedService.directUpdate(from: .receivedEvent(.conversation(convo))), .messages)
+        XCTAssertNil(MastodonFeedService.directUpdate(from: .connectionUp))
     }
 
     func testMentionCandidateKeepsBioAndFieldsForMerging() throws {

@@ -273,34 +273,47 @@ struct MastodonFeedService: FeedService {
 
     func liveUpdates() async -> AsyncStream<FeedUpdate>? {
         do {
-            let (id, stream) = try await streamOwner.subscribe(client.streaming)
+            let (id, streams) = try await streamOwner.subscribe(client.streaming)
             let connected = await client.streaming.isConnectionUp
             return AsyncStream { continuation in
                 if connected {
                     continuation.yield(.connected)
                 }
+                // DMs arrive only on the direct timeline. The user stream reports
+                // connection state, so only content events are taken from this one.
+                let directTask = Task {
+                    await Self.forward(streams.direct, label: "direct", to: continuation,
+                                       map: Self.directUpdate(from:))
+                }
                 let task = Task {
-                    do {
-                        for try await event in stream {
-                            if let update = Self.feedUpdate(from: event) {
-                                continuation.yield(update)
-                            }
-                        }
-                    } catch is CancellationError {
-                        // Subscription cancellation is normal when a panel stops.
-                    } catch {
-                        Log.feed.error("Mastodon stream failed: \(error)")
-                    }
+                    await Self.forward(streams.user, label: "user", to: continuation, map: Self.feedUpdate(from:))
                     continuation.finish()
                 }
                 continuation.onTermination = { _ in
                     task.cancel()
+                    directTask.cancel()
                     Task { await streamOwner.release(id, streaming: client.streaming) }
                 }
             }
         } catch {
             Log.feed.error("Mastodon stream subscription failed: \(error)")
             return nil
+        }
+    }
+
+    private static func forward(_ stream: StreamingClient.Stream, label: String,
+                                to continuation: AsyncStream<FeedUpdate>.Continuation,
+                                map: (StreamingClient.Event) -> FeedUpdate?) async {
+        do {
+            for try await event in stream {
+                if let update = map(event) {
+                    continuation.yield(update)
+                }
+            }
+        } catch is CancellationError {
+            // Subscription cancellation is normal when a panel stops.
+        } catch {
+            Log.feed.error("Mastodon \(label) stream failed: \(error)")
         }
     }
 
@@ -311,6 +324,12 @@ struct MastodonFeedService: FeedService {
         case let .receivedEvent(content):
             contentUpdate(from: content)
         }
+    }
+
+    /// Connection events are left to the user stream, which shares the socket.
+    static func directUpdate(from event: StreamingClient.Event) -> FeedUpdate? {
+        guard case let .receivedEvent(content) = event else { return nil }
+        return contentUpdate(from: content)
     }
 
     private static func contentUpdate(from content: EventContent) -> FeedUpdate? {
@@ -387,11 +406,17 @@ struct MastodonFeedService: FeedService {
 private actor MastodonStreamOwner {
     private var owner: UUID?
 
-    func subscribe(_ streaming: StreamingClient) async throws -> (UUID, StreamingClient.Stream) {
+    struct Streams {
+        let user: StreamingClient.Stream
+        let direct: StreamingClient.Stream
+    }
+
+    func subscribe(_ streaming: StreamingClient) async throws -> (UUID, Streams) {
         let id = UUID()
         owner = id
         do {
-            return try await (id, streaming.subscribe(to: .user))
+            let user = try await streaming.subscribe(to: .user)
+            return try await (id, Streams(user: user, direct: streaming.subscribe(to: .direct)))
         } catch {
             await release(id, streaming: streaming)
             throw error
