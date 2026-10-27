@@ -192,7 +192,7 @@ final class FeedPanelRefreshLifecycleTests: FeedPanelTestCase {
 
     /// A refresh fetched before a delete or like reached the server must not undo it
     /// when the page lands after the mutation finished.
-    func testPageFetchedBeforeAMutationFinishedDoesNotUndoIt() async {
+    func testPageFetchedBeforeAMutationFinishedDoesNotUndoIt() async throws {
         let fake = FakeFeedService()
         let deleted = TestFactory.feedPost(id: "a")
         let liked = TestFactory.feedPost(id: "b")
@@ -209,6 +209,7 @@ final class FeedPanelRefreshLifecycleTests: FeedPanelTestCase {
         await waitUntil { gate.arrivals == 1 }
         model.delete(deleted)
         model.toggleLike(liked)
+        _ = try await model.edit(post: edited, text: "fixed", spoiler: "")
         await waitUntil { model.inFlight.isEmpty }
 
         fake.loadDelay = nil
@@ -216,6 +217,7 @@ final class FeedPanelRefreshLifecycleTests: FeedPanelTestCase {
         await waitUntil { fake.loadFeedCalls == 2 && !model.isLoading }
         XCTAssertEqual(model.posts.map(\.id), ["b", "c"], "the deleted post and its boost must stay gone")
         XCTAssertEqual(model.posts.first?.isLiked, true, "the like must survive the stale page")
+        XCTAssertEqual(model.posts.last.map { String($0.text.characters) }, "fixed", "so must the edit")
 
         model.refresh() // a load that starts after the mutations trusts the server again
         await waitUntil { fake.loadFeedCalls == 3 && !model.isLoading }

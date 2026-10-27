@@ -140,10 +140,12 @@ extension OptimisticPostHost {
     }
 
     /// Show an edited post in every row of it, including boosts of it (which have
-    /// their own ids), so a surface shows the edit without a reload.
+    /// their own ids), so a surface shows the edit without a reload. Each row
+    /// counts as settled, so a load already under way won't put the old text back.
     func replace(_ post: FeedPost) {
         for index in posts.indices where posts[index].nativeRef == post.nativeRef {
             posts[index] = post.shown(as: posts[index])
+            mutationDidSettle(posts[index].id)
         }
     }
 
