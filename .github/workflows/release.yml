@@ -12,6 +12,7 @@ on:
 #   APPLE_ID                      Apple ID email used for notarization
 #   MACOS_API_ISSUER_ID           Apple Developer Team ID (name kept for parity)
 #   APPLE_APP_SPECIFIC_PASSWORD   app-specific password for that Apple ID
+#   SPARKLE_PRIVATE_KEY           EdDSA key for the appcast (`generate_keys -x`)
 
 jobs:
   changelog-check:
@@ -96,9 +97,11 @@ jobs:
           # Mach-O, and Apple has deprecated --deep for signing anyway.
           sign_app() {
             # Nested code first (-depth = deepest paths first), no entitlements.
+            # Sparkle's Autoupdate is a bare executable, so match it by path.
             find build/CrossPost.app/Contents -depth \
               \( -name '*.framework' -o -name '*.dylib' -o -name '*.xpc' \
-                 -o -name '*.appex' -o -name '*.bundle' -o -name '*.app' \) -print0 |
+                 -o -name '*.appex' -o -name '*.bundle' -o -name '*.app' \
+                 -o -path '*/Versions/B/Autoupdate' \) -print0 |
               while IFS= read -r -d '' item; do
                 /usr/bin/codesign --force --options runtime --timestamp \
                   --sign "$MACOS_CODESIGN_IDENTITY" "$item" || exit 1
@@ -179,6 +182,25 @@ jobs:
           REF: ${{ github.ref_name }}
         run: scripts/extract-release-notes.sh "$VERSION" "$REF" > release-notes.md
 
+      # The app reads the newest release's appcast.xml via
+      # releases/latest/download/appcast.xml, so each appcast lists only its own
+      # release. The update dialog shows the "What's changed" notes.
+      - name: Generate Sparkle appcast
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir appcast
+          cp "CrossPost-${GITHUB_REF_NAME}.zip" appcast/
+          awk '/^## What.s changed/ { grab = 1 } /^## Installation/ { exit } grab' release-notes.md \
+            > "appcast/CrossPost-${GITHUB_REF_NAME}.md"
+          echo "$SPARKLE_PRIVATE_KEY" |
+            build/DerivedData/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_appcast \
+              --ed-key-file - --embed-release-notes \
+              --download-url-prefix "https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/" \
+              appcast
+          cat appcast/appcast.xml
+
       - name: Create Release
         uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3
         with:
@@ -189,3 +211,4 @@ jobs:
           files: |
             CrossPost-${{ github.ref_name }}.dmg
             CrossPost-${{ github.ref_name }}.zip
+            appcast/appcast.xml
