@@ -161,7 +161,6 @@ actor BoundedImageLoader {
         if request.representation == .animated {
             return try decodeAnimated(
                 data: data,
-                source: source,
                 dimensions: dimensions,
                 request: request
             )
@@ -223,7 +222,6 @@ actor BoundedImageLoader {
 
     private nonisolated static func decodeAnimated(
         data: Data,
-        source _: CGImageSource,
         dimensions: (width: Int, height: Int),
         request: ImageRequest
     ) throws -> CachedImageEntry {
