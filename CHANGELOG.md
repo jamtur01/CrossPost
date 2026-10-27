@@ -48,6 +48,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A rare race when the first images loaded could show one image in place of
   another.
 - Check for Updates is disabled while an update check is already running.
+- Images dropped or pasted onto the post text were inserted as a file path
+  instead of being attached. They now attach and preview, in replies too.
+- Editing a post no longer scrolls the timeline to the top, and the edit now
+  shows on boosts of the post as well.
+- Mastodon quote posts no longer repeat the quoted link as an "RE:" line above
+  the quote.
+- The Mastodon notification badge now works on servers older than 4.3.
+- Long animated GIFs now play instead of showing a still image.
+- Escape closes the image viewer even while the composer has focus, and the
+  viewer has a Close button.
+- VoiceOver labels for icon-only buttons, and mention and pairing results can
+  be chosen without a pointer.
 
 ## [0.5.0] - 2026-10-26
 
