@@ -27,18 +27,30 @@ final class FeedPanelDetailLifecycleTests: FeedPanelTestCase {
         XCTAssertEqual(refresh.count(), 1)
     }
 
-    func testEditForwardsArgsAndRefreshesOnce() async throws {
+    /// An edit shows in place in every row of the post, boosts included, without a
+    /// refresh (which would scroll the timeline to the top).
+    func testEditUpdatesEveryRowOfThePostInPlace() async throws {
         let fake = FakeFeedService()
         let model = makeModel(fake)
         let refresh = expectRefreshNotification()
         defer { refresh.stop() }
+        let original = TestFactory.feedPost(id: "mastodon:1")
+        let boost = FeedPost(id: "mastodon:boost9", target: .mastodon, authorName: "Author",
+                             authorHandle: "@author", avatarURL: nil, date: .now, text: "hello", images: [],
+                             webURL: nil, isLiked: false, isReposted: false, boostedBy: "Bob",
+                             nativeRef: original.nativeRef)
+        let other = TestFactory.feedPost(id: "mastodon:2")
+        model.posts = [boost, other, original]
 
-        _ = try await model.edit(post: TestFactory.feedPost(), text: "fixed", spoiler: "cw")
+        _ = try await model.edit(post: boost, text: "fixed", spoiler: "cw")
 
         XCTAssertEqual(fake.editCalls.count, 1)
         XCTAssertEqual(fake.editCalls.first?.text, "fixed")
         XCTAssertEqual(fake.editCalls.first?.spoiler, "cw")
-        XCTAssertEqual(refresh.count(), 1)
+        XCTAssertEqual(model.posts.map(\.id), ["mastodon:boost9", "mastodon:2", "mastodon:1"])
+        XCTAssertEqual(model.posts.map { String($0.text.characters) }, ["fixed", "hello", "fixed"])
+        XCTAssertEqual(model.posts.first?.boostedBy, "Bob")
+        XCTAssertEqual(refresh.count(), 0)
     }
 
     func testReportForwardsToService() async throws {

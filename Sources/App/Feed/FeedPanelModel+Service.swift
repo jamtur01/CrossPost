@@ -43,11 +43,8 @@ extension FeedPanelModel {
 
     func edit(post: FeedPost, text: String, spoiler: String) async throws -> FeedPost {
         let updated = try await resolveService().edit(post: post, text: text, spoiler: spoiler)
-        // Update this panel's timeline row immediately; also refresh so the rest of
-        // the platform's surfaces (and counts) catch up.
-        updatePost(post.id) { $0 = updated }
-        NotificationCenter.default.post(name: .crossPostDidPost, object: nil,
-                                        userInfo: [crossPostTargetsKey: Set([post.target])])
+        // In place, not by refreshing: a refresh scrolls the timeline to the top.
+        replace(updated)
         return updated
     }
 

@@ -136,11 +136,11 @@ extension OptimisticPostHost {
         }
     }
 
-    /// Replace a row in place after an edit (same id, new content), so a surface
-    /// shows the edit without a full reload.
+    /// Show an edited post in every row of it, including boosts of it (which have
+    /// their own ids), so a surface shows the edit without a reload.
     func replace(_ post: FeedPost) {
-        if let index = posts.firstIndex(where: { $0.id == post.id }) {
-            posts[index] = post
+        for index in posts.indices where posts[index].nativeRef == post.nativeRef {
+            posts[index] = post.shown(as: posts[index])
         }
     }
 

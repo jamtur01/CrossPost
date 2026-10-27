@@ -45,7 +45,7 @@ enum NativeRef: Equatable, Codable, Sendable {
 }
 
 struct FeedPost: Identifiable, Equatable, Sendable {
-    let id: String // "<platform>:<native id>"
+    private(set) var id: String // "<platform>:<native id>"
     let target: PostTarget
     let authorName: String
     let authorHandle: String
@@ -66,7 +66,7 @@ struct FeedPost: Identifiable, Equatable, Sendable {
     var likeCount: Int
     var likeRecordURI: String? // Bluesky: like record uri (for undo); nil for Mastodon
     var repostRecordURI: String? // Bluesky: repost record uri (for undo); nil for Mastodon
-    let boostedBy: String? // display name of the booster/reposter, if this is a boost
+    private(set) var boostedBy: String? // display name of the booster/reposter, if this is a boost
     let mentionHandles: [String] // "@handle"s the parent post mentions (for reply prefill)
     let visibility: String? // Mastodon visibility (public/unlisted/private/direct); nil for Bluesky
     let spoilerText: String? // Mastodon content warning, if any
@@ -105,5 +105,14 @@ struct FeedPost: Identifiable, Equatable, Sendable {
         self.isSensitive = isSensitive; self.isReply = isReply
         self.replyToHandle = replyToHandle; self.emojis = emojis
         self.nativeRef = nativeRef
+    }
+
+    /// This post's content shown in `row`'s place. A boost row has its own id and
+    /// "boosted by" line, which an edit of the boosted post must keep.
+    func shown(as row: FeedPost) -> FeedPost {
+        var copy = self
+        copy.id = row.id
+        copy.boostedBy = row.boostedBy
+        return copy
     }
 }

@@ -186,7 +186,13 @@ final class FakeFeedService: FeedService, @unchecked Sendable { // tests drive i
 
     func edit(post: FeedPost, text: String, spoiler: String) async throws -> FeedPost {
         editCalls.append((text, spoiler))
-        return post
+        // Like Mastodon, the edit returns the status itself, even when edited from a boost row.
+        let statusID: String? = if case let .mastodon(id) = post.nativeRef {
+            id
+        } else {
+            nil
+        }
+        return TestFactory.feedPost(target: post.target, id: statusID ?? post.id, text: AttributedString(text))
     }
 
     func report(post _: FeedPost, reason: ReportReason, comment: String) async throws {
