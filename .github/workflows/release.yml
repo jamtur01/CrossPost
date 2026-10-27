@@ -24,8 +24,10 @@ jobs:
       - name: Require a CHANGELOG entry for this tag
         run: |
           version="${GITHUB_REF#refs/tags/v}"
-          if ! grep -qE "^## \[${version//./\\.}\]" CHANGELOG.md; then
-            echo "::error::CHANGELOG.md has no '## [$version]' section. Add one before tagging v$version."
+          # The section becomes both the GitHub notes and Sparkle's update notes.
+          if [ -z "$(scripts/changelog-section.sh "$version" | tr -d '[:space:]')" ]; then
+            echo "::error::CHANGELOG.md's '## [$version]' section is missing or empty." \
+              "Fill it in before tagging v$version."
             exit 1
           fi
           echo "Found CHANGELOG entry for $version."
@@ -187,20 +189,21 @@ jobs:
 
       # The app reads the newest release's appcast.xml via
       # releases/latest/download/appcast.xml, so each appcast lists only its own
-      # release. The update dialog shows the "What's changed" notes.
+      # release. The update dialog shows this version's CHANGELOG section.
       - name: Generate Sparkle appcast
         env:
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
         run: |
           set -euo pipefail
+          tag="$GITHUB_REF_NAME"
+          download_prefix="https://github.com/${GITHUB_REPOSITORY}/releases/download/${tag}/"
           mkdir appcast
-          cp "CrossPost-${GITHUB_REF_NAME}.zip" appcast/
-          awk '/^## What.s changed/ { grab = 1 } /^## Installation/ { exit } grab' release-notes.md \
-            > "appcast/CrossPost-${GITHUB_REF_NAME}.md"
+          cp "CrossPost-${tag}.zip" appcast/
+          scripts/changelog-section.sh "${tag#v}" > "appcast/CrossPost-${tag}.md"
           echo "$SPARKLE_PRIVATE_KEY" |
             build/DerivedData/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_appcast \
               --ed-key-file - --embed-release-notes \
-              --download-url-prefix "https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/" \
+              --download-url-prefix "$download_prefix" \
               appcast
           cat appcast/appcast.xml
 

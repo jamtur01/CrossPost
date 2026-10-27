@@ -15,18 +15,7 @@ fi
 version="$1"
 tag="$2"
 
-if [ ! -f CHANGELOG.md ]; then
-  echo "$0: CHANGELOG.md not found; run from the repository root" >&2
-  exit 1
-fi
-
-# Pull this version's section out of CHANGELOG.md (everything between its
-# "## [x.y.z]" heading and the next version heading).
-section=$(awk -v ver="$version" '
-  $0 ~ "^## \\[" ver "\\]" { grab = 1; next }
-  grab && /^## \[/ { exit }
-  grab { print }
-' CHANGELOG.md)
+section=$(scripts/changelog-section.sh "$version")
 
 echo "A native macOS app for reading and posting to Mastodon and Bluesky side by side."
 if [ -n "$(printf '%s' "$section" | tr -d '[:space:]')" ]; then
