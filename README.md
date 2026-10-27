@@ -38,6 +38,8 @@ posts without leaving the window.
   names in navigation headers; Retry and Open original actions for failed images.
 - **Active draft recovery** — text, images, alt text, audiences, destinations, and partial
   thread progress are saved locally across quits.
+- **Automatic updates** via [Sparkle](https://sparkle-project.org), from this repo's
+  GitHub releases. **CrossPost → Check for Updates…** checks on demand.
 - **Sandboxed**, Developer ID-signed and notarized. Credentials are stored in the
   **macOS Keychain** (this-device-only); instance URL and handle live in app
   preferences.

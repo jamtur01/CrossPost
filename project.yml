@@ -19,6 +19,9 @@ packages:
   ATProtoKit:
     url: https://github.com/MasterJ93/ATProtoKit
     exactVersion: 0.32.5
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    exactVersion: 2.10.1
 targets:
   CrossPost:
     type: application
@@ -35,8 +38,10 @@ targets:
     dependencies:
       - package: TootSDK
       - package: ATProtoKit
+      - package: Sparkle
     settings:
       base:
+        INFOPLIST_FILE: Info.plist
         CODE_SIGN_ENTITLEMENTS: CrossPost.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
       configs:

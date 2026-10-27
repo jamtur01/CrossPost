@@ -45,7 +45,7 @@ final class AccountStore: ObservableObject {
         return suite
     }()
 
-    private nonisolated static var isUnderTests: Bool {
+    nonisolated static var isUnderTests: Bool {
         ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
     }
 

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Automatic updates with Sparkle. CrossPost checks this repository's GitHub
+  releases for new versions, and **CrossPost → Check for Updates…** checks on
+  demand. Versions before this one have no updater, so this release must be
+  installed by hand.
+
 ## [0.5.0] - 2026-10-26
 
 ### Added
