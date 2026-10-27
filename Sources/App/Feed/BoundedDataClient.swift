@@ -42,11 +42,20 @@ final class BoundedDataClient: NSObject, URLSessionDataDelegate, @unchecked Send
     private let configuration: URLSessionConfiguration
     private let lock = NSLock()
     private var states: [Int: RequestState] = [:]
-    private lazy var session = URLSession(
-        configuration: configuration,
-        delegate: self,
-        delegateQueue: nil
-    )
+    private var lazySession: URLSession?
+
+    /// Created on first use under `lock`: a `lazy var` isn't thread-safe, and two
+    /// sessions would both number their tasks from 1, colliding in `states`.
+    private var session: URLSession {
+        lock.lock()
+        defer { lock.unlock() }
+        if let lazySession {
+            return lazySession
+        }
+        let session = URLSession(configuration: configuration, delegate: self, delegateQueue: nil)
+        lazySession = session
+        return session
+    }
 
     init(configuration: URLSessionConfiguration) {
         self.configuration = configuration
