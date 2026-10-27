@@ -42,10 +42,26 @@ struct ImageLightboxOverlay: View {
                 .frame(width: geo.size.width, height: geo.size.height)
                 .contentShape(Rectangle())
                 .onTapGesture { lightbox.dismiss() }
+                .overlay(alignment: .topTrailing) { closeButton }
             }
             .transition(.opacity)
-            .onExitCommand { lightbox.dismiss() }
         }
+    }
+
+    /// Escape reaches this through its keyboard shortcut whatever has focus (the
+    /// overlay itself can't take focus), and VoiceOver gets a way to close.
+    private var closeButton: some View {
+        Button { lightbox.dismiss() } label: {
+            Image(systemName: "xmark.circle.fill")
+                .font(.system(size: 26))
+                .symbolRenderingMode(.palette)
+                .foregroundStyle(.white, .white.opacity(0.25))
+        }
+        .buttonStyle(.plain)
+        .keyboardShortcut(.cancelAction)
+        .help("Close")
+        .accessibilityLabel("Close")
+        .padding(16)
     }
 
     /// A circular avatar fills a square; a photo fits within the window's bounds
