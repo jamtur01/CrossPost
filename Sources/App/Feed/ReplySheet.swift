@@ -23,7 +23,7 @@ struct ReplySheet: View {
 
             QuotedPreviewBlock(post: model.post, accent: accent)
 
-            SheetTextEditor(text: $model.text, minHeight: 96, placeholder: "Write your reply…")
+            SheetTextEditor(text: $model.text, minHeight: 96, placeholder: "Write your reply…", onImages: prepare)
 
             if !model.attachments.isEmpty {
                 AttachmentBar(attachments: $model.attachments)

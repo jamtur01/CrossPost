@@ -121,6 +121,26 @@ enum ImageAttaching {
         )
     }
 
+    /// The images on a pasteboard as item providers, or nil if it holds none, so
+    /// the text editor can hand image drops and pastes to the attachment pipeline
+    /// instead of inserting a file path. Image data counts only when there is no
+    /// text, so pasting rich text that carries a picture still pastes the text.
+    @MainActor
+    static func imageProviders(on pasteboard: NSPasteboard) -> [NSItemProvider]? {
+        let options: [NSPasteboard.ReadingOptionKey: Any] = [
+            .urlReadingFileURLsOnly: true,
+            .urlReadingContentsConformToTypes: contentTypes.map(\.identifier)
+        ]
+        if let urls = pasteboard.readObjects(forClasses: [NSURL.self], options: options) as? [URL],
+           !urls.isEmpty {
+            return urls.map { NSItemProvider(object: $0 as NSURL) }
+        }
+        guard pasteboard.availableType(from: [.string]) == nil,
+              let images = pasteboard.readObjects(forClasses: [NSImage.self]) as? [NSImage],
+              !images.isEmpty else { return nil }
+        return images.map { NSItemProvider(object: $0) }
+    }
+
     /// Captures the provider selection before it crosses into background work.
     @MainActor
     static func selectProviders(_ providers: [NSItemProvider],

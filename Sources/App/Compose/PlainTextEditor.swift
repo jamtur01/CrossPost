@@ -15,11 +15,15 @@ struct PlainTextEditor: NSViewRepresentable {
     @Binding var text: String
     var mentions: Binding<[MentionSpan]>?
     var editing: MentionEditing?
+    /// Receives images dropped or pasted onto the text. Without it they're text.
+    var onImages: (([NSItemProvider]) -> Void)?
 
-    init(text: Binding<String>, mentions: Binding<[MentionSpan]>? = nil, editing: MentionEditing? = nil) {
+    init(text: Binding<String>, mentions: Binding<[MentionSpan]>? = nil, editing: MentionEditing? = nil,
+         onImages: (([NSItemProvider]) -> Void)? = nil) {
         _text = text
         self.mentions = mentions
         self.editing = editing
+        self.onImages = onImages
     }
 
     func makeNSView(context: Context) -> NSScrollView {
@@ -30,6 +34,7 @@ struct PlainTextEditor: NSViewRepresentable {
         scrollView.scrollerStyle = .overlay
 
         if let textView = scrollView.documentView as? NSTextView {
+            (textView as? FocusOnFirstWindowTextView)?.onImages = onImages
             context.coordinator.attach(to: textView)
             textView.drawsBackground = false
             textView.font = .systemFont(ofSize: 15)
@@ -48,6 +53,7 @@ struct PlainTextEditor: NSViewRepresentable {
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         context.coordinator.update(text: $text, mentions: mentions, editing: editing)
         guard let textView = scrollView.documentView as? NSTextView else { return }
+        (textView as? FocusOnFirstWindowTextView)?.onImages = onImages
         // Don't disturb an in-progress IME composition (CJK / dead keys).
         guard !textView.hasMarkedText() else { return }
         if textView.string != text {
@@ -292,8 +298,42 @@ private final class PairingChoice: NSObject {
 /// to the post. Otherwise, with keyboard navigation on, AppKit focuses the first
 /// key view (a header button) and draws its focus ring. SwiftUI can create the
 /// view well before inserting it into a window, hence the window hook.
+///
+/// It also hands images dropped or pasted onto it to `onImages`. A plain-text
+/// view otherwise takes those drops itself (inserting a file path, or nothing), so
+/// they never reach the composer's own drop target.
 private final class FocusOnFirstWindowTextView: NSTextView {
     private var hasTakenFocus = false
+    var onImages: (([NSItemProvider]) -> Void)?
+
+    private func images(on pasteboard: NSPasteboard) -> [NSItemProvider]? {
+        guard onImages != nil else { return nil }
+        return ImageAttaching.imageProviders(on: pasteboard)
+    }
+
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        images(on: sender.draggingPasteboard) != nil ? .copy : super.draggingEntered(sender)
+    }
+
+    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+        images(on: sender.draggingPasteboard) != nil ? .copy : super.draggingUpdated(sender)
+    }
+
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        guard let providers = images(on: sender.draggingPasteboard) else {
+            return super.performDragOperation(sender)
+        }
+        onImages?(providers)
+        return true
+    }
+
+    override func paste(_ sender: Any?) {
+        guard let providers = images(on: .general) else {
+            super.paste(sender)
+            return
+        }
+        onImages?(providers)
+    }
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()

@@ -136,7 +136,8 @@ struct PostCardView: View {
     }
 
     private var textEditor: some View {
-        PlainTextEditor(text: $post.text, mentions: $post.mentions, editing: mentionEditing)
+        PlainTextEditor(text: $post.text, mentions: $post.mentions, editing: mentionEditing,
+                        onImages: prepare)
             .frame(minHeight: 90, maxHeight: 200)
             .overlay(alignment: .topLeading) {
                 if post.text.isEmpty {

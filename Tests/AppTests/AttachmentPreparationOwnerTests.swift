@@ -215,6 +215,42 @@ final class AttachmentPreparationOwnerTests: XCTestCase {
         XCTAssertEqual(result?.unnamedFailureCount, 0)
     }
 
+    /// Dropping or pasting into the text editor goes through this, so each kind of
+    /// pasteboard must become an attachment, or be left to the editor as text.
+    func testPasteboardImagesBecomeAttachmentsAndTextStaysText() async throws {
+        let pasteboard = NSPasteboard(name: NSPasteboard.Name("crosspost-test-\(UUID())"))
+        defer { pasteboard.releaseGlobally() }
+        func attachments(_ write: () -> Void) async -> Int? {
+            pasteboard.clearContents()
+            write()
+            guard let providers = ImageAttaching.imageProviders(on: pasteboard) else { return nil }
+            let selection = ImageAttaching.selectProviders(providers, remainingSlots: 4)
+            return await ImageAttaching.prepare(selection)?.attachments.count
+        }
+        let imageFile = URL.temporaryDirectory.appending(path: "drop-\(UUID()).png")
+        let textFile = URL.temporaryDirectory.appending(path: "drop-\(UUID()).txt")
+        try TestFactory.pngData().write(to: imageFile)
+        try Data("hi".utf8).write(to: textFile)
+        defer {
+            try? FileManager.default.removeItem(at: imageFile)
+            try? FileManager.default.removeItem(at: textFile)
+        }
+
+        let fromFile = await attachments { pasteboard.writeObjects([imageFile as NSURL]) }
+        XCTAssertEqual(fromFile, 1, "a dropped image file")
+        let fromData = await attachments { pasteboard.setData(TestFactory.pngData(), forType: .png) }
+        XCTAssertEqual(fromData, 1, "copied image data")
+        let fromText = await attachments { pasteboard.setString("hello", forType: .string) }
+        XCTAssertNil(fromText, "plain text")
+        let fromRichText = await attachments {
+            pasteboard.setString("hello", forType: .string)
+            pasteboard.setData(TestFactory.pngData(), forType: .png)
+        }
+        XCTAssertNil(fromRichText, "text that carries a picture")
+        let fromOtherFile = await attachments { pasteboard.writeObjects([textFile as NSURL]) }
+        XCTAssertNil(fromOtherFile, "a file that isn't an image")
+    }
+
     private func waitUntil(_ predicate: @MainActor () -> Bool,
                            timeout: TimeInterval = 2,
                            file: StaticString = #filePath,

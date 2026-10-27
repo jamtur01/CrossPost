@@ -24,9 +24,10 @@ struct SheetTextEditor: View {
     @Binding var text: String
     let minHeight: CGFloat
     var placeholder: String?
+    var onImages: (([NSItemProvider]) -> Void)?
 
     var body: some View {
-        PlainTextEditor(text: $text)
+        PlainTextEditor(text: $text, onImages: onImages)
             .frame(minHeight: minHeight)
             .padding(8)
             .background(RoundedRectangle(cornerRadius: 8).fill(Color(nsColor: .textBackgroundColor)))
