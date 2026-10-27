@@ -35,10 +35,7 @@ final class FeedPanelDetailLifecycleTests: FeedPanelTestCase {
         let refresh = expectRefreshNotification()
         defer { refresh.stop() }
         let original = TestFactory.feedPost(id: "mastodon:1")
-        let boost = FeedPost(id: "mastodon:boost9", target: .mastodon, authorName: "Author",
-                             authorHandle: "@author", avatarURL: nil, date: .now, text: "hello", images: [],
-                             webURL: nil, isLiked: false, isReposted: false, boostedBy: "Bob",
-                             nativeRef: original.nativeRef)
+        let boost = TestFactory.boost(of: original, id: "mastodon:boost9")
         let other = TestFactory.feedPost(id: "mastodon:2")
         model.posts = [boost, other, original]
 

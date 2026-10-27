@@ -114,6 +114,9 @@ extension OptimisticPostHost {
         mutationTasks[post.id] = Task {
             do {
                 try await remoteDelete(post, generation: remoteGeneration)
+                if mutationGeneration == generation {
+                    posts.removeAll { $0.nativeRef == post.nativeRef } // boosts of it
+                }
             } catch is CancellationError {
                 guard mutationGeneration == generation else { return }
                 restoreDeletedPost(

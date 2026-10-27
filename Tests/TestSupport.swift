@@ -46,6 +46,13 @@ enum TestFactory {
             nativeRef: nativeRef
         )
     }
+
+    /// A timeline row for someone's boost of `post`: its own id, the same status.
+    static func boost(of post: FeedPost, id: String, by booster: String = "Bob") -> FeedPost {
+        FeedPost(id: id, target: post.target, authorName: post.authorName, authorHandle: post.authorHandle,
+                 avatarURL: nil, date: post.date, text: post.text, images: [], webURL: nil,
+                 isLiked: false, isReposted: false, boostedBy: booster, nativeRef: post.nativeRef)
+    }
 }
 
 /// A mutable value a test shares with `@Sendable` closures (notification

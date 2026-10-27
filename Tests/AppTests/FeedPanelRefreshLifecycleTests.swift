@@ -194,7 +194,10 @@ final class FeedPanelRefreshLifecycleTests: FeedPanelTestCase {
     /// when the page lands after the mutation finished.
     func testPageFetchedBeforeAMutationFinishedDoesNotUndoIt() async {
         let fake = FakeFeedService()
-        let stale = ["a", "b"].map { TestFactory.feedPost(id: $0) }
+        let deleted = TestFactory.feedPost(id: "a")
+        let liked = TestFactory.feedPost(id: "b")
+        let edited = TestFactory.feedPost(id: "c")
+        let stale = [deleted, TestFactory.boost(of: deleted, id: "boost-of-a"), liked, edited]
         fake.feed = stale
         let model = makeModel(fake)
         model.start()
@@ -204,19 +207,19 @@ final class FeedPanelRefreshLifecycleTests: FeedPanelTestCase {
         fake.loadDelay = { await gate.wait() }
         model.refresh()
         await waitUntil { gate.arrivals == 1 }
-        model.delete(stale[0])
-        model.toggleLike(stale[1])
+        model.delete(deleted)
+        model.toggleLike(liked)
         await waitUntil { model.inFlight.isEmpty }
 
         fake.loadDelay = nil
-        gate.open() // the refresh returns the page it fetched before both mutations
+        gate.open() // the refresh returns the page it fetched before every mutation
         await waitUntil { fake.loadFeedCalls == 2 && !model.isLoading }
-        XCTAssertEqual(model.posts.map(\.id), ["b"], "the deleted post must stay gone")
+        XCTAssertEqual(model.posts.map(\.id), ["b", "c"], "the deleted post and its boost must stay gone")
         XCTAssertEqual(model.posts.first?.isLiked, true, "the like must survive the stale page")
 
         model.refresh() // a load that starts after the mutations trusts the server again
         await waitUntil { fake.loadFeedCalls == 3 && !model.isLoading }
-        XCTAssertEqual(model.posts.map(\.id), ["a", "b"])
+        XCTAssertEqual(model.posts.map(\.id), ["a", "boost-of-a", "b", "c"])
         model.stop()
     }
 

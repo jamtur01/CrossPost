@@ -279,13 +279,15 @@ extension FeedPanelModel {
     }
 
     /// Thread, profile and search lists delete through here too, so the timeline
-    /// drops the post as well, and a load already under way won't bring it back.
+    /// drops the post and every boost of it, and a load already under way won't
+    /// bring any of those rows back.
     func remoteDelete(_ post: FeedPost, generation: UInt) async throws {
         try await lifecycleOperation(generation: generation) { service in
             try await service.deletePost(post)
         }
-        posts.removeAll { $0.id == post.id }
-        mutationDidSettle(post.id)
+        let removed = Set(posts.filter { $0.nativeRef == post.nativeRef }.map(\.id)).union([post.id])
+        posts.removeAll { removed.contains($0.id) }
+        removed.forEach(mutationDidSettle)
     }
 
     private func lifecycleOperation<Value>(
