@@ -73,9 +73,11 @@ final class FeedPanelModel: OptimisticPostHost {
     @ObservationIgnored var deletedStatuses: [NativeRef: UInt] = [:]
     /// Posts with a like or repost in flight from a notification row.
     @ObservationIgnored var notificationPostsInFlight: Set<String> = []
-    /// Notification posts by the tick their like or repost was confirmed, kept
-    /// apart from `settledMutations` because the timeline holds its own copies.
-    @ObservationIgnored var settledNotificationPosts: [String: UInt] = [:]
+    /// Notification posts whose like or repost was confirmed, with the tick it
+    /// landed. Kept apart from the notifications, which a page can replace or
+    /// leave without a post while its previews load, and from `settledMutations`,
+    /// because the timeline holds its own copies.
+    @ObservationIgnored var confirmedNotificationPosts: [String: (post: FeedPost, tick: UInt)] = [:]
     /// Identity of the banner the running dismiss timer belongs to. Keyed by token,
     /// not message text, so a renewed identical banner gets a fresh timeout instead
     /// of being dismissed early by the previous banner's timer.

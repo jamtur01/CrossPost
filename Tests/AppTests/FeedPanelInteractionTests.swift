@@ -65,27 +65,50 @@ final class FeedPanelInteractionTests: FeedPanelTestCase {
         let fake = FakeFeedService()
         var note = FeedNotification.fixture(id: "n1", date: .now)
         note.post = TestFactory.feedPost(id: "p")
+        var unloaded = note // a page shown before its post previews load (Bluesky)
+        unloaded.post = nil
+        unloaded.postID = "p"
         fake.notificationsToReturn = [note]
         let model = makeModel(fake)
         model.switchTo(.notifications)
         await waitUntil { !model.isLoading && model.notifications.count == 1 }
-
         let gate = TestGate()
-        fake.notificationsDelay = { await gate.wait() }
-        model.refresh()
-        await waitUntil { gate.arrivals == 1 }
-        var confirmed = TestFactory.feedPost(id: "p")
-        confirmed.isLiked = true
-        confirmed.likeRecordURI = "at://like/p"
-        model.updateNotificationPosts(with: confirmed) // a row's like lands mid-refresh
+        func staleRefresh(returning page: FeedNotification, whileWaiting: () -> Void) async {
+            let calls = fake.notificationsCalls
+            fake.notificationsToReturn = [page]
+            fake.notificationsDelay = { await gate.wait() }
+            model.refresh()
+            await waitUntil { gate.arrivals == calls }
+            whileWaiting()
+            fake.notificationsDelay = nil
+            gate.open()
+            await waitUntil { fake.notificationsCalls == calls + 1 && !model.isLoading }
+        }
+        var liked = TestFactory.feedPost(id: "p")
+        liked.isLiked = true
+        liked.likeRecordURI = "at://like/p"
 
-        fake.notificationsDelay = nil
-        gate.open()
-        await waitUntil { fake.notificationsCalls == 2 && !model.isLoading }
+        // A row's like lands mid-refresh; the page, fetched before it, has the old post.
+        await staleRefresh(returning: note) { model.updateNotificationPosts(with: liked) }
         XCTAssertEqual(model.notifications.first?.post?.likeRecordURI, "at://like/p")
 
-        model.refresh() // a load that starts after the like trusts the server again
-        await waitUntil { fake.notificationsCalls == 3 && !model.isLoading }
+        // Or a page with no post yet: the confirmed post is attached by id.
+        var reposted = liked
+        reposted.isReposted = true
+        await staleRefresh(returning: unloaded) { model.updateNotificationPosts(with: reposted) }
+        XCTAssertEqual(model.notifications.first?.post, reposted)
+
+        // A confirmation for a notification whose post hasn't loaded still reaches it.
+        fake.notificationsToReturn = [unloaded]
+        model.refresh()
+        await waitUntil { fake.notificationsCalls == 4 && !model.isLoading }
+        XCTAssertNil(model.notifications.first?.post)
+        model.updateNotificationPosts(with: liked)
+        XCTAssertEqual(model.notifications.first?.post, liked)
+
+        fake.notificationsToReturn = [note]
+        model.refresh() // a load that starts after the confirmations trusts the server again
+        await waitUntil { fake.notificationsCalls == 5 && !model.isLoading }
         XCTAssertNil(model.notifications.first?.post?.likeRecordURI)
         model.stop()
     }

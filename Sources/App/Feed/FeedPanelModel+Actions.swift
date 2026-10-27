@@ -52,11 +52,11 @@ extension FeedPanelModel {
     /// row falling back to a stale copy would lose the like's record and, on
     /// Bluesky, like the post a second time.
     func updateNotificationPosts(with post: FeedPost) {
-        for index in notifications.indices where notifications[index].post?.id == post.id {
+        for index in notifications.indices where notifications[index].postID == post.id {
             notifications[index].post = post
         }
         mutationClock += 1
-        settledNotificationPosts[post.id] = mutationClock
+        confirmedNotificationPosts[post.id] = (post, mutationClock)
     }
 
     /// Publishes a relationship only after the initiating UI lifecycle accepts it.

@@ -417,6 +417,9 @@ final class BlueskyMappingTests: XCTestCase {
         let note = try notification("bluesky_notification_like")
         let mapped = BlueskyFeedService.notification(from: note, hydrated: [:])
         XCTAssertNil(mapped.post)
+        // Still names its post, as the id the post gets once loaded, so a confirmed
+        // like can find the notification while its preview is loading.
+        XCTAssertEqual(mapped.postID, try hydratedPosts().values.first?.id)
     }
 
     func testNotificationCarriesActorIdentityIdAndDate() throws {

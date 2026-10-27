@@ -30,13 +30,16 @@ extension BlueskyFeedService {
         case .quote: .quote
         default: .other
         }
-        let post = referencedURI(notification).flatMap { hydrated[$0] }
-        return FeedNotification(
+        let uri = referencedURI(notification)
+        var note = FeedNotification(
             id: notification.uri, kind: kind,
             actorName: displayOrHandle(notification.author.displayName, notification.author.actorHandle),
             actorHandle: "@\(notification.author.actorHandle)", actorID: notification.author.actorDID,
-            avatarURL: notification.author.avatarImageURL, post: post, date: notification.indexedAt
+            avatarURL: notification.author.avatarImageURL, post: uri.flatMap { hydrated[$0] },
+            date: notification.indexedAt
         )
+        note.postID = uri.map { "bluesky:\($0)" } // the id feedPost(fromPostView:) gives it
+        return note
     }
 
     /// The direct reply threads of a node, in order.

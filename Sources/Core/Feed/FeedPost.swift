@@ -35,6 +35,14 @@ struct FeedNotification: Identifiable, Equatable, Sendable {
     var emojis: [String: URL] = [:] // actor display-name custom emoji (Mastodon)
     var post: FeedPost? // the related post (the mention/reply, or the liked/reposted subject)
     let date: Date
+    /// The related post's id, known before the post itself loads (Bluesky shows a
+    /// page first and fetches the posts after). Falls back to the loaded post's id.
+    var postID: String? {
+        get { knownPostID ?? post?.id }
+        set { knownPostID = newValue }
+    }
+
+    private var knownPostID: String?
 }
 
 /// Platform-native handles needed to act on or reply to a post, as plain values

@@ -175,14 +175,10 @@ extension FeedPanelModel {
     /// A page fetched before a like or repost from a notification was confirmed
     /// would put the old post back, losing the like's record; keep the confirmed one.
     private func keepingConfirmedPosts(in fetched: [FeedNotification], since startedAt: UInt) -> [FeedNotification] {
-        let confirmedIDs = settledNotificationPosts.filter { $0.value > startedAt }.keys
-        guard !confirmedIDs.isEmpty else { return fetched }
-        var confirmed: [String: FeedPost] = [:]
-        for case let post? in notifications.map(\.post) where confirmedIDs.contains(post.id) {
-            confirmed[post.id] = post
-        }
+        let confirmed = confirmedNotificationPosts.filter { $0.value.tick > startedAt }
+        guard !confirmed.isEmpty else { return fetched }
         return fetched.map { note in
-            guard let id = note.post?.id, let post = confirmed[id] else { return note }
+            guard let id = note.postID, let post = confirmed[id]?.post else { return note }
             var note = note
             note.post = post
             return note
