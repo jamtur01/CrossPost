@@ -41,6 +41,23 @@ final class FeedPanelInteractionTests: FeedPanelTestCase {
         model.stop()
     }
 
+    func testConfirmedLikeUpdatesEveryNotificationShowingThePost() {
+        let model = makeModel(FakeFeedService())
+        let liked = TestFactory.feedPost(id: "p")
+        let other = TestFactory.feedPost(id: "q")
+        model.notifications = [("n1", liked), ("n2", liked), ("n3", other)].map { id, post in
+            var note = FeedNotification.fixture(id: id, date: .now)
+            note.post = post
+            return note
+        }
+        var confirmed = liked
+        confirmed.isLiked = true
+
+        model.updateNotificationPosts(with: confirmed)
+
+        XCTAssertEqual(model.notifications.map { $0.post?.isLiked }, [true, true, false])
+    }
+
     func testRemoteFollowSkipsWriteForAlreadyFollowedActor() async throws {
         let fake = FakeFeedService()
         fake.relationshipsToReturn = ["friend": AccountRelationship(isFollowing: true)]

@@ -192,7 +192,10 @@ private struct NotificationRow: View {
                     generation: generation
                 )
             },
-            onSuccess: { post = $0 },
+            onSuccess: {
+                post = $0
+                model.updateNotificationPosts(with: $0)
+            },
             onFailure: {
                 post = original
                 model.reportError($0.userMessage)
@@ -218,7 +221,10 @@ private struct NotificationRow: View {
                     generation: generation
                 )
             },
-            onSuccess: { post = $0 },
+            onSuccess: {
+                post = $0
+                model.updateNotificationPosts(with: $0)
+            },
             onFailure: {
                 post = original
                 model.reportError($0.userMessage)

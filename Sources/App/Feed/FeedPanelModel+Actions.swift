@@ -36,6 +36,16 @@ extension FeedPanelModel {
         }
     }
 
+    /// Writes a confirmed like or repost into every notification showing that
+    /// post, so it survives the row scrolling away and rows showing it agree. A
+    /// row falling back to a stale copy would lose the like's record and, on
+    /// Bluesky, like the post a second time.
+    func updateNotificationPosts(with post: FeedPost) {
+        for index in notifications.indices where notifications[index].post?.id == post.id {
+            notifications[index].post = post
+        }
+    }
+
     /// Publishes a relationship only after the initiating UI lifecycle accepts it.
     func reconcileFollow(_ relationship: AccountRelationship, for actorID: String) {
         followStateDates[actorID] = Date()

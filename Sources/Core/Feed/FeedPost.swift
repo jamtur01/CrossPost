@@ -33,7 +33,7 @@ struct FeedNotification: Identifiable, Equatable, Sendable {
     let actorID: String
     let avatarURL: URL?
     var emojis: [String: URL] = [:] // actor display-name custom emoji (Mastodon)
-    let post: FeedPost? // the related post (the mention/reply, or the liked/reposted subject)
+    var post: FeedPost? // the related post (the mention/reply, or the liked/reposted subject)
     let date: Date
 }
 
