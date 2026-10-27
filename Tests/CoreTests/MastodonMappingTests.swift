@@ -55,6 +55,20 @@ final class MastodonMappingTests: XCTestCase {
                        "bob@elsewhere.example")
     }
 
+    func testPostsWithPollsAreNotEditable() throws {
+        XCTAssertNoThrow(try MastodonFeedService.checkEditable(decodePost("mastodon_reply")))
+        let withPoll = try decodePost("mastodon_reply") { json in
+            json["poll"] = [
+                "id": "34830", "expires_at": "2030-01-01T00:00:00.000Z", "expired": false,
+                "multiple": false, "votes_count": 3, "voters_count": 3, "voted": false,
+                "own_votes": [], "emojis": [],
+                "options": [["title": "yes", "votes_count": 2], ["title": "no", "votes_count": 1]]
+            ] as [String: Any]
+        }
+        XCTAssertNotNil(withPoll.poll)
+        XCTAssertThrowsError(try MastodonFeedService.checkEditable(withPoll))
+    }
+
     func testDirectMessageMappingDropsAddressingMentions() throws {
         let message = try decodePost("mastodon_reply") { json in
             json["content"] = #"<p><span class="h-card"><a href="https://a.example/@bob">@<span>bob</span></a></span> "#

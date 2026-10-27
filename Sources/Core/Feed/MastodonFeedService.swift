@@ -203,8 +203,21 @@ struct MastodonFeedService: FeedService {
 
     func editableSource(of post: FeedPost) async throws -> EditableSource {
         guard case let .mastodon(id) = post.nativeRef else { throw FeedError.wrongPlatform }
+        async let current = client.getPost(id: id)
         let source = try await client.getPostSource(id: id)
+        try await Self.checkEditable(current)
         return EditableSource(text: source.text, spoiler: source.spoilerText)
+    }
+
+    /// Mastodon treats an edit that leaves out the poll as removing it, votes and
+    /// all, and re-sending it would reset settings the API doesn't return (such as
+    /// hidden totals) and push back its expiry. So posts with polls aren't editable.
+    static func checkEditable(_ post: Post) throws {
+        guard post.poll == nil else {
+            throw FeedError.notSupported(
+                "CrossPost can't edit posts with polls: Mastodon would delete the poll and its votes."
+            )
+        }
     }
 
     func edit(post: FeedPost, text: String, spoiler: String) async throws -> FeedPost {
@@ -212,6 +225,7 @@ struct MastodonFeedService: FeedService {
         // Re-attach the post's existing media (and keep its sensitivity) so an
         // edit to the text alone never drops the images.
         let current = try await client.getPost(id: id)
+        try Self.checkEditable(current)
         var params = EditPostParams(post: text)
         params.spoilerText = spoiler.nilIfBlank
         // `current` was just fetched, so its sensitive flag is authoritative;
