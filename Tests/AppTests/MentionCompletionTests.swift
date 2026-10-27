@@ -44,7 +44,7 @@ final class MentionCompletionTests: XCTestCase {
         }
         completion.update(text: "@pu", caret: 3)
         completion.update(text: "@pup", caret: 4)
-        try? await Task.sleep(for: .milliseconds(100))
+        await waitUntil { !completion.people.isEmpty }
         XCTAssertEqual(queries, ["pup"])
         XCTAssertEqual(completion.people.map(\.displayName), ["pup"])
         XCTAssertTrue(completion.isActive)
@@ -61,7 +61,7 @@ final class MentionCompletionTests: XCTestCase {
             MentionDirectory.Results(people: [], failed: [.mastodon, .bluesky])
         }
         completion.update(text: "@pup", caret: 4)
-        try? await Task.sleep(for: .milliseconds(50))
+        await waitUntil { completion.failureMessage != nil }
         XCTAssertEqual(completion.failureMessage, "Couldn't search Mastodon or Bluesky.")
     }
 
@@ -70,7 +70,7 @@ final class MentionCompletionTests: XCTestCase {
             MentionDirectory.Results(people: [MentionPerson(displayName: "x")], failed: [])
         }
         completion.update(text: "@pup", caret: 4)
-        try? await Task.sleep(for: .milliseconds(50))
+        await waitUntil { completion.isActive }
         completion.update(text: "@pup ", caret: 5)
         XCTAssertFalse(completion.isActive)
         XCTAssertEqual(completion.people, [])
@@ -82,10 +82,22 @@ final class MentionCompletionTests: XCTestCase {
                                      failed: [])
         }
         completion.update(text: "@ab", caret: 3)
-        try? await Task.sleep(for: .milliseconds(50))
+        await waitUntil { completion.people.count == 2 }
         completion.moveSelection(by: -1)
         XCTAssertEqual(completion.selected?.displayName, "b")
         completion.moveSelection(by: 1)
         XCTAssertEqual(completion.selected?.displayName, "a")
+    }
+
+    /// Waits for the search to land rather than sleeping a fixed time, which a
+    /// slow CI runner can outlast.
+    private func waitUntil(_ condition: () -> Bool, file: StaticString = #filePath, line: UInt = #line) async {
+        let deadline = ContinuousClock.now + .seconds(2)
+        while !condition() {
+            guard ContinuousClock.now < deadline else {
+                return XCTFail("condition not met within 2s", file: file, line: line)
+            }
+            try? await Task.sleep(for: .milliseconds(5))
+        }
     }
 }
