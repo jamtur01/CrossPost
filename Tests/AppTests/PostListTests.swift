@@ -164,9 +164,11 @@ final class PostListTests: XCTestCase {
         let fake = FakeFeedService()
         let gate = TestGate()
         fake.deleteDelay = { await gate.wait() }
-        let list = PostList(panel: makeModel(fake))
+        let panel = makeModel(fake)
+        let list = PostList(panel: panel)
         let posts = ["a", "b"].map { TestFactory.feedPost(target: .bluesky, id: $0) }
         list.posts = posts
+        panel.posts = posts // the same posts in the timeline behind this thread/profile
 
         list.delete(posts[0])
         XCTAssertEqual(list.posts.map(\.id), ["b"])
@@ -182,6 +184,7 @@ final class PostListTests: XCTestCase {
         gate.open()
         await waitUntil { list.inFlight.isEmpty }
         XCTAssertEqual(list.posts.map(\.id), ["b"]) // still gone after the delete lands
+        XCTAssertEqual(panel.posts.map(\.id), ["b"], "the timeline must drop the deleted post too")
     }
 
     /// A failed delete re-inserts next to its old neighbor even when a concurrent
