@@ -7,7 +7,7 @@ options:
 settings:
   base:
     SWIFT_VERSION: "6.0"
-    MARKETING_VERSION: "0.5.0"
+    MARKETING_VERSION: "0.5.1"
     # Sparkle orders updates by CFBundleVersion, so it follows the release version.
     CURRENT_PROJECT_VERSION: "$(MARKETING_VERSION)"
     PRODUCT_BUNDLE_IDENTIFIER: net.kartar.crosspost

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-10-27
+
 ### Added
 
 - Automatic updates with Sparkle. CrossPost checks this repository's GitHub
@@ -668,6 +670,8 @@ Initial release.
 - Keychain-backed credential storage.
 - Signed and notarized Developer ID release builds produced by CI.
 
+[0.5.1]: https://github.com/jamtur01/CrossPost/releases/tag/v0.5.1
+[0.5.0]: https://github.com/jamtur01/CrossPost/releases/tag/v0.5.0
 [0.4.22]: https://github.com/jamtur01/CrossPost/releases/tag/v0.4.22
 [0.4.21]: https://github.com/jamtur01/CrossPost/releases/tag/v0.4.21
 [0.4.20]: https://github.com/jamtur01/CrossPost/releases/tag/v0.4.20
