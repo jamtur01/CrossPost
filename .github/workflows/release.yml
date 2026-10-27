@@ -105,7 +105,7 @@ jobs:
               while IFS= read -r -d '' item; do
                 /usr/bin/codesign --force --options runtime --timestamp \
                   --sign "$MACOS_CODESIGN_IDENTITY" "$item" || exit 1
-              done
+              done || return 1 # The loop is a subshell; its exit alone doesn't stop sign_app.
             # Outer app last, with its entitlements and without --deep.
             /usr/bin/codesign --force --options runtime --timestamp \
               --entitlements CrossPost.entitlements \
