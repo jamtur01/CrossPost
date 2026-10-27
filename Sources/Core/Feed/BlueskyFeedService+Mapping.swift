@@ -5,10 +5,16 @@ extension BlueskyFeedService {
     /// The post URI a notification refers to, if any: the mention/reply/quote
     /// itself, or the liked/reposted subject. Single source of truth used both to
     /// decide what to hydrate and which hydrated post to attach - keep them in sync.
+    /// For the via-repost reasons, `reasonSubject` is the user's own repost that the
+    /// like or repost came through, so the post comes from the record's subject.
     static func referencedURI(_ notification: AppBskyLexicon.Notification.Notification) -> String? {
         switch notification.reason {
         case .mention, .reply, .quote: notification.uri
-        case .like, .likeViaRepost, .repost, .repostViaRepost: notification.reasonSubjectURI
+        case .like, .repost: notification.reasonSubjectURI
+        case .likeViaRepost:
+            notification.record.getRecord(ofType: AppBskyLexicon.Feed.LikeRecord.self)?.subject.recordURI
+        case .repostViaRepost:
+            notification.record.getRecord(ofType: AppBskyLexicon.Feed.RepostRecord.self)?.subject.recordURI
         default: nil
         }
     }

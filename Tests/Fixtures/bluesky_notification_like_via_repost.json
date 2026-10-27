@@ -8,9 +8,17 @@
     "avatar": "https://cdn.bsky.app/img/avatar/dave.jpg"
   },
   "reason": "like-via-repost",
-  "reasonSubject": "at://did:plc:alice/app.bsky.feed.post/aaa111",
+  "reasonSubject": "at://did:plc:me/app.bsky.feed.repost/myrepost1",
   "record": {
     "$type": "app.bsky.feed.like",
+    "subject": {
+      "uri": "at://did:plc:alice/app.bsky.feed.post/aaa111",
+      "cid": "bafyreialicepost"
+    },
+    "via": {
+      "uri": "at://did:plc:me/app.bsky.feed.repost/myrepost1",
+      "cid": "bafyreimyrepost"
+    },
     "createdAt": "2024-06-04T11:00:00.000Z"
   },
   "isRead": false,

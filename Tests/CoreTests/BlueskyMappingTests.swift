@@ -17,7 +17,10 @@ final class BlueskyMappingTests: XCTestCase {
         // Populate the registry so `record.getRecord(ofType: PostRecord.self)`
         // resolves text/facets/reply instead of silently falling back to a
         // dictionary. Idempotent: `register` skips types already present.
-        await ATRecordTypeRegistry.shared.register(types: [AppBskyLexicon.Feed.PostRecord.self])
+        await ATRecordTypeRegistry.shared.register(types: [
+            AppBskyLexicon.Feed.PostRecord.self, AppBskyLexicon.Feed.LikeRecord.self,
+            AppBskyLexicon.Feed.RepostRecord.self
+        ])
     }
 
     private func fixtureData(_ name: String) throws -> Data {
@@ -300,8 +303,14 @@ final class BlueskyMappingTests: XCTestCase {
 
     /// Decode a minimal notification with a chosen reason and (optional) subject —
     /// lets the routing/kind tables cover every reason without a fixture apiece.
-    private func inlineNotification(reason: String, reasonSubject: String?) throws
-        -> AppBskyLexicon.Notification.Notification {
+    /// A like of a post no case routes to, so the record's subject never masks a routing result.
+    private static let inlineLikeRecord = #"{ "$type": "app.bsky.feed.like", "subject": "#
+        + #"{ "uri": "at://did:plc:nobody/app.bsky.feed.post/unrouted", "cid": "bafyunrouted" }, "#
+        + #""createdAt": "2024-06-01T00:00:00.000Z" }"#
+
+    private func inlineNotification(reason: String, reasonSubject: String?,
+                                    record: String = inlineLikeRecord)
+        throws -> AppBskyLexicon.Notification.Notification {
         let subjectField = reasonSubject.map { "\"reasonSubject\": \"\($0)\"," } ?? ""
         let json = """
         {
@@ -310,7 +319,7 @@ final class BlueskyMappingTests: XCTestCase {
           "author": { "did": "did:plc:actor", "handle": "actor.bsky.social" },
           "reason": "\(reason)",
           \(subjectField)
-          "record": { "$type": "app.bsky.feed.like", "createdAt": "2024-06-01T00:00:00.000Z" },
+          "record": \(record),
           "isRead": false,
           "indexedAt": "2024-06-01T00:00:00.000Z"
         }
@@ -336,8 +345,6 @@ final class BlueskyMappingTests: XCTestCase {
             ("quote", selfURI),
             ("like", subject),
             ("repost", subject),
-            ("like-via-repost", subject),
-            ("repost-via-repost", subject),
             ("follow", nil),
             ("starterpack-joined", nil),
             ("subscribed-post", nil),
@@ -347,6 +354,21 @@ final class BlueskyMappingTests: XCTestCase {
             let note = try inlineNotification(reason: item.reason, reasonSubject: subject)
             XCTAssertEqual(BlueskyFeedService.referencedURI(note), item.expected,
                            "\(item.reason) must route to \(item.expected ?? "nil")")
+        }
+        // Via-repost reasons carry the user's repost as reasonSubject; the post is the record's subject.
+        let viaPost = "at://did:plc:alice/app.bsky.feed.post/via999"
+        for (reason, type) in [
+            ("like-via-repost", "app.bsky.feed.like"),
+            ("repost-via-repost", "app.bsky.feed.repost")
+        ] {
+            let record = #"{ "$type": "\#(type)", "subject": { "uri": "\#(viaPost)", "cid": "bafyvia" }, "#
+                + #""createdAt": "2024-06-01T00:00:00.000Z" }"#
+            let note = try inlineNotification(reason: reason, reasonSubject: subject, record: record)
+            XCTAssertEqual(
+                BlueskyFeedService.referencedURI(note),
+                viaPost,
+                "\(reason) must route to the record's subject"
+            )
         }
     }
 

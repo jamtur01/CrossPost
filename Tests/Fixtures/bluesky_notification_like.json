@@ -11,6 +11,10 @@
   "reasonSubject": "at://did:plc:alice/app.bsky.feed.post/aaa111",
   "record": {
     "$type": "app.bsky.feed.like",
+    "subject": {
+      "uri": "at://did:plc:alice/app.bsky.feed.post/aaa111",
+      "cid": "bafyreialicepost"
+    },
     "createdAt": "2024-06-02T09:30:00.000Z"
   },
   "isRead": false,
