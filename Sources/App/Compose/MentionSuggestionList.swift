@@ -64,8 +64,12 @@ struct MentionSuggestionList: View {
                         .padding(8)
                 }
                 ForEach(Array(completion.people.enumerated()), id: \.offset) { index, person in
+                    // A tap, not a Button, so clicking leaves focus in the text view;
+                    // VoiceOver still gets a button it can activate.
                     MentionPersonRow(person: person, selected: index == completion.selectedIndex)
                         .onTapGesture { completion.choose(person) }
+                        .accessibilityAddTraits(.isButton)
+                        .accessibilityAction { completion.choose(person) }
                 }
             }
             .padding(4)

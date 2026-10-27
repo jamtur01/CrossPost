@@ -392,6 +392,7 @@ struct AttachmentBar: View {
                             }
                             .buttonStyle(.plain)
                             .help("Remove image")
+                            .accessibilityLabel("Remove image")
                         }
                         TextField("Alt text", text: $attachment.altText)
                             .textFieldStyle(.roundedBorder)

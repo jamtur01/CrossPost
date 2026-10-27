@@ -136,13 +136,12 @@ struct ProfileView: View {
             .frame(maxWidth: .infinity)
             .clipped()
             .contentShape(Rectangle())
-            .onTapGesture {
-                if let url = profile?.bannerURL {
-                    lightbox?.present(url)
-                }
-            }
+            .onTapGesture(perform: popOutBanner)
             .pointerStyle(profile?.bannerURL != nil && lightbox != nil ? .link : nil)
             .help(profile?.bannerURL != nil ? "View banner" : "")
+            .accessibilityLabel("Banner")
+            .accessibilityAddTraits(profile?.bannerURL != nil ? .isButton : [])
+            .accessibilityAction { popOutBanner() }
 
             VStack(alignment: .leading, spacing: 8) {
                 HStack(alignment: .bottom) {
@@ -163,9 +162,12 @@ struct ProfileView: View {
                     .offset(y: -34)
                     .padding(.bottom, -34)
                     .contentShape(Circle())
-                    .onTapGesture { popOutAvatar() }
+                    .onTapGesture(perform: popOutAvatar)
                     .pointerStyle(lightbox != nil ? .link : nil)
                     .help("View profile photo")
+                    .accessibilityLabel("Profile photo")
+                    .accessibilityAddTraits(.isButton)
+                    .accessibilityAction { popOutAvatar() }
 
                     Spacer()
 
@@ -179,6 +181,7 @@ struct ProfileView: View {
                         .buttonStyle(.borderless)
                         .foregroundStyle(accent)
                         .help("Open profile in browser")
+                        .accessibilityLabel("Open profile in browser")
                     }
                 }
 
@@ -264,6 +267,12 @@ struct ProfileView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, Theme.rowPaddingH)
         .padding(.top, 8).padding(.bottom, 2)
+    }
+
+    private func popOutBanner() {
+        if let url = profile?.bannerURL {
+            lightbox?.present(url)
+        }
     }
 
     private func popOutAvatar() {

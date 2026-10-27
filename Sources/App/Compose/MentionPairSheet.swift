@@ -54,8 +54,10 @@ struct MentionPairSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 1) {
                     ForEach(Array(people.enumerated()), id: \.offset) { _, person in
-                        MentionPersonRow(person: person)
-                            .onTapGesture { model.completePairing(with: person) }
+                        Button { model.completePairing(with: person) } label: {
+                            MentionPersonRow(person: person)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
             }

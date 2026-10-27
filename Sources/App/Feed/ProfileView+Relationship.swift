@@ -91,6 +91,8 @@ extension ProfileView {
             .fixedSize()
             .foregroundStyle(.secondary)
             .disabled(isUpdatingRelationship)
+            .help("More")
+            .accessibilityLabel("More actions for this account")
         }
     }
 
