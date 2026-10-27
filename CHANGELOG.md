@@ -13,6 +13,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   releases for new versions, and **CrossPost → Check for Updates…** checks on
   demand. Versions before this one have no updater, so this release must be
   installed by hand.
+- A follow request to a locked Mastodon account shows as **Requested**; clicking
+  it withdraws the request.
+
+### Changed
+
+- Mastodon posts with polls can no longer be edited from CrossPost, because
+  Mastodon deletes the poll and its votes on any edit that leaves it out.
+
+### Fixed
+
+- Bluesky posts with photos failed with "That image is too large to upload",
+  leaving the earlier posts of a thread published. Images are now compressed
+  under the 1 MB limit the Bluesky library enforces.
+- Each Bluesky sign-in left a copy of the app password and a refresh token in
+  the login Keychain. Session tokens are now kept in memory only.
+- If an edit failed to load the post's text, saving could erase the post's text
+  and content warning.
+- Incoming Mastodon messages now refresh the Messages list live. The 0.5.0 fix
+  listened on a stream that never carries messages.
+- Opening a Bluesky conversation now marks it read on Bluesky, so the unread dot
+  no longer comes back.
+- A refresh that started before a delete or like finished could bring the
+  deleted post back or undo the like, which on Bluesky could like a post twice.
+- Likes and reposts made from a notification were forgotten when the row
+  scrolled away.
+- Deleting a post from a thread, profile, or search left it in the timeline.
+- Following a locked Mastodon account added one to its follower count on every
+  click.
+- Notifications for likes and reposts made through your repost on Bluesky showed
+  no post.
+- Mastodon posting no longer fails when the server's instance information can't
+  be read.
+- A rare race when the first images loaded could show one image in place of
+  another.
+- Check for Updates is disabled while an update check is already running.
 
 ## [0.5.0] - 2026-10-26
 
