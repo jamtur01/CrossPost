@@ -74,16 +74,19 @@ struct AccountRelationship: Sendable, Equatable {
     var isFollowedBy: Bool
     var isMuting: Bool
     var isBlocking: Bool
+    /// A follow request to a locked account that hasn't been approved yet (Mastodon).
+    var isRequested: Bool
     var followRecordURI: String?
     var blockRecordURI: String?
 
     init(isFollowing: Bool = false, isFollowedBy: Bool = false,
-         isMuting: Bool = false, isBlocking: Bool = false,
+         isMuting: Bool = false, isBlocking: Bool = false, isRequested: Bool = false,
          followRecordURI: String? = nil, blockRecordURI: String? = nil) {
         self.isFollowing = isFollowing
         self.isFollowedBy = isFollowedBy
         self.isMuting = isMuting
         self.isBlocking = isBlocking
+        self.isRequested = isRequested
         self.followRecordURI = followRecordURI
         self.blockRecordURI = blockRecordURI
     }

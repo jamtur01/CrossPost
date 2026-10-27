@@ -23,6 +23,28 @@ final class ProfileRelationshipTests: XCTestCase {
         XCTAssertEqual(mutation.restoredFollowerCount(current: 12), 12)
     }
 
+    func testFollowAnsweredWithPendingRequestTakesBackOptimisticCount() {
+        let mutation = ProfileFollowMutation(
+            previousRelationship: AccountRelationship(isFollowing: false),
+            previousFollowerCount: 10
+        )
+        let pending = AccountRelationship(isFollowing: false, isRequested: true)
+
+        XCTAssertEqual(mutation.settledFollowerCount(current: 11, server: pending), 10)
+        XCTAssertEqual(mutation.settledFollowerCount(current: 11, server: AccountRelationship(isFollowing: true)), 11)
+    }
+
+    func testClickingPendingRequestWithdrawsItWithoutChangingCount() {
+        let mutation = ProfileFollowMutation(
+            previousRelationship: AccountRelationship(isFollowing: false, isRequested: true),
+            previousFollowerCount: 10
+        )
+
+        XCTAssertFalse(mutation.target)
+        XCTAssertFalse(mutation.optimisticRelationship.isRequested)
+        XCTAssertEqual(mutation.optimisticFollowerCount, 10)
+    }
+
     func testCancelledFollowRollbackRestoresRelationshipAndCount() {
         let mutation = ProfileFollowMutation(
             previousRelationship: AccountRelationship(isFollowing: false),

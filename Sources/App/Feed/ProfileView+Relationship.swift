@@ -4,18 +4,28 @@ struct ProfileFollowMutation {
     let previousRelationship: AccountRelationship
     let previousFollowerCount: Int?
 
+    /// Clicking a pending request withdraws it, like unfollowing.
     var target: Bool {
-        !previousRelationship.isFollowing
+        !previousRelationship.isFollowing && !previousRelationship.isRequested
     }
 
     var optimisticRelationship: AccountRelationship {
         var relationship = previousRelationship
         relationship.isFollowing = target
+        relationship.isRequested = false
         return relationship
     }
 
+    /// A withdrawn request was never counted, so only a real unfollow subtracts.
     var optimisticFollowerCount: Int? {
-        previousFollowerCount.map { max(0, $0 + (target ? 1 : -1)) }
+        let delta = (target ? 1 : 0) - (previousRelationship.isFollowing ? 1 : 0)
+        return previousFollowerCount.map { max(0, $0 + delta) }
+    }
+
+    /// The count once the server answers. A locked account answers a follow with a
+    /// pending request instead, so the optimistic +1 is taken back.
+    func settledFollowerCount(current: Int?, server: AccountRelationship) -> Int? {
+        server.isFollowing == target ? current : restoredFollowerCount(current: current)
     }
 
     func restoredFollowerCount(current: Int?) -> Int? {
@@ -50,6 +60,10 @@ extension ProfileView {
                 if relationship.isFollowing {
                     Button("Following") { startRelationshipAction(.follow) }
                         .buttonStyle(.bordered)
+                } else if relationship.isRequested {
+                    Button("Requested") { startRelationshipAction(.follow) }
+                        .buttonStyle(.bordered)
+                        .help("Waiting for approval. Click to withdraw the request.")
                 } else {
                     Button(relationship.isFollowedBy ? "Follow back" : "Follow") {
                         startRelationshipAction(.follow)
@@ -186,6 +200,9 @@ extension ProfileView {
             )
             guard relationshipGeneration == generation else { return }
             partialLoad.relationship = updated
+            if let settled = mutation.settledFollowerCount(current: profile?.followers, server: updated) {
+                profile?.followers = settled
+            }
         } catch is CancellationError {
             guard relationshipGeneration == generation else { return }
             restoreFollowMutation(mutation)

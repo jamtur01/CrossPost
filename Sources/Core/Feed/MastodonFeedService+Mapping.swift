@@ -38,7 +38,8 @@ extension MastodonFeedService {
             isFollowing: relationship?.following ?? false,
             isFollowedBy: relationship?.followedBy ?? false,
             isMuting: relationship?.muting ?? false,
-            isBlocking: relationship?.blocking ?? false
+            isBlocking: relationship?.blocking ?? false,
+            isRequested: relationship?.requested ?? false
         )
     }
 
