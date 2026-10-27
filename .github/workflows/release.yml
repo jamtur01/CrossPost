@@ -98,7 +98,8 @@ jobs:
           sign_app() {
             # Nested code first (-depth = deepest paths first), no entitlements.
             # Sparkle's Autoupdate is a bare executable, so match it by path.
-            find build/CrossPost.app/Contents -depth \
+            # Skip symlinks: Sparkle.framework/Updater.app points at Versions/B's.
+            find build/CrossPost.app/Contents -depth ! -type l \
               \( -name '*.framework' -o -name '*.dylib' -o -name '*.xpc' \
                  -o -name '*.appex' -o -name '*.bundle' -o -name '*.app' \
                  -o -path '*/Versions/B/Autoupdate' \) -print0 |
