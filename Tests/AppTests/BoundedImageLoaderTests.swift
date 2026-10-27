@@ -1,6 +1,8 @@
 import AppKit
 @testable import CrossPost
 import Foundation
+import ImageIO
+import UniformTypeIdentifiers
 import XCTest
 
 final class BoundedImageLoaderTests: XCTestCase {
@@ -247,6 +249,23 @@ final class BoundedImageLoaderTests: XCTestCase {
         )
     }
 
+    /// Frames decode as they play, so a long animation isn't charged for all of
+    /// them at once: 20 full-size frames would be 147 MB together.
+    func testAcceptsLongAnimationWithinPerFrameBudget() async throws {
+        let url = uniqueURL()
+        try ImageURLProtocolStub.configure(
+            url: url,
+            statusCode: 200,
+            mimeType: "image/gif",
+            data: animatedGIFData(width: 1600, height: 1200, frames: 20)
+        )
+        let request = ImageRequest(url: url, representation: .animated,
+                                   targetSize: CGSize(width: 1600, height: 1200))
+
+        let image = try await makeLoader().image(for: request)
+        XCTAssertEqual(image.representations.first?.pixelsWide, 1600)
+    }
+
     func testAcceptsPortraitAnimationWithinMaximumTargetDimension() async throws {
         let url = uniqueURL()
         try ImageURLProtocolStub.configure(
@@ -315,6 +334,19 @@ private extension BoundedImageLoaderTests {
 
     func pngData(width: Int, height: Int) throws -> Data {
         try bitmapData(width: width, height: height, type: .png)
+    }
+
+    func animatedGIFData(width: Int, height: Int, frames: Int) throws -> Data {
+        let data = NSMutableData()
+        let destination = try XCTUnwrap(
+            CGImageDestinationCreateWithData(data, UTType.gif.identifier as CFString, frames, nil)
+        )
+        let frame = try XCTUnwrap(NSBitmapImageRep(data: gifData(width: width, height: height))?.cgImage)
+        for _ in 0 ..< frames {
+            CGImageDestinationAddImage(destination, frame, nil)
+        }
+        XCTAssertTrue(CGImageDestinationFinalize(destination))
+        return data as Data
     }
 
     func gifData(width: Int, height: Int) throws -> Data {

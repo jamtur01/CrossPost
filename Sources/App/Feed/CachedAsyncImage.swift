@@ -223,44 +223,34 @@ actor BoundedImageLoader {
 
     private nonisolated static func decodeAnimated(
         data: Data,
-        source: CGImageSource,
+        source _: CGImageSource,
         dimensions: (width: Int, height: Int),
         request: ImageRequest
     ) throws -> CachedImageEntry {
-        let frameCount = max(1, CGImageSourceGetCount(source))
+        // NSImageView decodes a GIF's frames as it plays them rather than all at
+        // once (measured: a 300-frame 480 px GIF grew memory by 8 MB, not 263 MB), so
+        // the cost is one decoded frame plus the compressed data it decodes from.
         let maximumCost = request.representation.maxDecodedBytes
         let targetDimension = request.targetSize.maximumDimension
-        let targetCost = decodedCost(
-            width: targetDimension,
-            height: targetDimension,
-            frameCount: frameCount
-        ) ?? maximumCost
+        let targetCost = decodedCost(width: targetDimension, height: targetDimension) ?? maximumCost
         guard max(dimensions.width, dimensions.height) <= targetDimension else {
             throw ImageLoadingError.decodedSizeExceeded(limit: min(targetCost, maximumCost))
         }
-        guard let cost = decodedCost(
-            width: dimensions.width,
-            height: dimensions.height,
-            frameCount: frameCount
-        ), cost <= maximumCost else {
+        guard let frameCost = decodedCost(width: dimensions.width, height: dimensions.height),
+              frameCost <= maximumCost else {
             throw ImageLoadingError.decodedSizeExceeded(limit: maximumCost)
         }
         guard let image = NSImage(data: data) else {
             throw ImageLoadingError.decodeFailed
         }
-        return CachedImageEntry(image: image, cost: cost)
+        return CachedImageEntry(image: image, cost: frameCost + data.count)
     }
 
-    private nonisolated static func decodedCost(
-        width: Int,
-        height: Int,
-        frameCount: Int
-    ) -> Int? {
+    private nonisolated static func decodedCost(width: Int, height: Int) -> Int? {
         let (rowBytes, rowOverflow) = width.multipliedReportingOverflow(by: 4)
         let (frameBytes, frameOverflow) = rowBytes.multipliedReportingOverflow(by: height)
-        let (cost, costOverflow) = frameBytes.multipliedReportingOverflow(by: frameCount)
-        guard !rowOverflow, !frameOverflow, !costOverflow else { return nil }
-        return cost
+        guard !rowOverflow, !frameOverflow else { return nil }
+        return frameBytes
     }
 }
 
