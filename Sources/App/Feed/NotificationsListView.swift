@@ -44,6 +44,7 @@ private struct NotificationRow: View {
     // notification's snapshot). Held so repeated toggles keep the record URIs.
     @State private var post: FeedPost?
     @State private var isMutating = false
+    @State private var mutatingPostID: String?
     @State private var isFollowInFlight = false
     @State private var actionOwner = NotificationActionOwner()
 
@@ -98,7 +99,7 @@ private struct NotificationRow: View {
         .onTapGesture(perform: openPost)
         .onHover { hovering = $0 }
         .onChange(of: notification.post) {
-            endLifecycle()
+            adoptSnapshot()
         }
         .onDisappear(perform: endLifecycle)
     }
@@ -176,8 +177,10 @@ private struct NotificationRow: View {
     }
 
     private func toggleLike() {
-        guard !isMutating, var optimistic = livePost else { return }
+        guard !isMutating, var optimistic = livePost,
+              model.beginNotificationPostMutation(optimistic.id) else { return }
         isMutating = true
+        mutatingPostID = optimistic.id
         let original = optimistic
         optimistic.isLiked.toggle()
         optimistic.likeCount = max(0, optimistic.likeCount + (optimistic.isLiked ? 1 : -1))
@@ -200,13 +203,15 @@ private struct NotificationRow: View {
                 post = original
                 model.reportError($0.userMessage)
             },
-            onFinish: { isMutating = false }
+            onFinish: finishPostMutation
         )
     }
 
     private func toggleRepost() {
-        guard !isMutating, var optimistic = livePost else { return }
+        guard !isMutating, var optimistic = livePost,
+              model.beginNotificationPostMutation(optimistic.id) else { return }
         isMutating = true
+        mutatingPostID = optimistic.id
         let original = optimistic
         optimistic.isReposted.toggle()
         optimistic.repostCount = max(0, optimistic.repostCount + (optimistic.isReposted ? 1 : -1))
@@ -229,7 +234,7 @@ private struct NotificationRow: View {
                 post = original
                 model.reportError($0.userMessage)
             },
-            onFinish: { isMutating = false }
+            onFinish: finishPostMutation
         )
     }
 
@@ -249,10 +254,28 @@ private struct NotificationRow: View {
         )
     }
 
+    private func finishPostMutation() {
+        if let mutatingPostID {
+            model.endNotificationPostMutation(mutatingPostID)
+        }
+        mutatingPostID = nil
+        isMutating = false
+    }
+
     private func invalidateActions() {
         actionOwner.invalidate()
-        isMutating = false
+        finishPostMutation()
         isFollowInFlight = false
+    }
+
+    /// A new snapshot of the post (a refresh, or another row's confirmed like)
+    /// replaces this row's copy unless its own like or repost is still in flight,
+    /// which writes its result back when it lands. Nothing is cancelled, so a
+    /// pending follow carries on.
+    private func adoptSnapshot() {
+        if !isMutating {
+            post = nil
+        }
     }
 
     private func endLifecycle() {
