@@ -64,6 +64,10 @@ final class FeedPanelModel: OptimisticPostHost {
     var inFlight: Set<String> = [] // post ids with an in-flight like/repost/delete/etc.
     @ObservationIgnored var mutationTasks: [String: Task<Void, Never>] = [:]
     @ObservationIgnored var mutationGeneration: UInt = 0
+    /// Ticks once per settled mutation; `settledMutations` holds each post's last
+    /// tick, so a load can tell which posts changed after it started fetching.
+    @ObservationIgnored var mutationClock: UInt = 0
+    @ObservationIgnored var settledMutations: [String: UInt] = [:]
     /// Identity of the banner the running dismiss timer belongs to. Keyed by token,
     /// not message text, so a renewed identical banner gets a fresh timeout instead
     /// of being dismissed early by the previous banner's timer.

@@ -41,12 +41,16 @@ protocol OptimisticPostHost: AnyObject {
         generation: UInt
     ) async throws -> FeedPost
     func remoteDelete(_ post: FeedPost, generation: UInt) async throws
+    /// Called once a post's mutation has finished, whatever the outcome.
+    func mutationDidSettle(_ postID: String)
 }
 
 extension OptimisticPostHost {
     var remoteMutationGeneration: UInt {
         mutationGeneration
     }
+
+    func mutationDidSettle(_: String) {}
 
     func toggleLike(_ post: FeedPost) {
         Haptics.tap()
@@ -197,6 +201,7 @@ extension OptimisticPostHost {
         guard mutationGeneration == generation else { return }
         inFlight.remove(postID)
         mutationTasks[postID] = nil
+        mutationDidSettle(postID)
     }
 
     private func restoreDeletedPost(

@@ -190,27 +190,37 @@ extension FeedPanelModel {
     }
 
     private func loadPosts(from service: FeedService) async throws {
+        let startedAt = mutationClock
         _ = try await service.loadFeed(kind, includeHistory: !loadedHistory.contains(.home)) { [weak self] page in
-            await self?.acceptPosts(page)
+            await self?.acceptPosts(page, fetchedSince: startedAt)
         }
         guard !Task.isCancelled else { return }
         loadedHistory.insert(.home)
     }
 
-    private func acceptPosts(_ fetched: [FeedPost]) {
+    /// A page may have been fetched before a mutation that has since finished
+    /// reached the server, so posts changed after the load began keep their local
+    /// copy, as in-flight ones do; a deleted one stays gone.
+    private func acceptPosts(_ fetched: [FeedPost], fetchedSince startedAt: UInt) {
         guard !Task.isCancelled else { return }
         if errorMessage != nil {
             errorMessage = nil
         }
+        let changed = inFlight.union(settledMutations.lazy.filter { $0.value > startedAt }.map(\.key))
         let next = FeedMerge.merge(
             existing: posts,
             fetched: fetched,
-            preservingIDs: inFlight,
-            excludingIDs: inFlight.subtracting(posts.lazy.map(\.id))
+            preservingIDs: changed,
+            excludingIDs: changed.subtracting(posts.lazy.map(\.id))
         )
         if posts != next {
             posts = next
         }
+    }
+
+    func mutationDidSettle(_ postID: String) {
+        mutationClock += 1
+        settledMutations[postID] = mutationClock
     }
 
     private func handleLoadError(_ error: Error, userInitiated: Bool) {
