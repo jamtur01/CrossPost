@@ -34,11 +34,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   listened on a stream that never carries messages.
 - Opening a Bluesky conversation now marks it read on Bluesky, so the unread dot
   no longer comes back.
-- A refresh that started before a delete or like finished could bring the
-  deleted post back or undo the like, which on Bluesky could like a post twice.
+- A refresh that started before a delete, like, or edit finished could bring
+  the deleted post back or undo the change, which on Bluesky could like a post
+  twice.
 - Likes and reposts made from a notification were forgotten when the row
   scrolled away.
-- Deleting a post from a thread, profile, or search left it in the timeline.
+- Deleting a post from a thread, profile, or search left it, and any boosts of
+  it, in the timeline.
 - Following a locked Mastodon account added one to its follower count on every
   click.
 - Notifications for likes and reposts made through your repost on Bluesky showed
