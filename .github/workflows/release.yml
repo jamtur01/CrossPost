@@ -37,15 +37,14 @@ jobs:
 
   create-release:
     needs: [changelog-check, build-and-test]
-    runs-on: macos-26
+    runs-on: xcode-27
     timeout-minutes: 30
     permissions:
       contents: write
-    # Pinned to the Xcode the project is tested with locally. Xcode 26.0–26.3
-    # build test hosts that crash freeing @MainActor objects ("pointer being
-    # freed was not allocated"); fixed in 26.4, which macos-15 doesn't have.
+    # Pinned to the Xcode the project is built with locally (27.1). The xcode-27
+    # image is a GitHub preview; macos-26 tops out at Xcode 26.6.
     env:
-      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+      DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
     steps:
       - uses: actions/checkout@v5
 
@@ -60,8 +59,8 @@ jobs:
         uses: actions/cache@v5
         with:
           path: build/DerivedData
-          key: dd-release-${{ runner.os }}-xcode26.6-${{ hashFiles('project.yml') }}
-          restore-keys: dd-release-${{ runner.os }}-xcode26.6-
+          key: dd-release-${{ runner.os }}-xcode27.1-${{ hashFiles('project.yml') }}
+          restore-keys: dd-release-${{ runner.os }}-xcode27.1-
 
       - name: Install XcodeGen
         run: brew install xcodegen
