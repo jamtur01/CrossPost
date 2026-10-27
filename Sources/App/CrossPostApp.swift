@@ -18,7 +18,7 @@ struct CrossPostApp: App {
         .windowToolbarStyle(.unified)
         .commands {
             CommandGroup(after: .appInfo) {
-                Button("Check for Updates…") { updater.checkForUpdates(nil) }
+                CheckForUpdatesButton(updater: updater.updater)
             }
             CommandGroup(after: .toolbar) {
                 Button(showComposer ? "Hide Composer" : "Show Composer") { showComposer.toggle() }
