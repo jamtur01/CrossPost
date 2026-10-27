@@ -299,6 +299,7 @@ extension FeedPanelModel {
         let removed = Set(posts.filter { $0.nativeRef == post.nativeRef }.map(\.id)).union([post.id])
         posts.removeAll { removed.contains($0.id) }
         removed.forEach(mutationDidSettle)
+        deletedStatuses[post.nativeRef] = mutationClock
     }
 
     private func lifecycleOperation<Value>(

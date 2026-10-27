@@ -39,7 +39,7 @@ struct FeedNotification: Identifiable, Equatable, Sendable {
 
 /// Platform-native handles needed to act on or reply to a post, as plain values
 /// so FeedPost never imports an SDK type.
-enum NativeRef: Equatable, Codable, Sendable {
+enum NativeRef: Hashable, Codable, Sendable {
     case mastodon(statusID: String)
     case bluesky(uri: String, cid: String, rootURI: String, rootCID: String)
 }

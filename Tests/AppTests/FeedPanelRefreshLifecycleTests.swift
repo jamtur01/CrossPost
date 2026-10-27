@@ -203,6 +203,8 @@ final class FeedPanelRefreshLifecycleTests: FeedPanelTestCase {
         model.start()
         await waitUntil { model.posts == stale }
 
+        // The page being fetched also holds a boost of the doomed post this panel never loaded.
+        fake.feed = stale + [TestFactory.boost(of: deleted, id: "unseen-boost-of-a")]
         let gate = TestGate()
         fake.loadDelay = { await gate.wait() }
         model.refresh()
@@ -215,13 +217,13 @@ final class FeedPanelRefreshLifecycleTests: FeedPanelTestCase {
         fake.loadDelay = nil
         gate.open() // the refresh returns the page it fetched before every mutation
         await waitUntil { fake.loadFeedCalls == 2 && !model.isLoading }
-        XCTAssertEqual(model.posts.map(\.id), ["b", "c"], "the deleted post and its boost must stay gone")
+        XCTAssertEqual(model.posts.map(\.id), ["b", "c"], "the deleted post and its boosts must stay gone")
         XCTAssertEqual(model.posts.first?.isLiked, true, "the like must survive the stale page")
         XCTAssertEqual(model.posts.last.map { String($0.text.characters) }, "fixed", "so must the edit")
 
         model.refresh() // a load that starts after the mutations trusts the server again
         await waitUntil { fake.loadFeedCalls == 3 && !model.isLoading }
-        XCTAssertEqual(model.posts.map(\.id), ["a", "boost-of-a", "b", "c"])
+        XCTAssertEqual(model.posts.map(\.id), ["a", "boost-of-a", "b", "c", "unseen-boost-of-a"])
         model.stop()
     }
 

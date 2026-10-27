@@ -200,16 +200,17 @@ extension FeedPanelModel {
 
     /// A page may have been fetched before a mutation that has since finished
     /// reached the server, so posts changed after the load began keep their local
-    /// copy, as in-flight ones do; a deleted one stays gone.
+    /// copy, as in-flight ones do; a deleted one stays gone, boosts of it included.
     private func acceptPosts(_ fetched: [FeedPost], fetchedSince startedAt: UInt) {
         guard !Task.isCancelled else { return }
         if errorMessage != nil {
             errorMessage = nil
         }
         let changed = inFlight.union(settledMutations.lazy.filter { $0.value > startedAt }.map(\.key))
+        let live = fetched.filter { deletedStatuses[$0.nativeRef].map { $0 <= startedAt } ?? true }
         let next = FeedMerge.merge(
             existing: posts,
-            fetched: fetched,
+            fetched: live,
             preservingIDs: changed,
             excludingIDs: changed.subtracting(posts.lazy.map(\.id))
         )

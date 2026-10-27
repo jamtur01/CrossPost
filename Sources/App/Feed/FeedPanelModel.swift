@@ -68,6 +68,9 @@ final class FeedPanelModel: OptimisticPostHost {
     /// tick, so a load can tell which posts changed after it started fetching.
     @ObservationIgnored var mutationClock: UInt = 0
     @ObservationIgnored var settledMutations: [String: UInt] = [:]
+    /// Deleted statuses by tick, so a load that began earlier drops every row of
+    /// one, including boosts of it this panel never loaded.
+    @ObservationIgnored var deletedStatuses: [NativeRef: UInt] = [:]
     /// Posts with a like or repost in flight from a notification row.
     @ObservationIgnored var notificationPostsInFlight: Set<String> = []
     /// Identity of the banner the running dismiss timer belongs to. Keyed by token,
