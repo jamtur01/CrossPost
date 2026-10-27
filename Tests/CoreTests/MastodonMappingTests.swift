@@ -335,6 +335,20 @@ final class MastodonMappingTests: XCTestCase {
         XCTAssertEqual(fallback.webURL, preview.webURL)
     }
 
+    func testQuotePostDropsTheInlineQuoteFallback() throws {
+        let fallback = #"<p class="quote-inline">RE: <a href="https://h.io/@a/1">h.io/@a/1</a></p><p>my take</p>"#
+        let url = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "mastodon_media_card", withExtension: "json"))
+        let quoted = try JSONSerialization.jsonObject(with: Data(contentsOf: url))
+        let quotePost = try decodePost("mastodon_reply") { json in
+            json["content"] = fallback
+            json["quote"] = ["state": "accepted", "quoted_status": quoted]
+        }
+        XCTAssertEqual(String(MastodonFeedService.feedPost(from: quotePost).text.characters), "my take")
+        // Without a quote the line is the only reference to the link, so it stays.
+        let plain = try decodePost("mastodon_reply") { $0["content"] = fallback }
+        XCTAssertTrue(String(MastodonFeedService.feedPost(from: plain).text.characters).hasPrefix("RE: "))
+    }
+
     func testQuoteSupportRequiresMastodon44() {
         XCTAssertEqual(MastodonFeedService.supportsQuotePosts(version: "4.4.0"), true)
         XCTAssertEqual(MastodonFeedService.supportsQuotePosts(version: "4.5.1"), true)

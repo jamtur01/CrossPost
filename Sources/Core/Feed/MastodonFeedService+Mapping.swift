@@ -158,7 +158,7 @@ extension MastodonFeedService {
             authorID: display.account.id,
             avatarURL: URL(string: display.account.avatar),
             date: display.createdAt,
-            text: HTMLRenderer.renderAttributed(display.content ?? ""),
+            text: HTMLRenderer.renderAttributed(content(of: display)),
             images: images,
             card: linkCard(from: display.card),
             quoted: quotedPost(from: display.quote),
@@ -180,6 +180,16 @@ extension MastodonFeedService {
             emojis: emojiMap(post.account.emojis, display.account.emojis, display.emojis),
             nativeRef: .mastodon(statusID: display.id)
         )
+    }
+
+    /// A quote post's content starts with a `<p class="quote-inline">RE: link</p>`
+    /// for clients that can't show quotes. The quote card shows it, so drop the
+    /// line, as Mastodon's own web client does whenever the status has a quote.
+    private static func content(of post: Post) -> String {
+        let html = post.content ?? ""
+        guard post.quote != nil else { return html }
+        return html.replacingOccurrences(of: #"<p class="quote-inline">.*?</p>"#, with: "",
+                                         options: .regularExpression)
     }
 
     /// The parent author's "@acct". Mastodon gives only the parent's account id, so
