@@ -39,12 +39,23 @@ extension BlueskyFeedService {
         // ATProtoKit's getMessages exposes no cursor, so fetch its max page (100).
         // Deep DM history beyond one page isn't reachable until the SDK adds a cursor.
         let output = try await chat.getMessages(from: conversationID, limit: 100)
+        await markRead(conversationID)
         let messages = output.messages.compactMap { message -> DirectMessage? in
             guard case let .messageView(message) = message else { return nil }
             return DirectMessage(id: message.messageID, text: message.text, date: message.sentAt,
                                  isFromMe: message.sender.authorDID == myDID)
         }
         return messages.reversed() // getMessages returns newest-first; show oldest-first
+    }
+
+    /// Without this the server keeps the conversation unread, so the next poll
+    /// brings the unread dot back and other clients show it unread too.
+    private func markRead(_ conversationID: String) async {
+        do {
+            _ = try await chat.updateRead(from: conversationID)
+        } catch {
+            Log.feed.error("Couldn't mark Bluesky conversation \(conversationID) read: \(error)")
+        }
     }
 
     func sendMessage(_ text: String, to conversationID: String) async throws {
