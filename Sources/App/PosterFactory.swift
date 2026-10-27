@@ -40,9 +40,22 @@ enum PosterFactory {
     @MainActor
     static func makeMastodon(_ store: AccountStore) async throws -> MastodonPoster {
         let client = try await makeVerifiedMastodonClient(store)
-        store.mastodonMaxChars = try await client.getInstanceInfoV2().configuration?.posts?.maxCharacters
-            ?? TargetLimits.mastodonFallback
+        if let max = await maxCharacters(client) {
+            store.mastodonMaxChars = max
+        }
         return MastodonPoster(client: client)
+    }
+
+    /// The instance's post length limit, or nil when it can't be read. Not every
+    /// server has the v2 instance endpoint, and a failed lookup mustn't stop posting.
+    private static func maxCharacters(_ client: TootClient) async -> Int? {
+        do {
+            return try await client.getInstanceInfoV2().configuration?.posts?.maxCharacters
+                ?? TargetLimits.mastodonFallback
+        } catch {
+            Log.auth.error("Couldn't read the Mastodon instance's post length limit: \(error)")
+            return nil
+        }
     }
 
     static func makeMastodon(instanceURL: String, token: String) async throws -> MastodonVerification {
@@ -52,8 +65,7 @@ enum PosterFactory {
         let client = TootClient(instanceURL: url, accessToken: token)
         try await client.connect()
         let account = try await client.verifyCredentials()
-        let max = try await client.getInstanceInfoV2().configuration?.posts?.maxCharacters
-            ?? TargetLimits.mastodonFallback
+        let max = await maxCharacters(client) ?? TargetLimits.mastodonFallback
         return MastodonVerification(
             poster: MastodonPoster(client: client),
             maxCharacters: max,
