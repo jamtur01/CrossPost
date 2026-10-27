@@ -42,8 +42,19 @@ struct MastodonFeedService: FeedService {
         return notes.map { Self.notification(from: $0) }
     }
 
+    /// `unread_count` arrived in Mastodon 4.3. Older servers get a count of the
+    /// notifications newer than the read marker, capped at one page (30).
     func unreadNotificationCount() async throws -> Int {
-        try await client.getNotificationsUnreadCount()
+        do {
+            return try await client.getNotificationsUnreadCount()
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            let marker = try await client.getMarkers(for: [.notifications])[.some(.notifications)]
+            let newer = try await client.getNotifications(params: .init(), PagedInfo(sinceId: marker?.lastReadId),
+                                                          limit: 30)
+            return newer.result.count
+        }
     }
 
     func markNotificationsRead(upTo latest: FeedNotification?) async throws {
