@@ -32,22 +32,19 @@ final class AccountStore: ObservableObject {
     /// Real Keychain in normal runs; ephemeral storage when hosted by the unit-test
     /// runner, so launching the test host doesn't trigger a Keychain password prompt.
     private static func defaultCredentialStore() -> SecretStoring {
-        isUnderTests ? EphemeralSecretStore() : CredentialStore()
+        ProcessInfo.processInfo.isRunningTests ? EphemeralSecretStore() : CredentialStore()
     }
 
     /// UserDefaults for stored prefs. The standard suite in normal runs, but a
     /// throwaway suite under the unit-test host: tests share the app's bundle id and
     /// would otherwise overwrite the real app's instance URL and handle in `.standard`.
     static let defaults: UserDefaults = {
-        guard isUnderTests, let suite = UserDefaults(suiteName: "net.kartar.crosspost.tests") else {
+        guard ProcessInfo.processInfo.isRunningTests,
+              let suite = UserDefaults(suiteName: "net.kartar.crosspost.tests") else {
             return .standard
         }
         return suite
     }()
-
-    nonisolated static var isUnderTests: Bool {
-        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
-    }
 
     /// The most recent Keychain write failure, for Settings to surface; cleared by
     /// the next successful write. Secret writes must not fail silently — a token

@@ -130,7 +130,7 @@ struct PostCounter: Equatable {
 extension MentionPairStore {
     static let application: MentionPairStore = {
         // Hosted tests launch the app UI too; it must never touch the real pairs file.
-        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
+        if ProcessInfo.processInfo.isRunningTests {
             return MentionPairStore(url: URL.temporaryDirectory
                 .appending(path: "CrossPost-tests-\(UUID())/mention-pairs.json"))
         }

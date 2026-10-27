@@ -6,7 +6,7 @@ struct CrossPostApp: App {
     @StateObject private var store = AccountStore()
     @AppStorage("showComposer", store: AccountStore.defaults) private var showComposer = true
     private let updater = SPUStandardUpdaterController(
-        startingUpdater: !AccountStore.isUnderTests, updaterDelegate: nil, userDriverDelegate: nil
+        startingUpdater: !ProcessInfo.processInfo.isRunningTests, updaterDelegate: nil, userDriverDelegate: nil
     )
 
     var body: some Scene {

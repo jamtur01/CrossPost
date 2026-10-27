@@ -35,7 +35,7 @@ final class DraftStore: Sendable {
 
     static let application: DraftStore = {
         // Hosted tests launch the app UI too; its autosave must never touch a real draft.
-        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
+        if ProcessInfo.processInfo.isRunningTests {
             return DraftStore(url: URL.temporaryDirectory
                 .appending(path: "CrossPost-tests-\(UUID())/active-draft.plist"))
         }
