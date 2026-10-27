@@ -38,6 +38,8 @@ struct EditSheet: View {
     @State private var spoiler = ""
     @State private var hasSpoiler = false
     @State private var loading = true
+    /// False until the post's source loads; editing a blank stand-in would wipe it.
+    @State private var loaded = false
     @State private var isSending = false
     @State private var sent = false
     @State private var errorMessage: String?
@@ -53,7 +55,7 @@ struct EditSheet: View {
     }
 
     private var canSave: Bool {
-        !isSending && !sent && count <= limit
+        loaded && !isSending && !sent && count <= limit
             && (!text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !post.images.isEmpty)
     }
 
@@ -64,7 +66,7 @@ struct EditSheet: View {
             if loading {
                 ProgressView().controlSize(.small)
                     .frame(maxWidth: .infinity).padding(.vertical, 30)
-            } else {
+            } else if loaded {
                 editor
             }
 
@@ -85,6 +87,7 @@ struct EditSheet: View {
                 text = source.text
                 spoiler = source.spoiler
                 hasSpoiler = !source.spoiler.isEmpty
+                loaded = true
             } catch {
                 errorMessage = error.userMessage
             }
