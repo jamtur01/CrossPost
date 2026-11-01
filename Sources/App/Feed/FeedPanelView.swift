@@ -243,12 +243,10 @@ struct FeedPanelView: View {
 
     private var overflowMenu: some View {
         Menu {
-            if model.target == .mastodon {
-                Button {
-                    pushRoute(.saved(.bookmarks))
-                } label: {
-                    Label("Bookmarks", systemImage: "bookmark")
-                }
+            Button {
+                pushRoute(.saved(.bookmarks))
+            } label: {
+                Label("Bookmarks", systemImage: "bookmark")
             }
             Button {
                 pushRoute(.saved(.likes))
