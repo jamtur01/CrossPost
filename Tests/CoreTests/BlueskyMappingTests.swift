@@ -66,6 +66,7 @@ final class BlueskyMappingTests: XCTestCase {
         let saved = try XCTUnwrap(BlueskyFeedService.feedPost(fromBookmark: bookmark(post)))
         XCTAssertEqual(saved.id, "bluesky:\(uri)")
         XCTAssertEqual(String(saved.text.characters), "hello @alice.bsky.social")
+        XCTAssertTrue(saved.isBookmarked, "the fixture has no viewer state; the endpoint says it's saved")
 
         let deleted = try bookmark(["$type": "app.bsky.feed.defs#notFoundPost", "uri": uri, "notFound": true])
         XCTAssertNil(BlueskyFeedService.feedPost(fromBookmark: deleted))
