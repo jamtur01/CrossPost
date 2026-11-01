@@ -22,6 +22,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of the share arrow, matching the post's overflow menu.
 - A liked or reposted action draws its symbol in a heavier weight, so the
   engaged state no longer relies on color alone.
+- Links, mentions, and other network-colored text use a deeper shade of the
+  network color in light mode and a lighter one in dark mode, so they reach
+  4.5:1 contrast. Your own DM bubbles and Follow buttons keep the deeper shade
+  under their white text.
+- Liked and reposted counts use a deeper pink and green in light mode, where
+  the system colors were hard to read on white.
 
 ### Fixed
 

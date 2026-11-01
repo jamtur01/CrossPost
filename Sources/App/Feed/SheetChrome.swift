@@ -40,7 +40,7 @@ struct SheetFooter: View {
         HStack {
             if sent {
                 Label(successLabel, systemImage: "checkmark.circle.fill")
-                    .font(.callout).foregroundStyle(.green)
+                    .font(.callout).foregroundStyle(Theme.repostTint)
             }
             Spacer()
             Button("Cancel", action: onCancel)

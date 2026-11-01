@@ -129,7 +129,7 @@ extension FeedPanelView {
                 Label("Open Settings", systemImage: "gearshape")
             }
             .buttonStyle(.borderedProminent)
-            .tint(accent)
+            .tint(model.target.fillAccent)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding()

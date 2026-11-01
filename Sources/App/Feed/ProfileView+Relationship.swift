@@ -68,7 +68,7 @@ extension ProfileView {
                     Button(relationship.isFollowedBy ? "Follow back" : "Follow") {
                         startRelationshipAction(.follow)
                     }
-                    .buttonStyle(.borderedProminent).tint(accent)
+                    .buttonStyle(.borderedProminent).tint(panel.target.fillAccent)
                 }
             }
             .font(.system(size: 13, weight: .semibold))

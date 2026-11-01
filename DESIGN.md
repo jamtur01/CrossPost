@@ -2,11 +2,11 @@
 name: CrossPost
 description: A native Mac switchboard for reading and posting to Mastodon and Bluesky side by side.
 colors:
-  mastodon-blurple: "#6364FF"
-  bluesky-blue: "#0A7AFF"
+  mastodon-blurple: "#5354E8"
+  bluesky-blue: "#0066D6"
   system-accent: "AccentColor"
-  like-pink: "#FF2D55"
-  repost-green: "#34C759"
+  like-pink: "#D1194A"
+  repost-green: "#157A33"
   danger-red: "#FF3B30"
   warning-orange: "#FF9500"
   surface: "#FFFFFF"
@@ -154,13 +154,15 @@ The system rejects four things: timeline posts as bordered floating cards, web-a
 A neutral system canvas with two network accents and a small set of semantic action colors, each used sparingly.
 
 ### Primary
-- **Mastodon Blurple** (`mastodon-blurple`): Mastodon's brand color. Marks the Mastodon column's identity glyph, its links, mentions, and hashtags, its active header states, its own prominent buttons (Follow, Open Settings), the visibility menu, selected-target pill tint, and your own Mastodon DM bubbles.
-- **Bluesky Blue** (`bluesky-blue`): Bluesky's brand color, used in exactly the same roles in the Bluesky column.
+Every network and action color is a text color first, so each resolves per appearance to clear 4.5:1 as small text on the feed background and its hover fill. The frontmatter records the light-appearance value.
+
+- **Mastodon Blurple** (`mastodon-blurple`): Mastodon's brand hue (#6364FF), deepened to #5354E8 in light appearance and lifted to #8C8DFF in dark. Marks the Mastodon column's identity glyph, its links, mentions, and hashtags, its active header states, the visibility menu, and the selected-target pill tint. Surfaces under white text (its prominent Follow and Open Settings buttons, your own Mastodon DM bubbles) use the deeper #5354E8 in both appearances (`fillAccent`), so the white label keeps 5.5:1.
+- **Bluesky Blue** (`bluesky-blue`): Bluesky's brand hue (#0A7AFF): #0066D6 in light appearance and on white-text fills, #4DA3FF as dark-appearance text. Used in exactly the same roles in the Bluesky column.
 - **System Accent** (`system-accent`): the user's macOS accent color. Used only where an action spans both networks or neither: the composer's Post button, the composer drop target, and mention-suggestion selection.
 
 ### Secondary
-- **Like Pink** (`like-pink`): the engaged state of Like everywhere it appears (system pink).
-- **Repost Green** (`repost-green`): the engaged state of Repost/Boost everywhere (system green); also the "sent" confirmation in sheets.
+- **Like Pink** (`like-pink`): the engaged state of Like everywhere it appears: #D1194A in light appearance, #FF5C7E in dark. System pink is too light for count text on white (3.6:1).
+- **Repost Green** (`repost-green`): the engaged state of Repost/Boost everywhere; also the "sent" confirmation in sheets. #157A33 in light appearance (system green is 2.2:1 on white), system dark green #30D158 in dark.
 
 ### Tertiary
 - **Danger Red** (`danger-red`): validation failures, over-limit character counts, send errors, the unread badge, and destructive menu items (system red).

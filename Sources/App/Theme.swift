@@ -2,12 +2,24 @@ import AppKit
 import SwiftUI
 
 extension PostTarget {
-    /// Brand accent — Mastodon "Blurple" (#6364FF), Bluesky blue (#0A7AFF).
-    /// Used sparingly: the column identity glyph, active states, and primary actions.
+    /// Network accent for text, links, and glyphs: the brand hue (Mastodon Blurple
+    /// #6364FF, Bluesky blue #0A7AFF) deepened in light mode and lifted in dark mode
+    /// so small text clears 4.5:1 on the feed background and its hover fill.
+    /// Used sparingly: the column identity glyph, links, active states.
     var accent: Color {
         switch self {
-        case .mastodon: Color(red: 0.388, green: 0.392, blue: 1.0)
-        case .bluesky: Color(red: 0.039, green: 0.478, blue: 1.0)
+        case .mastodon: .adaptive(light: 0x5354E8, dark: 0x8C8DFF)
+        case .bluesky: .adaptive(light: 0x0066D6, dark: 0x4DA3FF)
+        }
+    }
+
+    /// The accent for filled surfaces under white text (your own DM bubbles,
+    /// prominent buttons): the deeper shade in both appearances, so the white label
+    /// keeps 5.4:1 where the dark-mode text accent would drop it below 3:1.
+    var fillAccent: Color {
+        switch self {
+        case .mastodon: Color(nsColor: NSColor(hex: 0x5354E8))
+        case .bluesky: Color(nsColor: NSColor(hex: 0x0066D6))
         }
     }
 
@@ -76,8 +88,30 @@ enum Theme {
     static let focusRing = Color(nsColor: .keyboardFocusIndicatorColor)
     // Action tints — shared by the timeline and notification action bars so
     // like/repost read identically everywhere they appear.
-    static let likeTint = Color.pink
-    static let repostTint = Color.green
+    // The system pink and green fall to 2–3.6:1 as count text on white, so light mode
+    // takes deeper shades; every value clears 4.5:1 on the row and its hover fill.
+    static let likeTint = Color.adaptive(light: 0xD1194A, dark: 0xFF5C7E)
+    static let repostTint = Color.adaptive(light: 0x157A33, dark: 0x30D158)
+}
+
+extension Color {
+    /// An sRGB colour that resolves per appearance, so text tints can differ
+    /// between light and dark mode (including the high-contrast variants).
+    static func adaptive(light: UInt32, dark: UInt32) -> Color {
+        Color(nsColor: NSColor(name: nil) { appearance in
+            let isDark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+            return NSColor(hex: isDark ? dark : light)
+        })
+    }
+}
+
+private extension NSColor {
+    convenience init(hex: UInt32) {
+        self.init(srgbRed: CGFloat((hex >> 16) & 0xFF) / 255,
+                  green: CGFloat((hex >> 8) & 0xFF) / 255,
+                  blue: CGFloat(hex & 0xFF) / 255,
+                  alpha: 1)
+    }
 }
 
 /// A softly bordered semantic surface used for the compose card and previews.

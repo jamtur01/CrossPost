@@ -192,7 +192,7 @@ struct ConversationView: View {
                 .padding(.horizontal, 11)
                 .padding(.vertical, 7)
                 .background(
-                    message.isFromMe ? accent : Color.secondary.opacity(0.18),
+                    message.isFromMe ? panel.target.fillAccent : Color.secondary.opacity(0.18),
                     in: RoundedRectangle(cornerRadius: Theme.bubbleCorner, style: .continuous)
                 )
                 .frame(maxWidth: 260, alignment: .leading)
