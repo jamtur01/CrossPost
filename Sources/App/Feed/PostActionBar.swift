@@ -27,8 +27,11 @@ func postActionButton(
         .filter { !$0.isEmpty }.joined(separator: ", ")
     return Button(action: action) {
         HStack(spacing: 5) {
+            // Engaged actions also get a heavier stroke so the state doesn't rest on
+            // colour alone (Repost has no filled symbol, unlike Like's heart.fill).
             Image(systemName: symbol)
                 .font(compact ? .system(size: 13) : Theme.action)
+                .fontWeight(active ? .bold : .regular)
             if !compact, let count, count > 0 {
                 Text(count.formatted(.number.notation(.compactName)))
                     .font(Theme.count)
