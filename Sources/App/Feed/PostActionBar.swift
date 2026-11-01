@@ -32,6 +32,8 @@ func postActionButton(
             if !compact, let count, count > 0 {
                 Text(count.formatted(.number.notation(.compactName)))
                     .font(Theme.count)
+                    .lineLimit(1)
+                    .fixedSize()
             }
         }
         .foregroundStyle(active ? tint : Color.secondary)

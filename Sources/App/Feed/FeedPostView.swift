@@ -215,8 +215,18 @@ struct FeedPostView: View {
         }
     }
 
+    /// Narrow columns with four-character counts ("1.2K") don't fit the standard
+    /// gap, so the bar tightens its spacing rather than wrapping or shrinking type.
     private var actionBar: some View {
-        HStack(spacing: Theme.actionGap) {
+        ViewThatFits(in: .horizontal) {
+            actionRow(spacing: Theme.actionGap)
+            actionRow(spacing: Theme.actionGapNarrow)
+        }
+        .padding(.top, 4)
+    }
+
+    private func actionRow(spacing: CGFloat) -> some View {
+        HStack(spacing: spacing) {
             postActionButton("bubble", count: post.replyCount, active: false,
                              tint: accent, help: "Reply", action: onReply)
             postActionButton("arrow.2.squarepath", count: post.repostCount, active: post.isReposted,
@@ -227,7 +237,6 @@ struct FeedPostView: View {
             postActionButton("safari", tint: accent, help: "Open in browser", action: onOpen)
             moreMenu
         }
-        .padding(.top, 4)
     }
 
     private var moreMenu: some View {

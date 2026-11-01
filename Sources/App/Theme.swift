@@ -54,6 +54,7 @@ enum Theme {
     static let componentSpacing: CGFloat = 6
     static let gutter: CGFloat = 10 // avatar → content
     static let actionGap: CGFloat = 20 // between action buttons
+    static let actionGapNarrow: CGFloat = 12 // when the standard gap would overflow a narrow column
     static let timelineAvatar: CGFloat = 40
     static let avatar: CGFloat = 44
     static let avatarSmall: CGFloat = 42 // list rows (search/followers)
