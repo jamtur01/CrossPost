@@ -224,7 +224,7 @@ struct FeedPostView: View {
             postActionButton(post.isLiked ? "heart.fill" : "heart", count: post.likeCount,
                              active: post.isLiked, tint: Theme.likeTint, help: "Like", action: onLike)
             Spacer(minLength: 0)
-            postActionButton("square.and.arrow.up", tint: accent, help: "Open in browser", action: onOpen)
+            postActionButton("safari", tint: accent, help: "Open in browser", action: onOpen)
             moreMenu
         }
         .padding(.top, 4)
