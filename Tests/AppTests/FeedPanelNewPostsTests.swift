@@ -72,6 +72,21 @@ final class FeedPanelNewPostsTests: FeedPanelTestCase {
         model.stop()
     }
 
+    /// Deleting the reader's top post removes it before the list reports a new top
+    /// post. A refresh in between counts only real arrivals, not the old posts above.
+    func testDeletingTheReadersPostCountsOnlyRealArrivals() async throws {
+        let (fake, model) = await loadedModel()
+        model.homeScrolled(to: "c")
+        try model.delete(XCTUnwrap(model.posts.first { $0.id == "c" }))
+        XCTAssertFalse(model.posts.contains { $0.id == "c" })
+
+        await arrive(posts("a", "b", "d"), fake, model)
+        XCTAssertEqual(model.newPostCount, 0, "a refresh with nothing new counts nothing")
+        await arrive(posts("n1", "a", "b", "d"), fake, model)
+        XCTAssertEqual(model.newPostCount, 1)
+        model.stop()
+    }
+
     func testArrivalsWhileAtTheTopDoNotCount() async {
         let (fake, model) = await loadedModel()
         await arrive(posts("n1", "a", "b", "c", "d"), fake, model)

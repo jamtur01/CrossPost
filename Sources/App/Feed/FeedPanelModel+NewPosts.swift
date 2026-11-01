@@ -39,18 +39,14 @@ extension FeedPanelModel {
     func countArrivals(in next: [FeedPost]) {
         var unseen: Set<String> = []
         if readingPostID != nil {
-            readingPostID = anchor(in: next)
-            if let readingPostID, let index = next.firstIndex(where: { $0.id == readingPostID }) {
-                let current = Set(posts.map(\.id))
-                for post in next[..<index] where newPostIDs.contains(post.id) || !current.contains(post.id) {
-                    unseen.insert(post.id)
-                }
-            } else {
-                // Nothing the reader had is left: the refresh replaced the whole window.
-                // It's all new, and the reader sits at its last post until the list
-                // reports where they are, so everything above that post counts.
-                readingPostID = next.last?.id
-                unseen = Set(next.dropLast().map(\.id))
+            // With no stand-in (the refresh replaced the whole window, or the reader's
+            // post was removed before the list reported a new one), the reader sits at
+            // the bottom of `next` until it does. Old posts above them never count.
+            readingPostID = anchor(in: next) ?? next.last?.id
+            let end = readingPostID.flatMap { id in next.firstIndex { $0.id == id } } ?? 0
+            let current = Set(posts.map(\.id))
+            for post in next[..<end] where newPostIDs.contains(post.id) || !current.contains(post.id) {
+                unseen.insert(post.id)
             }
         }
         if unseen != newPostIDs {
@@ -60,13 +56,15 @@ extension FeedPanelModel {
 
     /// The reader's top post in `next`. When it has left (pushed out of the kept window
     /// by arrivals, or deleted), the nearest post that's still kept stands in, above it
-    /// first, so arrivals keep counting. Nil when no post the reader had is left.
+    /// first. Nil when there's no stand-in: no post the reader had is left, or their
+    /// post is no longer in the timeline, so where it was is unknown.
     private func anchor(in next: [FeedPost]) -> String? {
-        guard let readingPostID, let old = posts.firstIndex(where: { $0.id == readingPostID }) else { return nil }
+        guard let readingPostID else { return nil }
         let kept = Set(next.map(\.id))
         if kept.contains(readingPostID) {
             return readingPostID
         }
+        guard let old = posts.firstIndex(where: { $0.id == readingPostID }) else { return nil }
         return (posts[..<old].last { kept.contains($0.id) } ?? posts[old...].first { kept.contains($0.id) })?.id
     }
 }
