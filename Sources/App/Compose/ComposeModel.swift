@@ -120,7 +120,10 @@ final class ComposeModel {
         self.mentionDirectory = mentionDirectory
         history = SentHistoryModel(
             store: historyStore,
-            isConfigured: { [store] in $0 == .mastodon ? store.hasMastodon : store.hasBluesky },
+            account: { [store] target in
+                let signedIn = target == .mastodon ? store.hasMastodon : store.hasBluesky
+                return signedIn ? store.accountKey(for: target) : nil
+            },
             makeService: { try await mentionDirectory.service(for: $0) }
         )
         restoreDraft()
@@ -147,7 +150,7 @@ final class ComposeModel {
     func lockReason(_ target: PostTarget) -> LockReason? {
         guard !pendingTargets.contains(target) else { return .interrupted }
         guard let landed = landedByTarget[target] else { return nil }
-        guard landed.account == accountKey(for: target) else { return .accountChanged }
+        guard landed.account == store.accountKey(for: target) else { return .accountChanged }
         guard prefixIntact(landed, for: target) else { return .prefixEdited }
         return thread.count <= landed.items.count ? .fullySent : nil
     }
@@ -276,12 +279,12 @@ final class ComposeModel {
     private func preparePublication(to targets: [PostTarget], credentials: [PostTarget: [String]]) -> Bool {
         guard credentials == credentialSnapshot(for: targets),
               targets.allSatisfy({ target in
-                  landedByTarget[target].map { $0.account == accountKey(for: target) } ?? true
+                  landedByTarget[target].map { $0.account == store.accountKey(for: target) } ?? true
               }) else {
             errorMessage = "Accounts changed while preparing the post. Review the destinations and try again."
             return false
         }
-        publishingAccounts = Dictionary(uniqueKeysWithValues: targets.map { ($0, accountKey(for: $0)) })
+        publishingAccounts = Dictionary(uniqueKeysWithValues: targets.map { ($0, store.accountKey(for: $0)) })
         pendingTargets = Set(targets)
         guard flushDraft() else {
             pendingTargets = []
@@ -364,7 +367,7 @@ final class ComposeModel {
             let signatures = (0 ..< count).map { PostSignature(published[$0].rendered(for: result.target)) }
             landedByTarget[result.target] = LandedThread(
                 items: items, signatures: signatures,
-                account: publishingAccounts[result.target] ?? accountKey(for: result.target)
+                account: publishingAccounts[result.target] ?? store.accountKey(for: result.target)
             )
             if complete {
                 fullySent.append(result.target)
@@ -402,12 +405,15 @@ final class ComposeModel {
         _ = flushDraft()
     }
 
-    /// Records the draft's first post on every network it has landed on so far, so
-    /// a retry that finishes the other network updates the same history entry.
+    /// Records the draft's first post on every network it has landed on so far, with
+    /// the account that published it and how many posts landed, so a retry that
+    /// finishes the thread or the other network updates the same history entry.
     private func recordSentPost(_ published: [DraftPost]) {
         let now = Date.now
-        let copies = PostTarget.allCases.compactMap { target in
-            landedByTarget[target]?.items.first.map { SentCopy(target: target, item: $0, date: now) }
+        let copies = PostTarget.allCases.compactMap { target -> SentCopy? in
+            guard let landed = landedByTarget[target], let first = landed.items.first else { return nil }
+            return SentCopy(target: target, item: first, date: now, account: landed.account,
+                            postCount: landed.items.count)
         }
         guard let first = published.first, !copies.isEmpty else { return }
         history.record(SentPost(id: UUID(), date: now, text: first.text,

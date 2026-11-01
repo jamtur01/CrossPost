@@ -123,7 +123,7 @@ final class ComposeCompletionTests: XCTestCase {
             .appending(path: "history-\(UUID())/sent-history.json"))
         let model = ComposeModel(store: AccountStore(), historyStore: historyStore)
         model.handleCompletion([PostResult(target: .bluesky, outcome: .failure(message: "Offline"))])
-        XCTAssertEqual(historyStore.load(), [], "a send that landed nowhere isn't history")
+        XCTAssertEqual(try historyStore.load(), [], "a send that landed nowhere isn't history")
 
         model.thread = [DraftPost(text: "Cross-post"), DraftPost(text: "Second")]
         let mastodon = PostedItem(url: "https://example/1", ref: .mastodon(statusID: "1"))
@@ -132,19 +132,41 @@ final class ComposeCompletionTests: XCTestCase {
                                  ref: .bluesky(uri: uri, cid: "c", rootURI: uri, rootCID: "c"))
         model.handleCompletion([
             PostResult(target: .mastodon, outcome: .success(posted: [mastodon, mastodon])),
-            PostResult(target: .bluesky, outcome: .failure(message: "Offline"))
+            PostResult(target: .bluesky, outcome: .partial(posted: [bluesky], failedIndex: 1, message: "Offline"))
         ])
-        let partial = try XCTUnwrap(historyStore.load().first)
-        XCTAssertEqual(partial.copies.map(\.target), [.mastodon])
+        let partial = try XCTUnwrap(try historyStore.load().first)
+        XCTAssertEqual(partial.copies.map(\.target), [.mastodon, .bluesky])
         XCTAssertEqual(partial.text, "Cross-post")
         XCTAssertEqual(partial.postCount, 2)
+        XCTAssertEqual(partial.copies.map(\.postCount), [2, 1], "each copy counts only what landed")
+        XCTAssertEqual(partial.copies.map(\.account), [model.store.accountKey(for: .mastodon),
+                                                       model.store.accountKey(for: .bluesky)])
 
         model.handleCompletion([PostResult(target: .bluesky, outcome: .success(posted: [bluesky, bluesky]))])
-        let history = historyStore.load()
+        let history = try historyStore.load()
         XCTAssertEqual(history.count, 1)
         XCTAssertEqual(history.first?.id, partial.id)
         XCTAssertEqual(history.first?.copies.map(\.item), [mastodon, bluesky])
+        XCTAssertEqual(history.first?.copies.map(\.postCount), [2, 2], "the retry updates the count")
         XCTAssertEqual(model.history.posts.map(\.id), history.map(\.id))
+    }
+
+    func testUnreadableHistoryIsReportedAndLeftUntouchedBySends() throws {
+        let historyStore = SentHistoryStore(url: URL.temporaryDirectory
+            .appending(path: "history-\(UUID())/sent-history.json"))
+        try FileManager.default.createDirectory(at: historyStore.url.deletingLastPathComponent(),
+                                                withIntermediateDirectories: true)
+        let unreadable = Data("{ newer format".utf8)
+        try unreadable.write(to: historyStore.url)
+        let model = ComposeModel(store: AccountStore(), historyStore: historyStore)
+        XCTAssertNotNil(model.history.problem)
+
+        model.thread[0].text = "Published post"
+        model.handleCompletion([PostResult(target: .mastodon, outcome: .success(
+            posted: [PostedItem(url: "https://example/1", ref: .mastodon(statusID: "1"))]
+        ))])
+        XCTAssertEqual(try Data(contentsOf: historyStore.url), unreadable)
+        XCTAssertNotNil(model.history.problem)
     }
 
     private var successes: [PostResult] {

@@ -110,6 +110,18 @@ final class AccountStore: ObservableObject {
         !blueskyHandle.isEmpty && availableCredentials.contains(.bluesky)
     }
 
+    /// Names the configured account on `target`: Mastodon's server and username, or
+    /// the Bluesky handle. Published work records it so a later account isn't
+    /// mistaken for the one that posted.
+    func accountKey(for target: PostTarget) -> String {
+        switch target {
+        case .mastodon:
+            "\(mastodonBaseURL?.absoluteString ?? "")|\(mastodonUsername.lowercased())"
+        case .bluesky:
+            blueskyHandle.lowercased()
+        }
+    }
+
     /// Matches the verified account ID, falling back to the configured handle before verification.
     func isOwnAccount(_ target: PostTarget, id: String = "", handle: String = "") -> Bool {
         if !id.isEmpty, let own = ownAccounts[target], own.scope == accountScope(target) {

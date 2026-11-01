@@ -10,12 +10,15 @@ final class SentHistoryStoreTests: XCTestCase {
             .appending(path: "history-\(UUID())/sent-history.json"))
     }
 
-    func testMissingAndMalformedFilesReadAsEmpty() throws {
-        XCTAssertEqual(store.load(), [])
+    func testMissingFileIsEmptyAndAnUnreadableOneIsNeverOverwritten() throws {
+        XCTAssertEqual(try store.load(), [])
         try FileManager.default.createDirectory(at: store.url.deletingLastPathComponent(),
                                                 withIntermediateDirectories: true)
-        try Data("not json".utf8).write(to: store.url)
-        XCTAssertEqual(store.load(), [])
+        let unreadable = Data("not json".utf8)
+        try unreadable.write(to: store.url)
+        XCTAssertThrowsError(try store.load())
+        XCTAssertThrowsError(try store.record(sent("new", copies: [mastodon("1")])))
+        XCTAssertEqual(try Data(contentsOf: store.url), unreadable)
     }
 
     func testRecordsNewestFirstAndRoundTripsBothNetworks() throws {
@@ -23,14 +26,14 @@ final class SentHistoryStoreTests: XCTestCase {
         let second = sent("second", copies: [mastodon("2"), bluesky("b")])
         try store.record(first)
         try store.record(second)
-        XCTAssertEqual(store.load(), [second, first])
+        XCTAssertEqual(try store.load(), [second, first])
     }
 
     func testKeepsOnlyTheNewestFiftySends() throws {
         for index in 0 ..< SentHistoryStore.limit + 5 {
             try store.record(sent("post \(index)", copies: [mastodon("\(index)")]))
         }
-        let history = store.load()
+        let history = try store.load()
         XCTAssertEqual(history.count, SentHistoryStore.limit)
         XCTAssertEqual(history.first?.text, "post 54")
         XCTAssertEqual(history.last?.text, "post 5")
@@ -38,46 +41,63 @@ final class SentHistoryStoreTests: XCTestCase {
 
     func testSingleNetworkSendRecordsOnlyThatNetwork() throws {
         try store.record(sent("only bluesky", copies: [bluesky("a")]))
-        let saved = try XCTUnwrap(store.load().first)
+        let saved = try XCTUnwrap(try store.load().first)
         XCTAssertNil(saved.copy(on: .mastodon))
         XCTAssertEqual(saved.copy(on: .bluesky)?.item.url, "https://bsky.app/a")
     }
 
     func testRetryThatLandsTheOtherNetworkUpdatesTheOriginalRecord() throws {
-        let partial = sent("cross", copies: [mastodon("1")])
+        let partial = SentPost(id: UUID(), date: start, text: "cross", postCount: 2,
+                               copies: [mastodon("1", posts: 1)])
         try store.record(partial)
         try store.record(sent("unrelated", copies: [bluesky("z")]))
+        XCTAssertEqual(partial.publishedCount, 1, "a thread that stopped after one post shows one")
         let retryDate = start.addingTimeInterval(600)
         let retry = SentPost(id: UUID(), date: retryDate, text: "cross", postCount: 2,
-                             copies: [mastodon("1", at: retryDate), bluesky("a", at: retryDate)])
+                             copies: [mastodon("1", at: retryDate, posts: 2), bluesky("a", at: retryDate, posts: 2)])
         try store.record(retry)
 
-        let history = store.load()
+        let history = try store.load()
         XCTAssertEqual(history.map(\.text), ["unrelated", "cross"])
         let merged = history[1]
         XCTAssertEqual(merged.id, partial.id)
         XCTAssertEqual(merged.date, start)
-        XCTAssertEqual(merged.postCount, 2)
         XCTAssertEqual(merged.copy(on: .mastodon)?.date, start, "unchanged copy keeps its landing date")
+        XCTAssertEqual(merged.copy(on: .mastodon)?.postCount, 2, "the retry's landed posts are counted")
         XCTAssertEqual(merged.copy(on: .bluesky)?.date, retryDate)
+        XCTAssertEqual(merged.publishedCount, 2)
+    }
+
+    /// Mastodon status ids are per server, so the same id from another account is a
+    /// different post, and only the signed-in accounts' copies are shown.
+    func testCopiesBelongToTheAccountThatPublishedThem() throws {
+        try store.record(sent("home", copies: [mastodon("1"), bluesky("a")]))
+        try store.record(sent("elsewhere", copies: [mastodon("1", account: "other.example|me")]))
+        let history = try store.load()
+        XCTAssertEqual(history.map(\.text), ["elsewhere", "home"])
+
+        let signedIn: [PostTarget: String] = [.mastodon: "other.example|me"]
+        XCTAssertNil(history[1].limited(to: signedIn)?.copy(on: .bluesky))
+        XCTAssertEqual(history.compactMap { $0.limited(to: signedIn) }.map(\.text), ["elsewhere"])
     }
 
     private func sent(_ text: String, copies: [SentCopy]) -> SentPost {
         SentPost(id: UUID(), date: start, text: text, postCount: 1, copies: copies)
     }
 
-    private func mastodon(_ id: String, at date: Date? = nil) -> SentCopy {
+    private func mastodon(_ id: String, at date: Date? = nil, posts: Int = 1,
+                          account: String = "https://mastodon.example|me") -> SentCopy {
         SentCopy(target: .mastodon,
                  item: PostedItem(url: "https://mastodon.example/@me/\(id)", ref: .mastodon(statusID: id)),
-                 date: date ?? start)
+                 date: date ?? start, account: account, postCount: posts)
     }
 
-    private func bluesky(_ id: String, at date: Date? = nil) -> SentCopy {
+    private func bluesky(_ id: String, at date: Date? = nil, posts: Int = 1) -> SentCopy {
         let uri = "at://did:plc:me/app.bsky.feed.post/\(id)"
         return SentCopy(target: .bluesky,
                         item: PostedItem(url: "https://bsky.app/\(id)",
                                          ref: .bluesky(uri: uri, cid: "cid-\(id)", rootURI: uri, rootCID: "cid-\(id)")),
-                        date: date ?? start)
+                        date: date ?? start, account: "me.bsky.social", postCount: posts)
     }
 }
 
@@ -88,7 +108,7 @@ final class SentCopyStatusTests: XCTestCase {
         let uri = "at://did:plc:me/app.bsky.feed.post/a"
         let copy = SentCopy(target: .bluesky,
                             item: PostedItem(url: nil, ref: .bluesky(uri: uri, cid: "c", rootURI: uri, rootCID: "c")),
-                            date: now.addingTimeInterval(-3600))
+                            date: now.addingTimeInterval(-3600), account: "me", postCount: 1)
         let listed = post(.bluesky(uri: uri, cid: "c2", rootURI: "", rootCID: ""), at: now.addingTimeInterval(-3600))
         let other = post(.bluesky(uri: "at://other", cid: "c", rootURI: uri, rootCID: "c"), at: now)
 
@@ -119,7 +139,8 @@ final class SentCopyStatusTests: XCTestCase {
     }
 
     private func mastodonCopy(sent date: Date) -> SentCopy {
-        SentCopy(target: .mastodon, item: PostedItem(url: nil, ref: .mastodon(statusID: "1")), date: date)
+        SentCopy(target: .mastodon, item: PostedItem(url: nil, ref: .mastodon(statusID: "1")), date: date,
+                 account: "me", postCount: 1)
     }
 
     private func post(_ ref: NativeRef, at date: Date, pinned: Bool = false) -> FeedPost {

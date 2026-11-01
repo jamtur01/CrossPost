@@ -1,11 +1,21 @@
 import Foundation
 
 /// One network's copy of a post CrossPost sent: the first post's link and native
-/// ref, and when that copy landed (a retry can land a network later than the other).
+/// ref, the account that published it, how many of the thread's posts have landed
+/// there, and when that copy landed (a retry can land a network later than the other).
 struct SentCopy: Codable, Equatable, Sendable {
     let target: PostTarget
     let item: PostedItem
     let date: Date
+    /// The publishing account's key (Mastodon server and username, or Bluesky handle).
+    let account: String
+    let postCount: Int
+
+    /// The same published post on the same account.
+    func isSameCopy(as other: SentCopy) -> Bool {
+        guard let key = item.ref?.postKey else { return false }
+        return other.target == target && other.account == account && other.item.ref?.postKey == key
+    }
 }
 
 /// A post or thread CrossPost published, with each network's copy of its first post.
@@ -13,6 +23,7 @@ struct SentPost: Codable, Equatable, Sendable, Identifiable {
     let id: UUID
     let date: Date
     let text: String
+    /// Posts in the draft as sent; a copy that stopped partway has fewer.
     let postCount: Int
     let copies: [SentCopy]
 
@@ -20,25 +31,37 @@ struct SentPost: Codable, Equatable, Sendable, Identifiable {
         copies.first { $0.target == target }
     }
 
+    /// The most posts any copy has published: the thread length readers can see.
+    var publishedCount: Int {
+        copies.map(\.postCount).max() ?? 0
+    }
+
     /// True when both records hold the same published post on some network.
     func sharesCopy(with other: SentPost) -> Bool {
         copies.contains { copy in
-            guard let key = copy.item.ref?.postKey else { return false }
-            return other.copy(on: copy.target)?.item.ref?.postKey == key
+            other.copy(on: copy.target).map(copy.isSameCopy) ?? false
         }
     }
 
     /// `newer` folded into this record: a retry or continuation of the same send.
-    /// Keeps this record's identity and date, takes the newer text and length, and
+    /// Keeps this record's identity and date, takes the newer text and lengths, and
     /// keeps each existing copy's landing date when the copy itself is unchanged.
     func merging(_ newer: SentPost) -> SentPost {
         let copies = PostTarget.allCases.compactMap { target -> SentCopy? in
             guard let fresh = newer.copy(on: target) else { return copy(on: target) }
-            guard let existing = copy(on: target),
-                  existing.item.ref?.postKey == fresh.item.ref?.postKey else { return fresh }
-            return existing
+            guard let existing = copy(on: target), existing.isSameCopy(as: fresh) else { return fresh }
+            return SentCopy(target: target, item: existing.item, date: existing.date,
+                            account: existing.account, postCount: fresh.postCount)
         }
         return SentPost(id: id, date: date, text: newer.text, postCount: newer.postCount, copies: copies)
+    }
+
+    /// This record limited to the copies published by `accounts` (keyed by network),
+    /// or nil when none of them were.
+    func limited(to accounts: [PostTarget: String]) -> SentPost? {
+        let mine = copies.filter { accounts[$0.target] == $0.account }
+        guard !mine.isEmpty else { return nil }
+        return SentPost(id: id, date: date, text: text, postCount: postCount, copies: mine)
     }
 }
 
@@ -53,31 +76,28 @@ extension NativeRef {
 }
 
 /// The last sends CrossPost published, newest first, as plain JSON a person or an
-/// agent can read: `[{"id", "date", "text", "postCount", "copies": [...]}]`.
+/// agent can read: `[{"id", "date", "text", "postCount", "copies": [{"target", "item",
+/// "date", "account", "postCount"}]}]`.
 struct SentHistoryStore: Sendable {
     static let limit = 50
     let url: URL
 
-    /// Saved sends; a missing file is empty, and an unreadable one is logged and
-    /// treated as empty rather than blocking the composer.
-    func load() -> [SentPost] {
+    /// Saved sends. A missing file is empty; an unreadable one throws, so `record`
+    /// never replaces history it couldn't read.
+    func load() throws -> [SentPost] {
         guard FileManager.default.fileExists(atPath: url.path) else { return [] }
-        do {
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
-            return try decoder.decode([SentPost].self, from: Data(contentsOf: url))
-        } catch {
-            Log.history.error("Ignoring unreadable sent history at \(url.path, privacy: .public): \(error)")
-            return []
-        }
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try decoder.decode([SentPost].self, from: Data(contentsOf: url))
     }
 
     /// Records `post` and returns the saved history. A send that shares a copy with
     /// an earlier record (a retry finishing the other network, or a thread resumed)
     /// updates that record in place; anything else goes first. Keeps the newest `limit`.
+    /// Throws, leaving the file untouched, when the existing history can't be read.
     @discardableResult
     func record(_ post: SentPost) throws -> [SentPost] {
-        var history = load()
+        var history = try load()
         if let index = history.firstIndex(where: { $0.sharesCopy(with: post) }) {
             history[index] = history[index].merging(post)
         } else {

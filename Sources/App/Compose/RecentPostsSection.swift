@@ -1,8 +1,10 @@
+import AppKit
 import SwiftUI
 
 /// The composer's idle-state list of posts CrossPost sent, with each network's
 /// reply, repost, and like counts. Counts load when the section appears and on
-/// Refresh All; a network's counts open that copy's thread in its own column.
+/// Refresh All; a network's counts open that copy's thread in its own column. Only
+/// the signed-in accounts' sends are listed, re-read when credentials change.
 struct RecentPostsSection: View {
     let history: SentHistoryModel
 
@@ -13,13 +15,16 @@ struct RecentPostsSection: View {
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 4)
                 .accessibilityAddTraits(.isHeader)
-            if history.posts.isEmpty {
+            if let problem = history.problem {
+                problemNotice(problem)
+            }
+            if !history.visiblePosts.isEmpty {
+                rows
+            } else if history.problem == nil {
                 Text("Posts you send from CrossPost appear here.")
                     .font(Theme.timelineMeta)
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 4)
-            } else {
-                rows
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -28,11 +33,31 @@ struct RecentPostsSection: View {
         .onReceive(NotificationCenter.default.publisher(for: .refreshAllFeeds)) { _ in
             history.refresh()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .crossPostCredentialsChanged)) { _ in
+            // Next turn of the run loop, after the shared feed services for the old
+            // account have been dropped.
+            Task { history.refresh() }
+        }
+    }
+
+    private func problemNotice(_ problem: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Label(problem, systemImage: "exclamationmark.triangle")
+                .font(Theme.timelineMeta)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Button("Show History File") {
+                NSWorkspace.shared.activateFileViewerSelecting([history.fileURL])
+            }
+            .buttonStyle(.link)
+            .font(Theme.timelineMeta)
+        }
+        .padding(.horizontal, 4)
     }
 
     private var rows: some View {
         VStack(spacing: 0) {
-            ForEach(Array(history.posts.enumerated()), id: \.element.id) { index, post in
+            ForEach(Array(history.visiblePosts.enumerated()), id: \.element.id) { index, post in
                 if index > 0 {
                     Rectangle().fill(Theme.hairline).frame(height: 0.75)
                         .padding(.horizontal, 12)
@@ -58,8 +83,8 @@ private struct RecentPostRow: View {
                     .lineLimit(2)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 HStack(spacing: 0) {
-                    if post.postCount > 1 {
-                        Text("Thread · \(post.postCount) posts · ")
+                    if post.publishedCount > 1 {
+                        Text("Thread · \(post.publishedCount) posts · ")
                             .font(Theme.timelineMeta)
                             .foregroundStyle(.secondary)
                     }
@@ -88,7 +113,9 @@ private struct RecentPostRow: View {
 
     private func networkGroups(_ groups: [(SentCopy, SentHistoryModel.CopyState)]) -> some View {
         ForEach(groups, id: \.0.target) { copy, state in
-            NetworkCounts(target: copy.target, state: state)
+            NetworkCounts(target: copy.target, state: state,
+                          shortfall: copy.postCount < post.postCount
+                              ? "\(copy.postCount) of \(post.postCount) posts" : nil)
         }
     }
 }
@@ -99,6 +126,8 @@ private struct NetworkCounts: View {
     static let inset: CGFloat = 6
     let target: PostTarget
     let state: SentHistoryModel.CopyState
+    /// Set when the thread stopped partway on this network, e.g. "1 of 4 posts".
+    let shortfall: String?
     @State private var hovering = false
 
     var body: some View {
@@ -113,7 +142,7 @@ private struct NetworkCounts: View {
             .onHover { hovering = $0 }
             .help("Open on \(target.displayName)")
             .accessibilityLabel("Open on \(target.displayName)")
-            .accessibilityValue(countsDescription(post))
+            .accessibilityValue([countsDescription(post), shortfall].compactMap(\.self).joined(separator: ". "))
         case .loading:
             marked {
                 RoundedRectangle(cornerRadius: Theme.skeletonCorner, style: .continuous)
@@ -122,7 +151,8 @@ private struct NetworkCounts: View {
                     .loadingSheen()
             }
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel("\(target.displayName): loading")
+            .accessibilityLabel(["\(target.displayName): loading", shortfall].compactMap(\.self)
+                .joined(separator: ". "))
         case let .unreachable(message):
             status("—", accessibility: "unavailable. \(message)")
                 .help("Couldn't load \(target.displayName): \(message)")
@@ -135,7 +165,7 @@ private struct NetworkCounts: View {
         }
     }
 
-    /// The network glyph in its accent, then the group's content.
+    /// The network glyph in its accent, the group's content, then any shortfall.
     private func marked(@ViewBuilder _ content: () -> some View) -> some View {
         HStack(spacing: 7) {
             Image(systemName: target.glyph)
@@ -143,6 +173,12 @@ private struct NetworkCounts: View {
                 .foregroundStyle(target.accent)
                 .accessibilityHidden(true)
             content()
+            if let shortfall {
+                Text("· \(shortfall)")
+                    .font(Theme.timelineMeta)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
         }
         .padding(.horizontal, Self.inset)
         .padding(.vertical, 4)
@@ -172,7 +208,8 @@ private struct NetworkCounts: View {
                 .lineLimit(1)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(target.displayName): \(accessibility ?? text)")
+        .accessibilityLabel(["\(target.displayName): \(accessibility ?? text)", shortfall]
+            .compactMap(\.self).joined(separator: ". "))
     }
 
     private func countsDescription(_ post: FeedPost) -> String {

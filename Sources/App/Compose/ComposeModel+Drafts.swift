@@ -8,15 +8,6 @@ extension ComposeModel {
         )
     }
 
-    func accountKey(for target: PostTarget) -> String {
-        switch target {
-        case .mastodon:
-            "\(store.mastodonBaseURL?.absoluteString ?? "")|\(store.mastodonUsername.lowercased())"
-        case .bluesky:
-            store.blueskyHandle.lowercased()
-        }
-    }
-
     /// In-memory only; secrets fence account changes across awaits and are never archived.
     func credentialSnapshot(for targets: [PostTarget]) -> [PostTarget: [String]] {
         var snapshot: [PostTarget: [String]] = [:]
