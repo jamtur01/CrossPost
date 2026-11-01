@@ -32,19 +32,34 @@ final class SentHistoryModel {
         case setAside(URL)
     }
 
+    /// Waits out a follow-up refresh's delay; throws when the follow-up is cancelled.
+    typealias Sleep = @MainActor (Duration) async throws -> Void
+
+    /// How long after a send lands its counts are re-read on their own: soon, when the
+    /// network usually lists it, and again just after the visibility grace ends.
+    static let followUpOffsets: [TimeInterval] = [15, SentCopyStatus.visibilityGrace + 1]
+
     private(set) var problem: Problem?
     @ObservationIgnored private var fetches: [PostTarget: Task<Void, Never>] = [:]
+    @ObservationIgnored private var followUp: Task<Void, Never>?
     private let store: SentHistoryStore
     private let account: @MainActor (PostTarget) -> String?
     private let makeService: MentionDirectory.MakeService
+    private let now: @MainActor () -> Date
+    private let sleep: Sleep
 
     /// `account` gives a network's signed-in account key, or nil when it has none.
+    /// `now` and `sleep` time the follow-up refreshes after a send.
     init(store: SentHistoryStore,
          account: @escaping @MainActor (PostTarget) -> String?,
-         makeService: @escaping MentionDirectory.MakeService) {
+         makeService: @escaping MentionDirectory.MakeService,
+         now: @escaping @MainActor () -> Date = { .now },
+         sleep: @escaping Sleep = { try await Task.sleep(for: $0) }) {
         self.store = store
         self.account = account
         self.makeService = makeService
+        self.now = now
+        self.sleep = sleep
         readAccounts()
         do {
             posts = try store.load()
@@ -66,6 +81,7 @@ final class SentHistoryModel {
 
     isolated deinit {
         fetches.values.forEach { $0.cancel() }
+        followUp?.cancel()
     }
 
     /// Saves a send. A failure leaves the file as it was and is shown in Recent Posts.
@@ -73,6 +89,7 @@ final class SentHistoryModel {
         do {
             posts = try store.record(post)
             problem = nil
+            scheduleFollowUp()
         } catch {
             let path = store.url.path
             Log.history.error("Couldn't save sent history at \(path, privacy: .public): \(error)")
@@ -99,10 +116,13 @@ final class SentHistoryModel {
     /// Re-reads which accounts are signed in and each one's recent posts. Copies from
     /// other accounts, and networks without an account, are omitted rather than
     /// matched against the wrong account's posts.
+    /// While the newest send is within its visibility grace, also schedules the next
+    /// follow-up refresh, replacing any pending one.
     func refresh() {
         fetches.values.forEach { $0.cancel() }
         fetches = [:]
         readAccounts()
+        scheduleFollowUp()
         let targets = PostTarget.allCases.filter { accounts[$0] != nil }
         recent = Dictionary(uniqueKeysWithValues: targets.map { ($0, .loading) })
         guard !visiblePosts.isEmpty else { return }
@@ -123,6 +143,28 @@ final class SentHistoryModel {
         case .loading: .loading
         case let .failed(message): .unreachable(message)
         case let .loaded(posts): .status(SentCopyStatus.of(copy, in: posts, now: now))
+        }
+    }
+
+    /// Re-reads counts at the next follow-up offset after the newest visible send, so
+    /// "Just posted" resolves without a manual refresh. A refresh reschedules it, and
+    /// nothing is scheduled once the grace has passed.
+    private func scheduleFollowUp() {
+        followUp?.cancel()
+        followUp = nil
+        let current = now()
+        guard let landed = visiblePosts.flatMap(\.copies).map(\.date).max(),
+              let due = Self.followUpOffsets.map({ landed.addingTimeInterval($0) }).first(where: { $0 > current })
+        else { return }
+        let sleep = sleep
+        followUp = Task { [weak self] in
+            do {
+                try await sleep(.seconds(due.timeIntervalSince(current)))
+            } catch {
+                return // Replaced by a newer refresh, or the model went away.
+            }
+            guard !Task.isCancelled else { return }
+            self?.refresh()
         }
     }
 
