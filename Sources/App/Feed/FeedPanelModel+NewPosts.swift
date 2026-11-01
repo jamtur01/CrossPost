@@ -38,16 +38,29 @@ extension FeedPanelModel {
     /// the timeline or were already counted. Nothing counts while the reader is at the top.
     func countArrivals(in next: [FeedPost]) {
         var unseen: Set<String> = []
-        if let readingPostID, let index = next.firstIndex(where: { $0.id == readingPostID }) {
-            let current = Set(posts.map(\.id))
-            for post in next[..<index] where newPostIDs.contains(post.id) || !current.contains(post.id) {
-                unseen.insert(post.id)
+        if readingPostID != nil {
+            readingPostID = anchor(in: next)
+            if let readingPostID, let index = next.firstIndex(where: { $0.id == readingPostID }) {
+                let current = Set(posts.map(\.id))
+                for post in next[..<index] where newPostIDs.contains(post.id) || !current.contains(post.id) {
+                    unseen.insert(post.id)
+                }
             }
-        } else if readingPostID != nil {
-            unseen = newPostIDs.intersection(next.map(\.id)) // the reader's post left; keep what's still here
         }
         if unseen != newPostIDs {
             newPostIDs = unseen
         }
+    }
+
+    /// The reader's top post in `next`. When it has left (pushed out of the kept window
+    /// by arrivals, or deleted), the nearest post above it that's still kept stands in,
+    /// so arrivals keep counting. Nil when none is left, which reads as the top.
+    private func anchor(in next: [FeedPost]) -> String? {
+        guard let readingPostID, let old = posts.firstIndex(where: { $0.id == readingPostID }) else { return nil }
+        let kept = Set(next.map(\.id))
+        if kept.contains(readingPostID) {
+            return readingPostID
+        }
+        return posts[..<old].last { kept.contains($0.id) }?.id
     }
 }

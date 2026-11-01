@@ -44,6 +44,25 @@ final class FeedPanelNewPostsTests: FeedPanelTestCase {
         model.stop()
     }
 
+    /// The timeline keeps the newest 200 posts, so arrivals can push the reader's post
+    /// out. The nearest kept post above it takes its place and the arrivals still count.
+    func testArrivalsCountWhenTheyPushTheReadersPostOutOfTheWindow() async {
+        let fake = FakeFeedService()
+        let model = makeModel(fake)
+        let old = (0 ..< 200).map { TestFactory.feedPost(id: "p\($0)") }
+        await arrive(old, fake, model)
+        model.homeScrolled(to: "p199")
+
+        let arrivals = (0 ..< 3).map { TestFactory.feedPost(id: "n\($0)") }
+        await arrive(arrivals + old, fake, model)
+        XCTAssertFalse(model.posts.contains { $0.id == "p199" }, "the reader's post left the window")
+        XCTAssertEqual(model.newPostCount, 3)
+
+        await arrive([TestFactory.feedPost(id: "n9")] + arrivals + old, fake, model)
+        XCTAssertEqual(model.newPostCount, 4, "later arrivals keep counting from the stand-in")
+        model.stop()
+    }
+
     func testArrivalsWhileAtTheTopDoNotCount() async {
         let (fake, model) = await loadedModel()
         await arrive(posts("n1", "a", "b", "c", "d"), fake, model)
