@@ -155,33 +155,90 @@ extension EnvironmentValues {
     @Entry var relativeTimestampNow: Date = .init()
 }
 
+/// Relative timestamps in the compact style of native Mac social clients: "now",
+/// "5m", "13h", "3d", then a short date ("Oct 12"), with the year once it is not the
+/// current year. Units and dates come from Foundation, so they follow the locale.
+/// Future dates (clock skew) read as "now".
 @MainActor
-private enum RelativeTimestampFormat {
-    static let formatter: RelativeDateTimeFormatter = {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.dateTimeStyle = .numeric
-        formatter.unitsStyle = .full
-        formatter.locale = .autoupdatingCurrent
-        return formatter
-    }()
+struct RelativeTimestampFormat {
+    static let current = RelativeTimestampFormat(locale: .autoupdatingCurrent, calendar: .autoupdatingCurrent)
 
-    static func string(for date: Date, relativeTo now: Date) -> String {
-        let interval = date.timeIntervalSince(now)
-        let magnitude = abs(interval)
-        let direction = interval < 0 ? -1 : 1
-        var components = DateComponents()
+    private enum Age {
+        case now
+        case minutes(Int)
+        case hours(Int)
+        case days(Int)
+        case older
+    }
 
-        if magnitude < 60 {
-            components.minute = 0
-        } else if magnitude < 3600 {
-            components.minute = direction * Int(magnitude / 60)
-        } else if magnitude < 86400 {
-            components.hour = direction * Int(magnitude / 3600)
-        } else {
-            components.day = direction * Int(magnitude / 86400)
+    let locale: Locale
+    let calendar: Calendar
+    private let spokenFormatter: RelativeDateTimeFormatter
+
+    init(locale: Locale, calendar: Calendar) {
+        self.locale = locale
+        self.calendar = calendar
+        spokenFormatter = RelativeDateTimeFormatter()
+        spokenFormatter.dateTimeStyle = .named
+        spokenFormatter.unitsStyle = .full
+        spokenFormatter.locale = locale
+        spokenFormatter.calendar = calendar
+    }
+
+    /// The visible label: "now", "5m", "13h", "3d", "Oct 12", or "Oct 12, 2025".
+    func compact(_ date: Date, relativeTo now: Date) -> String {
+        switch Self.age(of: date, relativeTo: now) {
+        case .now: spokenFormatter.localizedString(from: DateComponents(second: 0))
+        case let .minutes(count): units(count * 60, .minutes)
+        case let .hours(count): units(count * 3600, .hours)
+        case let .days(count): units(count * 86400, .days)
+        case .older: shortDate(date, relativeTo: now)
         }
+    }
 
-        return formatter.localizedString(from: components)
+    /// The accessibility label: "now", "13 hours ago", "yesterday", or the long date.
+    func spoken(_ date: Date, relativeTo now: Date) -> String {
+        switch Self.age(of: date, relativeTo: now) {
+        case .now: spokenFormatter.localizedString(from: DateComponents(second: 0))
+        case let .minutes(count): spokenFormatter.localizedString(from: DateComponents(minute: -count))
+        case let .hours(count): spokenFormatter.localizedString(from: DateComponents(hour: -count))
+        case let .days(count): spokenFormatter.localizedString(from: DateComponents(day: -count))
+        case .older: date.formatted(dateStyle.year().month(.wide).day())
+        }
+    }
+
+    /// The tooltip: the full date and time.
+    func full(_ date: Date) -> String {
+        date.formatted(Date.FormatStyle(
+            date: .long, time: .shortened, locale: locale, calendar: calendar, timeZone: calendar.timeZone
+        ))
+    }
+
+    private var dateStyle: Date.FormatStyle {
+        Date.FormatStyle(locale: locale, calendar: calendar, timeZone: calendar.timeZone)
+    }
+
+    private func units(_ seconds: Int, _ unit: Duration.UnitsFormatStyle.Unit) -> String {
+        Duration.seconds(seconds).formatted(
+            .units(allowed: [unit], width: .narrow, fractionalPart: .hide(rounded: .down)).locale(locale)
+        )
+    }
+
+    private func shortDate(_ date: Date, relativeTo now: Date) -> String {
+        let sameYear = calendar.isDate(date, equalTo: now, toGranularity: .year)
+        let style = dateStyle.month(.abbreviated).day()
+        return date.formatted(sameYear ? style : style.year())
+    }
+
+    private static func age(of date: Date, relativeTo now: Date) -> Age {
+        let seconds = Int(now.timeIntervalSince(date))
+        switch seconds {
+        case ..<60: return .now
+        case ..<3600: return .minutes(seconds / 60)
+        case ..<86400: return .hours(seconds / 3600)
+        case ..<(7 * 86400): return .days(seconds / 86400)
+        default: return .older
+        }
     }
 }
 
@@ -191,12 +248,15 @@ private struct RelativeTimestampView: View {
     @Environment(\.relativeTimestampNow) private var now
 
     var body: some View {
-        Text(RelativeTimestampFormat.string(for: date, relativeTo: now))
+        let format = RelativeTimestampFormat.current
+        Text(format.compact(date, relativeTo: now))
             .font(font).foregroundStyle(.secondary).fixedSize()
+            .help(format.full(date))
+            .accessibilityLabel(format.spoken(date, relativeTo: now))
     }
 }
 
-/// A minute-, hour-, or day-bucketed relative timestamp driven by MainView's
+/// A compact relative timestamp ("5m", "13h", "Oct 12") driven by MainView's
 /// shared clock so long-lived rows stay current without creating row timers.
 func relativeTimestamp(_ date: Date, font: Font = Theme.meta) -> some View {
     RelativeTimestampView(date: date, font: font)
