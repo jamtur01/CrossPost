@@ -42,6 +42,7 @@ struct CrossPostApp: App {
                 Button("Messages") { switchFeeds(.messages) }
                     .keyboardShortcut("3", modifiers: .command)
             }
+            FeedCommands()
         }
 
         Settings {

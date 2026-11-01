@@ -30,6 +30,10 @@ private struct FeedKeyboardNavigation: ViewModifier {
                 .focusable()
                 .focusEffectDisabled()
                 .focused($isFocused)
+                .focusedValue(\.feedListCommands, FeedListCommands(
+                    selectedPost: selectedPost, canGoBack: context?.pop != nil,
+                    perform: { perform($0, proxy: proxy) }
+                ))
                 .onKeyPress { press in
                     handle(press, proxy: proxy)
                 }

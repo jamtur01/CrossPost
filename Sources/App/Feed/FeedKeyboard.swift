@@ -113,6 +113,20 @@ struct FeedListContext {
     let pop: (() -> Void)?
 }
 
+/// The focused feed list's commands, for the Post menu.
+struct FeedListCommands {
+    let selectedPost: FeedPost?
+    let canGoBack: Bool
+    let perform: (FeedKeyCommand) -> Void
+}
+
+extension FocusedValues {
+    @Entry var feedListCommands: FeedListCommands?
+    /// The window's feed focus, so the Post menu can move the keyboard to a feed
+    /// even from the composer.
+    @Entry var feedKeyboardFocus: FeedKeyboardFocus?
+}
+
 extension EnvironmentValues {
     @Entry var feedListContext: FeedListContext?
     /// The post that draws the keyboard focus ring: set only while its list has focus.

@@ -35,6 +35,7 @@ struct MainView: View {
         .frame(minWidth: showComposer ? 920 : 600, minHeight: 560)
         .environment(lightbox)
         .environment(keyboardFocus)
+        .focusedSceneValue(\.feedKeyboardFocus, keyboardFocus)
         .environment(\.relativeTimestampNow, relativeTimestampNow)
         .overlay { ImageLightboxOverlay(lightbox: lightbox) }
         .onAppear {
