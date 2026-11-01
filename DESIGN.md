@@ -21,6 +21,10 @@ typography:
     fontFamily: "SF Pro, -apple-system, system-ui"
     fontSize: "15px"
     fontWeight: 600
+  column-subtitle:
+    fontFamily: "SF Pro, -apple-system, system-ui"
+    fontSize: "12px"
+    fontWeight: 500
   name-large:
     fontFamily: "SF Pro, -apple-system, system-ui"
     fontSize: "16px"
@@ -187,14 +191,15 @@ All neutrals are AppKit semantic colors (`textBackgroundColor`, `windowBackgroun
 **Character:** one family at a tight, close-stepped scale. Hierarchy comes from weight (semibold names and titles) and the secondary label color, not from size jumps.
 
 ### Hierarchy
-- **Column Title** (600, 15px): column header feed names ("Home"), "New Post", sheet titles, nav titles.
+- **Column Title** (600, 15px): the network name in column headers ("Mastodon", "Bluesky"), "New Post", sheet titles.
+- **Column Subtitle** (500, 12px, secondary): the feed menu ("Home ⌄") or pushed route title ("Thread", a profile name) under a column's network name.
 - **Name Large** (600, 16px): author name in the expanded post detail.
 - **Name** (600, 14px timeline / 14.5px sheets): author display names.
-- **Body** (400, 14px timeline, 15px sheets and composer, 18px expanded detail; system leading plus 3px line spacing): post text. Adds +0/+2/+4px for the Standard/Larger/Largest Reading text size setting, which also applies to quotes, bios, and DMs.
-- **Meta** (400, 12.5px, secondary): handles and relative timestamps in timeline rows (handles are 13px in sheets).
+- **Body** (400, 14px timeline, 15px sheets and composer, 18px expanded detail, as `Theme.timelineContentSize`, `contentSize`, and `expandedContentSize`; system leading plus 3px line spacing): post text. Adds +0/+2/+4px for the Standard/Larger/Largest Reading text size setting, which also applies to quotes, bios, and DMs.
+- **Meta** (400, 12.5px, secondary): handles and relative timestamps in timeline rows (handles are 13px in sheets). Timestamps are compact and locale-aware: "now", "5m", "13h", "3d", then a short date ("Oct 12", with the year outside the current year). The tooltip gives the full date and time; VoiceOver reads the full phrase ("13 hours ago").
 - **Context** (500, 12px, secondary or accent): "boosted"/"reposted" lines and "In reply to".
 - **Count** (400, 12.5px, tabular): engagement counts, compact notation (1.2K).
-- **Label** (500, 11px): the network name above each column title, link-card provider, section headers ("People", "Pinned", at 600).
+- **Label** (500, 11px): link-card provider, section headers ("People", "Pinned", at 600).
 
 **The Content Leads Rule.** In a timeline row, post body text is the largest type and the only type in full primary contrast at regular weight. Chrome never outsizes content.
 
@@ -204,7 +209,7 @@ All neutrals are AppKit semantic colors (`textBackgroundColor`, `windowBackgroun
 
 A three-column `HSplitView`: the composer (330–440px, ideal 370, hideable with ⇧⌘C) and two feed columns that always share the remaining width equally (580px minimum combined, about 290px each). The window minimum is 920 × 560 with the composer shown and 600 × 560 without it.
 
-Every column opens with a 52px header on the `.bar` material with a hairline divider below: the network label (11px glyph + name) stacked above the column title menu, then trailing 28 × 28 icon buttons. In-column navigation (threads, profiles, search) pushes a back-chevron header of the same height.
+Every column opens with a 52px header on the `.bar` material with a hairline divider below: the network glyph and name in the column title style, stacked above the feed menu in the column subtitle style, then trailing 28 × 28 icon buttons. In-column navigation (threads, profiles, search) pushes a back-chevron header of the same height that keeps the network name on top and shows the route title beneath it.
 
 Timeline rows run edge to edge with 14px horizontal and 10px vertical padding. The avatar (40px) sits 10px from content, rows stack their parts 6px apart, and action buttons sit 20px apart with share and overflow pushed trailing. List rows (search, followers) use 16 × 12 padding with 42px avatars; sheet and detail contexts use 44px avatars, and the expanded detail uses 54px. Sheets are 420px wide with 20px padding. The composer scroll area pads 14px and stacks thread cards 12px apart.
 
@@ -251,7 +256,7 @@ Native button styles throughout; CrossPost does not draw its own button chrome.
 - **Error / Disabled:** the character counter goes from secondary to orange near the limit and red over it. Validation messages are red caption text that names the post and network.
 
 ### Navigation
-- **Column header:** network label, then the feed title as a borderless menu (Home / Notifications / Messages, with a checkmark on the current feed). Trailing icons are a bell (filled and accent-colored when active, with the red unread badge), search, and an overflow menu. Header icons are 13px medium in secondary gray with 28 × 28 targets.
+- **Column header:** the network glyph (in the network accent) and name lead, so the two columns read apart at a glance. Beneath it, the current feed is a plain-styled menu with a small chevron (Home / Notifications / Messages, with a checkmark on the current feed). Trailing icons are a bell (filled and accent-colored when active, with the red unread badge), search, and an overflow menu. Header icons are 13px medium in secondary gray with 28 × 28 targets.
 - **Window toolbar:** native unified toolbar with a leading sidebar toggle for the composer and trailing Refresh All (⌘R) and Settings.
 - **Composer header:** "New Post" title, a small segmented Edit / Mastodon / Bluesky preview picker, and "New draft…".
 
