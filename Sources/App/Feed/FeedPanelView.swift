@@ -131,9 +131,11 @@ struct FeedPanelView: View {
         .barSurface()
     }
 
+    /// The network leads in the column title so the two columns read apart at a
+    /// glance; the current feed sits beneath it as a menu.
     private var feedTitleMenu: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            networkLabel
+        VStack(alignment: .leading, spacing: 1) {
+            networkTitle
             feedKindMenu
         }
     }
@@ -154,14 +156,22 @@ struct FeedPanelView: View {
                 .accessibilityAddTraits(kind == model.kind ? .isSelected : [])
             }
         } label: {
-            Text(model.kind.title)
-                .font(Theme.columnTitle)
-                .foregroundStyle(.primary)
-                .lineLimit(1)
-                .contentShape(Rectangle())
+            HStack(spacing: 3) {
+                Text(model.kind.title)
+                    .lineLimit(1)
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 9, weight: .semibold))
+            }
+            .font(Theme.columnSubtitle)
+            .foregroundStyle(.secondary)
+            .contentShape(Rectangle())
         }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.visible)
+        // A plain-styled menu so the label keeps the subtitle's color and aligns with
+        // the title; the borderless style tints it primary and insets it.
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+        .fixedSize()
         .accessibilityLabel(feedTitleAccessibilityLabel)
         .accessibilityHint("Choose a feed")
         .help("Switch feed")
@@ -282,9 +292,12 @@ struct FeedPanelView: View {
             }
             .buttonStyle(.borderless).foregroundStyle(accent).help("Back")
             .accessibilityLabel("Back")
-            VStack(alignment: .leading, spacing: 2) {
-                networkLabel
-                Text(navTitle).font(Theme.columnTitle).lineLimit(1)
+            VStack(alignment: .leading, spacing: 1) {
+                networkTitle
+                Text(navTitle)
+                    .font(Theme.columnSubtitle)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -293,15 +306,16 @@ struct FeedPanelView: View {
         .barSurface()
     }
 
-    private var networkLabel: some View {
-        HStack(spacing: 4) {
+    private var networkTitle: some View {
+        HStack(spacing: 5) {
             Image(systemName: model.target.glyph)
                 .foregroundStyle(accent)
                 .accessibilityHidden(true)
             Text(model.target.displayName)
-                .foregroundStyle(.secondary)
                 .lineLimit(1)
         }
-        .font(.system(size: 11, weight: .medium))
+        .font(Theme.columnTitle)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isHeader)
     }
 }

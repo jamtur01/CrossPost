@@ -26,6 +26,7 @@ extension PostTarget {
 enum Theme {
     // Typography
     static let columnTitle = Font.system(size: 15, weight: .semibold)
+    static let columnSubtitle = Font.system(size: 12, weight: .medium) // feed or route under the title
     static let timelineName = Font.system(size: 14, weight: .semibold)
     static let timelineHandle = Font.system(size: 12.5)
     static let timelineMeta = Font.system(size: 12.5)
