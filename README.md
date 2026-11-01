@@ -98,7 +98,7 @@ a feed.
   public; the visibility menu applies only to Mastodon. On success the submitted
   draft clears; edits made during posting remain. Per-network outcomes show inline.
   **Retry** sends only unsent posts. An already-published prefix cannot be edited
-  and resent; add a post to continue that thread, or choose **New draft…**.
+  and resent; add a post to continue that thread, or choose **New Draft…** from the composer's **…** menu.
   Interrupted sends require checking your profiles before starting a new draft.
 - **Feeds** (middle/right): switch **Home** / **Notifications** / **Messages**,
   refresh, and on any post use **reply**, **like**, **repost**, **bookmark**, or the

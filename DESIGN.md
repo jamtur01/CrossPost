@@ -236,7 +236,7 @@ Native button styles throughout; CrossPost does not draw its own button chrome.
 - **Shape:** system bezels (`.borderedProminent`, `.bordered`, `.borderless`) at system radii.
 - **Primary:** `.borderedProminent`. The composer's full-width Post button is `.large` in the system accent with ⌘↩. Network-scoped primaries (Follow, Open Settings) are tinted with that network's accent.
 - **Hover / Focus:** system-provided; focus rings are the system's.
-- **Secondary / Ghost:** `.bordered` `.small` for secondary profile actions and Try Again; `.borderless` for header icons, "New draft…", and "Add post to thread".
+- **Secondary / Ghost:** `.bordered` `.small` for secondary profile actions and Try Again; `.borderless` for header icons and "Add post to thread".
 - **Post actions:** plain SF Symbol buttons (13.5px) in secondary gray with a 28 × 28 hit area and an optional compact count. Engaged Like and Repost take pink and green and fire a trackpad haptic tick.
 
 ### Chips
@@ -258,7 +258,7 @@ Native button styles throughout; CrossPost does not draw its own button chrome.
 ### Navigation
 - **Column header:** the network glyph (in the network accent) and name lead, so the two columns read apart at a glance. Beneath it, the current feed is a plain-styled menu with a small chevron (Home / Notifications / Messages, with a checkmark on the current feed). Trailing icons are a bell (filled and accent-colored when active, with the red unread badge), search, and an overflow menu. Header icons are 13px medium in secondary gray with 28 × 28 targets.
 - **Window toolbar:** native unified toolbar with a leading sidebar toggle for the composer and trailing Refresh All (⌘R) and Settings.
-- **Composer header:** "New Post" title, a small segmented Edit / Mastodon / Bluesky preview picker, and "New draft…".
+- **Composer header:** "New Post" title, a small segmented Edit / Mastodon / Bluesky preview picker, and a "…" menu holding New Draft… (the same overflow style as the feed headers, so the header fits the 330pt minimum).
 
 ### Timeline Row (signature)
 The core of the app. Content runs top to bottom: an optional context line (boost attribution, then a tappable accent "In reply to"), the avatar + name + handle header with the visibility glyph and relative timestamp trailing, the selectable body, media at 10px corners, then the link card, the quoted post, and the action bar. Hover adds the 4% fill over 0.12s. A plain click opens the thread; dragging selects text. A Mastodon content warning stands in for the body, media, link card, and quote as a 4%-fill row with the warning in the reading font and a "Show post" toggle in the network accent. Sensitive media is blurred under a material "Sensitive content" label until clicked, independently of the warning. A 50%-opacity divider sits at the bottom edge. Loading shows static skeleton rows with a fixed sheen, never a perpetual animation.

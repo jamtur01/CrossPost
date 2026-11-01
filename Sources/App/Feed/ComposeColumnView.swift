@@ -25,17 +25,11 @@ struct ComposeColumnView: View {
     private func content(_ model: ComposeModel) -> some View {
         @Bindable var model = model
         VStack(spacing: 0) {
-            HStack(spacing: 7) {
-                Image(systemName: "square.and.pencil")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(.secondary)
-                Text("New Post").font(Theme.columnTitle)
-                Spacer()
-                previewPicker(model)
-                Button("New draft…") { confirmingNewDraft = true }
-                    .buttonStyle(.borderless)
-                    .font(.caption)
-                    .disabled(model.isPosting)
+            // At the composer's narrowest widths the preview picker leaves no room
+            // for a legible title, so the title drops out instead of truncating.
+            ViewThatFits(in: .horizontal) {
+                headerControls(model, showsTitle: true)
+                headerControls(model, showsTitle: false)
             }
             .padding(.horizontal, Theme.headerPaddingH)
             .frame(height: 52)
@@ -106,6 +100,37 @@ struct ComposeColumnView: View {
             .controlSize(.small)
             .help("Show the text each network will receive")
         }
+    }
+
+    private func headerControls(_ model: ComposeModel, showsTitle: Bool) -> some View {
+        HStack(spacing: 7) {
+            if showsTitle {
+                Text("New Post").font(Theme.columnTitle).lineLimit(1).fixedSize()
+            }
+            Spacer(minLength: 8)
+            previewPicker(model)
+            draftMenu(model)
+        }
+    }
+
+    /// Draft actions, in the same overflow style as the feed column headers so the
+    /// header fits the composer's minimum width.
+    private func draftMenu(_ model: ComposeModel) -> some View {
+        Menu {
+            Button("New Draft…") { confirmingNewDraft = true }
+                .disabled(model.isPosting)
+        } label: {
+            Image(systemName: "ellipsis")
+                .font(.system(size: 13, weight: .medium))
+                .frame(width: 28, height: 28)
+                .contentShape(Rectangle())
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .foregroundStyle(.secondary)
+        .accessibilityLabel("Draft actions")
+        .help("Draft actions")
     }
 
     private func addThreadButton(_ model: ComposeModel) -> some View {
