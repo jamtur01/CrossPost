@@ -34,6 +34,9 @@ posts without leaving the window.
   start a new conversation from a profile or the Messages header. Mastodon DMs that
   @mention someone outside the conversation are refused, since Mastodon would deliver
   them to that person too.
+- **Keyboard navigation** — move through Home, threads, profiles, and saved posts,
+  open and act on posts, and switch between the feeds and the composer without the
+  mouse. The **Post** menu lists every key.
 - **Reading controls** — Standard, Larger, and Largest text in Settings; persistent network
   names in navigation headers; Retry and Open original actions for failed images.
 - **Recent posts** — while the composer is empty it lists your last 50 CrossPost sends
@@ -105,6 +108,26 @@ a feed.
   overflow menu (**delete**/**pin** your own, **open in browser**, who liked or
   reposted). Replies open a sheet scoped to that network only. Tap an avatar,
   mention, or profile link to open a profile or thread in place.
+
+### Keyboard
+
+Click a post, or press Esc in the composer, to give a feed the keyboard. The
+focused post carries the system focus ring; each feed keeps its own while you work
+in the other.
+
+| Key | Action |
+| --- | --- |
+| ↓ / J, ↑ / K | Next / previous post |
+| Space / ⇧Space | Page down / up |
+| Return | Open the thread |
+| Esc | Back (in a feed); return to the last feed (in the composer) |
+| R / L / B | Reply / like / boost or repost |
+| ← / → | Mastodon feed / Bluesky feed |
+| ⌘N | New post: shows the composer and puts the caret in it |
+
+Single keys work only while a feed has the keyboard, never while you type. They
+apply to Home, threads, profiles, and saved posts, not to notifications, messages,
+or search. No key deletes a post.
 
 ### Behavior notes
 
