@@ -28,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   from.
 - The action bar's **Open in Browser** button uses the Safari compass instead
   of the share arrow, matching the post's overflow menu.
+- "In reply to" is drawn in secondary gray like the "boosted" line, and shows
+  the network color on hover, so it no longer outweighs the author's name.
 - A liked or reposted action draws its symbol in a heavier weight, so the
   engaged state no longer relies on color alone.
 - Links, mentions, and other network-colored text use a deeper shade of the

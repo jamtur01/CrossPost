@@ -33,6 +33,7 @@ struct FeedPostView: View {
     var expanded: Bool = false
 
     @State private var hovering = false
+    @State private var hoveringParentLink = false
     @State private var reporting = false
     @State private var quoting = false
     @State private var editing = false
@@ -168,16 +169,22 @@ struct FeedPostView: View {
             .font(contextFont)
             .foregroundStyle(.secondary)
         }
+        // Both context lines are quiet secondary chrome; the reply link shows the
+        // network accent only on hover, so it reads as tappable without outranking
+        // the author name.
         if post.isReply, let onShowParent {
             Button(action: onShowParent) {
                 Label("In reply to \(post.replyToHandle ?? "a post")",
-                      systemImage: "arrowshape.turn.up.left.fill")
+                      systemImage: "arrowshape.turn.up.left")
                     .font(contextFont)
-                    .foregroundStyle(accent)
+                    .foregroundStyle(hoveringParentLink ? AnyShapeStyle(accent) : AnyShapeStyle(.secondary))
                     .lineLimit(1)
+                    .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: hoveringParentLink)
             }
             .buttonStyle(.plain)
             .pointerStyle(.link)
+            .onHover { hoveringParentLink = $0 }
+            .help("Show thread")
         }
     }
 
