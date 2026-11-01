@@ -26,7 +26,7 @@ private struct FeedKeyboardNavigation: ViewModifier {
                     visible = Set($0)
                 }
                 .environment(\.keyboardFocusedPostID, isFocused ? selection : nil)
-                .environment(\.selectFeedPost) { select($0) }
+                .environment(\.selectFeedPost, StableAction { select($0) })
                 .focusable()
                 .focusEffectDisabled()
                 .focused($isFocused)

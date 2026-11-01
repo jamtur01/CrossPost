@@ -139,7 +139,33 @@ extension EnvironmentValues {
     /// The post that draws the keyboard focus ring: set only while its list has focus.
     @Entry var keyboardFocusedPostID: String?
     /// Lets a clicked row take its list's keyboard focus.
-    @Entry var selectFeedPost: ((String) -> Void)?
+    @Entry var selectFeedPost: StableAction<String>?
     /// Escape in the composer's editor: hands the keyboard back to the last feed.
-    @Entry var composerEscape: (() -> Void)?
+    @Entry var composerEscape: StableAction<Void>?
+}
+
+/// A closure for the environment that compares equal to any other, so a parent
+/// re-rendering doesn't invalidate every view that reads it. Only for closures whose
+/// captures are stable (state storage, long-lived objects), where an older copy does
+/// the same thing as a newer one.
+struct StableAction<Input>: Equatable {
+    let run: (Input) -> Void
+
+    init(_ run: @escaping (Input) -> Void) {
+        self.run = run
+    }
+
+    func callAsFunction(_ input: Input) {
+        run(input)
+    }
+
+    static func == (_: Self, _: Self) -> Bool {
+        true
+    }
+}
+
+extension StableAction where Input == Void {
+    func callAsFunction() {
+        run(())
+    }
 }

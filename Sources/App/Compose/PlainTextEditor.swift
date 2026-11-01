@@ -33,7 +33,7 @@ struct PlainTextEditor: NSViewRepresentable {
         scrollView.drawsBackground = false
         scrollView.scrollerStyle = .overlay
 
-        context.coordinator.onEscape = context.environment.composerEscape
+        context.coordinator.onEscape = context.environment.composerEscape.map { escape in { escape() } }
         if let textView = scrollView.documentView as? NSTextView {
             (textView as? FocusOnFirstWindowTextView)?.onImages = onImages
             context.coordinator.attach(to: textView)
@@ -53,7 +53,7 @@ struct PlainTextEditor: NSViewRepresentable {
 
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         context.coordinator.update(text: $text, mentions: mentions, editing: editing)
-        context.coordinator.onEscape = context.environment.composerEscape
+        context.coordinator.onEscape = context.environment.composerEscape.map { escape in { escape() } }
         guard let textView = scrollView.documentView as? NSTextView else { return }
         (textView as? FocusOnFirstWindowTextView)?.onImages = onImages
         // Don't disturb an in-progress IME composition (CJK / dead keys).

@@ -18,7 +18,7 @@ struct MainView: View {
             if showComposer, let compose {
                 ComposeColumnView(model: compose)
                     .environmentObject(store)
-                    .environment(\.composerEscape) { keyboardFocus.request(keyboardFocus.lastFeed) }
+                    .environment(\.composerEscape, StableAction { keyboardFocus.request(keyboardFocus.lastFeed) })
                     .frame(minWidth: 330, idealWidth: 370, maxWidth: 440)
             }
 
