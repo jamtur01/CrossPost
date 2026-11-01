@@ -33,6 +33,11 @@ extension ComposeModel {
         return tied ? PostCounter(count: tightest.count, limit: tightest.limit, label: "Both networks") : tightest
     }
 
+    /// Nothing written and nothing sending: the composer can show its history.
+    var isIdle: Bool {
+        !isPosting && thread.allSatisfy(\.isEmpty)
+    }
+
     /// Networks mention search uses: selected, with an account configured.
     var mentionTargets: [PostTarget] {
         PostTarget.allCases.filter { target in

@@ -73,6 +73,14 @@ struct ComposeColumnView: View {
                     }
                     addThreadButton(model)
                     footer(model)
+                    // The history yields the space as soon as the user starts writing.
+                    VStack(spacing: 0) {
+                        if model.isIdle {
+                            RecentPostsSection(history: model.history)
+                                .transition(.opacity)
+                        }
+                    }
+                    .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: model.isIdle)
                 }
                 .padding(14)
                 .frame(maxWidth: .infinity, alignment: .top)
