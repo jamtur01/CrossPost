@@ -1,0 +1,144 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-01T00:00:00Z",
+  "title": "Design System: CrossPost",
+  "extensions": {
+    "colorMeta": {
+      "mastodon-blurple": { "role": "primary", "displayName": "Mastodon Blurple", "canonical": "oklch(59.3% 0.224 277)", "tonalRamp": ["oklch(15% 0.061 277)", "oklch(27% 0.110 277)", "oklch(39% 0.159 277)", "oklch(51% 0.208 277)", "oklch(63% 0.207 277)", "oklch(75% 0.140 277)", "oklch(86% 0.078 277)", "oklch(95% 0.028 277)"] },
+      "bluesky-blue": { "role": "primary", "displayName": "Bluesky Blue", "canonical": "oklch(60.4% 0.217 258)", "tonalRamp": ["oklch(15% 0.059 258)", "oklch(27% 0.107 258)", "oklch(39% 0.154 258)", "oklch(51% 0.201 258)", "oklch(63% 0.201 258)", "oklch(75% 0.136 258)", "oklch(86% 0.076 258)", "oklch(95% 0.027 258)"] },
+      "system-accent": { "role": "primary", "displayName": "System Accent", "canonical": "AccentColor" },
+      "like-pink": { "role": "secondary", "displayName": "Like Pink", "canonical": "oklch(65.0% 0.238 18)", "tonalRamp": ["oklch(15% 0.065 18)", "oklch(27% 0.117 18)", "oklch(39% 0.169 18)", "oklch(51% 0.221 18)", "oklch(63% 0.220 18)", "oklch(75% 0.149 18)", "oklch(86% 0.083 18)", "oklch(95% 0.030 18)"] },
+      "repost-green": { "role": "secondary", "displayName": "Repost Green", "canonical": "oklch(73.0% 0.194 147)", "tonalRamp": ["oklch(15% 0.053 147)", "oklch(27% 0.095 147)", "oklch(39% 0.138 147)", "oklch(51% 0.180 147)", "oklch(63% 0.180 147)", "oklch(75% 0.121 147)", "oklch(86% 0.068 147)", "oklch(95% 0.024 147)"] },
+      "danger-red": { "role": "tertiary", "displayName": "Danger Red", "canonical": "oklch(65.4% 0.232 29)", "tonalRamp": ["oklch(15% 0.063 29)", "oklch(27% 0.114 29)", "oklch(39% 0.165 29)", "oklch(51% 0.215 29)", "oklch(63% 0.215 29)", "oklch(75% 0.145 29)", "oklch(86% 0.081 29)", "oklch(95% 0.029 29)"] },
+      "warning-orange": { "role": "tertiary", "displayName": "Warning Orange", "canonical": "oklch(76.5% 0.175 63)", "tonalRamp": ["oklch(15% 0.048 63)", "oklch(27% 0.086 63)", "oklch(39% 0.124 63)", "oklch(51% 0.162 63)", "oklch(63% 0.162 63)", "oklch(75% 0.110 63)", "oklch(86% 0.061 63)", "oklch(95% 0.022 63)"] },
+      "surface": { "role": "neutral", "displayName": "Surface", "canonical": "#FFFFFF", "tonalRamp": ["oklch(15% 0 0)", "oklch(27% 0 0)", "oklch(39% 0 0)", "oklch(51% 0 0)", "oklch(63% 0 0)", "oklch(75% 0 0)", "oklch(86% 0 0)", "oklch(95% 0 0)"] },
+      "label-primary": { "role": "neutral", "displayName": "Primary Label", "canonical": "rgba(0, 0, 0, 0.85)" },
+      "label-secondary": { "role": "neutral", "displayName": "Secondary Label", "canonical": "rgba(0, 0, 0, 0.5)" },
+      "hairline": { "role": "neutral", "displayName": "Hairline", "canonical": "rgba(0, 0, 0, 0.07)" },
+      "hover-fill": { "role": "neutral", "displayName": "Hover Fill", "canonical": "rgba(0, 0, 0, 0.04)" },
+      "placeholder-fill": { "role": "neutral", "displayName": "Placeholder Fill", "canonical": "rgba(0, 0, 0, 0.06)" },
+      "avatar-ring": { "role": "neutral", "displayName": "Avatar Ring", "canonical": "rgba(0, 0, 0, 0.08)" }
+    },
+    "typographyMeta": {
+      "column-title": { "displayName": "Column Title", "purpose": "Column feed names, New Post, sheet and nav titles." },
+      "name-large": { "displayName": "Name Large", "purpose": "Author name in the expanded post detail." },
+      "name": { "displayName": "Name", "purpose": "Author display names in timeline rows (14.5px in sheets)." },
+      "body": { "displayName": "Body", "purpose": "Timeline post text; +0/+2/+4px with the Reading text size setting." },
+      "body-detail": { "displayName": "Body (Detail)", "purpose": "Post text in sheets and the composer." },
+      "body-expanded": { "displayName": "Body (Expanded)", "purpose": "Post text in the expanded detail view." },
+      "meta": { "displayName": "Meta", "purpose": "Handles and relative timestamps, secondary label color." },
+      "context": { "displayName": "Context", "purpose": "Boost attribution and In reply to lines." },
+      "count": { "displayName": "Count", "purpose": "Engagement counts with tabular figures, compact notation." },
+      "label": { "displayName": "Label", "purpose": "Network name above column titles, link-card provider, section headers." }
+    },
+    "shadows": [
+      { "name": "toast", "value": "0 3px 10px rgba(0,0,0,0.18)", "purpose": "Transient action-error capsule on regular material over a feed." },
+      { "name": "lightbox", "value": "0 0 30px rgba(0,0,0,0.4)", "purpose": "Full-window image viewer over its dimmed backdrop." }
+    ],
+    "motion": [
+      { "name": "hover", "value": "0.12s ease-out", "purpose": "Row hover fill and composer drop-target highlight." },
+      { "name": "pill-toggle", "value": "snappy 0.15s", "purpose": "Target pill selection; removed under Reduce Motion." },
+      { "name": "toast", "value": "spring(response 0.35, damping 0.8), move from bottom + opacity", "purpose": "Action-error toast entry; removed under Reduce Motion." },
+      { "name": "lightbox", "value": "scale 0.88 + opacity", "purpose": "Image lightbox open and close." }
+    ],
+    "breakpoints": [
+      { "name": "window-min-with-composer", "value": "920px" },
+      { "name": "window-min-without-composer", "value": "600px" },
+      { "name": "feed-column-min", "value": "290px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Timeline Row",
+      "kind": "custom",
+      "refersTo": "timeline-row",
+      "description": "Edge-to-edge post row with hairline divider and 4% hover fill.",
+      "html": "<article class=\"ds-row\"><div class=\"ds-row-ctx\"><svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M17 2l4 4-4 4\"/><path d=\"M3 11V9a3 3 0 0 1 3-3h15\"/><path d=\"M7 22l-4-4 4-4\"/><path d=\"M21 13v2a3 3 0 0 1-3 3H3\"/></svg>Ana reposted</div><header class=\"ds-row-head\"><span class=\"ds-avatar\"></span><span class=\"ds-names\"><strong>Jo Example</strong><span>@jo.bsky.social</span></span><time>12 minutes ago</time></header><p class=\"ds-row-body\">Post text is the largest type in the row. Links like <a href=\"#\">#swiftui</a> take the network accent.</p><footer class=\"ds-actions\"><span>💬 4</span><span>🔁 12</span><span class=\"ds-liked\">♥ 31</span></footer></article>",
+      "css": ".ds-row { font-family: -apple-system, system-ui, sans-serif; padding: 10px 14px; border-bottom: 1px solid rgba(0,0,0,0.05); background: transparent; transition: background 0.12s ease-out; color: rgba(0,0,0,0.85); max-width: 420px; } .ds-row:hover { background: rgba(0,0,0,0.04); } .ds-row-ctx { display: flex; gap: 5px; align-items: center; font-size: 12px; font-weight: 500; color: rgba(0,0,0,0.5); margin-bottom: 6px; } .ds-row-head { display: flex; gap: 10px; align-items: flex-start; } .ds-avatar { width: 40px; height: 40px; border-radius: 50%; background: rgba(0,0,0,0.06); box-shadow: inset 0 0 0 0.5px rgba(0,0,0,0.08); flex: none; } .ds-names { display: flex; flex-direction: column; gap: 2px; flex: 1; font-size: 14px; } .ds-names span { font-size: 12.5px; color: rgba(0,0,0,0.5); } .ds-row-head time { font-size: 12.5px; color: rgba(0,0,0,0.5); } .ds-row-body { font-size: 14px; line-height: 1.4; margin: 6px 0; } .ds-row-body a { color: #0A7AFF; text-decoration: none; } .ds-actions { display: flex; gap: 20px; font-size: 12.5px; font-variant-numeric: tabular-nums; color: rgba(0,0,0,0.5); padding-top: 4px; } .ds-liked { color: #FF2D55; }"
+    },
+    {
+      "name": "Column Header",
+      "kind": "nav",
+      "refersTo": "column-header",
+      "description": "52px bar-material header: network label over feed title menu, trailing icon buttons.",
+      "html": "<header class=\"ds-colhead\"><div><div class=\"ds-net\"><span class=\"ds-net-dot\">m</span>Mastodon</div><button class=\"ds-feedmenu\">Home ⌄</button></div><div class=\"ds-icons\"><button aria-label=\"Notifications\">🔔<span class=\"ds-badge\">3</span></button><button aria-label=\"Search\">⌕</button><button aria-label=\"More\">…</button></div></header>",
+      "css": ".ds-colhead { font-family: -apple-system, system-ui, sans-serif; height: 52px; padding: 0 14px; display: flex; align-items: center; justify-content: space-between; background: rgba(246,246,246,0.85); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(0,0,0,0.1); max-width: 420px; } .ds-net { display: flex; gap: 4px; align-items: center; font-size: 11px; font-weight: 500; color: rgba(0,0,0,0.5); } .ds-net-dot { width: 12px; height: 12px; border-radius: 50%; background: #6364FF; color: #fff; font-size: 8px; font-weight: 700; display: grid; place-items: center; } .ds-feedmenu { font: 600 15px -apple-system, system-ui, sans-serif; border: 0; background: none; padding: 0; color: rgba(0,0,0,0.85); cursor: pointer; } .ds-icons { display: flex; gap: 4px; } .ds-icons button { min-width: 28px; height: 28px; border: 0; background: none; color: rgba(0,0,0,0.5); font-size: 13px; border-radius: 6px; display: flex; align-items: center; gap: 4px; cursor: pointer; } .ds-icons button:hover { background: rgba(0,0,0,0.05); } .ds-icons button:focus-visible { outline: 3px solid color-mix(in srgb, AccentColor 50%, transparent); } .ds-badge { min-width: 16px; height: 16px; padding: 0 5px; box-sizing: border-box; border-radius: 999px; background: #FF3B30; color: #fff; font: 700 10px -apple-system, system-ui, sans-serif; font-variant-numeric: tabular-nums; display: grid; place-items: center; }"
+    },
+    {
+      "name": "Post Button",
+      "kind": "button",
+      "refersTo": "button-post",
+      "description": "Composer's full-width large bordered-prominent button in the system accent (⌘↩).",
+      "html": "<button class=\"ds-btn-post\">Post</button>",
+      "css": ".ds-btn-post { font: 500 13px -apple-system, system-ui, sans-serif; width: 100%; max-width: 320px; height: 28px; border: 0; border-radius: 7px; background: AccentColor; color: #fff; box-shadow: inset 0 0.5px 0 rgba(255,255,255,0.25); cursor: pointer; } .ds-btn-post:hover { filter: brightness(1.05); } .ds-btn-post:active { filter: brightness(0.9); } .ds-btn-post:focus-visible { outline: 3px solid color-mix(in srgb, AccentColor 50%, transparent); outline-offset: 1px; } .ds-btn-post:disabled { background: rgba(0,0,0,0.05); color: rgba(0,0,0,0.25); }"
+    },
+    {
+      "name": "Target Pills",
+      "kind": "chip",
+      "refersTo": "target-pill-mastodon-selected",
+      "description": "Composer destination toggles: 10% accent fill + 30% stroke when selected.",
+      "html": "<div class=\"ds-pills\"><button class=\"ds-pill ds-pill-on\" aria-pressed=\"true\">● Mastodon</button><button class=\"ds-pill\" aria-pressed=\"false\">○ Bluesky</button></div>",
+      "css": ".ds-pills { display: flex; gap: 8px; } .ds-pill { font: 500 12px -apple-system, system-ui, sans-serif; padding: 6px 8px; border-radius: 999px; border: 0.75px solid rgba(0,0,0,0.07); background: rgba(0,0,0,0.04); color: rgba(0,0,0,0.85); cursor: pointer; transition: background 0.15s, border-color 0.15s; } .ds-pill-on { background: rgba(99,100,255,0.10); border-color: rgba(99,100,255,0.30); } .ds-pill:focus-visible { outline: 3px solid color-mix(in srgb, AccentColor 50%, transparent); }"
+    },
+    {
+      "name": "Compose Card",
+      "kind": "card",
+      "refersTo": "compose-card",
+      "description": "Composer post card: text background, 12px continuous corner, 0.75px hairline.",
+      "html": "<div class=\"ds-compose\"><div class=\"ds-compose-ph\">What's on your mind?</div><div class=\"ds-compose-foot\"><span>🖼</span><span class=\"ds-counter\">0/300 · Bluesky</span></div></div>",
+      "css": ".ds-compose { font-family: -apple-system, system-ui, sans-serif; background: #fff; border: 0.75px solid rgba(0,0,0,0.07); border-radius: 12px; padding: 14px; max-width: 340px; } .ds-compose-ph { font-size: 15px; color: rgba(0,0,0,0.5); min-height: 90px; } .ds-compose-foot { display: flex; justify-content: space-between; color: rgba(0,0,0,0.5); } .ds-counter { font-size: 11px; font-variant-numeric: tabular-nums; }"
+    },
+    {
+      "name": "Quote Card",
+      "kind": "card",
+      "refersTo": "embed-card",
+      "description": "Quoted post: 3.5% fill, 8% stroke, 10px corner, leading accent rule at 55%.",
+      "html": "<div class=\"ds-quote\"><span class=\"ds-quote-rule\"></span><div class=\"ds-quote-body\"><div class=\"ds-quote-head\"><span class=\"ds-quote-av\"></span><strong>Pop Crave</strong><span>@popcrave.com</span></div><p>Quoted text sits at 13px with up to six lines.</p></div></div>",
+      "css": ".ds-quote { font-family: -apple-system, system-ui, sans-serif; display: flex; background: rgba(0,0,0,0.035); border: 1px solid rgba(0,0,0,0.08); border-radius: 10px; overflow: hidden; max-width: 380px; } .ds-quote-rule { width: 3px; border-radius: 2px; background: rgba(10,122,255,0.55); flex: none; } .ds-quote-body { padding: 10px; } .ds-quote-head { display: flex; gap: 6px; align-items: center; font-size: 12.5px; } .ds-quote-head span:last-child { font-size: 11px; color: rgba(0,0,0,0.5); } .ds-quote-av { width: 20px; height: 20px; border-radius: 50%; background: rgba(0,0,0,0.06); } .ds-quote p { font-size: 13px; margin: 6px 0 0; color: rgba(0,0,0,0.85); }"
+    },
+    {
+      "name": "Message Bubbles",
+      "kind": "custom",
+      "refersTo": "dm-bubble-mine-bluesky",
+      "description": "DM bubbles: yours in the network accent, theirs in 18% secondary gray, 15px corner.",
+      "html": "<div class=\"ds-dm\"><div class=\"ds-bubble ds-theirs\">Are you coming tonight?</div><div class=\"ds-bubble ds-mine\">On my way.</div></div>",
+      "css": ".ds-dm { font-family: -apple-system, system-ui, sans-serif; display: flex; flex-direction: column; gap: 6px; max-width: 320px; } .ds-bubble { font-size: 15px; padding: 7px 11px; border-radius: 15px; max-width: 260px; width: fit-content; } .ds-theirs { background: rgba(0,0,0,0.09); color: rgba(0,0,0,0.85); } .ds-mine { align-self: flex-end; background: #0A7AFF; color: #fff; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Quiet Switchboard",
+    "overview": "CrossPost is one desk wired to two networks. The window is three columns (composer, Mastodon, Bluesky) and the posts are the content; the app itself is system chrome and stays out of their way. Color does one job: it tells you which network a thing belongs to, or which action you took. Everything else is neutral system surface, hairline dividers, and secondary-label gray.\n\nThe system is restrained, dense but calm, Mac-native, and readable first. Many posts fit on screen at once, separated by hairlines rather than boxes. Post text is the largest type in a column, and names, handles, timestamps, and chrome step down behind it. Where AppKit or SwiftUI already has an answer (toolbar, `.bar` material, menus, segmented pickers, sheets, SF Symbols, system font, light and dark appearances), CrossPost uses it unchanged.\n\nThe two networks behave differently, and the interface says so. Anything that exists on only one network looks like it exists on only one network.\n\nThe system rejects four things: timeline posts as bordered floating cards, web-app chrome, flooding headers or backgrounds with brand color, and visual parity that fakes behavior the networks don't share.",
+    "keyCharacteristics": [
+      "Edge-to-edge timeline rows divided by hairlines; hover is a 4% fill, never a border.",
+      "Network color appears only as small marks: the header glyph, active states, links, mentions, the network's own prominent buttons, and your own DM bubbles.",
+      "System typography (SF Pro). Body text runs 14–18px and scales with the Reading text size setting; meta text is 12.5px in secondary gray.",
+      "Flat at rest. Depth comes from system materials, and shadows appear only on transient overlays.",
+      "Native controls, native shortcuts, native light and dark appearances; nothing is hand-inverted."
+    ],
+    "rules": [
+      { "name": "The Network Ownership Rule", "body": "A network's accent appears only inside that network's column or on controls scoped to that network. The composer, which posts to both, uses the system accent.", "section": "colors" },
+      { "name": "The Small Marks Rule", "body": "Brand color is never a background or header fill. It colors glyphs, text, 10% tints, and 30% strokes. A screen with a solid block of blurple or blue is wrong.", "section": "colors" },
+      { "name": "The Action Color Rule", "body": "Pink means liked, green means reposted, in every row type. At rest, action icons are secondary gray.", "section": "colors" },
+      { "name": "The Content Leads Rule", "body": "In a timeline row, post body text is the largest type and the only type in full primary contrast at regular weight. Chrome never outsizes content.", "section": "typography" },
+      { "name": "The Reading Size Rule", "body": "Anything a person reads (post bodies, quotes, bios, DMs) goes through `readingFont` so the Reading text size setting reaches it. Metadata and chrome stay fixed.", "section": "typography" },
+      { "name": "The Flat-At-Rest Rule", "body": "Shadows belong only to transient overlays that sit above the window's content plane. If a persistent surface needs separation, use a hairline or the `.bar` material.", "section": "elevation" }
+    ],
+    "dos": [
+      "**Do** use the `Theme` tokens (fonts, metrics, `hairline`, `hoverFill`, `likeTint`, `repostTint`) instead of new literals.",
+      "**Do** keep timeline rows edge to edge with a hairline divider and a 4% hover fill.",
+      "**Do** use the network accent only inside its own column or on controls scoped to that network; use the system accent for cross-network actions.",
+      "**Do** route readable text through `readingFont` so the Reading text size setting applies.",
+      "**Do** use native controls, materials, SF Symbols, and AppKit semantic colors, and check every change in both light and dark appearances.",
+      "**Do** show network differences visibly: Bluesky's audience is a fixed \"Public\" label, not a menu; Edit and Pin appear only on Mastodon posts.",
+      "**Do** honor Reduce Motion for every transition and keep loading states static."
+    ],
+    "donts": [
+      "**Don't** render timeline posts as bordered floating cards.",
+      "**Don't** use web-app chrome: custom headers, hamburger menus, or hand-drawn controls where AppKit has a native one.",
+      "**Don't** flood headers, backgrounds, or large surfaces with Mastodon purple or Bluesky blue.",
+      "**Don't** fake parity between the networks with identical treatments for features that behave differently.",
+      "**Don't** add shadows to persistent surfaces; shadows are for transient overlays only.",
+      "**Don't** let chrome or metadata type outsize post body text."
+    ]
+  }
+}
