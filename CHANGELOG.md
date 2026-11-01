@@ -14,6 +14,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   clicked, and can be covered again. What you reveal stays revealed while the
   app is open, across scrolling and threads, and is never saved.
 
+### Changed
+
+- Deleting a post now asks for confirmation, naming the network it is deleted
+  from.
+
+### Fixed
+
+- When the home timeline or the Messages list failed to load, the error had no
+  way to retry. Both now offer **Try Again**.
+
 ## [0.5.1] - 2026-10-27
 
 ### Added
