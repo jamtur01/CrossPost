@@ -69,8 +69,8 @@ final class FeedPanelDetailLifecycleTests: FeedPanelTestCase {
         fake.feed = [bookmarked, liked, pinned, TestFactory.feedPost(id: "plain")]
         let model = makeModel(fake)
 
-        let bookmarks = try await model.bookmarkedPosts()
-        let likes = try await model.likedPosts()
+        let bookmarks = try await model.bookmarkedPosts(cursor: nil).posts
+        let likes = try await model.likedPosts(cursor: nil).posts
         let pins = try await model.pinnedPosts(id: "anyone")
 
         XCTAssertEqual(bookmarks.map(\.id), ["b1"])

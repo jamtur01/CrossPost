@@ -175,12 +175,25 @@ final class FakeFeedService: FeedService, @unchecked Sendable { // tests drive i
         return mentionCandidatesToReturn
     }
 
-    func bookmarkedPosts() async throws -> [FeedPost] {
-        feed.filter(\.isBookmarked)
+    /// Bookmarks and likes are served from `feed` in pages of this size; the cursor is an offset.
+    var savedPageSize = 40
+    private(set) var savedPageCursors: [String?] = []
+    func bookmarkedPosts(cursor: String?) async throws -> PostPage {
+        try savedPage(of: feed.filter(\.isBookmarked), cursor: cursor)
     }
 
-    func likedPosts() async throws -> [FeedPost] {
-        feed.filter(\.isLiked)
+    func likedPosts(cursor: String?) async throws -> PostPage {
+        try savedPage(of: feed.filter(\.isLiked), cursor: cursor)
+    }
+
+    private func savedPage(of posts: [FeedPost], cursor: String?) throws -> PostPage {
+        savedPageCursors.append(cursor)
+        if failLoad {
+            throw FakeError.boom
+        }
+        let start = min(cursor.flatMap { Int($0) } ?? 0, posts.count)
+        let end = min(start + savedPageSize, posts.count)
+        return PostPage(posts: Array(posts[start ..< end]), cursor: end < posts.count ? String(end) : nil)
     }
 
     func editableSource(of post: FeedPost) async throws -> EditableSource {

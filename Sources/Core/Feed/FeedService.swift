@@ -37,6 +37,14 @@ struct SearchResults: Sendable, Equatable {
     }
 }
 
+/// One page of a cursor-paged post list. `cursor` asks for the next (older) page and
+/// is nil once the network has no more. It is opaque to callers: Mastodon's Link-header
+/// `max_id` (not a status id) or Bluesky's cursor string.
+struct PostPage: Sendable, Equatable {
+    var posts: [FeedPost]
+    var cursor: String?
+}
+
 /// A platform's feed: load posts, toggle like/repost, and reply to one post.
 /// `setLiked`/`setReposted` return the updated FeedPost (new flags + record uris).
 protocol FeedService: Sendable {
@@ -68,10 +76,10 @@ protocol FeedService: Sendable {
     func mentionCandidates(matching query: String) async throws -> [MentionCandidate]
     /// Posts the user has pinned to their profile (Mastodon; empty on Bluesky).
     func pinnedPosts(of id: String) async throws -> [FeedPost]
-    /// The signed-in user's bookmarked posts (Mastodon; empty on Bluesky).
-    func bookmarkedPosts() async throws -> [FeedPost]
-    /// The signed-in user's liked / favourited posts.
-    func likedPosts() async throws -> [FeedPost]
+    /// A page of the signed-in user's bookmarked posts, newest first; nil `cursor` for the first.
+    func bookmarkedPosts(cursor: String?) async throws -> PostPage
+    /// A page of the signed-in user's liked / favourited posts, newest first.
+    func likedPosts(cursor: String?) async throws -> PostPage
 
     // MARK: Social graph
 

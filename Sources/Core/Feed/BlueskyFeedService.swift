@@ -389,21 +389,17 @@ struct BlueskyFeedService: FeedService {
         try await kit.searchActorsTypeahead(matching: query, limit: 8).actors.map(Self.mentionCandidate(from:))
     }
 
-    func bookmarkedPosts() async throws -> [FeedPost] {
-        let bookmarks = try await paged(target: 80, maxPages: 2) {
-            let output = try await kit.getBookmarks(limit: 100, cursor: $0)
-            return (output.bookmarks, output.cursor)
-        }
-        return bookmarks.compactMap(Self.feedPost(fromBookmark:))
+    /// An empty page ends the list even if the server still sends a cursor.
+    func bookmarkedPosts(cursor: String?) async throws -> PostPage {
+        let output = try await kit.getBookmarks(limit: 100, cursor: cursor)
+        return PostPage(posts: output.bookmarks.compactMap(Self.feedPost(fromBookmark:)),
+                        cursor: output.bookmarks.isEmpty ? nil : output.cursor)
     }
 
-    func likedPosts() async throws -> [FeedPost] {
-        let did = try await ownDID()
-        let feed = try await paged(target: 100, maxPages: 2) {
-            let output = try await kit.getActorLikes(by: did, limit: 100, cursor: $0)
-            return (output.feed, output.cursor)
-        }
-        return feed.compactMap { Self.feedPost(from: $0) }
+    func likedPosts(cursor: String?) async throws -> PostPage {
+        let output = try await kit.getActorLikes(by: ownDID(), limit: 100, cursor: cursor)
+        return PostPage(posts: output.feed.compactMap { Self.feedPost(from: $0) },
+                        cursor: output.feed.isEmpty ? nil : output.cursor)
     }
 
     func report(post: FeedPost, reason: ReportReason, comment: String) async throws {

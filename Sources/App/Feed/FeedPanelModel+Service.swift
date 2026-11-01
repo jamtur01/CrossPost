@@ -29,12 +29,12 @@ extension FeedPanelModel {
         try await resolveService().search(query)
     }
 
-    func bookmarkedPosts() async throws -> [FeedPost] {
-        try await resolveService().bookmarkedPosts()
+    func bookmarkedPosts(cursor: String?) async throws -> PostPage {
+        try await resolveService().bookmarkedPosts(cursor: cursor)
     }
 
-    func likedPosts() async throws -> [FeedPost] {
-        try await resolveService().likedPosts()
+    func likedPosts(cursor: String?) async throws -> PostPage {
+        try await resolveService().likedPosts(cursor: cursor)
     }
 
     func editableSource(of post: FeedPost) async throws -> EditableSource {

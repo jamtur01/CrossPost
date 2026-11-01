@@ -195,16 +195,20 @@ struct MastodonFeedService: FeedService {
         return accounts.map { Self.mentionCandidate(from: $0, localDomain: domain) }
     }
 
-    func bookmarkedPosts() async throws -> [FeedPost] {
-        try await paged(target: 80, maxPages: 2) {
-            try await client.getTimeline(.bookmarks, pageInfo: $0, limit: 40).page
-        }.map { Self.feedPost(from: $0) }
+    func bookmarkedPosts(cursor: String?) async throws -> PostPage {
+        try await savedPage(.bookmarks, cursor: cursor)
     }
 
-    func likedPosts() async throws -> [FeedPost] {
-        try await paged(target: 80, maxPages: 2) {
-            try await client.getTimeline(.favourites, pageInfo: $0, limit: 40).page
-        }.map { Self.feedPost(from: $0) }
+    func likedPosts(cursor: String?) async throws -> PostPage {
+        try await savedPage(.favourites, cursor: cursor)
+    }
+
+    /// Bookmarks and favourites page by the Link header's `max_id`, which is the
+    /// bookmark/favourite record's id rather than a status id.
+    private func savedPage(_ timeline: Timeline, cursor: String?) async throws -> PostPage {
+        let result = try await client.getTimeline(timeline, pageInfo: cursor.map { PagedInfo(maxId: $0) }, limit: 40)
+        return PostPage(posts: result.result.map { Self.feedPost(from: $0) },
+                        cursor: result.result.isEmpty ? nil : result.previousPage?.maxId)
     }
 
     func deletePost(_ post: FeedPost) async throws {

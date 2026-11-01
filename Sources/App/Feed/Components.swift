@@ -301,10 +301,9 @@ extension View {
 }
 
 /// The trailing state row inside a loading list: a spinner while loading, a
-/// retryable error when the load failed with nothing to show, or an empty-state
-/// once loaded and still empty. Shared by the account and saved-post lists, which
-/// present these three states identically. (Thread/profile keep their own, since
-/// they show errors alongside already-visible content.)
+/// retryable error when a load failed (below any rows already shown, for a list
+/// that pages), or an empty-state once loaded and still empty. Shared by the
+/// account and saved-post lists. (Thread/profile keep their own.)
 @ViewBuilder
 @MainActor
 func listLoadFooter(
@@ -317,7 +316,7 @@ func listLoadFooter(
     if loading {
         ProgressView().controlSize(.small)
             .frame(maxWidth: .infinity).padding(.vertical, 24)
-    } else if let loadError, isEmpty {
+    } else if let loadError {
         ErrorStateView(message: loadError, fills: false, retry: retry)
     } else if isEmpty {
         EmptyStateView(text: emptyState.text, systemImage: emptyState.image, fills: false)
