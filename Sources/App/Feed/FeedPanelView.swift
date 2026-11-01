@@ -7,6 +7,8 @@ struct FeedPanelView: View {
     @State var replyTarget: FeedPost?
     @State var routes: [FeedDestination] = []
     @State private var composingMessage = false
+    @State var homeTopPostID: String?
+    @State var homeIsAtTop = true
     @Environment(\.accessibilityReduceMotion) var reduceMotion
 
     var accent: Color {

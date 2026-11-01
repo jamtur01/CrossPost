@@ -46,33 +46,78 @@ extension FeedPanelView {
         } else if model.posts.isEmpty {
             emptyState("No posts yet.", systemImage: "text.bubble")
         } else {
-            ScrollViewReader { proxy in
-                ScrollView {
-                    LazyVStack(spacing: 0) {
-                        Color.clear.frame(height: 0).id(Self.topAnchor)
-                        ForEach(model.posts) { post in
-                            FeedRow(
-                                post: post,
-                                host: model,
-                                panel: model,
-                                accent: accent,
-                                push: pushRoute,
-                                onReply: { replyTarget = $0 }
-                            )
-                        }
+            homeList
+        }
+    }
+
+    /// SwiftUI's scroll view keeps the rows on screen in place when posts arrive above
+    /// them, so the reading position holds on its own. No `scrollPosition(id:)` binding:
+    /// keyboard paging and scroll-to-top move the list without updating it, and the
+    /// next arrival then jumps the list back to the stale post.
+    private var homeList: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    Color.clear.frame(height: 0).id(Self.topAnchor)
+                    ForEach(model.posts) { post in
+                        FeedRow(
+                            post: post,
+                            host: model,
+                            panel: model,
+                            accent: accent,
+                            push: pushRoute,
+                            onReply: { replyTarget = $0 }
+                        )
                     }
-                    .scrollTargetLayout()
                 }
-                .scrollContentBackground(.hidden)
-                .feedKeyboardNavigation(posts: model.posts, hosts: [model], reply: { replyTarget = $0 },
-                                        open: { pushRoute(.thread($0)) })
-                .onChange(of: model.scrollToTopToken) {
-                    withAnimation(reduceMotion ? nil : .easeOut(duration: 0.25)) {
-                        proxy.scrollTo(Self.topAnchor, anchor: .top)
-                    }
+                .scrollTargetLayout()
+            }
+            .scrollContentBackground(.hidden)
+            .onScrollTargetVisibilityChange(idType: String.self, threshold: 0.01) { visible in
+                let visible = Set(visible)
+                homeTopPostID = model.posts.first { visible.contains($0.id) }?.id
+                reportHomeScroll()
+            }
+            .onScrollGeometryChange(for: Bool.self) { $0.contentOffset.y + $0.contentInsets.top < 1 } action: {
+                homeIsAtTop = $1
+                reportHomeScroll()
+            }
+            .feedKeyboardNavigation(posts: model.posts, hosts: [model], reply: { replyTarget = $0 },
+                                    open: { pushRoute(.thread($0)) })
+            .onChange(of: model.posts.first?.id) {
+                // At the top, arrivals show in place rather than landing just above it.
+                if homeIsAtTop {
+                    proxy.scrollTo(Self.topAnchor, anchor: .top)
                 }
             }
+            .onChange(of: model.scrollToTopToken) {
+                withAnimation(reduceMotion ? nil : .easeOut(duration: 0.25)) {
+                    proxy.scrollTo(Self.topAnchor, anchor: .top)
+                }
+            }
+            .overlay(alignment: .top) { newPostsPill }
+            .onChange(of: model.newPostCount > 0) { _, appeared in
+                guard appeared else { return }
+                AccessibilityNotification.Announcement(NewPostsPill.title(model.newPostCount)).post()
+            }
         }
+    }
+
+    /// Animated on its own, so the rows that arrive with it keep their place.
+    private var newPostsPill: some View {
+        ZStack {
+            if model.newPostCount > 0 {
+                NewPostsPill(count: model.newPostCount, target: model.target) { model.scrollToTop() }
+                    .padding(.top, 8)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .animation(reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 0.8),
+                   value: model.newPostCount > 0)
+    }
+
+    private func reportHomeScroll() {
+        model.homeScrolled(to: homeIsAtTop ? nil : homeTopPostID)
     }
 
     /// First-load placeholder: a short column of highlighted rows, so the pane

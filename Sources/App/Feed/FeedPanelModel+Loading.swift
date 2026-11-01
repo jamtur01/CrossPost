@@ -22,6 +22,7 @@ extension FeedPanelModel {
         cancelFollowStateLookup()
         cancelLoads()
         kind = newKind
+        clearNewPosts() // Home's list starts again at the top when it comes back
         errorMessage = nil
         enqueueLoad(userInitiated: false)
         refreshUnreadCount()
@@ -34,7 +35,7 @@ extension FeedPanelModel {
         if pollTask == nil {
             startPolling()
         }
-        scrollToTopToken += 1
+        scrollToTop()
         enqueueLoad(userInitiated: true)
         refreshUnreadCount() // a manual refresh must update the badge too, not just the feed
     }
@@ -229,6 +230,7 @@ extension FeedPanelModel {
             preservingIDs: changed,
             excludingIDs: changed.subtracting(posts.lazy.map(\.id))
         )
+        countArrivals(in: next)
         if posts != next {
             posts = next
         }

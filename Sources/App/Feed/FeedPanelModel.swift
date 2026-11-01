@@ -19,7 +19,11 @@ final class FeedPanelModel: OptimisticPostHost {
     var conversations: [Conversation] = []
     @ObservationIgnored var loadedHistory: Set<FeedKind> = []
     var unreadCount = 0
-    var scrollToTopToken = 0 // bumped on each user-initiated refresh
+    var scrollToTopToken = 0 // bumped by scrollToTop(): user refreshes and the new-posts pill
+    /// Home posts that arrived above the reader and that they haven't scrolled up to.
+    var newPostIDs: Set<String> = []
+    /// The post at the top of the Home viewport, or nil while the reader is at the top.
+    @ObservationIgnored var readingPostID: String?
     /// Content warnings and sensitive media opened this session, across all routes.
     let reveals = PostReveals()
 
@@ -138,6 +142,7 @@ final class FeedPanelModel: OptimisticPostHost {
             conversations = []
             followedActorIDs = []
             unreadCount = 0
+            clearNewPosts()
         }
         guard hasCredentials else {
             needsCredentials = true
