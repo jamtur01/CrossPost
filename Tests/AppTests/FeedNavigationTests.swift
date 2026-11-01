@@ -56,8 +56,16 @@ final class FeedNavigationTests: XCTestCase {
         XCTAssertFalse(focus.claim(.bluesky), "a request is claimed once")
 
         focus.request(.mastodon)
+        let stale = focus.pending
         let later = Date.now.addingTimeInterval(FeedKeyboardFocus.requestLifetime + 0.1)
         XCTAssertFalse(focus.claim(.mastodon, now: later), "an unclaimed request goes stale")
+
+        // Asking for the same column again must still register as a change, so the
+        // list observing `pending` wakes up and claims it.
+        focus.request(.mastodon, now: later)
+        XCTAssertNotNil(focus.pending)
+        XCTAssertNotEqual(focus.pending, stale)
+        XCTAssertTrue(focus.claim(.mastodon, now: later))
     }
 
     func testKeyMapping() {

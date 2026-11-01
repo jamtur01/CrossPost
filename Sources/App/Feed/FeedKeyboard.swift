@@ -87,26 +87,38 @@ enum FeedNavigation {
 @MainActor
 @Observable
 final class FeedKeyboardFocus {
+    /// A column's request for the keyboard. Each request is distinct, so asking for
+    /// the same column again still changes `pending` and wakes the lists observing it.
+    struct Request: Equatable {
+        let target: PostTarget
+        let serial: Int
+        let date: Date
+    }
+
     /// The column that holds, or last held, the keyboard.
     var lastFeed: PostTarget = .mastodon
     /// A column asked to take the keyboard and not yet claimed by its list.
-    private(set) var pending: PostTarget?
-    private var requestedAt = Date.distantPast
+    private(set) var pending: Request?
+    private var serial = 0
     /// A request nobody claims (the column shows notifications) goes stale, so a list
     /// that appears later can't take the keyboard from wherever the user is typing.
     static let requestLifetime: TimeInterval = 1
 
-    func request(_ target: PostTarget) {
-        pending = target
-        requestedAt = .now
+    func request(_ target: PostTarget, now: Date = .now) {
+        serial += 1
+        pending = Request(target: target, serial: serial, date: now)
     }
 
-    /// True once, for the list that takes a fresh pending request for `target`.
+    /// True once, for the list that takes a fresh pending request for `target`. A
+    /// stale request is dropped by whichever list checks it.
     func claim(_ target: PostTarget, now: Date = .now) -> Bool {
-        guard pending == target, now.timeIntervalSince(requestedAt) < Self.requestLifetime else {
+        guard let pending else { return false }
+        guard now.timeIntervalSince(pending.date) < Self.requestLifetime else {
+            self.pending = nil
             return false
         }
-        pending = nil
+        guard pending.target == target else { return false }
+        self.pending = nil
         return true
     }
 }
