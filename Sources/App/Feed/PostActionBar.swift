@@ -6,7 +6,7 @@ import SwiftUI
 /// - Parameters:
 ///   - symbol: SF Symbol name.
 ///   - count: When provided, shows a compact count beside the icon (timeline style).
-///   - active: Whether the action is currently engaged (e.g. liked, reposted).
+///   - active: Whether the action is currently engaged (e.g. liked, reposted, bookmarked).
 ///   - tint: Colour applied when `active` is true.
 ///   - help: Accessibility tooltip.
 ///   - compact: When true, uses the notification-row font and hides counts.
@@ -22,7 +22,12 @@ func postActionButton(
     action: @escaping () -> Void
 ) -> some View {
     let isToggle = ["heart", "heart.fill", "arrow.2.squarepath"].contains(symbol)
-    let state = isToggle ? (active ? "On" : "Off") : ""
+    let isBookmark = symbol.hasPrefix("bookmark")
+    let state = if isBookmark {
+        active ? "Bookmarked" : ""
+    } else {
+        isToggle ? (active ? "On" : "Off") : ""
+    }
     let value = [state, count.map { $0.formatted() } ?? ""]
         .filter { !$0.isEmpty }.joined(separator: ", ")
     return Button(action: action) {

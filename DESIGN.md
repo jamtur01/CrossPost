@@ -182,7 +182,7 @@ All neutrals are AppKit semantic colors (`textBackgroundColor`, `windowBackgroun
 
 **The Small Marks Rule.** Brand color is never a background or header fill. It colors glyphs, text, 10% tints, and 30% strokes. A screen with a solid block of blurple or blue is wrong.
 
-**The Action Color Rule.** Pink means liked, green means reposted, in every row type. At rest, action icons are secondary gray.
+**The Action Color Rule.** Pink means liked, green means reposted, in every row type. Bookmarked has no hue of its own: its filled glyph turns primary label color. At rest, action icons are secondary gray.
 
 ## Typography
 
@@ -213,7 +213,7 @@ A three-column `HSplitView`: the composer (330–440px, ideal 370, hideable with
 
 Every column opens with a 52px header on the `.bar` material with a hairline divider below: the network glyph and name in the column title style, stacked above the feed menu in the column subtitle style, then trailing 28 × 28 icon buttons. In-column navigation (threads, profiles, search) pushes a back-chevron header of the same height that keeps the network name on top and shows the route title beneath it.
 
-Timeline rows run edge to edge with 14px horizontal and 10px vertical padding. The avatar (40px) sits 10px from content, rows stack their parts 6px apart, and action buttons sit 20px apart with share and overflow pushed trailing. List rows (search, followers) use 16 × 12 padding with 42px avatars; sheet and detail contexts use 44px avatars, and the expanded detail uses 54px. Sheets are 420px wide with 20px padding. The composer scroll area pads 14px and stacks thread cards 12px apart.
+Timeline rows run edge to edge with 14px horizontal and 10px vertical padding. The avatar (40px) sits 10px from content, rows stack their parts 6px apart, and action buttons sit 20px apart (12px when a narrow column can't fit that) with Bookmark and overflow pushed trailing. List rows (search, followers) use 16 × 12 padding with 42px avatars; sheet and detail contexts use 44px avatars, and the expanded detail uses 54px. Sheets are 420px wide with 20px padding. The composer scroll area pads 14px and stacks thread cards 12px apart.
 
 Spacing sits on a loose 8pt grid with deliberate 2px offsets (6, 10, 14). Use the named Theme metrics, not new literals.
 
@@ -239,7 +239,7 @@ Native button styles throughout; CrossPost does not draw its own button chrome.
 - **Primary:** `.borderedProminent`. The composer's full-width Post button is `.large` in the system accent with ⌘↩. Network-scoped primaries (Follow, Open Settings) are tinted with that network's accent.
 - **Hover / Focus:** system-provided; focus rings are the system's.
 - **Secondary / Ghost:** `.bordered` `.small` for secondary profile actions and Try Again; `.borderless` for header icons and "Add post to thread".
-- **Post actions:** plain SF Symbol buttons (13.5px) in secondary gray with a 28 × 28 hit area and an optional compact count. Engaged Like and Repost take pink and green and fire a trackpad haptic tick.
+- **Post actions:** plain SF Symbol buttons (13.5px) in secondary gray with a 28 × 28 hit area and an optional compact count. The bar is Reply, Repost, Like, then Bookmark and the "…" menu trailing; Open in Browser lives in that menu. Engaged Like and Repost take pink and green and fire a trackpad haptic tick; an engaged Bookmark draws `bookmark.fill` bold in primary label color.
 
 ### Chips
 - **Style:** the composer's target pills. A capsule with 8 × 6 padding, a 12px symbol, and 12px medium text. Selected: network accent at 10% fill and 30% stroke with `checkmark.circle.fill`. Unselected: hover fill with hairline stroke and an empty circle. Locked: `lock.circle`.

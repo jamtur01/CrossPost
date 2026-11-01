@@ -19,8 +19,9 @@ posts without leaving the window.
   tabs. Mastodon refreshes live over its streaming socket; both poll (~60s) and
   refresh manually. The notification tab carries an unread badge.
 - **Per-post actions** — reply (scoped to that one network), like/favourite,
-  repost/boost, bookmark, delete and pin your own posts, see who liked or reposted,
-  and open the original in your browser.
+  repost/boost, and bookmark from the action bar; the **…** menu holds delete and
+  pin for your own posts, who liked or reposted, and open the original in your
+  browser.
 - **Rich rendering** — inline images, animated GIFs and video, link preview cards,
   quoted posts, and clickable links and mentions. Boosts/reposts show a "boosted by"
   attribution.

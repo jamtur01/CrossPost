@@ -241,17 +241,15 @@ struct FeedPostView: View {
             postActionButton(post.isLiked ? "heart.fill" : "heart", count: post.likeCount,
                              active: post.isLiked, tint: Theme.likeTint, help: "Like", action: onLike)
             Spacer(minLength: 0)
-            postActionButton("safari", tint: accent, help: "Open in browser", action: onOpen)
+            postActionButton(post.isBookmarked ? "bookmark.fill" : "bookmark", active: post.isBookmarked,
+                             tint: .primary, help: post.isBookmarked ? "Remove Bookmark" : "Bookmark",
+                             action: onBookmark)
             moreMenu
         }
     }
 
     private var moreMenu: some View {
         Menu {
-            Button(action: onBookmark) {
-                Label(post.isBookmarked ? "Remove Bookmark" : "Bookmark",
-                      systemImage: post.isBookmarked ? "bookmark.fill" : "bookmark")
-            }
             if onQuote != nil {
                 Button { quoting = true } label: {
                     Label("Quote", systemImage: "quote.bubble")

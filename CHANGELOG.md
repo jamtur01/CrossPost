@@ -26,8 +26,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Deleting a post now asks for confirmation, naming the network it is deleted
   from.
-- The action bar's **Open in Browser** button uses the Safari compass instead
-  of the share arrow, matching the post's overflow menu.
+- The action bar's trailing button is now **Bookmark** (filled when the post is
+  bookmarked) instead of **Open in Browser**, which stays in the post's **…**
+  menu. Bookmark is no longer in that menu.
 - "In reply to" is drawn in secondary gray like the "boosted" line, and shows
   the network color on hover, so it no longer outweighs the author's name.
 - A liked or reposted action draws its symbol in a heavier weight, so the
