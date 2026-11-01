@@ -51,6 +51,7 @@ struct ThreadView: View {
                 }
             }
             .scrollTargetLayout()
+            .overlayScrollers()
         }
         .scrollContentBackground(.hidden)
         .feedKeyboardNavigation(posts: list.posts, initialSelection: focusedPost.id, hosts: [list],

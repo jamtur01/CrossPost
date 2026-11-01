@@ -79,6 +79,7 @@ struct ProfileView: View {
                     }
                 }
                 .scrollTargetLayout()
+                .overlayScrollers()
                 if loading {
                     ProgressView().controlSize(.small)
                         .frame(maxWidth: .infinity).padding(.vertical, 24)

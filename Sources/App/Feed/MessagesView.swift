@@ -40,6 +40,7 @@ struct MessagesListView: View {
                     }
                 }
                 .scrollTargetLayout()
+                .overlayScrollers()
             }
             .scrollContentBackground(.hidden)
             .keyboardListNavigation(ids: model.conversations.map(\.id)) { id in
@@ -155,6 +156,7 @@ struct ConversationView: View {
                     .scrollTargetLayout()
                     .padding(.horizontal, 12)
                     .padding(.vertical, 10)
+                    .overlayScrollers()
                 }
                 .scrollContentBackground(.hidden)
                 // The conversation takes the keyboard when opened; Return moves it to

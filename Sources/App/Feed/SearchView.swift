@@ -100,6 +100,7 @@ struct SearchView: View {
                     }
                 }
                 .scrollTargetLayout()
+                .overlayScrollers()
             }
             .scrollContentBackground(.hidden)
             .keyboardListNavigation(

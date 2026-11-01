@@ -215,6 +215,8 @@ Every column opens with a 52px header on the `.bar` material with a hairline div
 
 Timeline rows run edge to edge with 14px horizontal and 10px vertical padding. The avatar (40px) sits 10px from content, rows stack their parts 6px apart, and action buttons sit 20px apart (12px when a narrow column can't fit that) with Bookmark and overflow pushed trailing. List rows (search, followers) use 16 × 12 padding with 42px avatars; sheet and detail contexts use 44px avatars, and the expanded detail uses 54px. Sheets are 420px wide with 20px padding. The composer scroll area pads 14px and stacks thread cards, the footer, and Recent Posts 12px apart.
 
+Column scroll areas (every feed list, threads, profiles, saved posts, search, people lists, Messages and conversations, and the composer) always use overlay scrollers (`overlayScrollers()`), even when "Show scroll bars" is set to Always. Rows and dividers reach the column edge and the scroller floats over the trailing edge while scrolling, instead of reserving a blank 17px track. Sheets and text editors keep the system setting.
+
 Spacing sits on a loose 8pt grid with deliberate 2px offsets (6, 10, 14). Use the named Theme metrics, not new literals.
 
 ## Elevation & Depth

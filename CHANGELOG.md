@@ -51,6 +51,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   until the network has no more, instead of stopping at the newest 80. A page
   that fails to load keeps the posts already shown and offers **Try Again** at
   the end of the list.
+- Columns no longer reserve a blank strip for the scroll bar when macOS is set
+  to always show scroll bars. Posts and dividers reach the column edge, and the
+  scroll bar appears over them while you scroll.
 - The composer's destinations are a flat footer under the last post instead of
   a separate card: each network's toggle sits beside its audience, and **Post**
   is a regular-size button at the trailing edge (still ⌘↩).

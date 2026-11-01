@@ -31,6 +31,7 @@ struct NotificationsListView: View {
                     }
                 }
                 .scrollTargetLayout()
+                .overlayScrollers()
             }
             .scrollContentBackground(.hidden)
             .keyboardListNavigation(

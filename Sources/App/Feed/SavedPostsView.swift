@@ -90,6 +90,7 @@ struct SavedPostsView: View {
                 }
             }
             .scrollTargetLayout()
+            .overlayScrollers()
             listLoadFooter(loading: model.wantsMore, loadError: model.loadError, isEmpty: list.posts.isEmpty,
                            emptyState: ("No \(kind.title.lowercased()) yet", kind.icon)) {
                 model.retry()

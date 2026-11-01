@@ -28,6 +28,7 @@ struct ProfileListView: View {
                     loadToken += 1
                 }
             }
+            .overlayScrollers()
         }
         .scrollContentBackground(.hidden)
         .background(Color(nsColor: .textBackgroundColor))

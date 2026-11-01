@@ -74,6 +74,7 @@ struct ComposeColumnView: View {
                 }
                 .padding(14)
                 .frame(maxWidth: .infinity, alignment: .top)
+                .overlayScrollers()
             }
         }
     }

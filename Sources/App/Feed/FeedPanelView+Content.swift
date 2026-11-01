@@ -71,6 +71,7 @@ extension FeedPanelView {
                     }
                 }
                 .scrollTargetLayout()
+                .overlayScrollers()
             }
             .scrollContentBackground(.hidden)
             .onScrollTargetVisibilityChange(idType: String.self, threshold: 0.01) { visible in
@@ -130,6 +131,7 @@ extension FeedPanelView {
                     Divider().opacity(0.5)
                 }
             }
+            .overlayScrollers()
         }
         .scrollContentBackground(.hidden)
         .scrollDisabled(true)
