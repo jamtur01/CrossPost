@@ -16,21 +16,27 @@ extension ComposeModel {
         }
     }
 
-    /// The counter for `post`: each shown network's final text counted the way its
-    /// server counts it, reporting the network with the least room left.
-    func counter(for post: DraftPost) -> PostCounter {
+    /// The counters for `post`: each shown network's final text counted the way its
+    /// server counts it, against that network's own limit, in display order. With no
+    /// network selected, the plain text is counted against the strictest limit.
+    func counters(for post: DraftPost) -> [PostCounter] {
         let targets = previewTarget.map { [$0] } ?? PostTarget.allCases.filter { selectedTargets.contains($0) }
         let counters: [PostCounter] = targets.compactMap { target in
             guard let limit = store.limits.maxGraphemes[target] else { return nil }
             let count = PostValidator.countedGraphemes(post.rendered(for: target).text, for: target)
             return PostCounter(count: count, limit: limit, label: target.displayName)
         }
-        guard let tightest = counters.min(by: { $0.remaining < $1.remaining }) else {
-            return PostCounter(count: PostValidator.graphemeCount(post.text), limit: TargetLimits.blueskyMax,
-                               label: nil)
+        guard counters.isEmpty else { return counters }
+        return [PostCounter(count: PostValidator.graphemeCount(post.text), limit: TargetLimits.blueskyMax, label: nil)]
+    }
+
+    /// The editor's placeholder, naming the networks the draft goes to.
+    var editorPlaceholder: String {
+        switch PostTarget.allCases.filter({ selectedTargets.contains($0) }) {
+        case [.mastodon, .bluesky]: "Write once for Mastodon and Bluesky"
+        case let targets where targets.count == 1: "Write for \(targets[0].displayName)"
+        default: "Write a post"
         }
-        let tied = counters.filter { $0.remaining == tightest.remaining }.count > 1
-        return tied ? PostCounter(count: tightest.count, limit: tightest.limit, label: "Both networks") : tightest
     }
 
     /// Nothing written and nothing sending: the composer can show its history.
@@ -120,16 +126,12 @@ extension ComposeModel {
     }
 }
 
-/// A post card's character counter: the count and limit of the network with the
-/// least room left, and which network that is.
+/// One network's character count for a post card, against that network's limit.
 struct PostCounter: Equatable {
     let count: Int
     let limit: Int
+    /// The network's name; nil when no network is selected.
     let label: String?
-
-    var remaining: Int {
-        limit - count
-    }
 }
 
 extension MentionPairStore {

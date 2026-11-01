@@ -5,7 +5,9 @@ import UniformTypeIdentifiers
 struct PostCardView: View {
     @Binding var post: DraftPost
     let index: Int
-    let counter: PostCounter
+    /// One counter per shown network, each against that network's own limit.
+    let counters: [PostCounter]
+    let placeholder: String
     /// A network's final text, shown read-only in place of the editor.
     var preview: PostPreview?
     var mentionEditing: MentionEditing?
@@ -67,9 +69,7 @@ struct PostCardView: View {
 
                 Spacer()
 
-                Text("\(counter.count)/\(counter.limit)" + (counter.label.map { " · \($0)" } ?? ""))
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(counterColor(count: counter.count, limit: counter.limit))
+                counterLine
             }
         }
         .padding(14)
@@ -127,6 +127,27 @@ struct PostCardView: View {
         )
     }
 
+    /// "12/500 Mastodon · 12/300 Bluesky", each network colored by its own room left.
+    private var counterLine: some View {
+        HStack(spacing: 4) {
+            ForEach(Array(counters.enumerated()), id: \.offset) { index, counter in
+                if index > 0 {
+                    Text("·").foregroundStyle(.secondary)
+                }
+                Text("\(counter.count)/\(counter.limit)" + (counter.label.map { " \($0)" } ?? ""))
+                    .foregroundStyle(counterColor(count: counter.count, limit: counter.limit))
+            }
+        }
+        .font(.caption.monospacedDigit())
+        .lineLimit(1)
+        .fixedSize()
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(counters.map { counter in
+            let count = "\(counter.count) of \(counter.limit) characters"
+            return counter.label.map { "\($0): \(count)" } ?? count
+        }.joined(separator: ", "))
+    }
+
     @ViewBuilder
     private var editor: some View {
         if let preview {
@@ -142,7 +163,7 @@ struct PostCardView: View {
             .frame(minHeight: 90, maxHeight: 200)
             .overlay(alignment: .topLeading) {
                 if post.text.isEmpty {
-                    Text("What's on your mind?")
+                    Text(placeholder)
                         .font(Theme.content).foregroundStyle(.secondary)
                         .padding(.leading, 5).padding(.top, 6)
                         .allowsHitTesting(false)

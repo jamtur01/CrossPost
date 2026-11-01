@@ -25,15 +25,10 @@ struct ComposeColumnView: View {
     private func content(_ model: ComposeModel) -> some View {
         @Bindable var model = model
         VStack(spacing: 0) {
-            // At the composer's narrowest widths the preview picker leaves no room
-            // for a legible title, so the title drops out instead of truncating.
-            ViewThatFits(in: .horizontal) {
-                headerControls(model, showsTitle: true)
-                headerControls(model, showsTitle: false)
-            }
-            .padding(.horizontal, Theme.headerPaddingH)
-            .frame(height: 52)
-            .barSurface()
+            header(model)
+                .padding(.horizontal, Theme.headerPaddingH)
+                .frame(height: 52)
+                .barSurface()
 
             ScrollView {
                 VStack(spacing: 12) {
@@ -46,7 +41,8 @@ struct ComposeColumnView: View {
                         PostCardView(
                             post: $post,
                             index: index,
-                            counter: model.counter(for: post),
+                            counters: model.counters(for: post),
+                            placeholder: model.editorPlaceholder,
                             preview: model.previewTarget.map {
                                 PostPreview(target: $0, parts: post.renderedParts(for: $0))
                             },
@@ -82,35 +78,52 @@ struct ComposeColumnView: View {
         }
     }
 
-    /// Edit, or a selected network's final text. Hidden until something is selected.
-    @ViewBuilder
-    private func previewPicker(_ model: ComposeModel) -> some View {
-        @Bindable var model = model
-        let targets = PostTarget.allCases.filter { model.selectedTargets.contains($0) }
-        if !targets.isEmpty {
-            Picker("Preview", selection: $model.previewTarget) {
-                Text("Edit").tag(PostTarget?.none)
-                ForEach(targets) { target in
-                    Text(target.displayName).tag(PostTarget?.some(target))
-                }
+    /// The title, with what the cards show (the draft, or one network's final text)
+    /// beneath it as a menu, the same way the feed columns show their feed.
+    private func header(_ model: ComposeModel) -> some View {
+        HStack(spacing: 7) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text("New Post").font(Theme.columnTitle).lineLimit(1)
+                previewMenu(model)
             }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .fixedSize()
-            .controlSize(.small)
-            .help("Show the text each network will receive")
+            Spacer(minLength: 8)
+            draftMenu(model)
         }
     }
 
-    private func headerControls(_ model: ComposeModel, showsTitle: Bool) -> some View {
-        HStack(spacing: 7) {
-            if showsTitle {
-                Text("New Post").font(Theme.columnTitle).lineLimit(1).fixedSize()
+    /// Edit, or a selected network's final text. Disabled until a network is selected.
+    private func previewMenu(_ model: ComposeModel) -> some View {
+        @Bindable var model = model
+        let targets = PostTarget.allCases.filter { model.selectedTargets.contains($0) }
+        let title = model.previewTarget.map { "Previewing \($0.displayName)" } ?? "Editing"
+        return Menu {
+            Picker("Show", selection: $model.previewTarget) {
+                Text("Edit Draft").tag(PostTarget?.none)
+                ForEach(targets) { target in
+                    Text("Preview for \(target.displayName)").tag(PostTarget?.some(target))
+                }
             }
-            Spacer(minLength: 8)
-            previewPicker(model)
-            draftMenu(model)
+            .pickerStyle(.inline)
+            .labelsHidden()
+        } label: {
+            HStack(spacing: 3) {
+                Text(title).lineLimit(1)
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 9, weight: .semibold))
+            }
+            .font(Theme.columnSubtitle)
+            .foregroundStyle(.secondary)
+            .contentShape(Rectangle())
         }
+        // Plain-styled like the feed headers' menu, so it reads as the title's subtitle.
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .disabled(targets.isEmpty)
+        .accessibilityLabel("Showing: \(title)")
+        .accessibilityHint("Choose the draft or the text a network will receive")
+        .help("Show the text each network will receive")
     }
 
     /// Draft actions, in the same overflow style as the feed column headers so the
@@ -142,75 +155,79 @@ struct ComposeColumnView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    @ViewBuilder
+    /// Where the whole thread goes and how: each network's toggle with its audience,
+    /// and the Post button. Flat under the last card, so the cards stay the focus.
     private func footer(_ model: ComposeModel) -> some View {
-        @Bindable var model = model
         VStack(alignment: .leading, spacing: 10) {
             validationErrors(model)
-
-            HStack(spacing: 8) {
-                Text("Post to").font(.callout.weight(.medium))
-                ForEach(PostTarget.allCases) { target in
-                    let selected = model.selectedTargets.contains(target)
-                    targetPill(
-                        target,
-                        selected: selected,
-                        locked: !selected && model.isLocked(target)
-                    ) {
-                        model.toggle(target)
-                    }
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .lastTextBaseline, spacing: 12) {
+                    destinations(model)
+                    Spacer(minLength: 0)
+                    postButton(model)
                 }
-                Spacer(minLength: 0)
+                VStack(alignment: .trailing, spacing: 10) {
+                    destinations(model)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    postButton(model)
+                }
             }
-
-            audiences(model)
-                .frame(maxWidth: .infinity, alignment: .leading)
             if let warning = model.audienceWarning {
                 Label(warning, systemImage: "exclamationmark.triangle.fill")
                     .font(.caption)
                     .foregroundStyle(.primary)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            Button { Task { await model.submit() } } label: {
-                Text(model.submissionLabel).frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .keyboardShortcut(.return, modifiers: .command)
-            .disabled(!model.canPost)
         }
-        .padding(12)
+        .padding(.horizontal, 4)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .cardSurface()
     }
 
-    private func audiences(_ model: ComposeModel) -> some View {
+    private func postButton(_ model: ComposeModel) -> some View {
+        Button { Task { await model.submit() } } label: {
+            Text(model.submissionLabel).lineLimit(1)
+        }
+        .buttonStyle(.borderedProminent)
+        .keyboardShortcut(.return, modifiers: .command)
+        .disabled(!model.canPost)
+        .fixedSize()
+        .help("\(model.submissionLabel) (⌘↩)")
+    }
+
+    /// One row per network: its toggle, then its audience while it's selected.
+    private func destinations(_ model: ComposeModel) -> some View {
         @Bindable var model = model
-        return Grid(alignment: .leading, horizontalSpacing: 6, verticalSpacing: 6) {
-            if model.selectedTargets.contains(.mastodon) {
+        return Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 6) {
+            ForEach(PostTarget.allCases) { target in
+                let selected = model.selectedTargets.contains(target)
                 GridRow {
-                    audienceLabel(.mastodon)
-                    VisibilityMenu(visibility: $model.visibility, accent: PostTarget.mastodon.accent)
-                }
-            }
-            if model.selectedTargets.contains(.bluesky) {
-                GridRow {
-                    audienceLabel(.bluesky)
-                    // Bluesky has no per-post audience, so this is a fixed value, not a menu.
-                    Label("Public", systemImage: "globe")
-                        .font(.system(size: 12.5, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .help("Bluesky posts are always public")
+                    targetPill(target, selected: selected, locked: !selected && model.isLocked(target)) {
+                        model.toggle(target)
+                    }
+                    if selected {
+                        audience(target, model: model)
+                    }
                 }
             }
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Post to")
     }
 
-    private func audienceLabel(_ target: PostTarget) -> some View {
-        Text("\(target.displayName):")
-            .font(.system(size: 12.5))
-            .foregroundStyle(.secondary)
-            .fixedSize()
+    @ViewBuilder
+    private func audience(_ target: PostTarget, model: ComposeModel) -> some View {
+        @Bindable var model = model
+        switch target {
+        case .mastodon:
+            VisibilityMenu(visibility: $model.visibility, accent: PostTarget.mastodon.accent)
+        case .bluesky:
+            // Bluesky has no per-post audience, so this is a fixed value, not a menu.
+            Label("Public", systemImage: "globe")
+                .font(.system(size: 12.5, weight: .medium))
+                .foregroundStyle(.secondary)
+                .fixedSize()
+                .help("Bluesky posts are always public")
+        }
     }
 
     @ViewBuilder
@@ -274,6 +291,7 @@ struct ComposeColumnView: View {
             )
         }
         .buttonStyle(.plain)
+        .fixedSize()
         .animation(reduceMotion ? nil : .snappy(duration: 0.15), value: selected)
         .accessibilityLabel(target.displayName)
         .accessibilityValue(selected ? "Selected" : (locked ? "Locked; select for details" : "Not selected"))

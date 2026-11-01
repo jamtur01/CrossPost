@@ -74,23 +74,27 @@ final class ComposeModelTests: XCTestCase {
 
     // MARK: handleCompletion — post-publish reconciliation
 
-    func testCounterShowsNetworkWithLeastRoom() {
+    func testCountersShowEachSelectedNetworksOwnLimit() {
         let store = AccountStore()
         let previous = store.mastodonMaxChars
         defer { store.mastodonMaxChars = previous }
         let model = ComposeModel(store: store)
-        store.mastodonMaxChars = 200
-        XCTAssertEqual(model.counter(for: DraftPost()), PostCounter(count: 0, limit: 200, label: "Mastodon"))
         store.mastodonMaxChars = 500
-        XCTAssertEqual(model.counter(for: DraftPost()).label, "Bluesky")
-        store.mastodonMaxChars = 300
-        XCTAssertEqual(model.counter(for: DraftPost()).label, "Both networks")
+        XCTAssertEqual(model.counters(for: DraftPost()), [
+            PostCounter(count: 0, limit: 500, label: "Mastodon"),
+            PostCounter(count: 0, limit: 300, label: "Bluesky")
+        ])
+        model.selectedTargets = [.mastodon]
+        XCTAssertEqual(model.counters(for: DraftPost()), [PostCounter(count: 0, limit: 500, label: "Mastodon")])
+        model.selectedTargets = []
+        XCTAssertEqual(model.counters(for: DraftPost(text: "hi")), [PostCounter(count: 2, limit: 300, label: nil)])
 
+        model.selectedTargets = [.mastodon, .bluesky]
         let person = MentionPerson(mastodonAcct: "pup@hachyderm.io", displayName: "Pup")
         let post = DraftPost(text: "@pup", mentions: [MentionSpan(location: 0, length: 4, person: person)])
-        XCTAssertEqual(model.counter(for: post), PostCounter(count: 4, limit: 300, label: "Mastodon"))
+        XCTAssertEqual(model.counters(for: post).map(\.count), [4, 3], "each network counts its own text")
         model.previewTarget = .bluesky
-        XCTAssertEqual(model.counter(for: post), PostCounter(count: 3, limit: 300, label: "Bluesky"))
+        XCTAssertEqual(model.counters(for: post), [PostCounter(count: 3, limit: 300, label: "Bluesky")])
     }
 
     func testDeselectingPreviewedNetworkReturnsToEdit() {
