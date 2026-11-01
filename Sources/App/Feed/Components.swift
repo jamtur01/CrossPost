@@ -173,22 +173,33 @@ struct RelativeTimestampFormat {
 
     let locale: Locale
     let calendar: Calendar
+    /// Named style, used only for "now".
+    private let nowFormatter: RelativeDateTimeFormatter
+    /// Numeric style for elapsed units. Named style would say "yesterday" for any
+    /// 24–48 hour interval, even one that spans two calendar days.
     private let spokenFormatter: RelativeDateTimeFormatter
 
     init(locale: Locale, calendar: Calendar) {
         self.locale = locale
         self.calendar = calendar
-        spokenFormatter = RelativeDateTimeFormatter()
-        spokenFormatter.dateTimeStyle = .named
-        spokenFormatter.unitsStyle = .full
-        spokenFormatter.locale = locale
-        spokenFormatter.calendar = calendar
+        nowFormatter = Self.formatter(.named, locale: locale, calendar: calendar)
+        spokenFormatter = Self.formatter(.numeric, locale: locale, calendar: calendar)
+    }
+
+    private static func formatter(_ style: RelativeDateTimeFormatter.DateTimeStyle,
+                                  locale: Locale, calendar: Calendar) -> RelativeDateTimeFormatter {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.dateTimeStyle = style
+        formatter.unitsStyle = .full
+        formatter.locale = locale
+        formatter.calendar = calendar
+        return formatter
     }
 
     /// The visible label: "now", "5m", "13h", "3d", "Oct 12", or "Oct 12, 2025".
     func compact(_ date: Date, relativeTo now: Date) -> String {
         switch Self.age(of: date, relativeTo: now) {
-        case .now: spokenFormatter.localizedString(from: DateComponents(second: 0))
+        case .now: nowFormatter.localizedString(from: DateComponents(second: 0))
         case let .minutes(count): units(count * 60, .minutes)
         case let .hours(count): units(count * 3600, .hours)
         case let .days(count): units(count * 86400, .days)
@@ -196,10 +207,10 @@ struct RelativeTimestampFormat {
         }
     }
 
-    /// The accessibility label: "now", "13 hours ago", "yesterday", or the long date.
+    /// The accessibility label: "now", "13 hours ago", "1 day ago", or the long date.
     func spoken(_ date: Date, relativeTo now: Date) -> String {
         switch Self.age(of: date, relativeTo: now) {
-        case .now: spokenFormatter.localizedString(from: DateComponents(second: 0))
+        case .now: nowFormatter.localizedString(from: DateComponents(second: 0))
         case let .minutes(count): spokenFormatter.localizedString(from: DateComponents(minute: -count))
         case let .hours(count): spokenFormatter.localizedString(from: DateComponents(hour: -count))
         case let .days(count): spokenFormatter.localizedString(from: DateComponents(day: -count))

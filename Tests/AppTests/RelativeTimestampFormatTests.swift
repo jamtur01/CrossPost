@@ -47,4 +47,14 @@ final class RelativeTimestampFormatTests: XCTestCase {
         XCTAssertEqual(format.spoken(now.addingTimeInterval(-3 * 86400), relativeTo: now), "3 days ago")
         XCTAssertEqual(format.spoken(now.addingTimeInterval(-8 * 86400), relativeTo: now), "October 24, 2026")
     }
+
+    /// A day-old interval can span two calendar days, so the spoken label states the
+    /// elapsed days like the visible "1d" rather than naming a day ("yesterday").
+    func testSpokenDaysCountElapsedTimeAcrossMidnight() {
+        let wednesdayOneAM = Date(timeIntervalSince1970: 1_793_754_000) // 2026-11-04 01:00 UTC
+        let mondayElevenPM = wednesdayOneAM.addingTimeInterval(-26 * 3600) // 2026-11-02 23:00 UTC
+        XCTAssertEqual(format.compact(mondayElevenPM, relativeTo: wednesdayOneAM), "1d")
+        XCTAssertEqual(format.spoken(mondayElevenPM, relativeTo: wednesdayOneAM), "1 day ago")
+        XCTAssertEqual(format.spoken(now.addingTimeInterval(-86400), relativeTo: now), "1 day ago")
+    }
 }
