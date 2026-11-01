@@ -158,13 +158,11 @@ struct ConversationView: View {
                 }
                 .scrollContentBackground(.hidden)
                 // The conversation takes the keyboard when opened; Return moves it to
-                // the message field, and Esc there brings it back.
+                // the message field (with or without messages), and Esc there brings it back.
                 .keyboardListNavigation(ids: model.messages.map(\.id),
-                                        initialSelection: model.messages.last?.id) { _ in
-                    // Return writes a message, so the keyboard stays in this view: take
-                    // back the hand-off the list makes for a pushed route.
-                    _ = keyboardFocus?.claim(panel.target)
-                    fieldFocused = true
+                                        initialSelection: model.messages.last?.id,
+                                        openWithoutSelection: focusMessageField) { _ in
+                    focusMessageField()
                 }
                 .onChange(of: model.messages.last?.id) {
                     if let last = model.messages.last {
@@ -184,6 +182,13 @@ struct ConversationView: View {
         .onDisappear {
             model.stop()
         }
+    }
+
+    /// Return writes a message, so the keyboard stays in this view: take back the
+    /// hand-off the list makes for a pushed route, then focus the field.
+    private func focusMessageField() {
+        _ = keyboardFocus?.claim(panel.target)
+        fieldFocused = true
     }
 
     /// Tappable header opening the other participant's profile.

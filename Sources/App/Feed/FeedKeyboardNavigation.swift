@@ -12,6 +12,8 @@ private struct KeyboardListNavigation: ViewModifier {
     /// The post a row is about, for R/L/B and the Post menu.
     let post: (String) -> FeedPost?
     let open: (String) -> Void
+    /// Return with no row to open, such as in an empty conversation.
+    let openWithoutSelection: (() -> Void)?
     /// R, L or B on a row that has a post.
     let act: (FeedKeyCommand, String) -> Void
 
@@ -77,7 +79,10 @@ private struct KeyboardListNavigation: ViewModifier {
         case .pageUp:
             show(FeedNavigation.page(forward: false, from: selection, in: ids, visible: visible), proxy)
         case .open:
-            guard let id = selectedID else { return }
+            guard let id = selectedID else {
+                openWithoutSelection?()
+                return
+            }
             handFocusToColumn()
             open(id)
         case .back:
@@ -147,9 +152,10 @@ extension View {
     func keyboardListNavigation(ids: [String], initialSelection: String? = nil,
                                 post: @escaping (String) -> FeedPost? = { _ in nil },
                                 act: @escaping (FeedKeyCommand, String) -> Void = { _, _ in },
+                                openWithoutSelection: (() -> Void)? = nil,
                                 open: @escaping (String) -> Void) -> some View {
-        modifier(KeyboardListNavigation(ids: ids, initialSelection: initialSelection,
-                                        post: post, open: open, act: act))
+        modifier(KeyboardListNavigation(ids: ids, initialSelection: initialSelection, post: post,
+                                        open: open, openWithoutSelection: openWithoutSelection, act: act))
     }
 
     /// Keyboard navigation for a list of posts whose likes and reposts belong to
