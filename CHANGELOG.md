@@ -47,6 +47,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The keyboard focus ring on the focused post uses your accent color at full
   strength (a little deeper in light mode), so it stands out on the white feed.
+- The Bookmarks and Likes lists load older posts as you scroll to the end,
+  until the network has no more, instead of stopping at the newest 80. A page
+  that fails to load keeps the posts already shown and offers **Try Again** at
+  the end of the list.
 - The composer's destinations are a flat footer under the last post instead of
   a separate card: each network's toggle sits beside its audience, and **Post**
   is a regular-size button at the trailing edge (still ⌘↩).
@@ -81,7 +85,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - The Bookmarks list on Bluesky was always empty. It now shows your Bluesky
-  bookmarks (up to the newest 80); bookmarks of deleted posts are left out.
+  bookmarks; bookmarks of deleted posts are left out.
 - Bluesky gallery embeds show their images.
 - When the home timeline or the Messages list failed to load, the error had no
   way to retry. Both now offer **Try Again**.

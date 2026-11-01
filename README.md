@@ -23,7 +23,8 @@ posts without leaving the window.
 - **Per-post actions** — reply (scoped to that one network), like/favourite,
   repost/boost, and bookmark from the action bar; the **…** menu holds delete and
   pin for your own posts, who liked or reposted, and open the original in your
-  browser. Each column's **…** menu opens your Bookmarks and Likes on that network.
+  browser. Each column's **…** menu opens your Bookmarks and Likes on that network;
+  older ones load as you scroll to the end of the list.
 - **Rich rendering** — inline images, animated GIFs and video, link preview cards,
   quoted posts, and clickable links and mentions. Boosts/reposts show a "boosted by"
   attribution.
