@@ -31,9 +31,11 @@ struct SentPost: Codable, Equatable, Sendable, Identifiable {
         copies.first { $0.target == target }
     }
 
-    /// The most posts any copy has published: the thread length readers can see.
-    var publishedCount: Int {
-        copies.map(\.postCount).max() ?? 0
+    /// How many posts every copy published, or nil when the networks differ (a
+    /// thread that stopped partway on one of them).
+    var commonPublishedCount: Int? {
+        let counts = Set(copies.map(\.postCount))
+        return counts.count == 1 ? counts.first : nil
     }
 
     /// True when both records hold the same published post on some network.
@@ -79,16 +81,40 @@ extension NativeRef {
 /// agent can read: `[{"id", "date", "text", "postCount", "copies": [{"target", "item",
 /// "date", "account", "postCount"}]}]`.
 struct SentHistoryStore: Sendable {
+    /// The history file exists but couldn't be read or decoded, for example one saved
+    /// by an earlier version without account names.
+    struct Unreadable: Error, CustomStringConvertible {
+        let underlying: any Error
+        var description: String {
+            "\(underlying)"
+        }
+    }
+
     static let limit = 50
     let url: URL
 
-    /// Saved sends. A missing file is empty; an unreadable one throws, so `record`
-    /// never replaces history it couldn't read.
+    /// Saved sends. A missing file is empty; an unreadable one throws `Unreadable`, so
+    /// `record` never replaces history it couldn't read.
     func load() throws -> [SentPost] {
         guard FileManager.default.fileExists(atPath: url.path) else { return [] }
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        return try decoder.decode([SentPost].self, from: Data(contentsOf: url))
+        do {
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            return try decoder.decode([SentPost].self, from: Data(contentsOf: url))
+        } catch {
+            throw Unreadable(underlying: error)
+        }
+    }
+
+    /// Renames an unreadable history file so a new history can start, keeping the old
+    /// one beside it, and returns where it went. Nothing is imported from it: its
+    /// sends can't be tied to an account.
+    func setAside(now: Date = .now) throws -> URL {
+        let stamp = now.formatted(.iso8601.year().month().day().time(includingFractionalSeconds: false)
+            .dateSeparator(.omitted).timeSeparator(.omitted))
+        let kept = url.deletingLastPathComponent().appending(path: "sent-history-unreadable-\(stamp).json")
+        try FileManager.default.moveItem(at: url, to: kept)
+        return kept
     }
 
     /// Records `post` and returns the saved history. A send that shares a copy with

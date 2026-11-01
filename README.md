@@ -43,7 +43,8 @@ posts without leaving the window.
   from the signed-in accounts, with each network's reply, repost, and like counts (read from your own recent posts
   when the list appears and on Refresh All). Click a network's counts to open that copy's
   thread in its column. The history is plain JSON (`sent-history.json`) in the app's
-  Application Support folder.
+  Application Support folder. If that file can't be read, **Start New History** keeps it under a new name
+  and starts a fresh one.
 - **Active draft recovery** — text, images, alt text, audiences, destinations, and partial
   thread progress are saved locally across quits.
 - **Automatic updates** via [Sparkle](https://sparkle-project.org), from this repo's

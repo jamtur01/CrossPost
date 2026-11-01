@@ -20,7 +20,7 @@ struct RecentPostsSection: View {
             }
             if !history.visiblePosts.isEmpty {
                 rows
-            } else if history.problem == nil {
+            } else if history.problem?.isError != true {
                 Text("Posts you send from CrossPost appear here.")
                     .font(Theme.timelineMeta)
                     .foregroundStyle(.secondary)
@@ -40,19 +40,37 @@ struct RecentPostsSection: View {
         }
     }
 
-    private func problemNotice(_ problem: String) -> some View {
+    private func problemNotice(_ problem: SentHistoryModel.Problem) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Label(problem, systemImage: "exclamationmark.triangle")
+            Label(problemMessage(problem), systemImage: problem.isError ? "exclamationmark.triangle" : "info.circle")
                 .font(Theme.timelineMeta)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
-            Button("Show History File") {
-                NSWorkspace.shared.activateFileViewerSelecting([history.fileURL])
+            HStack(spacing: 12) {
+                Button(problem.keptFile == nil ? "Show History File" : "Show Earlier File") {
+                    NSWorkspace.shared.activateFileViewerSelecting([problem.keptFile ?? history.fileURL])
+                }
+                if problem == .unreadable {
+                    Button("Start New History") { history.startNewHistory() }
+                        .help("Keep the unreadable file under a new name and start recording again")
+                }
             }
             .buttonStyle(.link)
             .font(Theme.timelineMeta)
         }
         .padding(.horizontal, 4)
+    }
+
+    private func problemMessage(_ problem: SentHistoryModel.Problem) -> String {
+        switch problem {
+        case .unreadable:
+            "Your post history couldn't be read (it may be from an earlier version of CrossPost), "
+                + "so new posts aren't being added to it. The file is unchanged."
+        case let .unsaved(message):
+            "This post couldn't be added to your post history (\(message)). The file is unchanged."
+        case let .setAside(url):
+            "Started a new post history. The earlier file is kept as \(url.lastPathComponent)."
+        }
     }
 
     private var rows: some View {
@@ -83,8 +101,13 @@ private struct RecentPostRow: View {
                     .lineLimit(2)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 HStack(spacing: 0) {
-                    if post.publishedCount > 1 {
-                        Text("Thread · \(post.publishedCount) posts · ")
+                    if let count = post.commonPublishedCount, count > 1 {
+                        Text("Thread · \(count) posts · ")
+                            .font(Theme.timelineMeta)
+                            .foregroundStyle(.secondary)
+                    } else if post.commonPublishedCount == nil {
+                        // Counts differ by network; each network's group states its own.
+                        Text("Thread · ")
                             .font(Theme.timelineMeta)
                             .foregroundStyle(.secondary)
                     }
@@ -111,11 +134,19 @@ private struct RecentPostRow: View {
         .accessibilityElement(children: .contain)
     }
 
+    /// A network's own post count, shown when its thread stopped partway or when the
+    /// networks landed different numbers of posts.
+    private func landedLabel(for copy: SentCopy) -> String? {
+        if copy.postCount < post.postCount {
+            return "\(copy.postCount) of \(post.postCount) posts"
+        }
+        guard post.commonPublishedCount == nil else { return nil }
+        return copy.postCount == 1 ? "1 post" : "\(copy.postCount) posts"
+    }
+
     private func networkGroups(_ groups: [(SentCopy, SentHistoryModel.CopyState)]) -> some View {
         ForEach(groups, id: \.0.target) { copy, state in
-            NetworkCounts(target: copy.target, state: state,
-                          shortfall: copy.postCount < post.postCount
-                              ? "\(copy.postCount) of \(post.postCount) posts" : nil)
+            NetworkCounts(target: copy.target, state: state, landed: landedLabel(for: copy))
         }
     }
 }
@@ -126,8 +157,8 @@ private struct NetworkCounts: View {
     static let inset: CGFloat = 6
     let target: PostTarget
     let state: SentHistoryModel.CopyState
-    /// Set when the thread stopped partway on this network, e.g. "1 of 4 posts".
-    let shortfall: String?
+    /// This network's post count when it differs from the row's, e.g. "1 of 4 posts".
+    let landed: String?
     @State private var hovering = false
 
     var body: some View {
@@ -142,7 +173,7 @@ private struct NetworkCounts: View {
             .onHover { hovering = $0 }
             .help("Open on \(target.displayName)")
             .accessibilityLabel("Open on \(target.displayName)")
-            .accessibilityValue([countsDescription(post), shortfall].compactMap(\.self).joined(separator: ". "))
+            .accessibilityValue([countsDescription(post), landed].compactMap(\.self).joined(separator: ". "))
         case .loading:
             marked {
                 RoundedRectangle(cornerRadius: Theme.skeletonCorner, style: .continuous)
@@ -151,7 +182,7 @@ private struct NetworkCounts: View {
                     .loadingSheen()
             }
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel(["\(target.displayName): loading", shortfall].compactMap(\.self)
+            .accessibilityLabel(["\(target.displayName): loading", landed].compactMap(\.self)
                 .joined(separator: ". "))
         case let .unreachable(message):
             status("—", accessibility: "unavailable. \(message)")
@@ -165,7 +196,7 @@ private struct NetworkCounts: View {
         }
     }
 
-    /// The network glyph in its accent, the group's content, then any shortfall.
+    /// The network glyph in its accent, the group's content, then its post count when shown.
     private func marked(@ViewBuilder _ content: () -> some View) -> some View {
         HStack(spacing: 7) {
             Image(systemName: target.glyph)
@@ -173,8 +204,8 @@ private struct NetworkCounts: View {
                 .foregroundStyle(target.accent)
                 .accessibilityHidden(true)
             content()
-            if let shortfall {
-                Text("· \(shortfall)")
+            if let landed {
+                Text("· \(landed)")
                     .font(Theme.timelineMeta)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -208,7 +239,7 @@ private struct NetworkCounts: View {
                 .lineLimit(1)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(["\(target.displayName): \(accessibility ?? text)", shortfall]
+        .accessibilityLabel(["\(target.displayName): \(accessibility ?? text)", landed]
             .compactMap(\.self).joined(separator: ". "))
     }
 
@@ -237,3 +268,21 @@ extension Notification.Name {
 
 /// userInfo key carrying the `FeedPost` for `openFeedPost`.
 let feedPostKey = "feedPost"
+
+private extension SentHistoryModel.Problem {
+    var isError: Bool {
+        if case .setAside = self {
+            false
+        } else {
+            true
+        }
+    }
+
+    var keptFile: URL? {
+        if case let .setAside(url) = self {
+            url
+        } else {
+            nil
+        }
+    }
+}

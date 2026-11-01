@@ -19,6 +19,13 @@ final class SentHistoryStoreTests: XCTestCase {
         XCTAssertThrowsError(try store.load())
         XCTAssertThrowsError(try store.record(sent("new", copies: [mastodon("1")])))
         XCTAssertEqual(try Data(contentsOf: store.url), unreadable)
+
+        // Starting over keeps the old file, byte for byte, beside the new history.
+        let kept = try store.setAside()
+        XCTAssertEqual(try Data(contentsOf: kept), unreadable)
+        XCTAssertEqual(kept.deletingLastPathComponent(), store.url.deletingLastPathComponent())
+        try store.record(sent("new", copies: [mastodon("1")]))
+        XCTAssertEqual(try store.load().map(\.text), ["new"])
     }
 
     func testRecordsNewestFirstAndRoundTripsBothNetworks() throws {
@@ -51,7 +58,7 @@ final class SentHistoryStoreTests: XCTestCase {
                                copies: [mastodon("1", posts: 1)])
         try store.record(partial)
         try store.record(sent("unrelated", copies: [bluesky("z")]))
-        XCTAssertEqual(partial.publishedCount, 1, "a thread that stopped after one post shows one")
+        XCTAssertEqual(partial.commonPublishedCount, 1, "a thread that stopped after one post shows one")
         let retryDate = start.addingTimeInterval(600)
         let retry = SentPost(id: UUID(), date: retryDate, text: "cross", postCount: 2,
                              copies: [mastodon("1", at: retryDate, posts: 2), bluesky("a", at: retryDate, posts: 2)])
@@ -65,7 +72,11 @@ final class SentHistoryStoreTests: XCTestCase {
         XCTAssertEqual(merged.copy(on: .mastodon)?.date, start, "unchanged copy keeps its landing date")
         XCTAssertEqual(merged.copy(on: .mastodon)?.postCount, 2, "the retry's landed posts are counted")
         XCTAssertEqual(merged.copy(on: .bluesky)?.date, retryDate)
-        XCTAssertEqual(merged.publishedCount, 2)
+        XCTAssertEqual(merged.commonPublishedCount, 2)
+
+        let uneven = SentPost(id: UUID(), date: start, text: "uneven", postCount: 4,
+                              copies: [mastodon("7", posts: 4), bluesky("7", posts: 1)])
+        XCTAssertNil(uneven.commonPublishedCount, "networks that landed different counts share none")
     }
 
     /// Mastodon status ids are per server, so the same id from another account is a

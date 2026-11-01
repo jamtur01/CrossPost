@@ -166,7 +166,19 @@ final class ComposeCompletionTests: XCTestCase {
             posted: [PostedItem(url: "https://example/1", ref: .mastodon(statusID: "1"))]
         ))])
         XCTAssertEqual(try Data(contentsOf: historyStore.url), unreadable)
-        XCTAssertNotNil(model.history.problem)
+        XCTAssertEqual(model.history.problem, .unreadable)
+
+        model.history.startNewHistory()
+        guard case let .setAside(kept)? = model.history.problem else {
+            return XCTFail("expected the unreadable file to be kept")
+        }
+        XCTAssertEqual(try Data(contentsOf: kept), unreadable)
+        model.thread[0].text = "Next post"
+        model.handleCompletion([PostResult(target: .mastodon, outcome: .success(
+            posted: [PostedItem(url: "https://example/2", ref: .mastodon(statusID: "2"))]
+        ))])
+        XCTAssertEqual(try historyStore.load().map(\.text), ["Next post"])
+        XCTAssertNil(model.history.problem)
     }
 
     private var successes: [PostResult] {

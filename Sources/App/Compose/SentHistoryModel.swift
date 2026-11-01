@@ -24,8 +24,15 @@ final class SentHistoryModel {
     /// The signed-in account per network, as of the last refresh.
     private(set) var accounts: [PostTarget: String] = [:]
     private(set) var recent: [PostTarget: RecentPosts] = [:]
-    /// Why the history file couldn't be read or saved; the file is left as it was.
-    private(set) var problem: String?
+    /// Why the history file couldn't be read or saved (the file is left as it was),
+    /// or where an unreadable file was kept when a new history was started.
+    enum Problem: Equatable {
+        case unreadable
+        case unsaved(String)
+        case setAside(URL)
+    }
+
+    private(set) var problem: Problem?
     @ObservationIgnored private var fetches: [PostTarget: Task<Void, Never>] = [:]
     private let store: SentHistoryStore
     private let account: @MainActor (PostTarget) -> String?
@@ -43,8 +50,7 @@ final class SentHistoryModel {
             posts = try store.load()
         } catch {
             Log.history.error("Couldn't read sent history at \(store.url.path, privacy: .public): \(error)")
-            problem = "Your post history couldn't be read, so new posts aren't being added to it. "
-                + "The file is unchanged."
+            problem = .unreadable
         }
     }
 
@@ -70,8 +76,23 @@ final class SentHistoryModel {
         } catch {
             let path = store.url.path
             Log.history.error("Couldn't save sent history at \(path, privacy: .public): \(error)")
-            problem = "This post couldn't be added to your post history (\(error.userMessage)). "
-                + "The file is unchanged."
+            problem = error is SentHistoryStore.Unreadable ? .unreadable : .unsaved(error.userMessage)
+        }
+    }
+
+    /// Keeps an unreadable history file under a new name and starts an empty history,
+    /// so new sends are recorded again. The old file's sends aren't imported.
+    func startNewHistory() {
+        do {
+            let kept = try store.setAside()
+            Log.history.info("Kept unreadable sent history as \(kept.path, privacy: .public)")
+            posts = []
+            problem = .setAside(kept)
+            refresh()
+        } catch {
+            let path = store.url.path
+            Log.history.error("Couldn't set aside sent history at \(path, privacy: .public): \(error)")
+            problem = .unsaved(error.userMessage)
         }
     }
 

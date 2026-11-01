@@ -18,8 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   each network's reply, repost, and like counts; clicking a network's counts
   opens that copy's thread. Only the signed-in accounts' posts are listed. A
   thread that stopped partway shows how many of its posts each network has
-  (for example "1 of 4 posts"). If the history file can't be read, the composer
-  says so and leaves the file as it is.
+  (for example "1 of 4 posts"). If the history file can't be read (such as one
+  saved by an earlier build), the composer says so and leaves the file as it is;
+  **Start New History** keeps it under a new name and starts recording again.
 
 ### Changed
 
