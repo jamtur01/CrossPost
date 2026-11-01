@@ -33,6 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   R/L/B act on its post. In Search, Esc in the field moves to the results. In a
   conversation, Return moves to the message field and Esc moves back. ←/→ into
   a column showing Notifications or Messages now lands on that list.
+- Notification rows that show a post have a **Bookmark** button after Like,
+  drawn like the one in the post action bar.
 
 ### Changed
 

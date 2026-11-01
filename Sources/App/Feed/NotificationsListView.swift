@@ -167,8 +167,16 @@ private struct NotificationRow: View {
 
     // MARK: Actions
 
+    /// The narrower gap keeps Follow on one line in a minimum-width column.
     private var actionBar: some View {
-        HStack(spacing: 18) {
+        ViewThatFits(in: .horizontal) {
+            actionRow(spacing: 18)
+            actionRow(spacing: Theme.actionGapNarrow)
+        }
+    }
+
+    private func actionRow(spacing: CGFloat) -> some View {
+        HStack(spacing: spacing) {
             if let post = livePost {
                 postActionButton("arrowshape.turn.up.left", tint: accent, help: "Reply",
                                  compact: true) { onReply(post) }
@@ -183,6 +191,9 @@ private struct NotificationRow: View {
                 postActionButton(post.isLiked ? "heart.fill" : "heart", active: post.isLiked,
                                  tint: Theme.likeTint, help: post.isLiked ? "Unlike" : "Like",
                                  compact: true, action: toggleLike)
+                postActionButton(post.isBookmarked ? "bookmark.fill" : "bookmark", active: post.isBookmarked,
+                                 tint: .primary, help: post.isBookmarked ? "Remove Bookmark" : "Bookmark",
+                                 compact: true, action: toggleBookmark)
             }
             if !isOwnActor {
                 followButton
@@ -204,6 +215,7 @@ private struct NotificationRow: View {
                 Image(systemName: isFollowing ? "checkmark" : "person.badge.plus")
                 Text(isFollowing ? "Following" : "Follow")
             }
+            .fixedSize()
             .font(.system(size: 11, weight: .semibold))
             .foregroundStyle(isFollowing ? .secondary : accent)
             .contentShape(Rectangle())
@@ -217,55 +229,45 @@ private struct NotificationRow: View {
     }
 
     private func toggleLike() {
-        guard !isMutating, var optimistic = livePost,
-              model.beginNotificationPostMutation(optimistic.id) else { return }
-        isMutating = true
-        mutatingPostID = optimistic.id
-        let original = optimistic
-        optimistic.isLiked.toggle()
-        optimistic.likeCount = max(0, optimistic.likeCount + (optimistic.isLiked ? 1 : -1))
-        post = optimistic
-        let generation = model.mutationGeneration
-        actionOwner.startPostMutation(
-            isCurrent: { model.mutationGeneration == generation },
-            operation: {
-                try await model.remoteSetLiked(
-                    optimistic.isLiked,
-                    on: optimistic,
-                    generation: generation
-                )
-            },
-            onSuccess: {
-                post = $0
-                model.updateNotificationPosts(with: $0)
-            },
-            onFailure: {
-                post = original
-                model.reportError($0.userMessage)
-            },
-            onFinish: finishPostMutation
-        )
+        mutatePost { optimistic in
+            optimistic.isLiked.toggle()
+            optimistic.likeCount = max(0, optimistic.likeCount + (optimistic.isLiked ? 1 : -1))
+        } remote: { post, generation in
+            try await model.remoteSetLiked(post.isLiked, on: post, generation: generation)
+        }
     }
 
     private func toggleRepost() {
+        mutatePost { optimistic in
+            optimistic.isReposted.toggle()
+            optimistic.repostCount = max(0, optimistic.repostCount + (optimistic.isReposted ? 1 : -1))
+        } remote: { post, generation in
+            try await model.remoteSetReposted(post.isReposted, on: post, generation: generation)
+        }
+    }
+
+    private func toggleBookmark() {
+        mutatePost { $0.isBookmarked.toggle() } remote: { post, generation in
+            try await model.remoteSetBookmarked(post.isBookmarked, on: post, generation: generation)
+        }
+    }
+
+    /// Shows `change` at once, sends it with `remote`, then keeps the confirmed post
+    /// (and writes it into every notification showing it) or rolls back on failure.
+    /// One mutation per post at a time across rows.
+    private func mutatePost(_ change: (inout FeedPost) -> Void,
+                            remote: @escaping @MainActor (FeedPost, UInt) async throws -> FeedPost) {
         guard !isMutating, var optimistic = livePost,
               model.beginNotificationPostMutation(optimistic.id) else { return }
         isMutating = true
         mutatingPostID = optimistic.id
         let original = optimistic
-        optimistic.isReposted.toggle()
-        optimistic.repostCount = max(0, optimistic.repostCount + (optimistic.isReposted ? 1 : -1))
+        change(&optimistic)
         post = optimistic
         let generation = model.mutationGeneration
         actionOwner.startPostMutation(
             isCurrent: { model.mutationGeneration == generation },
-            operation: {
-                try await model.remoteSetReposted(
-                    optimistic.isReposted,
-                    on: optimistic,
-                    generation: generation
-                )
-            },
+            operation: { [optimistic] in try await remote(optimistic, generation) },
             onSuccess: {
                 post = $0
                 model.updateNotificationPosts(with: $0)

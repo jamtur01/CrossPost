@@ -239,7 +239,7 @@ Native button styles throughout; CrossPost does not draw its own button chrome.
 - **Primary:** `.borderedProminent`. The composer's Post button is regular size in the system accent, aligned trailing in the composer footer, with ⌘↩. Network-scoped primaries (Follow, Open Settings) are tinted with that network's accent.
 - **Hover / Focus:** system-provided; focus rings are the system's.
 - **Secondary / Ghost:** `.bordered` `.small` for secondary profile actions and Try Again; `.borderless` for header icons and "Add post to thread".
-- **Post actions:** plain SF Symbol buttons (13.5px) in secondary gray with a 28 × 28 hit area and an optional compact count. The bar is Reply, Repost, Like, then Bookmark and the "…" menu trailing; Open in Browser lives in that menu. Engaged Like and Repost take pink and green and fire a trackpad haptic tick; an engaged Bookmark draws `bookmark.fill` bold in primary label color.
+- **Post actions:** plain SF Symbol buttons (13.5px) in secondary gray with a 28 × 28 hit area and an optional compact count. The bar is Reply, Repost, Like, then Bookmark and the "…" menu trailing; Open in Browser lives in that menu. Engaged Like and Repost take pink and green and fire a trackpad haptic tick; an engaged Bookmark draws `bookmark.fill` bold in primary label color. Notification rows that show a post carry a compact bar (13px icons): Reply, Repost, Like, Bookmark, then Follow, 18px apart, or 12px when a narrow column can't fit that.
 
 ### Chips
 - **Style:** the composer's target pills. A capsule with 8 × 6 padding, a 12px symbol, and 12px medium text. Selected: network accent at 10% fill and 30% stroke with `checkmark.circle.fill`. Unselected: hover fill with hairline stroke and an empty circle. Locked: `lock.circle`.
