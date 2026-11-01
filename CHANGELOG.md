@@ -18,11 +18,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Deleting a post now asks for confirmation, naming the network it is deleted
   from.
+- The action bar's **Open in Browser** button uses the Safari compass instead
+  of the share arrow, matching the post's overflow menu.
+- A liked or reposted action draws its symbol in a heavier weight, so the
+  engaged state no longer relies on color alone.
 
 ### Fixed
 
 - When the home timeline or the Messages list failed to load, the error had no
   way to retry. Both now offer **Try Again**.
+- In narrow columns, like and repost counts wrapped onto several lines. They
+  now stay on one line, and the action bar tightens its spacing to fit.
+- The row hover highlight, the composer's image drop highlight, the image
+  viewer, and a conversation's scroll to its newest message now respect
+  Reduce Motion.
 
 ## [0.5.1] - 2026-10-27
 
