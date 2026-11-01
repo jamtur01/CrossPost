@@ -13,3 +13,12 @@ Tests/**/CLAUDE.md
 
 # Local code-signing identity override (see Local.xcconfig.example)
 Local.xcconfig
+
+# Local agent and design-tool state
+.agents/
+.claude/
+.codex/
+.github/agents/
+.github/hooks/
+.github/skills/
+.impeccable/critique/
