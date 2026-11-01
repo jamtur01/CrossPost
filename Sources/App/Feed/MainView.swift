@@ -72,7 +72,6 @@ struct MainView: View {
                     Label("Refresh All", systemImage: "arrow.clockwise")
                 }
                 .help("Refresh both feeds (⌘R)")
-                .keyboardShortcut("r", modifiers: .command)
 
                 SettingsLink {
                     Label("Settings", systemImage: "gearshape")
