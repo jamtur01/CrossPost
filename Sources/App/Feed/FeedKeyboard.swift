@@ -1,42 +1,123 @@
 import SwiftUI
 
-/// Something the keyboard can do in a focused feed list.
+/// Something the keyboard can do in a focused list.
 enum FeedKeyCommand: Equatable {
     case next, previous, pageDown, pageUp
     case open, back
     case reply, like, repost
-    /// Moves the keyboard to a network's feed column.
+    /// Moves the keyboard to a network's column.
     case focus(PostTarget)
 
-    /// The command for a key pressed in a focused feed list, or nil when the key is
+    /// The command for a key pressed in a focused list, or nil when the key is
     /// unbound. Nothing fires with ⌘, ⌃ or ⌥ held, so menu shortcuts keep their keys,
     /// and Delete is never bound.
     init?(key: KeyEquivalent, characters: String, modifiers: EventModifiers) {
         guard modifiers.isDisjoint(with: [.command, .control, .option]) else { return nil }
-        let shifted = modifiers.contains(.shift)
-        if key == .space {
-            self = shifted ? .pageUp : .pageDown
-            return
+        let shift = modifiers.intersection(.shift)
+        var pressed = [ShortcutKey(key, shift)]
+        // Caps Lock sends capitals without Shift; they mean the same key.
+        if characters.count == 1, let typed = characters.lowercased().first {
+            pressed.append(ShortcutKey(KeyEquivalent(typed), shift))
         }
-        guard !shifted else { return nil }
+        guard let match = Self.bindings.first(where: { $0.keys.contains(where: pressed.contains) }) else {
+            return nil
+        }
+        self = match.command
+    }
+
+    /// The keys a command answers to: the one table behind the key handling, the Post
+    /// menu's titles, and the Keyboard Shortcuts panel, so none can drift.
+    static let bindings: [FeedKeyBinding] = [
+        FeedKeyBinding(.next, ShortcutKey("j"), ShortcutKey(.downArrow)),
+        FeedKeyBinding(.previous, ShortcutKey("k"), ShortcutKey(.upArrow)),
+        FeedKeyBinding(.pageDown, ShortcutKey(.space)),
+        FeedKeyBinding(.pageUp, ShortcutKey(.space, .shift)),
+        FeedKeyBinding(.open, ShortcutKey(.return)),
+        FeedKeyBinding(.back, ShortcutKey(.escape)),
+        FeedKeyBinding(.reply, ShortcutKey("r")),
+        FeedKeyBinding(.like, ShortcutKey("l")),
+        FeedKeyBinding(.repost, ShortcutKey("b")),
+        FeedKeyBinding(.focus(.mastodon), ShortcutKey(.leftArrow)),
+        FeedKeyBinding(.focus(.bluesky), ShortcutKey(.rightArrow))
+    ]
+
+    /// The command's keys as menu text, such as "J or ↓".
+    var keysLabel: String {
+        let keys = Self.bindings.first { $0.command == self }?.keys ?? []
+        return keys.map(\.text).joined(separator: " or ")
+    }
+
+    /// R, L and B act on a post, so they need a row that has one.
+    var needsPost: Bool {
+        switch self {
+        case .reply, .like, .repost: true
+        case .next, .previous, .pageDown, .pageUp, .open, .back, .focus: false
+        }
+    }
+}
+
+/// One `FeedKeyCommand` and the keys bound to it.
+struct FeedKeyBinding {
+    let command: FeedKeyCommand
+    let keys: [ShortcutKey]
+
+    init(_ command: FeedKeyCommand, _ keys: ShortcutKey...) {
+        self.command = command
+        self.keys = keys
+    }
+}
+
+/// A key and the modifiers held with it, as a binding names it and the Keyboard
+/// Shortcuts panel draws it.
+struct ShortcutKey: Equatable {
+    let key: KeyEquivalent
+    let modifiers: EventModifiers
+
+    init(_ key: KeyEquivalent, _ modifiers: EventModifiers = []) {
+        self.key = key
+        self.modifiers = modifiers
+    }
+
+    init(_ shortcut: KeyboardShortcut) {
+        self.init(shortcut.key, shortcut.modifiers)
+    }
+
+    /// A modifier as a menu glyph, an SF Symbol, and a spoken word.
+    struct Modifier {
+        let flag: EventModifiers
+        let glyph: String
+        let symbol: String
+        let spoken: String
+    }
+
+    /// The held modifiers in the menu bar's order: ⌃ ⌥ ⇧ ⌘.
+    var heldModifiers: [Modifier] {
+        let all = [
+            Modifier(flag: .control, glyph: "⌃", symbol: "control", spoken: "Control"),
+            Modifier(flag: .option, glyph: "⌥", symbol: "option", spoken: "Option"),
+            Modifier(flag: .shift, glyph: "⇧", symbol: "shift", spoken: "Shift"),
+            Modifier(flag: .command, glyph: "⌘", symbol: "command", spoken: "Command")
+        ]
+        return all.filter { modifiers.contains($0.flag) }
+    }
+
+    /// The key's name as text: a capital letter, an arrow, or a word.
+    var keyName: String {
         switch key {
-        case .downArrow: self = .next
-        case .upArrow: self = .previous
-        case .leftArrow: self = .focus(.mastodon)
-        case .rightArrow: self = .focus(.bluesky)
-        case .return: self = .open
-        case .escape: self = .back
-        default:
-            // Caps Lock sends capitals without Shift; they mean the same key.
-            switch characters.lowercased() {
-            case "j": self = .next
-            case "k": self = .previous
-            case "r": self = .reply
-            case "l": self = .like
-            case "b": self = .repost
-            default: return nil
-            }
+        case .space: "Space"
+        case .return: "Return"
+        case .escape: "Esc"
+        case .upArrow: "↑"
+        case .downArrow: "↓"
+        case .leftArrow: "←"
+        case .rightArrow: "→"
+        default: String(key.character).uppercased()
         }
+    }
+
+    /// The whole shortcut as text, such as "⇧Space" or "⌘N".
+    var text: String {
+        heldModifiers.map(\.glyph).joined() + keyName
     }
 }
 
@@ -123,7 +204,7 @@ final class FeedKeyboardFocus {
     }
 }
 
-/// What a post list needs from its column to take part in keyboard navigation.
+/// What a list needs from its column to take part in keyboard navigation.
 struct FeedListContext {
     let target: PostTarget
     /// True for the list on top of the column's route stack.
@@ -132,8 +213,11 @@ struct FeedListContext {
     let pop: (() -> Void)?
 }
 
-/// The focused feed list's commands, for the Post menu.
+/// The focused list's commands, for the Post menu.
 struct FeedListCommands {
+    let hasSelection: Bool
+    /// The post the focused row is about; nil for a row without one (a follow, a person,
+    /// a conversation).
     let selectedPost: FeedPost?
     let canGoBack: Bool
     let perform: (FeedKeyCommand) -> Void
@@ -148,10 +232,10 @@ extension FocusedValues {
 
 extension EnvironmentValues {
     @Entry var feedListContext: FeedListContext?
-    /// The post that draws the keyboard focus ring: set only while its list has focus.
-    @Entry var keyboardFocusedPostID: String?
+    /// The row that draws the keyboard focus ring: set only while its list has focus.
+    @Entry var keyboardFocusedRowID: String?
     /// Lets a clicked row take its list's keyboard focus.
-    @Entry var selectFeedPost: StableAction<String>?
+    @Entry var selectKeyboardRow: StableAction<String>?
     /// Escape in the composer's editor: hands the keyboard back to the last feed.
     @Entry var composerEscape: StableAction<Void>?
 }

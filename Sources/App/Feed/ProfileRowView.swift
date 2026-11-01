@@ -6,8 +6,14 @@ struct ProfileRowView: View {
     let profile: Profile
     let onTap: () -> Void
 
+    @Environment(\.selectKeyboardRow) private var selectKeyboardRow
+
     var body: some View {
-        Button(action: onTap) {
+        Button {
+            // In a keyboard list, the opened row keeps the focus for when Back returns.
+            selectKeyboardRow?(profile.id)
+            onTap()
+        } label: {
             HStack(alignment: .top, spacing: Theme.gutter) {
                 AvatarView(url: profile.avatarURL, size: Theme.avatarSmall)
 

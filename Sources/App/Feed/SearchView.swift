@@ -19,6 +19,8 @@ struct SearchView: View {
     // for an identical retyped query from the current one.
     @State private var searchGeneration = 0
     @FocusState private var fieldFocused: Bool
+    @Environment(FeedKeyboardFocus.self) private var keyboardFocus: FeedKeyboardFocus?
+    @Environment(\.feedListContext) private var listContext
 
     private var accent: Color {
         panel.target.accent
@@ -38,7 +40,8 @@ struct SearchView: View {
             content
         }
         .background(Color(nsColor: .textBackgroundColor))
-        .onAppear { fieldFocused = true }
+        // Coming back from a result leaves the keyboard on the results.
+        .onAppear { fieldFocused = results.isEmpty }
         .onDisappear { stop() }
         .sheet(item: $replyTarget) { target in
             ReplySheet(model: ReplyModel(post: target, store: store)) { replyTarget = nil }
@@ -52,6 +55,7 @@ struct SearchView: View {
                 .textFieldStyle(.plain)
                 .focused($fieldFocused)
                 .onChange(of: query) { _, newValue in scheduleSearch(newValue) }
+                .onExitCommand(perform: leaveField)
             if !query.isEmpty {
                 Button { query = "" } label: {
                     Image(systemName: "xmark.circle.fill").foregroundStyle(.tertiary)
@@ -87,6 +91,7 @@ struct SearchView: View {
                             ProfileRowView(profile: profile) {
                                 push(.profile(profile.profileRef()))
                             }
+                            .keyboardFocusIndicator(id: profile.id)
                         }
                     }
                     if !postList.posts.isEmpty {
@@ -94,8 +99,39 @@ struct SearchView: View {
                         ForEach(postList.posts) { post in postRow(post) }
                     }
                 }
+                .scrollTargetLayout()
             }
             .scrollContentBackground(.hidden)
+            .keyboardListNavigation(
+                ids: results.accounts.map(\.id) + postList.posts.map(\.id),
+                post: post(withID:),
+                act: { command, id in
+                    post(withID: id).map { performPostKey(command, on: $0, hosts: [postList]) { replyTarget = $0 } }
+                },
+                open: open
+            )
+        }
+    }
+
+    private func post(withID id: String) -> FeedPost? {
+        postList.posts.first { $0.id == id }
+    }
+
+    private func open(_ id: String) {
+        if let profile = results.accounts.first(where: { $0.id == id }) {
+            push(.profile(profile.profileRef()))
+        } else if let post = post(withID: id) {
+            push(.thread(post))
+        }
+    }
+
+    /// Esc in the field moves the keyboard to the results, or leaves Search when
+    /// there are none.
+    private func leaveField() {
+        if results.isEmpty {
+            listContext?.pop?()
+        } else {
+            keyboardFocus?.request(panel.target)
         }
     }
 

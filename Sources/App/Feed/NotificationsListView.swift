@@ -6,6 +6,10 @@ struct NotificationsListView: View {
     let push: (FeedRoute) -> Void
     let onReply: (FeedPost) -> Void
 
+    /// The last R/L/B pressed, for the focused row to act on: the row holds the post's
+    /// optimistic like and repost state, so it runs the same toggles as its buttons.
+    @State private var keyPress: NotificationKeyPress?
+
     private var accent: Color {
         model.target.accent
     }
@@ -21,14 +25,40 @@ struct NotificationsListView: View {
             ScrollView {
                 LazyVStack(spacing: 0) {
                     ForEach(model.notifications) { notification in
-                        NotificationRow(notification: notification, accent: accent,
-                                        model: model, push: push, onReply: onReply)
+                        NotificationRow(notification: notification, accent: accent, model: model,
+                                        keyPress: keyPress, push: push, onReply: onReply)
                         Divider().opacity(0.5)
                     }
                 }
+                .scrollTargetLayout()
             }
             .scrollContentBackground(.hidden)
+            .keyboardListNavigation(
+                ids: model.notifications.map(\.id),
+                post: { notification($0)?.post },
+                act: { command, id in
+                    keyPress = NotificationKeyPress(id: id, command: command, serial: (keyPress?.serial ?? 0) + 1)
+                },
+                open: { id in notification(id).map { push($0.post.map(FeedRoute.thread) ?? .profile($0.actorRef)) } }
+            )
         }
+    }
+
+    private func notification(_ id: String) -> FeedNotification? {
+        model.notifications.first { $0.id == id }
+    }
+}
+
+/// A key pressed on a notification row; `serial` makes a repeat press a new value.
+struct NotificationKeyPress: Equatable {
+    let id: String
+    let command: FeedKeyCommand
+    let serial: Int
+}
+
+private extension FeedNotification {
+    var actorRef: ProfileRef {
+        ProfileRef(id: actorID, handle: actorHandle, name: actorName, avatar: avatarURL)
     }
 }
 
@@ -36,9 +66,11 @@ private struct NotificationRow: View {
     let notification: FeedNotification
     let accent: Color
     let model: FeedPanelModel
+    let keyPress: NotificationKeyPress?
     let push: (FeedRoute) -> Void
     let onReply: (FeedPost) -> Void
 
+    @Environment(\.selectKeyboardRow) private var selectKeyboardRow
     @State private var hovering = false
     // Optimistic like/repost state for the referenced post (nil → use the
     // notification's snapshot). Held so repeated toggles keep the record URIs.
@@ -95,11 +127,16 @@ private struct NotificationRow: View {
         }
         .padding(.horizontal, Theme.rowPaddingH).padding(.vertical, 10)
         .background(hovering ? Theme.hoverFill : .clear)
+        .keyboardFocusIndicator(id: notification.id)
         .contentShape(Rectangle())
         .onTapGesture(perform: openPost)
         .onHover { hovering = $0 }
         .onChange(of: notification.post) {
             adoptSnapshot()
+        }
+        .onChange(of: keyPress) {
+            guard let keyPress, keyPress.id == notification.id else { return }
+            perform(keyPress.command)
         }
         .onDisappear(perform: endLifecycle)
     }
@@ -108,20 +145,23 @@ private struct NotificationRow: View {
         model.isOwnAccount(id: notification.actorID, handle: notification.actorHandle)
     }
 
-    private var actorRef: ProfileRef {
-        ProfileRef(id: notification.actorID, handle: notification.actorHandle,
-                   name: notification.actorName, avatar: notification.avatarURL)
-    }
-
+    /// Opening a row also gives it the list's keyboard focus, so Back returns to it.
     private func openProfile() {
-        push(.profile(actorRef))
+        selectKeyboardRow?(notification.id)
+        push(.profile(notification.actorRef))
     }
 
     private func openPost() {
-        if let post = livePost {
-            push(.thread(post))
-        } else {
-            push(.profile(actorRef))
+        selectKeyboardRow?(notification.id)
+        push(livePost.map(FeedRoute.thread) ?? .profile(notification.actorRef))
+    }
+
+    private func perform(_ command: FeedKeyCommand) {
+        switch command {
+        case .reply: livePost.map(onReply)
+        case .like: toggleLike()
+        case .repost: toggleRepost()
+        case .next, .previous, .pageDown, .pageUp, .open, .back, .focus: break
         }
     }
 

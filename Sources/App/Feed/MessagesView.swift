@@ -35,21 +35,38 @@ struct MessagesListView: View {
             ScrollView {
                 LazyVStack(spacing: 0) {
                     ForEach(model.conversations) { convo in
-                        row(convo)
+                        ConversationRow(convo: convo, accent: model.target.accent, push: push)
                         Divider().opacity(0.5)
                     }
                 }
+                .scrollTargetLayout()
             }
             .scrollContentBackground(.hidden)
+            .keyboardListNavigation(ids: model.conversations.map(\.id)) { id in
+                model.conversations.first { $0.id == id }.map { push(.conversation($0)) }
+            }
         }
     }
 
     private func emptyState(_ symbol: String, _ text: String) -> some View {
         EmptyStateView(text: text, systemImage: symbol)
     }
+}
 
-    private func row(_ convo: Conversation) -> some View {
-        Button { push(.conversation(convo)) } label: {
+/// One conversation in the list: the other person, the last message, and an unread dot.
+private struct ConversationRow: View {
+    let convo: Conversation
+    let accent: Color
+    let push: (FeedRoute) -> Void
+
+    @Environment(\.selectKeyboardRow) private var selectKeyboardRow
+
+    var body: some View {
+        Button {
+            // The opened row keeps the list's keyboard focus for when Back returns.
+            selectKeyboardRow?(convo.id)
+            push(.conversation(convo))
+        } label: {
             HStack(spacing: Theme.gutter) {
                 AvatarView(url: convo.otherAvatarURL, size: 44)
 
@@ -67,13 +84,14 @@ struct MessagesListView: View {
                         .lineLimit(2)
                 }
                 if convo.unreadCount > 0 {
-                    Circle().fill(model.target.accent).frame(width: 8, height: 8)
+                    Circle().fill(accent).frame(width: 8, height: 8)
                 }
             }
             .padding(.horizontal, Theme.rowPaddingH).padding(.vertical, 10)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .keyboardFocusIndicator(id: convo.id)
     }
 }
 
@@ -84,7 +102,9 @@ struct ConversationView: View {
     let push: (FeedRoute) -> Void
 
     @State private var model: ConversationModel
+    @FocusState private var fieldFocused: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(FeedKeyboardFocus.self) private var keyboardFocus: FeedKeyboardFocus?
 
     init(
         panel: FeedPanelModel,
@@ -132,10 +152,20 @@ struct ConversationView: View {
                             bubble(message).id(message.id)
                         }
                     }
+                    .scrollTargetLayout()
                     .padding(.horizontal, 12)
                     .padding(.vertical, 10)
                 }
                 .scrollContentBackground(.hidden)
+                // The conversation takes the keyboard when opened; Return moves it to
+                // the message field, and Esc there brings it back.
+                .keyboardListNavigation(ids: model.messages.map(\.id),
+                                        initialSelection: model.messages.last?.id) { _ in
+                    // Return writes a message, so the keyboard stays in this view: take
+                    // back the hand-off the list makes for a pushed route.
+                    _ = keyboardFocus?.claim(panel.target)
+                    fieldFocused = true
+                }
                 .onChange(of: model.messages.last?.id) {
                     if let last = model.messages.last {
                         withAnimation(reduceMotion ? nil : .default) {
@@ -202,6 +232,10 @@ struct ConversationView: View {
                 .padding(.horizontal, 4)
         }
         .frame(maxWidth: .infinity, alignment: message.isFromMe ? .trailing : .leading)
+        // The ring sits just outside the bubble rather than over its edge.
+        .padding(6)
+        .keyboardFocusIndicator(id: message.id)
+        .padding(-6)
     }
 
     private func composer(draft: Binding<String>) -> some View {
@@ -224,7 +258,9 @@ struct ConversationView: View {
                         Color.secondary.opacity(0.12),
                         in: RoundedRectangle(cornerRadius: Theme.mediaCorner, style: .continuous)
                     )
+                    .focused($fieldFocused)
                     .onSubmit { model.send() }
+                    .onExitCommand { keyboardFocus?.request(panel.target) }
                     .disabled(model.isSending)
 
                 Button { model.send() } label: {
