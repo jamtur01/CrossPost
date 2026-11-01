@@ -7,6 +7,9 @@ import SwiftUI
 private struct FeedKeyboardNavigation: ViewModifier {
     let posts: [FeedPost]
     let initialSelection: String?
+    /// The collections that own the rows' likes and reposts (a profile has two).
+    let hosts: [any OptimisticPostHost]
+    let reply: (FeedPost) -> Void
     let open: (FeedPost) -> Void
 
     @Environment(\.feedListContext) private var context
@@ -74,7 +77,20 @@ private struct FeedKeyboardNavigation: ViewModifier {
             pop()
         case let .focus(target):
             keyboardFocus?.request(target)
+        case .reply:
+            selectedPost.map(reply)
+        case .like:
+            guard let post = selectedPost else { return }
+            host(of: post)?.toggleLike(post)
+        case .repost:
+            guard let post = selectedPost else { return }
+            host(of: post)?.toggleRepost(post)
         }
+    }
+
+    /// The same toggles as the row's action bar, haptic tick included.
+    private func host(of post: FeedPost) -> (any OptimisticPostHost)? {
+        hosts.first { $0.posts.contains { $0.id == post.id } }
     }
 
     /// Focuses `id`, scrolling it to the top when it isn't wholly on screen. Top, not
@@ -128,8 +144,10 @@ extension View {
     /// Adds keyboard navigation to a scrolling list of posts; see `FeedKeyboardNavigation`.
     /// `initialSelection` is the post focused first (a thread's own post).
     func feedKeyboardNavigation(posts: [FeedPost], initialSelection: String? = nil,
+                                hosts: [any OptimisticPostHost], reply: @escaping (FeedPost) -> Void,
                                 open: @escaping (FeedPost) -> Void) -> some View {
-        modifier(FeedKeyboardNavigation(posts: posts, initialSelection: initialSelection, open: open))
+        modifier(FeedKeyboardNavigation(posts: posts, initialSelection: initialSelection,
+                                        hosts: hosts, reply: reply, open: open))
     }
 }
 

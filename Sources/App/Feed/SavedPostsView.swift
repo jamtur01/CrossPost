@@ -43,7 +43,8 @@ struct SavedPostsView: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .feedKeyboardNavigation(posts: list.posts) { push(.thread($0)) }
+        .feedKeyboardNavigation(posts: list.posts, hosts: [list], reply: { replyTarget = $0 },
+                                open: { push(.thread($0)) })
         .background(Color(nsColor: .textBackgroundColor))
         .task(id: loadToken) { await load() }
         .onDisappear { list.invalidateOptimisticMutations() }

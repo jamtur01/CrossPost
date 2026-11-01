@@ -58,6 +58,9 @@ final class FeedNavigationTests: XCTestCase {
             KeyCase("J", "J", [.capsLock], expected: .next),
             KeyCase(.space, " ", expected: .pageDown),
             KeyCase(.space, " ", [.shift], expected: .pageUp),
+            KeyCase("r", "r", expected: .reply),
+            KeyCase("l", "l", expected: .like),
+            KeyCase("b", "b", expected: .repost),
             KeyCase(.return, "\r", expected: .open),
             KeyCase(.escape, "\u{1B}", expected: .back)
         ]
@@ -70,6 +73,8 @@ final class FeedNavigationTests: XCTestCase {
         let unbound: [KeyCase] = [
             KeyCase("j", "j", [.command]),
             KeyCase("k", "k", [.option]),
+            KeyCase("l", "l", [.command]),
+            KeyCase("R", "R", [.shift]),
             KeyCase("J", "J", [.shift]),
             KeyCase(.downArrow, "", [.control]),
             KeyCase(.leftArrow, "", [.shift]),

@@ -53,16 +53,20 @@ struct ThreadView: View {
             .scrollTargetLayout()
         }
         .scrollContentBackground(.hidden)
-        .feedKeyboardNavigation(posts: list.posts, initialSelection: focusedPost.id) { post in
-            if post.id != focusedPost.id {
-                push(.thread(post))
-            }
-        }
+        .feedKeyboardNavigation(posts: list.posts, initialSelection: focusedPost.id, hosts: [list],
+                                reply: { replyTarget = $0 }, open: openUnlessFocused)
         .background(Color(nsColor: .textBackgroundColor))
         .task(id: loadToken) { await load() }
         .onDisappear { list.invalidateOptimisticMutations() }
         .sheet(item: $replyTarget) { target in
             ReplySheet(model: ReplyModel(post: target, store: store)) { replyTarget = nil }
+        }
+    }
+
+    /// Return opens other posts in the thread, as a click does; this post is already open.
+    private func openUnlessFocused(_ post: FeedPost) {
+        if post.id != focusedPost.id {
+            push(.thread(post))
         }
     }
 

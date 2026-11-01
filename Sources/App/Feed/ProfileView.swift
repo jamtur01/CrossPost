@@ -95,7 +95,8 @@ struct ProfileView: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .feedKeyboardNavigation(posts: pinnedList.posts + feedRows) { push(.thread($0)) }
+        .feedKeyboardNavigation(posts: pinnedList.posts + feedRows, hosts: [pinnedList, list],
+                                reply: { replyTarget = $0 }, open: { push(.thread($0)) })
         .background(Color(nsColor: .textBackgroundColor))
         .task(id: loadToken) { await load() }
         .task(id: relationshipLoadToken) { await loadRelationship() }

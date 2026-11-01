@@ -4,6 +4,7 @@ import SwiftUI
 enum FeedKeyCommand: Equatable {
     case next, previous, pageDown, pageUp
     case open, back
+    case reply, like, repost
     /// Moves the keyboard to a network's feed column.
     case focus(PostTarget)
 
@@ -30,6 +31,9 @@ enum FeedKeyCommand: Equatable {
             switch characters.lowercased() {
             case "j": self = .next
             case "k": self = .previous
+            case "r": self = .reply
+            case "l": self = .like
+            case "b": self = .repost
             default: return nil
             }
         }
