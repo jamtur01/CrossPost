@@ -230,6 +230,13 @@ extension BlueskyFeedService {
                         replyToHandle: replyToHandle, boostedBy: boostedBy, boostKey: boostKey)
     }
 
+    /// A bookmarked post. Bookmarks of deleted posts, or of authors who blocked you,
+    /// have no post to show and are left out.
+    static func feedPost(fromBookmark bookmark: AppBskyLexicon.Bookmark.BookmarkViewDefinition) -> FeedPost? {
+        guard case let .postView(post) = bookmark.item else { return nil }
+        return feedPost(fromPostView: post)
+    }
+
     /// Map a bare post view (timeline item, reply parent, etc.) to a FeedPost.
     static func feedPost(
         fromPostView post: AppBskyLexicon.Feed.PostViewDefinition,

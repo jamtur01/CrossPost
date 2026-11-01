@@ -390,7 +390,11 @@ struct BlueskyFeedService: FeedService {
     }
 
     func bookmarkedPosts() async throws -> [FeedPost] {
-        [] // Bluesky has no native bookmarks.
+        let bookmarks = try await paged(target: 80, maxPages: 2) {
+            let output = try await kit.getBookmarks(limit: 100, cursor: $0)
+            return (output.bookmarks, output.cursor)
+        }
+        return bookmarks.compactMap(Self.feedPost(fromBookmark:))
     }
 
     func likedPosts() async throws -> [FeedPost] {

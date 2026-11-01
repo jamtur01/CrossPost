@@ -42,6 +42,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The Bookmarks list on Bluesky was always empty. It now shows your Bluesky
+  bookmarks (up to the newest 80); bookmarks of deleted posts are left out.
+- Bluesky gallery embeds show their images.
 - When the home timeline or the Messages list failed to load, the error had no
   way to retry. Both now offer **Try Again**.
 - In narrow columns, like and repost counts wrapped onto several lines. They

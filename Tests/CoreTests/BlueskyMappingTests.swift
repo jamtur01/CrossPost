@@ -49,6 +49,28 @@ final class BlueskyMappingTests: XCTestCase {
         }
     }
 
+    // MARK: - Bookmarks
+
+    func testBookmarkMapsItsPostAndSkipsDeletedOnes() throws {
+        let fixture = try JSONSerialization.jsonObject(with: fixtureData("bluesky_post")) as? [String: Any]
+        var post = try XCTUnwrap(fixture?["post"] as? [String: Any])
+        post["$type"] = "app.bsky.feed.defs#postView"
+        let uri = "at://did:plc:alice/app.bsky.feed.post/aaa111"
+        func bookmark(_ item: [String: Any]) throws -> AppBskyLexicon.Bookmark.BookmarkViewDefinition {
+            let json: [String: Any] = ["subject": ["uri": uri, "cid": "bafypost1"],
+                                       "createdAt": "2026-01-01T00:00:00Z", "item": item]
+            return try Self.decoder.decode(AppBskyLexicon.Bookmark.BookmarkViewDefinition.self,
+                                           from: JSONSerialization.data(withJSONObject: json))
+        }
+
+        let saved = try XCTUnwrap(BlueskyFeedService.feedPost(fromBookmark: bookmark(post)))
+        XCTAssertEqual(saved.id, "bluesky:\(uri)")
+        XCTAssertEqual(String(saved.text.characters), "hello @alice.bsky.social")
+
+        let deleted = try bookmark(["$type": "app.bsky.feed.defs#notFoundPost", "uri": uri, "notFound": true])
+        XCTAssertNil(BlueskyFeedService.feedPost(fromBookmark: deleted))
+    }
+
     // MARK: - Plain post
 
     func testPlainPostMapsIdentityTextRefAndWebURL() throws {
