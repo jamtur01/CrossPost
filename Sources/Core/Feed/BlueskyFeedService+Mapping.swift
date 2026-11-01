@@ -81,6 +81,17 @@ extension BlueskyFeedService {
         )
     }
 
+    static func imageMedia(
+        from image: AppBskyLexicon.Embed.GalleryDefinition.ViewImage
+    ) -> FeedImage {
+        FeedImage(
+            url: image.fullSizeImageURL,
+            previewURL: image.thumbnailImageURL,
+            altText: image.altText,
+            aspectRatio: aspect(image.aspectRatio)
+        )
+    }
+
     /// Bluesky GIFs (Tenor/Giphy) arrive as external embeds; play them inline when
     /// the link is a direct `.gif`, otherwise they fall back to a link card.
     static func gifMedia(from external: AppBskyLexicon.Embed.ExternalDefinition.ViewExternal) -> FeedImage? {
@@ -277,6 +288,8 @@ extension BlueskyFeedService {
         switch embed {
         case let .embedImagesView(view):
             return PostContent(images: view.images.map(Self.imageMedia(from:)))
+        case let .embedGalleryView(view):
+            return PostContent(images: view.items.map(Self.imageMedia(from:)))
         case let .embedVideoView(view):
             return PostContent(images: videoMedia(from: view).map { [$0] } ?? [])
         case let .embedExternalView(view):
@@ -301,6 +314,7 @@ extension BlueskyFeedService {
         case let .embedImagesView(view): .embedImagesView(view)
         case let .embedVideoView(view): .embedVideoView(view)
         case let .embedExternalView(view): .embedExternalView(view)
+        case let .embedGalleryView(view): .embedGalleryView(view)
         case .unknown: nil
         }
     }

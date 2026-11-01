@@ -91,7 +91,7 @@ enum PosterFactory {
 
     static func makeBlueskyClients(handle: String,
                                    appPassword: String) async throws -> (kit: ATProtoKit, bluesky: ATProtoBluesky) {
-        let config = ATProtocolConfiguration(keychainProtocol: EphemeralATProtoKeychain())
+        let config = ATProtocolConfiguration(credentialStore: EphemeralATCredentialStore())
         try await config.authenticate(
             with: handle.trimmingCharacters(in: .whitespacesAndNewlines),
             password: appPassword

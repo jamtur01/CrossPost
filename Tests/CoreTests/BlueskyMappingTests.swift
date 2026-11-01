@@ -7,8 +7,8 @@ import XCTest
 /// fixtures are decoded straight with a `JSONDecoder` (dates are handled inside
 /// ATProtoKit's own `decodeDate`, so no date strategy is needed). Post *records*
 /// live behind ATProtoKit's `UnknownType`, which only decodes into a real
-/// `PostRecord` when the type is present in the process-global record registry,
-/// so it is registered once before the suite runs.
+/// `PostRecord` when the type is in the record registry snapshot the decoder carries,
+/// so it is registered and handed to the decoder before the suite runs.
 final class BlueskyMappingTests: XCTestCase {
     private static let decoder = JSONDecoder()
 
@@ -18,9 +18,13 @@ final class BlueskyMappingTests: XCTestCase {
         // resolves text/facets/reply instead of silently falling back to a
         // dictionary. Idempotent: `register` skips types already present.
         await ATRecordTypeRegistry.shared.register(types: [
-            AppBskyLexicon.Feed.PostRecord.self, AppBskyLexicon.Feed.LikeRecord.self,
-            AppBskyLexicon.Feed.RepostRecord.self
+            ATRecordDecoder(type: AppBskyLexicon.Feed.PostRecord.self),
+            ATRecordDecoder(type: AppBskyLexicon.Feed.LikeRecord.self),
+            ATRecordDecoder(type: AppBskyLexicon.Feed.RepostRecord.self)
         ])
+        // Records decode only through a decoder carrying a registry snapshot, as
+        // ATProtoKit's own API client does for every response.
+        await Self.decoder.useRecordRegistrySnapshot(ATRecordTypeRegistry.recordRegistry)
     }
 
     private func fixtureData(_ name: String) throws -> Data {
