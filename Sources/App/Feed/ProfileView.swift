@@ -78,6 +78,7 @@ struct ProfileView: View {
                         postRow(row, in: list)
                     }
                 }
+                .scrollTargetLayout()
                 if loading {
                     ProgressView().controlSize(.small)
                         .frame(maxWidth: .infinity).padding(.vertical, 24)
@@ -94,6 +95,7 @@ struct ProfileView: View {
             }
         }
         .scrollContentBackground(.hidden)
+        .feedKeyboardNavigation(posts: pinnedList.posts + feedRows) { push(.thread($0)) }
         .background(Color(nsColor: .textBackgroundColor))
         .task(id: loadToken) { await load() }
         .task(id: relationshipLoadToken) { await loadRelationship() }

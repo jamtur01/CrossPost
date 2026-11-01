@@ -19,6 +19,14 @@ struct FeedRow: View {
     /// Threads already show ancestors inline, so they suppress the "in reply to" link.
     var showsParentLink = true
 
+    @Environment(\.keyboardFocusedPostID) private var keyboardFocusedPostID
+    @Environment(\.selectFeedPost) private var selectFeedPost
+    @AccessibilityFocusState private var voiceOverFocused: Bool
+
+    private var hasKeyboardFocus: Bool {
+        keyboardFocusedPostID == post.id
+    }
+
     var body: some View {
         FeedPostView(
             post: post,
@@ -37,7 +45,10 @@ struct FeedRow: View {
             onLikedBy: { push(.profileList(ProfileListRef(kind: .likedBy, post: post))) },
             onRepostedBy: { push(.profileList(ProfileListRef(kind: .repostedBy, post: post))) },
             onShowParent: (showsParentLink && post.isReply) ? { push(.thread(post)) } : nil,
-            onOpenDetail: focused ? nil : { push(.thread(post)) },
+            onOpenDetail: focused ? nil : {
+                selectFeedPost?(post.id)
+                push(.thread(post))
+            },
             onReport: panel.isMine(post) ? nil : { reason, comment in
                 try await panel.report(post: post, reason: reason, comment: comment)
             },
@@ -51,5 +62,18 @@ struct FeedRow: View {
         )
         .padding(focused ? 16 : 0)
         .background(focused ? accent.opacity(0.06) : .clear)
+        .overlay {
+            if hasKeyboardFocus {
+                KeyboardFocusRing()
+            }
+        }
+        // VoiceOver follows the keyboard: the focused post is one element group.
+        .accessibilityElement(children: .contain)
+        .accessibilityFocused($voiceOverFocused)
+        .onChange(of: hasKeyboardFocus, initial: true) { _, hasFocus in
+            if hasFocus {
+                voiceOverFocused = true
+            }
+        }
     }
 }

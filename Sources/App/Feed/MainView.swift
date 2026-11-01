@@ -10,6 +10,7 @@ struct MainView: View {
     @State private var compose: ComposeModel?
     @AppStorage("showComposer", store: AccountStore.defaults) private var showComposer = true
     @State private var lightbox = ImageLightbox()
+    @State private var keyboardFocus = FeedKeyboardFocus()
     @State private var relativeTimestampNow = Date()
 
     var body: some View {
@@ -32,6 +33,7 @@ struct MainView: View {
         }
         .frame(minWidth: showComposer ? 920 : 600, minHeight: 560)
         .environment(lightbox)
+        .environment(keyboardFocus)
         .environment(\.relativeTimestampNow, relativeTimestampNow)
         .overlay { ImageLightboxOverlay(lightbox: lightbox) }
         .onAppear {

@@ -50,8 +50,14 @@ struct ThreadView: View {
                     ErrorStateView(message: loadError, fills: false) { loadToken += 1 }
                 }
             }
+            .scrollTargetLayout()
         }
         .scrollContentBackground(.hidden)
+        .feedKeyboardNavigation(posts: list.posts, initialSelection: focusedPost.id) { post in
+            if post.id != focusedPost.id {
+                push(.thread(post))
+            }
+        }
         .background(Color(nsColor: .textBackgroundColor))
         .task(id: loadToken) { await load() }
         .onDisappear { list.invalidateOptimisticMutations() }

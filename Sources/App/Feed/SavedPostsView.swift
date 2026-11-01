@@ -36,12 +36,14 @@ struct SavedPostsView: View {
                             push: push, onReply: { replyTarget = $0 })
                 }
             }
+            .scrollTargetLayout()
             listLoadFooter(loading: loading, loadError: loadError, isEmpty: list.posts.isEmpty,
                            emptyState: ("No \(kind.title.lowercased()) yet", kind.icon)) {
                 loadToken += 1
             }
         }
         .scrollContentBackground(.hidden)
+        .feedKeyboardNavigation(posts: list.posts) { push(.thread($0)) }
         .background(Color(nsColor: .textBackgroundColor))
         .task(id: loadToken) { await load() }
         .onDisappear { list.invalidateOptimisticMutations() }

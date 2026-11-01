@@ -61,8 +61,10 @@ extension FeedPanelView {
                             )
                         }
                     }
+                    .scrollTargetLayout()
                 }
                 .scrollContentBackground(.hidden)
+                .feedKeyboardNavigation(posts: model.posts) { pushRoute(.thread($0)) }
                 .onChange(of: model.scrollToTopToken) {
                     withAnimation(reduceMotion ? nil : .easeOut(duration: 0.25)) {
                         proxy.scrollTo(Self.topAnchor, anchor: .top)

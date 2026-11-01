@@ -24,9 +24,12 @@ struct FeedPanelView: View {
             }
             NavigationStack(path: $routes) {
                 timeline
+                    .environment(\.feedListContext, listContext(isActive: routes.isEmpty, canPop: false))
                     .navigationDestination(for: FeedDestination.self) { destination in
                         routeContent(for: destination.route)
                             .navigationBarBackButtonHidden()
+                            .environment(\.feedListContext,
+                                         listContext(isActive: destination == routes.last, canPop: true))
                     }
             }
         }
@@ -104,6 +107,11 @@ struct FeedPanelView: View {
 
     private func popRoute() {
         _ = routes.popLast()
+    }
+
+    private func listContext(isActive: Bool, canPop: Bool) -> FeedListContext {
+        let pop: (() -> Void)? = canPop ? { popRoute() } : nil
+        return FeedListContext(target: model.target, isActive: isActive, pop: pop)
     }
 
     private func clearRoutes() {
