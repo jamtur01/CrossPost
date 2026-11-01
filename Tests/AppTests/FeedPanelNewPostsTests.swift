@@ -60,6 +60,15 @@ final class FeedPanelNewPostsTests: FeedPanelTestCase {
 
         await arrive([TestFactory.feedPost(id: "n9")] + arrivals + old, fake, model)
         XCTAssertEqual(model.newPostCount, 4, "later arrivals keep counting from the stand-in")
+
+        let replacement = (0 ..< 200).map { TestFactory.feedPost(id: "r\($0)") }
+        await arrive(replacement, fake, model)
+        XCTAssertFalse(model.posts.contains { $0.id.hasPrefix("p") || $0.id.hasPrefix("n") })
+        XCTAssertEqual(model.newPostCount, 199, "a replaced window is all new above the reader's stand-in")
+        model.homeScrolled(to: "r10")
+        XCTAssertEqual(model.newPostCount, 10, "the list's report trims it to the posts above the reader")
+        await arrive([TestFactory.feedPost(id: "s0")] + replacement, fake, model)
+        XCTAssertEqual(model.newPostCount, 11, "arrivals keep counting in the new window")
         model.stop()
     }
 

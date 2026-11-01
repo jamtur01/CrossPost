@@ -45,6 +45,12 @@ extension FeedPanelModel {
                 for post in next[..<index] where newPostIDs.contains(post.id) || !current.contains(post.id) {
                     unseen.insert(post.id)
                 }
+            } else {
+                // Nothing the reader had is left: the refresh replaced the whole window.
+                // It's all new, and the reader sits at its last post until the list
+                // reports where they are, so everything above that post counts.
+                readingPostID = next.last?.id
+                unseen = Set(next.dropLast().map(\.id))
             }
         }
         if unseen != newPostIDs {
@@ -53,14 +59,14 @@ extension FeedPanelModel {
     }
 
     /// The reader's top post in `next`. When it has left (pushed out of the kept window
-    /// by arrivals, or deleted), the nearest post above it that's still kept stands in,
-    /// so arrivals keep counting. Nil when none is left, which reads as the top.
+    /// by arrivals, or deleted), the nearest post that's still kept stands in, above it
+    /// first, so arrivals keep counting. Nil when no post the reader had is left.
     private func anchor(in next: [FeedPost]) -> String? {
         guard let readingPostID, let old = posts.firstIndex(where: { $0.id == readingPostID }) else { return nil }
         let kept = Set(next.map(\.id))
         if kept.contains(readingPostID) {
             return readingPostID
         }
-        return posts[..<old].last { kept.contains($0.id) }?.id
+        return (posts[..<old].last { kept.contains($0.id) } ?? posts[old...].first { kept.contains($0.id) })?.id
     }
 }
