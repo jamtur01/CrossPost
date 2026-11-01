@@ -168,6 +168,17 @@ final class ComposeCompletionTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: historyStore.url), unreadable)
         XCTAssertEqual(model.history.problem, .unreadable)
 
+        // A reset that can't move the file keeps the file and the way to try again.
+        let folder = historyStore.url.deletingLastPathComponent()
+        try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: folder.path)
+        model.history.startNewHistory()
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: folder.path)
+        guard case .resetFailed? = model.history.problem else {
+            return XCTFail("expected the failed reset to be reported")
+        }
+        XCTAssertTrue(model.history.problem?.offersReset ?? false)
+        XCTAssertEqual(try Data(contentsOf: historyStore.url), unreadable)
+
         model.history.startNewHistory()
         guard case let .setAside(kept)? = model.history.problem else {
             return XCTFail("expected the unreadable file to be kept")

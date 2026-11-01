@@ -50,7 +50,7 @@ struct RecentPostsSection: View {
                 Button(problem.keptFile == nil ? "Show History File" : "Show Earlier File") {
                     NSWorkspace.shared.activateFileViewerSelecting([problem.keptFile ?? history.fileURL])
                 }
-                if problem == .unreadable {
+                if problem.offersReset {
                     Button("Start New History") { history.startNewHistory() }
                         .help("Keep the unreadable file under a new name and start recording again")
                 }
@@ -68,6 +68,9 @@ struct RecentPostsSection: View {
                 + "so new posts aren't being added to it. The file is unchanged."
         case let .unsaved(message):
             "This post couldn't be added to your post history (\(message)). The file is unchanged."
+        case let .resetFailed(message):
+            "A new post history couldn't be started (\(message)). The unreadable file is unchanged; "
+                + "fix the problem and try again."
         case let .setAside(url):
             "Started a new post history. The earlier file is kept as \(url.lastPathComponent)."
         }

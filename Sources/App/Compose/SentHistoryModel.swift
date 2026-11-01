@@ -29,7 +29,17 @@ final class SentHistoryModel {
     enum Problem: Equatable {
         case unreadable
         case unsaved(String)
+        /// Starting a new history failed; the unreadable file is still in place.
+        case resetFailed(String)
         case setAside(URL)
+
+        /// Whether the unreadable file is still in the way, so starting over is offered.
+        var offersReset: Bool {
+            switch self {
+            case .unreadable, .resetFailed: true
+            case .unsaved, .setAside: false
+            }
+        }
     }
 
     /// Waits out a follow-up refresh's delay; throws when the follow-up is cancelled.
@@ -109,7 +119,7 @@ final class SentHistoryModel {
         } catch {
             let path = store.url.path
             Log.history.error("Couldn't set aside sent history at \(path, privacy: .public): \(error)")
-            problem = .unsaved(error.userMessage)
+            problem = .resetFailed(error.userMessage)
         }
     }
 
