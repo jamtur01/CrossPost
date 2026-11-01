@@ -34,6 +34,7 @@ struct FeedPostView: View {
     @State private var reporting = false
     @State private var quoting = false
     @State private var editing = false
+    @State private var confirmingDelete = false
     @State var imageRetryIDs: [URL: UUID] = [:]
     /// Contexts without a lightbox open the image through their URL action.
     @Environment(ImageLightbox.self) var lightbox: ImageLightbox?
@@ -122,6 +123,16 @@ struct FeedPostView: View {
             if let onEdit {
                 EditSheet(post: post, accent: accent, actions: onEdit) { editing = false }
             }
+        }
+        .confirmationDialog(
+            "Delete this post from \(post.target.displayName)?",
+            isPresented: $confirmingDelete,
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive, action: onDelete)
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This can’t be undone.")
         }
     }
 
@@ -243,7 +254,9 @@ struct FeedPostView: View {
                     }
                 }
                 Divider()
-                Button(role: .destructive, action: onDelete) { Label("Delete", systemImage: "trash") }
+                Button(role: .destructive) { confirmingDelete = true } label: {
+                    Label("Delete…", systemImage: "trash")
+                }
             } else if onReport != nil {
                 Divider()
                 Button(role: .destructive) { reporting = true } label: {
