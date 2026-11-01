@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- When new posts arrive above you while you're scrolled down a Home timeline, a
+  "N new posts" pill appears under the column header. Clicking it scrolls to the
+  top; it also clears when you scroll up past the new posts or refresh. The
+  posts you're reading stay where they are, and VoiceOver announces the pill
+  when it appears. At the top of the timeline, new posts simply appear.
 - Mastodon posts with a content warning are collapsed behind the warning until
   you click **Show post**. Sensitive images and videos are blurred until
   clicked, and can be covered again. What you reveal stays revealed while the

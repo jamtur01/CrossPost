@@ -17,7 +17,9 @@ posts without leaving the window.
   the offending post/network is named.
 - **Feeds** per network with **Home**, **Notifications**, and **Messages**
   tabs. Mastodon refreshes live over its streaming socket; both poll (~60s) and
-  refresh manually. The notification tab carries an unread badge.
+  refresh manually. The notification tab carries an unread badge. Posts that
+  arrive while you're scrolled down Home don't move what you're reading; a
+  "3 new posts" pill under the column header takes you back to the top.
 - **Per-post actions** — reply (scoped to that one network), like/favourite,
   repost/boost, and bookmark from the action bar; the **…** menu holds delete and
   pin for your own posts, who liked or reposted, and open the original in your

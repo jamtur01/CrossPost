@@ -222,14 +222,14 @@ Spacing sits on a loose 8pt grid with deliberate 2px offsets (6, 10, 14). Use th
 Flat at rest. Hierarchy comes from subtle fills (4–6% primary), 0.75px hairlines, and the system `.bar` material on column headers. Nothing in the timeline casts a shadow.
 
 ### Shadow Vocabulary
-- **Toast** (`0 3px 10px rgba(0,0,0,0.18)` on `.regularMaterial`): the transient action-error capsule that floats over a feed.
+- **Toast** (`0 3px 10px rgba(0,0,0,0.18)` on `.regularMaterial`): the transient action-error capsule and the new-posts pill that float over a feed.
 - **Lightbox image** (`0 0 30px rgba(0,0,0,0.4)`): the full-window image viewer over its dimmed backdrop.
 
 **The Flat-At-Rest Rule.** Shadows belong only to transient overlays that sit above the window's content plane. If a persistent surface needs separation, use a hairline or the `.bar` material.
 
 ## Shapes
 
-All rounded rectangles use the continuous (squircle) corner style. Avatars are circles with a 0.5px ring. Media and embeds clip to 10px corners, composer cards to 12px, small editors and suggestion lists to 6–8px, skeleton bars to 4px, and DM bubbles to 15px. Toggles and notices that aren't rows use capsules: target pills, the unread badge, the error toast. Quoted posts carry a 3px capsule rule on the leading edge in the network accent at 55% opacity.
+All rounded rectangles use the continuous (squircle) corner style. Avatars are circles with a 0.5px ring. Media and embeds clip to 10px corners, composer cards to 12px, small editors and suggestion lists to 6–8px, skeleton bars to 4px, and DM bubbles to 15px. Toggles and notices that aren't rows use capsules: target pills, the unread badge, the error toast, the new-posts pill. Quoted posts carry a 3px capsule rule on the leading edge in the network accent at 55% opacity.
 
 ## Components
 
@@ -265,6 +265,11 @@ Native button styles throughout; CrossPost does not draw its own button chrome.
 
 ### Timeline Row (signature)
 The core of the app. Content runs top to bottom: an optional context line (boost attribution, then a tappable "In reply to", both secondary gray; the reply link turns the network accent on hover, instantly under Reduce Motion), the avatar + name + handle header with the visibility glyph and relative timestamp trailing, the selectable body, media at 10px corners, then the link card, the quoted post, and the action bar. Hover adds the 4% fill over 0.12s. A plain click opens the thread; dragging selects text. A Mastodon content warning stands in for the body, media, link card, and quote as a 4%-fill row with the warning in the reading font and a "Show post" toggle in the network accent. Sensitive media is blurred under a material "Sensitive content" label until clicked, independently of the warning. A quoted post keeps its own warning and sensitive flag: the quote card shows the warning row in place of the quoted text and image, and covers a sensitive quoted image with the same label over a flat placeholder fill (the image is never loaded until shown). A 50%-opacity divider sits at the bottom edge. The keyboard-focused post draws the system focus ring (`Theme.focusRing`, the system keyboard focus indicator color: a 3px stroke on a 6px continuous corner, inset 2px so the column edges never clip it) over the row. It replaces neither the hover fill nor the divider, and it shows only while that list has keyboard focus. Loading shows static skeleton rows with a fixed sheen, never a perpetual animation.
+
+In Home, posts that a poll or stream refresh adds above the reader don't move the rows on screen: the post at the top of the viewport stays put. At the top of the list, new posts appear in place.
+
+### New Posts Pill
+A capsule centered 8px under a Home column's header while posts that arrived above the reader wait unread: "3 new posts" (or "1 new post") in the context style (12px medium, primary) after a 10px bold `arrow.up` in the network accent, the only color on it. It sits on `.regularMaterial` with a hairline stroke and the toast shadow, 12 × 6 padding, and takes the hover fill on hover. Clicking it scrolls to the top (animated, a jump under Reduce Motion). The count drops as the reader scrolls up past the new posts, and the pill clears at the top and on a refresh. It slides down and fades in, without animation under Reduce Motion. It is a button labeled with the count, and VoiceOver announces it when it first appears, not on each change of count.
 
 ### Recent Posts
 The composer's idle state: a `sectionHeader` "Recent Posts" over one composer card of rows split by inset hairlines. Each row shows the post's first text (reading font, 14px, two lines), a meta line (`Thread · N posts ·` when every network landed the same number of posts, just `Thread ·` when they differ, then the relative time), and one group per network: the network glyph in its accent, then reply, repost, and like counts in secondary gray, then that network's own count (`· 1 of 4 posts`, or `· 4 posts`) when its copy stopped partway or the networks landed different counts. A group is a plain button with a hover fill that opens that copy's thread in its own column. Groups with nothing to open show secondary text instead: "Deleted", "Older than your recent posts", "Just posted", or "—" with the error as a tooltip. Loading shows a static skeleton bar per group. Networks without an account, and copies published by a different account, are omitted. When the history file can't be read or saved, a secondary warning label and a "Show History File" link sit under the header; an unreadable file also offers "Start New History", which renames the file, keeps it beside the new one, and says where. The section fades out when the user starts writing (no animation under Reduce Motion).
