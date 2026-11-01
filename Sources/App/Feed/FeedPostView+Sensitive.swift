@@ -91,7 +91,7 @@ struct HideSensitiveMediaButton: View {
     }
 }
 
-/// A Mastodon content warning standing in for the post until the reader opens it.
+/// A content warning standing in for the post until the reader opens it.
 /// The whole row toggles, so it is an easy target; the warning reads in the body
 /// font so the Reading text size setting reaches it.
 struct ContentWarningRow: View {

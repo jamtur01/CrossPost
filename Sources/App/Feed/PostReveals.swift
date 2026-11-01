@@ -3,15 +3,16 @@ import Observation
 /// A post, or a quoted post, whose content warning and sensitive media the reader
 /// can reveal.
 protocol Revealable {
-    /// Identifies the underlying post. A Mastodon quote's key matches the quoted
-    /// post's own, so opening it in either place opens it in both.
+    /// Identifies the underlying post. A quote's key matches the quoted post's own,
+    /// so opening it in either place opens it in both.
     var revealKey: String { get }
     var spoilerText: String? { get }
     var isSensitive: Bool { get }
 }
 
 extension Revealable {
-    /// The Mastodon content warning shown in place of the post, if it has one.
+    /// The content warning shown in place of the post, if it has one: Mastodon's
+    /// own, or one Bluesky labels call for.
     var contentWarning: String? {
         guard let spoilerText, !spoilerText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         else { return nil }

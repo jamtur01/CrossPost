@@ -45,17 +45,24 @@ final class PostRevealsTests: XCTestCase {
     }
 
     /// A quote carries the quoted post's warning, so quoting can't bypass it, and
-    /// opening the quoted post in its own thread opens the quote too.
+    /// opening the quoted post in its own thread opens the quote too, on both networks.
     func testQuoteIsCoveredAndSharesTheQuotedPostsReveal() {
-        let reveals = PostReveals()
-        let quoted = TestFactory.feedPost(id: "7", spoilerText: "cw", isSensitive: true)
-        let quote = QuotedPost(id: "mastodon:7", authorName: "A", authorHandle: "@a", avatarURL: nil,
-                               text: "hidden", imageURL: nil, webURL: nil,
-                               spoilerText: "cw", isSensitive: true)
-        XCTAssertFalse(reveals.showsContent(of: quote))
-        XCTAssertFalse(reveals.showsMedia(of: quote))
-        reveals.toggleContent(of: quoted)
-        XCTAssertTrue(reveals.showsContent(of: quote))
-        XCTAssertFalse(reveals.showsMedia(of: quote))
+        let mastodon = TestFactory.feedPost(id: "7", spoilerText: "cw", isSensitive: true)
+        let bluesky = TestFactory.feedPost(target: .bluesky, id: "did:plc:a/app.bsky.feed.post/7",
+                                           spoilerText: "Content warning", isSensitive: true)
+        // Each quote's id as the network's mapping gives it.
+        for (quoted, quoteID) in [(mastodon, "mastodon:7"), (bluesky, "at://did:plc:a/app.bsky.feed.post/7")] {
+            let reveals = PostReveals()
+            let quote = QuotedPost(id: quoteID, authorName: "A", authorHandle: "@a", avatarURL: nil,
+                                   text: "hidden", imageURL: nil, webURL: nil,
+                                   spoilerText: quoted.spoilerText, isSensitive: true)
+            XCTAssertFalse(reveals.showsContent(of: quote), quoteID)
+            XCTAssertFalse(reveals.showsMedia(of: quote), quoteID)
+            reveals.toggleContent(of: quoted)
+            XCTAssertTrue(reveals.showsContent(of: quote), quoteID)
+            XCTAssertFalse(reveals.showsMedia(of: quote), quoteID)
+            reveals.toggleMedia(of: quote)
+            XCTAssertTrue(reveals.showsMedia(of: quoted), quoteID)
+        }
     }
 }

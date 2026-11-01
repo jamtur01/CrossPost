@@ -146,15 +146,18 @@ extension BlueskyFeedService {
                 break
             }
         }
+        let cover = labelCover(recordView.labels, record: record, authorDID: recordView.author.actorDID)
         return QuotedPost(
-            id: "bluesky:\(recordView.uri)",
+            id: recordView.uri, // NativeRef.postKey's form, so the quote shares the post's reveal
             authorName: displayOrHandle(recordView.author.displayName, recordView.author.actorHandle),
             authorHandle: "@\(recordView.author.actorHandle)",
             avatarURL: recordView.author.avatarImageURL,
             text: Self.attributedText(record),
             imageURL: imageURL,
             webURL: BlueskyURL.post(recordURI: recordView.uri, handle: recordView.author.actorHandle)
-                .flatMap(URL.init(string:))
+                .flatMap(URL.init(string:)),
+            spoilerText: cover.spoilerText,
+            isSensitive: cover.isSensitive
         )
     }
 
@@ -255,6 +258,7 @@ extension BlueskyFeedService {
         let resolvedReplyRoot = replyRoot
             ?? record?.reply.map { ($0.root.recordURI, $0.root.recordCID) }
         let root = BlueskyThreadRef.root(postURI: post.uri, postCID: post.cid, replyRoot: resolvedReplyRoot)
+        let cover = labelCover(post.labels, record: record, authorDID: post.author.actorDID)
         return FeedPost(
             id: boostKey.map { "bluesky:\($0):\(post.uri)" } ?? "bluesky:\(post.uri)",
             target: .bluesky,
@@ -279,10 +283,58 @@ extension BlueskyFeedService {
             likeRecordURI: post.viewer?.likeURI,
             repostRecordURI: post.viewer?.repostURI,
             boostedBy: boostedBy,
+            spoilerText: cover.spoilerText,
+            isSensitive: cover.isSensitive,
             isReply: isReply ?? (record?.reply != nil),
             replyToHandle: replyToHandle,
             nativeRef: .bluesky(uri: post.uri, cid: post.cid, rootURI: root.uri, rootCID: root.cid)
         )
+    }
+
+    /// Bluesky's media labels, which blur a post's media by default. `nudity` is left
+    /// out because Bluesky shows it by default; `gore` is the legacy `graphic-media`.
+    private static let sensitiveMediaLabels: Set<String> = ["porn", "sexual", "graphic-media", "gore"]
+
+    /// A post's labels as a content warning and a sensitive-media flag, with
+    /// Bluesky's default settings rather than the reader's own moderation
+    /// preferences. `!hide` becomes a warning too: CrossPost shows rather than drops.
+    static func labelCover(
+        _ labels: [ComAtprotoLexicon.Label.LabelDefinition]?,
+        record: AppBskyLexicon.Feed.PostRecord?,
+        authorDID: String
+    ) -> (spoilerText: String?, isSensitive: Bool) {
+        var applied = activeLabels(labels ?? [])
+        if case let .selfLabels(selfLabels)? = record?.labels {
+            applied += selfLabels.values.map { (source: authorDID, value: $0.value) }
+        }
+        // Moderation warnings an author puts on their own post don't count (`no-self`).
+        let values = Set(applied.filter { !$0.value.hasPrefix("!") || $0.source != authorDID }.map(\.value))
+        let warning: String? = if values.contains("!hide") {
+            "Hidden by moderators"
+        } else if values.contains("!warn") {
+            "Content warning"
+        } else {
+            nil
+        }
+        return (warning, !values.isDisjoint(with: sensitiveMediaLabels))
+    }
+
+    /// The labels still in force: unexpired, and not cancelled by a later negation
+    /// of the same value from the same labeler.
+    private static func activeLabels(
+        _ labels: [ComAtprotoLexicon.Label.LabelDefinition]
+    ) -> [(source: String, value: String)] {
+        var applied: [(source: String, value: String)] = []
+        for label in labels.sorted(by: { $0.timestamp < $1.timestamp }) {
+            if let expiry = label.expiresOn, expiry <= .now {
+                continue
+            }
+            applied.removeAll { $0.source == label.actorDID && $0.value == label.name }
+            if label.isNegated != true {
+                applied.append((label.actorDID, label.name))
+            }
+        }
+        return applied
     }
 
     private struct PostContent {

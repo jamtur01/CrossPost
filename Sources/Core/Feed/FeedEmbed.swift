@@ -12,7 +12,7 @@ struct LinkCard: Equatable, Sendable {
 /// A quoted post embedded in another (Mastodon quote, Bluesky record embed).
 /// A lightweight projection — enough to render a nested card and open the original.
 struct QuotedPost: Equatable, Sendable, Identifiable {
-    let id: String
+    let id: String // the quoted post's `NativeRef.postKey`: "mastodon:<id>", or the Bluesky at:// URI
     let authorName: String
     let authorHandle: String
     let avatarURL: URL?
@@ -20,8 +20,8 @@ struct QuotedPost: Equatable, Sendable, Identifiable {
     let imageURL: URL?
     let webURL: URL?
     let emojis: [String: URL] // custom emoji shortcodes in the name and text (Mastodon)
-    let spoilerText: String? // the quoted post's Mastodon content warning, if any
-    let isSensitive: Bool // the quoted post's Mastodon sensitive-media flag
+    let spoilerText: String? // the quoted post's content warning (Mastodon), or label warning (Bluesky)
+    let isSensitive: Bool // the quoted post's sensitive-media flag, or media label (Bluesky)
 
     init(id: String, authorName: String, authorHandle: String,
          avatarURL: URL?, text: AttributedString, imageURL: URL?, webURL: URL?,

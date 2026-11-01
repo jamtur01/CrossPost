@@ -77,8 +77,8 @@ struct FeedPost: Identifiable, Equatable, Sendable {
     private(set) var boostedBy: String? // display name of the booster/reposter, if this is a boost
     let mentionHandles: [String] // "@handle"s the parent post mentions (for reply prefill)
     let visibility: String? // Mastodon visibility (public/unlisted/private/direct); nil for Bluesky
-    let spoilerText: String? // Mastodon content warning, if any
-    let isSensitive: Bool // Mastodon sensitive-media flag
+    let spoilerText: String? // content warning (Mastodon), or label warning (Bluesky), if any
+    let isSensitive: Bool // sensitive-media flag (Mastodon), or media label (Bluesky)
     let isReply: Bool // this post is itself a reply (has a parent to show)
     let replyToHandle: String? // "@handle" of the parent's author, when the payload names it
     let emojis: [String: URL] // custom emoji shortcodes in names and text (Mastodon)

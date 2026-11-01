@@ -10,7 +10,7 @@ import XCTest
 /// `PostRecord` when the type is in the record registry snapshot the decoder carries,
 /// so it is registered and handed to the decoder before the suite runs.
 final class BlueskyMappingTests: XCTestCase {
-    private static let decoder = JSONDecoder()
+    static let decoder = JSONDecoder()
 
     override func setUp() async throws {
         try await super.setUp()
@@ -27,7 +27,7 @@ final class BlueskyMappingTests: XCTestCase {
         await Self.decoder.useRecordRegistrySnapshot(ATRecordTypeRegistry.recordRegistry)
     }
 
-    private func fixtureData(_ name: String) throws -> Data {
+    func fixtureData(_ name: String) throws -> Data {
         let url = try XCTUnwrap(Bundle(for: Self.self).url(forResource: name, withExtension: "json"),
                                 "missing fixture \(name).json")
         return try Data(contentsOf: url)
@@ -217,7 +217,7 @@ final class BlueskyMappingTests: XCTestCase {
         let post = try mapped("bluesky_quote")
         let quoted = try XCTUnwrap(post.quoted, "expected a quoted post")
 
-        XCTAssertEqual(quoted.id, "bluesky:at://did:plc:dave/app.bsky.feed.post/orig555")
+        XCTAssertEqual(quoted.id, "at://did:plc:dave/app.bsky.feed.post/orig555")
         XCTAssertEqual(quoted.authorHandle, "@dave.bsky.social")
         XCTAssertEqual(quoted.authorName, "Dave")
         XCTAssertEqual(String(quoted.text.characters), "the quoted words")
