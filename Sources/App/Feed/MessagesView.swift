@@ -225,7 +225,7 @@ struct ConversationView: View {
                     message.isFromMe ? panel.target.fillAccent : Color.secondary.opacity(0.18),
                     in: RoundedRectangle(cornerRadius: Theme.bubbleCorner, style: .continuous)
                 )
-                .frame(maxWidth: 260, alignment: .leading)
+                .frame(maxWidth: 260, alignment: message.isFromMe ? .trailing : .leading)
             Text(message.date, format: .dateTime.hour().minute())
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
