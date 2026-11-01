@@ -84,8 +84,17 @@ enum Theme {
     static let hairline = Color.primary.opacity(0.07)
     static let hoverFill = Color.primary.opacity(0.04)
     static let avatarRing = Color.primary.opacity(0.08)
-    /// The system keyboard focus ring colour (the user's accent), for the focused post.
-    static let focusRing = Color(nsColor: .keyboardFocusIndicatorColor)
+    /// The focused row's ring: the user's accent at full strength. The system focus
+    /// colour is that accent at about half opacity, too faint on the white feed, so
+    /// light mode also deepens it a fifth toward black to keep it clear on white.
+    static let focusRing = Color(nsColor: NSColor(name: nil) { appearance in
+        var accent = NSColor.controlAccentColor
+        appearance.performAsCurrentDrawingAppearance {
+            accent = NSColor.controlAccentColor.usingColorSpace(.sRGB) ?? accent
+        }
+        let isDark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+        return isDark ? accent : accent.blended(withFraction: 0.2, of: .black) ?? accent
+    })
     // Action tints — shared by the timeline and notification action bars so
     // like/repost read identically everywhere they appear.
     // The system pink and green fall to 2–3.6:1 as count text on white, so light mode

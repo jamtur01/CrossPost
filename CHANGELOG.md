@@ -39,6 +39,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The keyboard focus ring on the focused post uses your accent color at full
+  strength (a little deeper in light mode), so it stands out on the white feed.
 - The composer's destinations are a flat footer under the last post instead of
   a separate card: each network's toggle sits beside its audience, and **Post**
   is a regular-size button at the trailing edge (still ⌘↩).
