@@ -29,6 +29,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The composer's destinations are a flat footer under the last post instead of
+  a separate card: each network's toggle sits beside its audience, and **Post**
+  is a regular-size button at the trailing edge (still ⌘↩).
+- Each post's counter shows every selected network against its own limit, for
+  example "0/500 Mastodon · 0/300 Bluesky", and colors each one by its own
+  room left. With only Mastodon selected it shows only Mastodon's limit.
+- The empty editor says where the post goes ("Write once for Mastodon and
+  Bluesky") instead of "What's on your mind?".
+- The Edit / Mastodon / Bluesky preview moved from a segmented control to a
+  menu under the **New Post** title, so the title no longer drops out at the
+  composer's narrowest width.
+- **Recent Posts** is a plain list divided by hairlines instead of a card.
+- After a send, **Recent Posts** re-reads each network's counts on its own
+  after 15 seconds and again after two minutes, so "Just posted" changes to
+  the post's counts without **Refresh All**.
 - Deleting a post now asks for confirmation, naming the network it is deleted
   from.
 - The action bar's trailing button is now **Bookmark** (filled when the post is

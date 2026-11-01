@@ -44,7 +44,7 @@ posts without leaving the window.
   names in navigation headers; Retry and Open original actions for failed images.
 - **Recent posts** — while the composer is empty it lists your last 50 CrossPost sends
   from the signed-in accounts, with each network's reply, repost, and like counts (read from your own recent posts
-  when the list appears and on Refresh All). Click a network's counts to open that copy's
+  when the list appears, on Refresh All, and twice in the two minutes after a send). Click a network's counts to open that copy's
   thread in its column. The history is plain JSON (`sent-history.json`) in the app's
   Application Support folder. If that file can't be read, **Start New History** keeps it under a new name
   and starts a fresh one.
@@ -100,9 +100,12 @@ a feed.
 ## Using it
 
 - **Compose** (left column): type a post; **Add post to thread** stacks more posts
-  inline; attach images with alt text. Toggle **Mastodon** / **Bluesky** (both on by
-  default), review each network's audience, and press **Post** (⌘↩). Bluesky posts are
-  public; the visibility menu applies only to Mastodon. On success the submitted
+  inline; attach images with alt text. Each post's counter shows every selected
+  network against its own limit (for example "0/500 Mastodon · 0/300 Bluesky").
+  Under the last post, toggle **Mastodon** / **Bluesky** (both on by default), review
+  each network's audience beside it, and press **Post** (⌘↩). Bluesky posts are
+  public; the visibility menu applies only to Mastodon. The **Editing** menu under
+  the composer title shows the text each network will receive. On success the submitted
   draft clears; edits made during posting remain. Per-network outcomes show inline.
   **Retry** sends only unsent posts. An already-published prefix cannot be edited
   and resent; add a post to continue that thread, or choose **New Draft…** from the composer's **…** menu.
