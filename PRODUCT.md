@@ -60,6 +60,8 @@ audiences, editing, DMs, live vs. polled refresh) rather than pretending they ma
 - Only http/https links are tappable.
 - Mastodon content warnings collapse a post until opened, and sensitive media stays
   blurred until clicked; each reveal lasts for the session and is never saved.
+  Bluesky labels use the same covers with Bluesky's default settings: `!warn` and
+  `!hide` collapse the post, and adult or graphic media labels blur its media.
 - Sandboxed, Developer ID-signed, notarized; Core never imports SwiftUI.
 
 ## Brand Commitments

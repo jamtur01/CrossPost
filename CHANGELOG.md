@@ -19,6 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   clicked, and can be covered again. What you reveal stays revealed while the
   app is open, across scrolling and threads, and is never saved. A quoted post
   keeps its own warning and sensitive media covers inside the quote.
+- Bluesky posts and quotes with labels are covered the same way. A moderator's
+  warning label collapses the post behind "Content warning", a hide label behind
+  "Hidden by moderators" (CrossPost shows these posts rather than dropping
+  them), and porn, sexual, and graphic media labels, including the author's own,
+  blur the media. CrossPost applies Bluesky's default label settings, not your
+  Bluesky moderation preferences, and doesn't read labels on accounts.
 - **Recent Posts** in the empty composer lists your last 50 CrossPost sends with
   each network's reply, repost, and like counts; clicking a network's counts
   opens that copy's thread. Only the signed-in accounts' posts are listed;
