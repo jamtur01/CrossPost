@@ -324,15 +324,19 @@ final class MastodonMappingTests: XCTestCase {
 
         XCTAssertEqual(preview.imageURL, URL(string: "https://h.io/cat-preview.png"))
         XCTAssertEqual(preview.webURL, URL(string: "https://h.io/@alice/MEDIA-1"))
+        XCTAssertTrue(preview.isSensitive, "the quote keeps the quoted post's sensitive flag")
+        XCTAssertNil(preview.spoilerText)
 
         guard case let .post(post)? = quote.quotedPost else {
             return XCTFail("expected quoted post")
         }
         post.mediaAttachments[0].previewUrl = nil
+        post.spoilerText = "Finale spoilers"
         let fallback = try XCTUnwrap(MastodonFeedService.quotedPost(from: quote))
 
         XCTAssertEqual(fallback.imageURL, URL(string: "https://h.io/cat.png"))
         XCTAssertEqual(fallback.webURL, preview.webURL)
+        XCTAssertEqual(fallback.spoilerText, "Finale spoilers", "the quote keeps the quoted post's warning")
     }
 
     func testQuotePostDropsTheInlineQuoteFallback() throws {

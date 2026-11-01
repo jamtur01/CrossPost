@@ -135,7 +135,9 @@ extension MastodonFeedService {
                 $0.previewUrl.flatMap(URL.init(string:)) ?? URL(string: $0.url)
             },
             webURL: quoted.url.flatMap(URL.init(string:)),
-            emojis: emojiMap(quoted.account.emojis, quoted.emojis)
+            emojis: emojiMap(quoted.account.emojis, quoted.emojis),
+            spoilerText: quoted.spoilerText.nilIfBlank,
+            isSensitive: quoted.sensitive
         )
     }
 

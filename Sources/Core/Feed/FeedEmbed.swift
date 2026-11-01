@@ -20,10 +20,12 @@ struct QuotedPost: Equatable, Sendable, Identifiable {
     let imageURL: URL?
     let webURL: URL?
     let emojis: [String: URL] // custom emoji shortcodes in the name and text (Mastodon)
+    let spoilerText: String? // the quoted post's Mastodon content warning, if any
+    let isSensitive: Bool // the quoted post's Mastodon sensitive-media flag
 
     init(id: String, authorName: String, authorHandle: String,
          avatarURL: URL?, text: AttributedString, imageURL: URL?, webURL: URL?,
-         emojis: [String: URL] = [:]) {
+         emojis: [String: URL] = [:], spoilerText: String? = nil, isSensitive: Bool = false) {
         self.id = id
         self.authorName = authorName
         self.authorHandle = authorHandle
@@ -32,6 +34,8 @@ struct QuotedPost: Equatable, Sendable, Identifiable {
         self.imageURL = imageURL
         self.webURL = webURL
         self.emojis = emojis
+        self.spoilerText = spoilerText
+        self.isSensitive = isSensitive
     }
 }
 

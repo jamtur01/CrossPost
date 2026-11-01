@@ -97,7 +97,7 @@ struct FeedPostView: View {
                     LinkCardView(card: card, accent: accent, onOpen: onOpenURL)
                 }
                 if let quoted = post.quoted {
-                    QuoteCardView(quote: quoted, accent: accent, onOpen: onOpenURL)
+                    QuoteCardView(quote: quoted, accent: accent, reveals: reveals, onOpen: onOpenURL)
                 }
             }
             if showActions {

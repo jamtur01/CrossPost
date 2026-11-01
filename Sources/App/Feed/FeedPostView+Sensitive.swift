@@ -66,26 +66,35 @@ extension FeedPostView {
     @ViewBuilder
     func hideSensitiveMediaButton(on media: FeedImage) -> some View {
         if post.isSensitive, media.id == post.images.first?.id {
-            Button { changeReveal { reveals.toggleMedia(of: post) } } label: {
-                Image(systemName: "eye.slash.fill")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 26, height: 20)
-                    .background(.black.opacity(0.55), in: Capsule())
-                    .contentShape(Capsule())
-            }
-            .buttonStyle(.plain)
-            .padding(8)
-            .help("Hide sensitive media")
-            .accessibilityLabel("Hide sensitive media")
+            HideSensitiveMediaButton { changeReveal { reveals.toggleMedia(of: post) } }
         }
+    }
+}
+
+/// Covers shown sensitive media again: a small capsule over the media's corner.
+struct HideSensitiveMediaButton: View {
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "eye.slash.fill")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 26, height: 20)
+                .background(.black.opacity(0.55), in: Capsule())
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .padding(8)
+        .help("Hide sensitive media")
+        .accessibilityLabel("Hide sensitive media")
     }
 }
 
 /// A Mastodon content warning standing in for the post until the reader opens it.
 /// The whole row toggles, so it is an easy target; the warning reads in the body
 /// font so the Reading text size setting reaches it.
-private struct ContentWarningRow: View {
+struct ContentWarningRow: View {
     let warning: String
     let emojis: [String: URL]
     let fontSize: CGFloat
@@ -131,7 +140,7 @@ private struct ContentWarningRow: View {
 }
 
 /// The centered notice drawn over blurred sensitive media.
-private struct SensitiveMediaLabel: View {
+struct SensitiveMediaLabel: View {
     var body: some View {
         VStack(spacing: 2) {
             Label("Sensitive content", systemImage: "eye.slash.fill")

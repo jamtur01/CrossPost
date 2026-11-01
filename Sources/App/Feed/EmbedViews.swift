@@ -51,10 +51,14 @@ struct LinkCardView: View {
 }
 
 /// A quoted post rendered as a nested card, with a leading accent rule. Opens the original.
+/// The quoted post's content warning and sensitive media stay covered until revealed,
+/// as they would be on the post itself.
 struct QuoteCardView: View {
     let quote: QuotedPost
     let accent: Color
+    let reveals: PostReveals
     let onOpen: (URL) -> Void
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var hasText: Bool {
         !quote.text.characters.isEmpty
@@ -87,22 +91,22 @@ struct QuoteCardView: View {
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
-                if hasText {
-                    PostBody(text: quote.text, accent: accent, cacheKey: quote.id, emojis: quote.emojis,
-                             fontSize: 13, lineLimit: 6,
-                             onTap: quote.webURL.map { url in { onOpen(url) } },
-                             onOpenURL: onOpen)
+                if let warning = quote.contentWarning {
+                    ContentWarningRow(warning: warning, emojis: quote.emojis, fontSize: 13, accent: accent,
+                                      isShown: reveals.showsContent(of: quote)) {
+                        changeReveal { reveals.toggleContent(of: quote) }
+                    }
                 }
-                if let imageURL = quote.imageURL {
-                    EmbedImage(
-                        url: imageURL,
-                        targetSize: CGSize(width: 1000, height: 240)
-                    )
-                    .frame(height: 120)
-                    .frame(maxWidth: .infinity)
-                    .clipShape(
-                        RoundedRectangle(cornerRadius: Theme.mediaCorner, style: .continuous)
-                    )
+                if reveals.showsContent(of: quote) {
+                    if hasText {
+                        PostBody(text: quote.text, accent: accent, cacheKey: quote.id, emojis: quote.emojis,
+                                 fontSize: 13, lineLimit: 6,
+                                 onTap: quote.webURL.map { url in { onOpen(url) } },
+                                 onOpenURL: onOpen)
+                    }
+                    if let imageURL = quote.imageURL {
+                        image(imageURL)
+                    }
                 }
             }
             .padding(10)
@@ -115,6 +119,40 @@ struct QuoteCardView: View {
             RoundedRectangle(cornerRadius: Theme.mediaCorner, style: .continuous)
                 .strokeBorder(Color.primary.opacity(0.08))
         )
+    }
+
+    /// The quoted image, or a plain cover while it is sensitive and not yet shown;
+    /// the covered image is never loaded.
+    private func image(_ url: URL) -> some View {
+        Group {
+            if reveals.showsMedia(of: quote) {
+                EmbedImage(url: url, targetSize: CGSize(width: 1000, height: 240))
+                    .overlay(alignment: .topLeading) {
+                        if quote.isSensitive {
+                            HideSensitiveMediaButton { changeReveal { reveals.toggleMedia(of: quote) } }
+                        }
+                    }
+            } else {
+                Button { changeReveal { reveals.toggleMedia(of: quote) } } label: {
+                    SensitiveMediaLabel()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Color.primary.opacity(0.06))
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .pointerStyle(.link)
+                .help("Show sensitive media")
+                .accessibilityLabel("Sensitive media, hidden")
+                .accessibilityHint("Shows the media")
+            }
+        }
+        .frame(height: 120)
+        .frame(maxWidth: .infinity)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.mediaCorner, style: .continuous))
+    }
+
+    private func changeReveal(_ change: () -> Void) {
+        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2), change)
     }
 }
 

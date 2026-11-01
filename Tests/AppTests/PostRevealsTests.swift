@@ -43,4 +43,19 @@ final class PostRevealsTests: XCTestCase {
         XCTAssertFalse(reveals.showsContent(of: other))
         XCTAssertFalse(reveals.showsMedia(of: other))
     }
+
+    /// A quote carries the quoted post's warning, so quoting can't bypass it, and
+    /// opening the quoted post in its own thread opens the quote too.
+    func testQuoteIsCoveredAndSharesTheQuotedPostsReveal() {
+        let reveals = PostReveals()
+        let quoted = TestFactory.feedPost(id: "7", spoilerText: "cw", isSensitive: true)
+        let quote = QuotedPost(id: "mastodon:7", authorName: "A", authorHandle: "@a", avatarURL: nil,
+                               text: "hidden", imageURL: nil, webURL: nil,
+                               spoilerText: "cw", isSensitive: true)
+        XCTAssertFalse(reveals.showsContent(of: quote))
+        XCTAssertFalse(reveals.showsMedia(of: quote))
+        reveals.toggleContent(of: quoted)
+        XCTAssertTrue(reveals.showsContent(of: quote))
+        XCTAssertFalse(reveals.showsMedia(of: quote))
+    }
 }
