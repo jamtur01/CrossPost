@@ -111,9 +111,9 @@ private struct ContentWarningRow: View {
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
-            .background(Theme.hoverFill, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .background(Theme.hoverFill, in: RoundedRectangle(cornerRadius: Theme.insetCorner, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                RoundedRectangle(cornerRadius: Theme.insetCorner, style: .continuous)
                     .strokeBorder(Theme.hairline, lineWidth: 0.75)
             )
             .contentShape(Rectangle())
@@ -142,6 +142,6 @@ private struct SensitiveMediaLabel: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Theme.mediaCorner, style: .continuous))
     }
 }

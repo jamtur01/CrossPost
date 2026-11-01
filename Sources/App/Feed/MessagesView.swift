@@ -190,7 +190,7 @@ struct ConversationView: View {
                 .padding(.vertical, 7)
                 .background(
                     message.isFromMe ? accent : Color.secondary.opacity(0.18),
-                    in: RoundedRectangle(cornerRadius: 15, style: .continuous)
+                    in: RoundedRectangle(cornerRadius: Theme.bubbleCorner, style: .continuous)
                 )
                 .frame(maxWidth: 260, alignment: .leading)
             Text(message.date, format: .dateTime.hour().minute())
@@ -219,7 +219,7 @@ struct ConversationView: View {
                     .padding(.vertical, 7)
                     .background(
                         Color.secondary.opacity(0.12),
-                        in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        in: RoundedRectangle(cornerRadius: Theme.mediaCorner, style: .continuous)
                     )
                     .onSubmit { model.send() }
                     .disabled(model.isSending)

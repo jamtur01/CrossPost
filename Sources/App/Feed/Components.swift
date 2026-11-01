@@ -144,7 +144,7 @@ struct SkeletonRow: View {
     }
 
     private func bar(width: CGFloat, height: CGFloat) -> some View {
-        RoundedRectangle(cornerRadius: 4, style: .continuous)
+        RoundedRectangle(cornerRadius: Theme.skeletonCorner, style: .continuous)
             .fill(Color.primary.opacity(0.06))
             .frame(maxWidth: width == .infinity ? .infinity : nil)
             .frame(width: width == .infinity ? nil : width, height: height)

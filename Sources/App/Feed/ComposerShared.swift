@@ -30,7 +30,7 @@ struct SheetTextEditor: View {
         PlainTextEditor(text: $text, onImages: onImages)
             .frame(minHeight: minHeight)
             .padding(8)
-            .background(RoundedRectangle(cornerRadius: 8).fill(Color(nsColor: .textBackgroundColor)))
+            .background(RoundedRectangle(cornerRadius: Theme.insetCorner).fill(Color(nsColor: .textBackgroundColor)))
             .overlay(alignment: .topLeading) {
                 if let placeholder, text.isEmpty {
                     Text(placeholder)
@@ -39,7 +39,7 @@ struct SheetTextEditor: View {
                         .allowsHitTesting(false)
                 }
             }
-            .overlay(RoundedRectangle(cornerRadius: 8).stroke(.quaternary))
+            .overlay(RoundedRectangle(cornerRadius: Theme.insetCorner).stroke(.quaternary))
     }
 }
 

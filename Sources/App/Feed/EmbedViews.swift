@@ -38,9 +38,9 @@ struct LinkCardView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Color.primary.opacity(0.04))
-            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: Theme.mediaCorner, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                RoundedRectangle(cornerRadius: Theme.mediaCorner, style: .continuous)
                     .strokeBorder(Color.primary.opacity(0.08))
             )
         }
@@ -110,9 +110,9 @@ struct QuoteCardView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.primary.opacity(0.035))
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: Theme.mediaCorner, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
+            RoundedRectangle(cornerRadius: Theme.mediaCorner, style: .continuous)
                 .strokeBorder(Color.primary.opacity(0.08))
         )
     }

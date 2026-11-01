@@ -32,7 +32,7 @@ struct MentionPersonRow: View {
         .padding(.horizontal, 8)
         .padding(.vertical, 5)
         .background(
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
+            RoundedRectangle(cornerRadius: Theme.highlightCorner, style: .continuous)
                 .fill(selected ? Color.accentColor.opacity(0.16) : .clear)
         )
         .contentShape(Rectangle())
@@ -74,7 +74,7 @@ struct MentionSuggestionList: View {
             }
             .padding(4)
             .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                RoundedRectangle(cornerRadius: Theme.insetCorner, style: .continuous)
                     .fill(Color.primary.opacity(0.04))
             )
             .accessibilityElement(children: .contain)

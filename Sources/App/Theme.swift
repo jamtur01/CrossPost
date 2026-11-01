@@ -60,7 +60,11 @@ enum Theme {
     static let avatarSmall: CGFloat = 42 // list rows (search/followers)
     static let avatarLarge: CGFloat = 54
     static let cardCorner: CGFloat = 12
-    static let mediaCorner: CGFloat = 10
+    static let mediaCorner: CGFloat = 10 // media, embeds, and fields and labels at that scale
+    static let insetCorner: CGFloat = 8 // sheet editors, suggestion lists, quote previews, CW rows
+    static let highlightCorner: CGFloat = 6 // a selected row inside an inset list
+    static let skeletonCorner: CGFloat = 4
+    static let bubbleCorner: CGFloat = 15 // DM bubbles
     static let bodyLineSpacing: CGFloat = 3
     static let sheetWidth: CGFloat = 420
 
