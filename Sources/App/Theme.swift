@@ -30,7 +30,11 @@ enum Theme {
     static let timelineHandle = Font.system(size: 12.5)
     static let timelineMeta = Font.system(size: 12.5)
     static let timelineContext = Font.system(size: 12, weight: .medium)
-    static let content = Font.system(size: 15) // post body
+    // Post body sizes; `readingFont` adds the Reading text size setting on top.
+    static let timelineContentSize: CGFloat = 14
+    static let contentSize: CGFloat = 15 // composer, sheets, bios, DMs
+    static let expandedContentSize: CGFloat = 18
+    static let content = Font.system(size: contentSize)
     static let name = Font.system(size: 14.5, weight: .semibold)
     static let nameLarge = Font.system(size: 16, weight: .semibold)
     static let handle = Font.system(size: 13) // @handle (secondary)
@@ -126,7 +130,7 @@ private struct ReadingFont: ViewModifier {
 }
 
 extension View {
-    func readingFont(size: CGFloat = 15) -> some View {
+    func readingFont(size: CGFloat = Theme.contentSize) -> some View {
         modifier(ReadingFont(baseSize: size))
     }
 }

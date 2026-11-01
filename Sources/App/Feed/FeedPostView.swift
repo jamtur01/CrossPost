@@ -40,9 +40,9 @@ struct FeedPostView: View {
 
     private var bodyFontSize: CGFloat {
         if expanded {
-            return 18
+            return Theme.expandedContentSize
         }
-        return inTimeline ? 14 : 15
+        return inTimeline ? Theme.timelineContentSize : Theme.contentSize
     }
 
     private var authorNameFont: Font {
