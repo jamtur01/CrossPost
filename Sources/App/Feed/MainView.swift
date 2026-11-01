@@ -18,6 +18,7 @@ struct MainView: View {
             if showComposer, let compose {
                 ComposeColumnView(model: compose)
                     .environmentObject(store)
+                    .environment(\.composerEscape) { keyboardFocus.request(keyboardFocus.lastFeed) }
                     .frame(minWidth: 330, idealWidth: 370, maxWidth: 440)
             }
 
@@ -56,6 +57,10 @@ struct MainView: View {
             compose?.flushDraft()
         }
         .task { await runRelativeTimestampClock() }
+        .onReceive(NotificationCenter.default.publisher(for: .focusComposer)) { _ in
+            showComposer = true
+            PlainTextEditor.focusComposer()
+        }
         // Mirror the total unread notifications (both networks) onto the dock badge.
         .onChange(of: mastodon?.unreadCount) { updateDockBadge() }
         .onChange(of: bluesky?.unreadCount) { updateDockBadge() }
@@ -123,6 +128,8 @@ extension Notification.Name {
     static let refreshAllFeeds = Notification.Name("refreshAllFeeds")
     /// Posted by the View menu to switch both feeds' tab; userInfo carries the FeedKind.
     static let switchFeedKind = Notification.Name("switchFeedKind")
+    /// Posted by File › New Post to show the composer and put the caret in it.
+    static let focusComposer = Notification.Name("focusComposer")
 }
 
 /// userInfo key carrying the target `FeedKind` for `switchFeedKind`.

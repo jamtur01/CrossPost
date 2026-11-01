@@ -72,6 +72,8 @@ private struct FeedKeyboardNavigation: ViewModifier {
             guard let pop = context?.pop else { return }
             handFocusToColumn()
             pop()
+        case let .focus(target):
+            keyboardFocus?.request(target)
         }
     }
 

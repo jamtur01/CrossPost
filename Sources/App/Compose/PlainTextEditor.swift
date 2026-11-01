@@ -33,6 +33,7 @@ struct PlainTextEditor: NSViewRepresentable {
         scrollView.drawsBackground = false
         scrollView.scrollerStyle = .overlay
 
+        context.coordinator.onEscape = context.environment.composerEscape
         if let textView = scrollView.documentView as? NSTextView {
             (textView as? FocusOnFirstWindowTextView)?.onImages = onImages
             context.coordinator.attach(to: textView)
@@ -52,6 +53,7 @@ struct PlainTextEditor: NSViewRepresentable {
 
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         context.coordinator.update(text: $text, mentions: mentions, editing: editing)
+        context.coordinator.onEscape = context.environment.composerEscape
         guard let textView = scrollView.documentView as? NSTextView else { return }
         (textView as? FocusOnFirstWindowTextView)?.onImages = onImages
         // Don't disturb an in-progress IME composition (CJK / dead keys).
@@ -88,6 +90,8 @@ struct PlainTextEditor: NSViewRepresentable {
         private var text: Binding<String>
         private var mentions: Binding<[MentionSpan]>?
         private var editing: MentionEditing?
+        /// Escape with no suggestion list open; when nil, Escape does what AppKit does.
+        var onEscape: (() -> Void)?
 
         init(text: Binding<String>, mentions: Binding<[MentionSpan]>?, editing: MentionEditing?) {
             self.text = text
@@ -203,6 +207,10 @@ struct PlainTextEditor: NSViewRepresentable {
             case #selector(NSResponder.insertBacktab(_:)):
                 textView.window?.selectPreviousKeyView(nil)
                 return true
+            case #selector(NSResponder.cancelOperation(_:)):
+                guard let onEscape else { return false }
+                onEscape()
+                return true
             default:
                 return false
             }
@@ -280,6 +288,37 @@ struct PlainTextEditor: NSViewRepresentable {
             guard let choice = item.representedObject as? PairingChoice else { return }
             editing?.requestPairing(choice.span, choice.target)
         }
+    }
+}
+
+extension PlainTextEditor {
+    /// Puts the caret in the composer: keeps it in whichever composer editor has it,
+    /// otherwise the topmost one. Sheets' editors and windows under a sheet are left
+    /// alone. A composer that is only now being shown focuses itself as it appears.
+    @MainActor
+    static func focusComposer() {
+        for window in NSApp.windows where window.isVisible && window.sheetParent == nil && window.attachedSheet == nil {
+            guard let contentView = window.contentView else { continue }
+            let editors = composerEditors(in: contentView)
+            if editors.contains(where: { $0 === window.firstResponder }) {
+                return
+            }
+            let topmost = editors.max {
+                $0.convert($0.bounds, to: nil).maxY < $1.convert($1.bounds, to: nil).maxY
+            }
+            if let topmost {
+                window.makeKeyAndOrderFront(nil)
+                window.makeFirstResponder(topmost)
+                return
+            }
+        }
+    }
+
+    private static func composerEditors(in view: NSView) -> [NSTextView] {
+        if let editor = view as? FocusOnFirstWindowTextView {
+            return [editor]
+        }
+        return view.subviews.flatMap { composerEditors(in: $0) }
     }
 }
 

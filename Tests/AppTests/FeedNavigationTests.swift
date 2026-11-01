@@ -51,6 +51,8 @@ final class FeedNavigationTests: XCTestCase {
         let cases: [KeyCase] = [
             KeyCase(.downArrow, "", expected: .next),
             KeyCase(.upArrow, "", expected: .previous),
+            KeyCase(.leftArrow, "", expected: .focus(.mastodon)),
+            KeyCase(.rightArrow, "", expected: .focus(.bluesky)),
             KeyCase("j", "j", expected: .next),
             KeyCase("k", "k", expected: .previous),
             KeyCase("J", "J", [.capsLock], expected: .next),
@@ -70,6 +72,7 @@ final class FeedNavigationTests: XCTestCase {
             KeyCase("k", "k", [.option]),
             KeyCase("J", "J", [.shift]),
             KeyCase(.downArrow, "", [.control]),
+            KeyCase(.leftArrow, "", [.shift]),
             KeyCase(.space, " ", [.command]),
             KeyCase(.delete, "\u{7F}"),
             KeyCase(.deleteForward, ""),

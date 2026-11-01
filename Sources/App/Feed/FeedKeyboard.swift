@@ -4,6 +4,8 @@ import SwiftUI
 enum FeedKeyCommand: Equatable {
     case next, previous, pageDown, pageUp
     case open, back
+    /// Moves the keyboard to a network's feed column.
+    case focus(PostTarget)
 
     /// The command for a key pressed in a focused feed list, or nil when the key is
     /// unbound. Nothing fires with ⌘, ⌃ or ⌥ held, so menu shortcuts keep their keys,
@@ -19,6 +21,8 @@ enum FeedKeyCommand: Equatable {
         switch key {
         case .downArrow: self = .next
         case .upArrow: self = .previous
+        case .leftArrow: self = .focus(.mastodon)
+        case .rightArrow: self = .focus(.bluesky)
         case .return: self = .open
         case .escape: self = .back
         default:
@@ -111,4 +115,6 @@ extension EnvironmentValues {
     @Entry var keyboardFocusedPostID: String?
     /// Lets a clicked row take its list's keyboard focus.
     @Entry var selectFeedPost: ((String) -> Void)?
+    /// Escape in the composer's editor: hands the keyboard back to the last feed.
+    @Entry var composerEscape: (() -> Void)?
 }

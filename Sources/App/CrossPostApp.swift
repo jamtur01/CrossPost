@@ -20,6 +20,12 @@ struct CrossPostApp: App {
             CommandGroup(after: .appInfo) {
                 CheckForUpdatesButton(updater: updater.updater)
             }
+            CommandGroup(replacing: .newItem) {
+                Button("New Post") {
+                    NotificationCenter.default.post(name: .focusComposer, object: nil)
+                }
+                .keyboardShortcut("n", modifiers: .command)
+            }
             CommandGroup(after: .toolbar) {
                 Button(showComposer ? "Hide Composer" : "Show Composer") { showComposer.toggle() }
                     .keyboardShortcut("c", modifiers: [.command, .shift])
