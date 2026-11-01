@@ -91,6 +91,11 @@ struct FeedPanelView: View {
             clearRoutes()
             model.switchTo(kind)
         }
+        .onReceive(NotificationCenter.default.publisher(for: .openFeedPost)) { note in
+            // The composer's Recent Posts opens a sent copy in its own network's column.
+            guard let post = note.userInfo?[feedPostKey] as? FeedPost, post.target == model.target else { return }
+            pushRoute(.thread(post))
+        }
     }
 
     func pushRoute(_ route: FeedRoute) {
