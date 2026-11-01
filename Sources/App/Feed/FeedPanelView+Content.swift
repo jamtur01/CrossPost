@@ -38,10 +38,11 @@ extension FeedPanelView {
             )
         } else if model.kind == .messages {
             MessagesListView(model: model, push: pushRoute)
-        } else if let error = model.errorMessage, model.posts.isEmpty {
-            emptyState(error, systemImage: "exclamationmark.triangle")
         } else if model.posts.isEmpty, model.isLoading {
+            // Loading wins over a previous error so Try Again visibly retries.
             skeletonList
+        } else if let error = model.errorMessage, model.posts.isEmpty {
+            ErrorStateView(message: error) { model.refresh() }
         } else if model.posts.isEmpty {
             emptyState("No posts yet.", systemImage: "text.bubble")
         } else {

@@ -14,7 +14,9 @@ struct MessagesListView: View {
             // DM failure (an app password without DM scope) rides along as
             // secondary guidance rather than being asserted as the cause.
             VStack(spacing: 0) {
-                EmptyStateView(text: error, systemImage: "exclamationmark.bubble", fills: false)
+                EmptyStateView(text: error, systemImage: "exclamationmark.bubble", fills: false) {
+                    model.refresh()
+                }
                 if model.target == .bluesky {
                     Text("If this is an authorization problem: Bluesky DMs need an app "
                         + "password with Direct Messages access — in Bluesky go to Settings "
