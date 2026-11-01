@@ -12,7 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Mastodon posts with a content warning are collapsed behind the warning until
   you click **Show post**. Sensitive images and videos are blurred until
   clicked, and can be covered again. What you reveal stays revealed while the
-  app is open, across scrolling and threads, and is never saved.
+  app is open, across scrolling and threads, and is never saved. A quoted post
+  keeps its own warning and sensitive media covers inside the quote.
+- **Recent Posts** in the empty composer lists your last 50 CrossPost sends with
+  each network's reply, repost, and like counts; clicking a network's counts
+  opens that copy's thread. Only the signed-in accounts' posts are listed. A
+  thread that stopped partway shows how many of its posts each network has
+  (for example "1 of 4 posts"). If the history file can't be read, the composer
+  says so and leaves the file as it is.
 
 ### Changed
 
