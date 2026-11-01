@@ -22,6 +22,8 @@ enum TestFactory {
         authorID: String = "author-id",
         mentionHandles: [String] = [],
         visibility: String? = nil,
+        spoilerText: String? = nil,
+        isSensitive: Bool = false,
         text: AttributedString = AttributedString("hello")
     ) -> FeedPost {
         let key = id ?? "\(target.rawValue):1"
@@ -43,6 +45,8 @@ enum TestFactory {
             isReposted: false,
             mentionHandles: mentionHandles,
             visibility: visibility,
+            spoilerText: spoilerText,
+            isSensitive: isSensitive,
             nativeRef: nativeRef
         )
     }
@@ -51,7 +55,8 @@ enum TestFactory {
     static func boost(of post: FeedPost, id: String, by booster: String = "Bob") -> FeedPost {
         FeedPost(id: id, target: post.target, authorName: post.authorName, authorHandle: post.authorHandle,
                  avatarURL: nil, date: post.date, text: post.text, images: [], webURL: nil,
-                 isLiked: false, isReposted: false, boostedBy: booster, nativeRef: post.nativeRef)
+                 isLiked: false, isReposted: false, boostedBy: booster,
+                 spoilerText: post.spoilerText, isSensitive: post.isSensitive, nativeRef: post.nativeRef)
     }
 }
 

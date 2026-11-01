@@ -20,6 +20,8 @@ final class FeedPanelModel: OptimisticPostHost {
     @ObservationIgnored var loadedHistory: Set<FeedKind> = []
     var unreadCount = 0
     var scrollToTopToken = 0 // bumped on each user-initiated refresh
+    /// Content warnings and sensitive media opened this session, across all routes.
+    let reveals = PostReveals()
 
     let store: AccountStore
     let makeService: @MainActor (PostTarget, AccountStore) async throws -> FeedService

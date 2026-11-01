@@ -2,6 +2,8 @@ import SwiftUI
 
 struct FeedPostView: View {
     let post: FeedPost
+    /// Session reveal state for content warnings and sensitive media.
+    let reveals: PostReveals
     var accent: Color = .accentColor
     var onReply: () -> Void = {}
     var onLike: () -> Void = {}
@@ -38,8 +40,9 @@ struct FeedPostView: View {
     @State var imageRetryIDs: [URL: UUID] = [:]
     /// Contexts without a lightbox open the image through their URL action.
     @Environment(ImageLightbox.self) var lightbox: ImageLightbox?
+    @Environment(\.accessibilityReduceMotion) var reduceMotion
 
-    private var bodyFontSize: CGFloat {
+    var bodyFontSize: CGFloat {
         if expanded {
             return Theme.expandedContentSize
         }
@@ -84,13 +87,18 @@ struct FeedPostView: View {
         VStack(alignment: .leading, spacing: Theme.componentSpacing) {
             contextLine
             header
-            bodyText
-            images
-            if let card = post.card {
-                LinkCardView(card: card, accent: accent, onOpen: onOpenURL)
+            if let warning = post.contentWarning {
+                contentWarningRow(warning)
             }
-            if let quoted = post.quoted {
-                QuoteCardView(quote: quoted, accent: accent, onOpen: onOpenURL)
+            if reveals.showsContent(of: post) {
+                bodyText
+                images
+                if let card = post.card {
+                    LinkCardView(card: card, accent: accent, onOpen: onOpenURL)
+                }
+                if let quoted = post.quoted {
+                    QuoteCardView(quote: quoted, accent: accent, onOpen: onOpenURL)
+                }
             }
             if showActions {
                 actionBar

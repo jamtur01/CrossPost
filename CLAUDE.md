@@ -35,16 +35,3 @@ xcodegen generate
 - `Sources/App` — SwiftUI views and `@Observable` models (`FeedPanelModel`,
   `ComposeModel`, `PostList`).
 - `Tests/` — `CoreTests` and `AppTests`, both in the `CrossPostTests` target.
-
-## Known gaps (parsed but not yet surfaced)
-
-These `FeedPost` fields are populated by the Mastodon adapter (and honored on
-outgoing posts) but are **not shown when reading a feed** — intentional TODOs,
-not bugs:
-
-- **`spoilerText` (content warnings):** a CW'd Mastodon post currently shows its
-  body directly. Needs a collapsible content-warning row (tap to reveal).
-- **`isSensitive` (sensitive media):** sensitive images render unblurred. Needs
-  a blur-until-tapped gate.
-
-`visibility` is surfaced (a glyph by the timestamp for non-public posts).

@@ -58,8 +58,8 @@ audiences, editing, DMs, live vs. polled refresh) rather than pretending they ma
 - Per-post actions: reply, like, repost/boost, bookmark, delete/pin own posts, who
   liked/reposted, open original. Follow, mute, block from profiles. DMs on both.
 - Only http/https links are tappable.
-- Known gaps (parsed, not yet shown): Mastodon content warnings (`spoilerText`) and
-  sensitive-media blur (`isSensitive`).
+- Mastodon content warnings collapse a post until opened, and sensitive media stays
+  blurred until clicked; each reveal lasts for the session and is never saved.
 - Sandboxed, Developer ID-signed, notarized; Core never imports SwiftUI.
 
 ## Brand Commitments

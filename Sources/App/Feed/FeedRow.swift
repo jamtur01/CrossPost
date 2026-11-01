@@ -22,6 +22,7 @@ struct FeedRow: View {
     var body: some View {
         FeedPostView(
             post: post,
+            reveals: panel.reveals,
             accent: accent,
             onReply: { onReply(post) },
             onLike: { host.toggleLike(post) },

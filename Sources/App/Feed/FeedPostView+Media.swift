@@ -15,22 +15,29 @@ extension FeedPostView {
     @ViewBuilder
     var images: some View {
         if !post.images.isEmpty {
-            if expanded {
-                VStack(spacing: 8) {
-                    ForEach(post.images) { media in
-                        mediaView(media, fit: true)
-                            .frame(maxWidth: .infinity)
-                            .clipShape(
-                                RoundedRectangle(
-                                    cornerRadius: Theme.mediaCorner,
-                                    style: .continuous
-                                )
+            mediaLayout
+                .fixedSize(horizontal: false, vertical: true)
+                .overlay { sensitiveMediaCover }
+        }
+    }
+
+    @ViewBuilder
+    private var mediaLayout: some View {
+        if expanded {
+            VStack(spacing: 8) {
+                ForEach(post.images) { media in
+                    mediaView(media, fit: true)
+                        .frame(maxWidth: .infinity)
+                        .clipShape(
+                            RoundedRectangle(
+                                cornerRadius: Theme.mediaCorner,
+                                style: .continuous
                             )
-                    }
+                        )
                 }
-            } else {
-                timelineMedia
             }
+        } else {
+            timelineMedia
         }
     }
 
@@ -95,6 +102,16 @@ extension FeedPostView {
 
     @ViewBuilder
     private func mediaView(_ media: FeedImage, fit: Bool) -> some View {
+        if !reveals.showsMedia(of: post) {
+            coveredMedia(media, fit: fit)
+        } else {
+            revealedMedia(media, fit: fit)
+                .overlay(alignment: .topLeading) { hideSensitiveMediaButton(on: media) }
+        }
+    }
+
+    @ViewBuilder
+    private func revealedMedia(_ media: FeedImage, fit: Bool) -> some View {
         switch media.kind {
         case .image:
             staticImage(media, fit: fit)

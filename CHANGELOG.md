@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Mastodon posts with a content warning are collapsed behind the warning until
+  you click **Show post**. Sensitive images and videos are blurred until
+  clicked, and can be covered again. What you reveal stays revealed while the
+  app is open, across scrolling and threads, and is never saved.
+
 ## [0.5.1] - 2026-10-27
 
 ### Added

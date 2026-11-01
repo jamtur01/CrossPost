@@ -31,11 +31,9 @@ Consciously scoped out for size; pick up next.
 
 ## Tier 1 — table stakes
 
-- [ ] **Content warnings — read** — reveal row for CW'd Mastodon posts
-      (`spoilerText` is already parsed; today the body shows directly).
+- [x] **Content warnings — read** — reveal row for CW'd Mastodon posts.
 - [ ] **Content warnings — write** — add a CW when composing.
-- [ ] **Sensitive media blur** — blur-until-tapped gate for sensitive media
-      (`isSensitive` is already parsed).
+- [x] **Sensitive media blur** — blur-until-clicked gate for sensitive media.
 
 ## Tier 2 — significant, platform-defining
 
