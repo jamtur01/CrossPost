@@ -16,6 +16,7 @@ struct PostCardView: View {
 
     @State private var isDropTarget = false
     @State private var attachmentPreparation = AttachmentPreparationOwner()
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var canAddImages: Bool {
         post.attachments.count < TargetLimits.imageMax
@@ -83,7 +84,7 @@ struct PostCardView: View {
                     )
             }
         }
-        .animation(.easeOut(duration: 0.12), value: isDropTarget)
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: isDropTarget)
         .onDrop(of: [.image, .fileURL], isTargeted: $isDropTarget) { providers in
             prepare(providers)
             return true

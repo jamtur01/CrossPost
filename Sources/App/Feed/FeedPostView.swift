@@ -296,6 +296,6 @@ struct FeedPostView: View {
     private var rowBackground: some View {
         Rectangle()
             .fill(hovering && inTimeline ? Theme.hoverFill : .clear)
-            .animation(.easeOut(duration: 0.12), value: hovering)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: hovering)
     }
 }

@@ -84,6 +84,7 @@ struct ConversationView: View {
     let push: (FeedRoute) -> Void
 
     @State private var model: ConversationModel
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init(
         panel: FeedPanelModel,
@@ -137,7 +138,9 @@ struct ConversationView: View {
                 .scrollContentBackground(.hidden)
                 .onChange(of: model.messages.last?.id) {
                     if let last = model.messages.last {
-                        withAnimation { proxy.scrollTo(last.id, anchor: .bottom) }
+                        withAnimation(reduceMotion ? nil : .default) {
+                            proxy.scrollTo(last.id, anchor: .bottom)
+                        }
                     }
                 }
             }

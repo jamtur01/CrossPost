@@ -15,13 +15,11 @@ final class ImageLightbox {
     private(set) var item: Item?
 
     func present(_ url: URL, circular: Bool = false) {
-        withAnimation(.easeOut(duration: 0.2)) {
-            item = Item(url: url, isCircular: circular)
-        }
+        item = Item(url: url, isCircular: circular)
     }
 
     func dismiss() {
-        withAnimation(.easeOut(duration: 0.2)) { item = nil }
+        item = nil
     }
 }
 
@@ -29,23 +27,31 @@ final class ImageLightbox {
 /// dismiss. Sized relative to the window so it always leaves a margin.
 struct ImageLightboxOverlay: View {
     let lightbox: ImageLightbox
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        if let item = lightbox.item {
-            GeometryReader { geo in
-                ZStack {
-                    Rectangle().fill(.black.opacity(0.72)).ignoresSafeArea()
-                    image(item, in: geo.size)
-                        .shadow(color: .black.opacity(0.4), radius: 30)
-                        .transition(.scale(scale: 0.88).combined(with: .opacity))
-                }
-                .frame(width: geo.size.width, height: geo.size.height)
-                .contentShape(Rectangle())
-                .onTapGesture { lightbox.dismiss() }
-                .overlay(alignment: .topTrailing) { closeButton }
+        ZStack {
+            if let item = lightbox.item {
+                content(item)
             }
-            .transition(.opacity)
         }
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: lightbox.item)
+    }
+
+    private func content(_ item: ImageLightbox.Item) -> some View {
+        GeometryReader { geo in
+            ZStack {
+                Rectangle().fill(.black.opacity(0.72)).ignoresSafeArea()
+                image(item, in: geo.size)
+                    .shadow(color: .black.opacity(0.4), radius: 30)
+                    .transition(.scale(scale: 0.88).combined(with: .opacity))
+            }
+            .frame(width: geo.size.width, height: geo.size.height)
+            .contentShape(Rectangle())
+            .onTapGesture { lightbox.dismiss() }
+            .overlay(alignment: .topTrailing) { closeButton }
+        }
+        .transition(.opacity)
     }
 
     /// Escape reaches this through its keyboard shortcut whatever has focus (the
