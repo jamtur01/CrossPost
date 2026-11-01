@@ -212,12 +212,13 @@ private extension ShortcutKey {
         case text(String)
     }
 
-    /// One cap per modifier, then the key: SF Symbols where the key has one.
+    /// One cap per modifier, then the key: SF Symbols for arrows and Return. Esc is
+    /// text, as macOS writes it; its symbol reads as a circular arrow.
     var capSymbols: [Cap] {
         let caps = heldModifiers.map { Cap.symbol($0.symbol) }
         let symbols: [KeyEquivalent: String] = [
             .upArrow: "arrow.up", .downArrow: "arrow.down", .leftArrow: "arrow.left",
-            .rightArrow: "arrow.right", .return: "return", .escape: "escape"
+            .rightArrow: "arrow.right", .return: "return"
         ]
         return caps + [symbols[key].map(Cap.symbol) ?? .text(keyName)]
     }
