@@ -24,26 +24,37 @@ struct CrossPostApp: App {
                 Button("New Post") {
                     NotificationCenter.default.post(name: .focusComposer, object: nil)
                 }
-                .keyboardShortcut("n", modifiers: .command)
+                .keyboardShortcut(.newPost)
             }
             CommandGroup(after: .toolbar) {
                 Button(showComposer ? "Hide Composer" : "Show Composer") { showComposer.toggle() }
-                    .keyboardShortcut("c", modifiers: [.command, .shift])
+                    .keyboardShortcut(.toggleComposer)
                 Divider()
                 Button("Refresh All Feeds") {
                     NotificationCenter.default.post(name: .refreshAllFeeds, object: nil)
                 }
-                .keyboardShortcut("r", modifiers: .command)
+                .keyboardShortcut(.refreshAll)
                 Divider()
                 Button("Home") { switchFeeds(.home) }
-                    .keyboardShortcut("1", modifiers: .command)
+                    .keyboardShortcut(.showHome)
                 Button("Notifications") { switchFeeds(.notifications) }
-                    .keyboardShortcut("2", modifiers: .command)
+                    .keyboardShortcut(.showNotifications)
                 Button("Messages") { switchFeeds(.messages) }
-                    .keyboardShortcut("3", modifiers: .command)
+                    .keyboardShortcut(.showMessages)
             }
             FeedCommands()
+            CommandGroup(after: .help) {
+                KeyboardShortcutsButton()
+            }
         }
+
+        // Opened from Help › Keyboard Shortcuts, so it stays out of the Window menu.
+        Window("Keyboard Shortcuts", id: KeyboardShortcutsView.windowID) {
+            KeyboardShortcutsView()
+        }
+        .windowResizability(.contentSize)
+        .restorationBehavior(.disabled)
+        .commandsRemoved()
 
         Settings {
             SettingsView().environmentObject(store)

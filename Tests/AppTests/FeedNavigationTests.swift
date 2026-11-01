@@ -90,6 +90,26 @@ final class FeedNavigationTests: XCTestCase {
         }
     }
 
+    /// The Keyboard Shortcuts panel and the Post menu read `FeedKeyCommand.bindings`;
+    /// each key there must reach its own command (no key bound twice) and be listed.
+    func testEveryBoundKeyReachesItsCommandAndIsInTheShortcutsPanel() {
+        let listed = ShortcutCatalog.groups.flatMap(\.rows).flatMap(\.keys)
+        for binding in FeedKeyCommand.bindings {
+            for key in binding.keys {
+                let command = FeedKeyCommand(key: key.key, characters: String(key.key.character),
+                                             modifiers: key.modifiers)
+                XCTAssertEqual(command, binding.command, key.text)
+                XCTAssertTrue(listed.contains(key), "\(key.text) is missing from the panel")
+            }
+        }
+    }
+
+    func testThePanelNeverListsOneMenuShortcutTwice() {
+        let menuKeys = ShortcutCatalog.groups.flatMap(\.rows).flatMap(\.keys)
+            .filter { $0.modifiers.contains(.command) }.map(\.text)
+        XCTAssertEqual(Set(menuKeys).count, menuKeys.count, menuKeys.description)
+    }
+
     func testModifiedKeysAndDeleteAreNeverBound() {
         let unbound: [KeyCase] = [
             KeyCase("j", "j", [.command]),
