@@ -90,6 +90,12 @@ final class SentHistoryStoreTests: XCTestCase {
         let signedIn: [PostTarget: String] = [.mastodon: "other.example|me"]
         XCTAssertNil(history[1].limited(to: signedIn)?.copy(on: .bluesky))
         XCTAssertEqual(history.compactMap { $0.limited(to: signedIn) }.map(\.text), ["elsewhere"])
+
+        // Bluesky copies match by the DID in the post's URI, so a handle change (the
+        // copy was recorded under "me.bsky.social") keeps them, and another DID doesn't.
+        XCTAssertNotNil(history[1].limited(to: [.bluesky: "did:plc:me"])?.copy(on: .bluesky))
+        XCTAssertNil(history[1].limited(to: [.bluesky: "did:plc:someone-else"]))
+        XCTAssertNil(history[1].limited(to: [.bluesky: ""]), "an unknown DID matches nothing")
     }
 
     private func sent(_ text: String, copies: [SentCopy]) -> SentPost {

@@ -21,7 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   keeps its own warning and sensitive media covers inside the quote.
 - **Recent Posts** in the empty composer lists your last 50 CrossPost sends with
   each network's reply, repost, and like counts; clicking a network's counts
-  opens that copy's thread. Only the signed-in accounts' posts are listed. A
+  opens that copy's thread. Only the signed-in accounts' posts are listed;
+  Bluesky posts are matched by account DID, so they stay after a handle change. A
   thread that stopped partway shows how many of its posts each network has
   (for example "1 of 4 posts"). If the history file can't be read (such as one
   saved by an earlier build), the composer says so and leaves the file as it is;

@@ -58,7 +58,8 @@ final class SentHistoryModel {
     private let now: @MainActor () -> Date
     private let sleep: Sleep
 
-    /// `account` gives a network's signed-in account key, or nil when it has none.
+    /// `account` gives a network's signed-in account key (the Bluesky DID, empty until a
+    /// session has learned it), or nil when it has none.
     /// `now` and `sleep` time the follow-up refreshes after a send.
     init(store: SentHistoryStore,
          account: @escaping @MainActor (PostTarget) -> String?,
@@ -135,7 +136,9 @@ final class SentHistoryModel {
         scheduleFollowUp()
         let targets = PostTarget.allCases.filter { accounts[$0] != nil }
         recent = Dictionary(uniqueKeysWithValues: targets.map { ($0, .loading) })
-        guard !visiblePosts.isEmpty else { return }
+        // Any saved send, not just visible ones: fetching your own profile is how an
+        // unknown Bluesky DID is learned, and with it which copies are yours.
+        guard !posts.isEmpty else { return }
         for target in targets {
             fetches[target] = Task { [weak self] in
                 guard let self else { return }
@@ -188,6 +191,9 @@ final class SentHistoryModel {
         do {
             let service = try await makeService(target)
             let profile = try await service.myProfile()
+            if target == .bluesky, accounts[.bluesky] != profile.id {
+                accounts[.bluesky] = profile.id // the DID that Bluesky copies are matched by
+            }
             return try await .loaded(service.authorPosts(id: profile.id))
         } catch {
             Log.history.error("Recent posts failed on \(target.rawValue, privacy: .public): \(error)")

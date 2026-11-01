@@ -7,14 +7,22 @@ struct SentCopy: Codable, Equatable, Sendable {
     let target: PostTarget
     let item: PostedItem
     let date: Date
-    /// The publishing account's key (Mastodon server and username, or Bluesky handle).
+    /// The publishing account's key when it was sent (Mastodon server and username, or
+    /// Bluesky handle).
     let account: String
     let postCount: Int
+
+    /// Who published this copy, for matching against the signed-in account. On Bluesky
+    /// it's the author DID in the post's own URI, which survives handle changes and
+    /// covers copies recorded with a handle; otherwise the recorded account.
+    var owner: String {
+        item.ref?.blueskyAuthorDID ?? account
+    }
 
     /// The same published post on the same account.
     func isSameCopy(as other: SentCopy) -> Bool {
         guard let key = item.ref?.postKey else { return false }
-        return other.target == target && other.account == account && other.item.ref?.postKey == key
+        return other.target == target && other.owner == owner && other.item.ref?.postKey == key
     }
 }
 
@@ -58,16 +66,23 @@ struct SentPost: Codable, Equatable, Sendable, Identifiable {
         return SentPost(id: id, date: date, text: newer.text, postCount: newer.postCount, copies: copies)
     }
 
-    /// This record limited to the copies published by `accounts` (keyed by network),
-    /// or nil when none of them were.
+    /// This record limited to the copies published by `accounts` (keyed by network: the
+    /// Mastodon account key, the Bluesky DID), or nil when none of them were.
     func limited(to accounts: [PostTarget: String]) -> SentPost? {
-        let mine = copies.filter { accounts[$0.target] == $0.account }
+        let mine = copies.filter { accounts[$0.target] == $0.owner }
         guard !mine.isEmpty else { return nil }
         return SentPost(id: id, date: date, text: text, postCount: postCount, copies: mine)
     }
 }
 
 extension NativeRef {
+    /// The author's DID for a Bluesky post (`at://did:…/app.bsky.feed.post/…`).
+    var blueskyAuthorDID: String? {
+        guard case let .bluesky(uri, _, _, _) = self, uri.hasPrefix("at://") else { return nil }
+        let authority = uri.dropFirst("at://".count).prefix { $0 != "/" }
+        return authority.hasPrefix("did:") ? String(authority) : nil
+    }
+
     /// The identity of the post itself, ignoring thread context and content hashes.
     var postKey: String {
         switch self {

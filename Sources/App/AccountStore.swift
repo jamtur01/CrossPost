@@ -17,6 +17,9 @@ final class AccountStore: ObservableObject {
     @AppStorage("mastodonUsername",
                 store: AccountStore.defaults) var mastodonUsername: String = "" // your own acct, to avoid self-mentions
     @AppStorage("blueskyHandle", store: AccountStore.defaults) var blueskyHandle: String = ""
+    /// The signed-in Bluesky account's DID, learned from its sessions; empty until then
+    /// or after its credentials change.
+    @AppStorage("blueskyDID", store: AccountStore.defaults) private(set) var blueskyDID: String = ""
 
     private let credentials: SecretStoring
     @Published private var availableCredentials: Set<PostTarget> = []
@@ -90,6 +93,9 @@ final class AccountStore: ObservableObject {
         // Invalidate on writes so row rendering never has to read Keychain to check ownership.
         let target: PostTarget = account == "mastodon-token" ? .mastodon : .bluesky
         ownAccounts[target] = nil
+        if target == .bluesky {
+            blueskyDID = ""
+        }
         if value.isEmpty {
             availableCredentials.remove(target)
         } else {
@@ -149,6 +155,9 @@ final class AccountStore: ObservableObject {
             return
         }
         ownAccounts[target] = (id, scope)
+        if target == .bluesky, blueskyDID != id {
+            blueskyDID = id
+        }
     }
 
     private func accountScope(_ target: PostTarget) -> [String] {

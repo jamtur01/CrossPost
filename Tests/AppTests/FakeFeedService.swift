@@ -133,8 +133,11 @@ final class FakeFeedService: FeedService, @unchecked Sendable { // tests drive i
         return profileForURLResult
     }
 
+    /// The signed-in account's id (a Bluesky DID in Bluesky tests).
+    var myProfileID = "me"
+
     func myProfile() async throws -> Profile {
-        Self.profile("me")
+        Self.profile(myProfileID)
     }
 
     func authorPosts(id _: String) async throws -> [FeedPost] {

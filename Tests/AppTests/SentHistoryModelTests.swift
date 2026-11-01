@@ -52,6 +52,25 @@ final class SentHistoryModelTests: XCTestCase {
         XCTAssertEqual(sleeps.count, 2)
     }
 
+    /// Before any session has stored the Bluesky DID, the history can't tell which
+    /// Bluesky copies are yours; fetching your own profile learns it.
+    func testBlueskyCopiesAppearOnceTheirDIDIsLearned() async throws {
+        let store = SentHistoryStore(url: URL.temporaryDirectory
+            .appending(path: "history-\(UUID())/sent-history.json"))
+        let uri = "at://did:plc:me/app.bsky.feed.post/a"
+        try store.record(SentPost(id: UUID(), date: landed, text: "hello", postCount: 1, copies: [
+            SentCopy(target: .bluesky, item: PostedItem(url: nil, ref: .bluesky(uri: uri, cid: "c", rootURI: uri,
+                                                                                rootCID: "c")),
+                     date: landed, account: "old-handle.bsky.social", postCount: 1)
+        ]))
+        fake.myProfileID = "did:plc:me"
+        let model = SentHistoryModel(store: store, account: { $0 == .bluesky ? "" : nil },
+                                     makeService: { [unowned self] _ in fake })
+        XCTAssertTrue(model.visiblePosts.isEmpty, "unknown DID: nothing is matched yet")
+        model.refresh()
+        await waitUntil { model.visiblePosts.count == 1 }
+    }
+
     private var copy: SentCopy {
         SentCopy(target: .mastodon, item: PostedItem(url: nil, ref: .mastodon(statusID: "1")), date: landed,
                  account: "me", postCount: 1)

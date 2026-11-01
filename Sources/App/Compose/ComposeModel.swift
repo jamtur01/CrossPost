@@ -121,8 +121,10 @@ final class ComposeModel {
         history = SentHistoryModel(
             store: historyStore,
             account: { [store] target in
-                let signedIn = target == .mastodon ? store.hasMastodon : store.hasBluesky
-                return signedIn ? store.accountKey(for: target) : nil
+                switch target {
+                case .mastodon: store.hasMastodon ? store.accountKey(for: .mastodon) : nil
+                case .bluesky: store.hasBluesky ? store.blueskyDID : nil
+                }
             },
             makeService: { try await mentionDirectory.service(for: $0) }
         )
