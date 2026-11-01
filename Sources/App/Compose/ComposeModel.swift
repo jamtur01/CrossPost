@@ -50,6 +50,7 @@ final class ComposeModel {
     /// A mention whose account on one network the user is choosing by hand.
     var pairing: MentionPairingRequest?
     let mentionDirectory: MentionDirectory
+    let history: SentHistoryModel
     /// Each post card's autocomplete state, kept here so it outlives view updates.
     @ObservationIgnored var mentionCompletions: [UUID: MentionCompletion] = [:]
 
@@ -101,6 +102,7 @@ final class ComposeModel {
         store: AccountStore,
         draftStore: DraftStore? = nil,
         mentionPairStore: MentionPairStore = .application,
+        historyStore: SentHistoryStore = .application,
         makeFeedService: @escaping @MainActor (PostTarget, AccountStore) async throws -> FeedService =
             FeedServiceFactory.make,
         findUnreadablePost: @escaping UnreadablePostFinder =
@@ -112,9 +114,15 @@ final class ComposeModel {
         self.draftStore = draftStore
         self.findUnreadablePost = findUnreadablePost
         self.makePosters = makePosters
-        mentionDirectory = MentionDirectory(pairStore: mentionPairStore) { [store] target in
+        let mentionDirectory = MentionDirectory(pairStore: mentionPairStore) { [store] target in
             try await makeFeedService(target, store)
         }
+        self.mentionDirectory = mentionDirectory
+        history = SentHistoryModel(
+            store: historyStore,
+            isConfigured: { [store] in $0 == .mastodon ? store.hasMastodon : store.hasBluesky },
+            makeService: { try await mentionDirectory.service(for: $0) }
+        )
         restoreDraft()
     }
 
@@ -364,6 +372,7 @@ final class ComposeModel {
         }
 
         if !anyLanded.isEmpty {
+            recordSentPost(published)
             NotificationCenter.default.post(name: .crossPostDidPost, object: nil,
                                             userInfo: [crossPostTargetsKey: Set(anyLanded)])
         }
@@ -391,6 +400,18 @@ final class ComposeModel {
             }
         }
         _ = flushDraft()
+    }
+
+    /// Records the draft's first post on every network it has landed on so far, so
+    /// a retry that finishes the other network updates the same history entry.
+    private func recordSentPost(_ published: [DraftPost]) {
+        let now = Date.now
+        let copies = PostTarget.allCases.compactMap { target in
+            landedByTarget[target]?.items.first.map { SentCopy(target: target, item: $0, date: now) }
+        }
+        guard let first = published.first, !copies.isEmpty else { return }
+        history.record(SentPost(id: UUID(), date: now, text: first.text,
+                                postCount: published.count, copies: copies))
     }
 
     private func landedItems(from result: PostResult) -> ([PostedItem], Bool) {

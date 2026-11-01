@@ -118,6 +118,35 @@ final class ComposeCompletionTests: XCTestCase {
         XCTAssertEqual(model.thread[0].text, "New draft")
     }
 
+    func testSendsAreRecordedOncePerDraftAcrossARetry() throws {
+        let historyStore = SentHistoryStore(url: URL.temporaryDirectory
+            .appending(path: "history-\(UUID())/sent-history.json"))
+        let model = ComposeModel(store: AccountStore(), historyStore: historyStore)
+        model.handleCompletion([PostResult(target: .bluesky, outcome: .failure(message: "Offline"))])
+        XCTAssertEqual(historyStore.load(), [], "a send that landed nowhere isn't history")
+
+        model.thread = [DraftPost(text: "Cross-post"), DraftPost(text: "Second")]
+        let mastodon = PostedItem(url: "https://example/1", ref: .mastodon(statusID: "1"))
+        let uri = "at://did:plc:me/app.bsky.feed.post/a"
+        let bluesky = PostedItem(url: "https://bsky.app/a",
+                                 ref: .bluesky(uri: uri, cid: "c", rootURI: uri, rootCID: "c"))
+        model.handleCompletion([
+            PostResult(target: .mastodon, outcome: .success(posted: [mastodon, mastodon])),
+            PostResult(target: .bluesky, outcome: .failure(message: "Offline"))
+        ])
+        let partial = try XCTUnwrap(historyStore.load().first)
+        XCTAssertEqual(partial.copies.map(\.target), [.mastodon])
+        XCTAssertEqual(partial.text, "Cross-post")
+        XCTAssertEqual(partial.postCount, 2)
+
+        model.handleCompletion([PostResult(target: .bluesky, outcome: .success(posted: [bluesky, bluesky]))])
+        let history = historyStore.load()
+        XCTAssertEqual(history.count, 1)
+        XCTAssertEqual(history.first?.id, partial.id)
+        XCTAssertEqual(history.first?.copies.map(\.item), [mastodon, bluesky])
+        XCTAssertEqual(model.history.posts.map(\.id), history.map(\.id))
+    }
+
     private var successes: [PostResult] {
         PostTarget.allCases.map {
             PostResult(target: $0, outcome: .success(posted: [PostedItem(url: "https://example/1")]))

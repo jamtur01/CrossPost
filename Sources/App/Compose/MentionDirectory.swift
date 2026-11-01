@@ -54,9 +54,11 @@ final class MentionDirectory {
         }
     }
 
-    // ponytail: two concurrent first searches may each build a service; the
-    // second simply replaces the first in the cache.
-    private func service(for target: PostTarget) async throws -> FeedService {
+    /// The cached service for `target`; the composer's history shares it so both
+    /// reuse one signed-in session per network.
+    func service(for target: PostTarget) async throws -> FeedService {
+        // ponytail: two concurrent first searches may each build a service; the
+        // second simply replaces the first in the cache.
         if let service = services[target] {
             return service
         }
