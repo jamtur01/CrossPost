@@ -37,9 +37,10 @@ posts without leaving the window.
   start a new conversation from a profile or the Messages header. Mastodon DMs that
   @mention someone outside the conversation are refused, since Mastodon would deliver
   them to that person too.
-- **Keyboard navigation** — move through Home, threads, profiles, and saved posts,
-  open and act on posts, and switch between the feeds and the composer without the
-  mouse. The **Post** menu lists every key.
+- **Keyboard navigation** — move through Home, notifications, threads, profiles, saved
+  posts, search results, and messages, open and act on posts, and switch between the
+  feeds and the composer without the mouse. **Help › Keyboard Shortcuts** (⌘/) lists
+  every key.
 - **Reading controls** — Standard, Larger, and Largest text in Settings; persistent network
   names in navigation headers; Retry and Open original actions for failed images.
 - **Recent posts** — while the composer is empty it lists your last 50 CrossPost sends
@@ -118,23 +119,25 @@ a feed.
 
 ### Keyboard
 
-Click a post, or press Esc in the composer, to give a feed the keyboard. The
-focused post carries the system focus ring; each feed keeps its own while you work
-in the other.
+Click a row, or press Esc in the composer, to give a list the keyboard. The
+focused row carries the system focus ring; each column keeps its own while you work
+in the other. **Help › Keyboard Shortcuts** (⌘/) shows every shortcut.
 
 | Key | Action |
 | --- | --- |
-| ↓ / J, ↑ / K | Next / previous post |
+| ↓ / J, ↑ / K | Next / previous item |
 | Space / ⇧Space | Page down / up |
-| Return | Open the thread |
-| Esc | Back (in a feed); return to the last feed (in the composer) |
+| Return | Open the thread, profile, or conversation |
+| Esc | Back (in a list); return to the last list (in the composer) |
 | R / L / B | Reply / like / boost or repost |
-| ← / → | Mastodon feed / Bluesky feed |
+| ← / → | Mastodon column / Bluesky column |
 | ⌘N | New post: shows the composer and puts the caret in it |
 
-Single keys work only while a feed has the keyboard, never while you type. They
-apply to Home, threads, profiles, and saved posts, not to notifications, messages,
-or search. No key deletes a post.
+The keys work in Home, notifications, threads, profiles, saved posts, search results,
+and messages. On a notification, Return opens its post, or the profile for a follow;
+R/L/B do nothing on a notification without a post. In Search, Esc in the field moves to
+the results. In a conversation, Return moves to the message field and Esc moves back.
+Single keys never act while you type. No key deletes a post.
 
 ### Behavior notes
 

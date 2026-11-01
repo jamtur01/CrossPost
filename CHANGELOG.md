@@ -26,6 +26,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (for example "1 of 4 posts"). If the history file can't be read (such as one
   saved by an earlier build), the composer says so and leaves the file as it is;
   **Start New History** keeps it under a new name and starts recording again.
+- **Help › Keyboard Shortcuts** (⌘/) opens a window listing every shortcut,
+  grouped by where it works. Esc or ⌘W closes it.
+- Keyboard navigation now works in Notifications, Search results, and Messages.
+  On a notification, Return opens its post (or the profile, for a follow) and
+  R/L/B act on its post. In Search, Esc in the field moves to the results. In a
+  conversation, Return moves to the message field and Esc moves back. ←/→ into
+  a column showing Notifications or Messages now lands on that list.
 
 ### Changed
 
