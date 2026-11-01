@@ -36,7 +36,7 @@ extension FeedPanelModel {
         }
     }
 
-    /// One like or repost at a time per post across notification rows. Several rows
+    /// One like, repost, or bookmark at a time per post across notification rows. Several rows
     /// can show the same post, and each acting on its own copy would race the
     /// like's record and, on Bluesky, like the post twice.
     func beginNotificationPostMutation(_ postID: String) -> Bool {
