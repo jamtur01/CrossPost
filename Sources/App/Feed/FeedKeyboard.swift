@@ -91,14 +91,21 @@ final class FeedKeyboardFocus {
     var lastFeed: PostTarget = .mastodon
     /// A column asked to take the keyboard and not yet claimed by its list.
     private(set) var pending: PostTarget?
+    private var requestedAt = Date.distantPast
+    /// A request nobody claims (the column shows notifications) goes stale, so a list
+    /// that appears later can't take the keyboard from wherever the user is typing.
+    static let requestLifetime: TimeInterval = 1
 
     func request(_ target: PostTarget) {
         pending = target
+        requestedAt = .now
     }
 
-    /// True once, for the list that takes a pending request for `target`.
-    func claim(_ target: PostTarget) -> Bool {
-        guard pending == target else { return false }
+    /// True once, for the list that takes a fresh pending request for `target`.
+    func claim(_ target: PostTarget, now: Date = .now) -> Bool {
+        guard pending == target, now.timeIntervalSince(requestedAt) < Self.requestLifetime else {
+            return false
+        }
         pending = nil
         return true
     }

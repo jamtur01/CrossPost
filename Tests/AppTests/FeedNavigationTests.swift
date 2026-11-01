@@ -47,6 +47,19 @@ final class FeedNavigationTests: XCTestCase {
                        ids[ids.count - 1 - step])
     }
 
+    @MainActor
+    func testAFocusRequestIsClaimedOnceByItsColumnAndGoesStale() {
+        let focus = FeedKeyboardFocus()
+        focus.request(.bluesky)
+        XCTAssertFalse(focus.claim(.mastodon))
+        XCTAssertTrue(focus.claim(.bluesky))
+        XCTAssertFalse(focus.claim(.bluesky), "a request is claimed once")
+
+        focus.request(.mastodon)
+        let later = Date.now.addingTimeInterval(FeedKeyboardFocus.requestLifetime + 0.1)
+        XCTAssertFalse(focus.claim(.mastodon, now: later), "an unclaimed request goes stale")
+    }
+
     func testKeyMapping() {
         let cases: [KeyCase] = [
             KeyCase(.downArrow, "", expected: .next),

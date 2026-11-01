@@ -121,18 +121,20 @@ private struct FeedKeyboardNavigation: ViewModifier {
         keyboardFocus?.request(target)
     }
 
+    /// Takes the keyboard when asked to, showing the ring at once on the post the list
+    /// would start from. Focus that arrives another way (Tab, a click on a button)
+    /// waits for a key before choosing a post.
     private func claimFocus() {
         guard let context, context.isActive, keyboardFocus?.claim(context.target) == true else { return }
         isFocused = true
+        if selectedPost == nil {
+            selection = initialSelection ?? FeedNavigation.firstVisible(in: ids, visible: visible)
+        }
     }
 
     private func focusChanged() {
-        guard isFocused else { return }
-        if let target = context?.target {
+        if isFocused, let target = context?.target {
             keyboardFocus?.lastFeed = target
-        }
-        if selectedPost == nil {
-            selection = initialSelection ?? FeedNavigation.firstVisible(in: ids, visible: visible)
         }
     }
 
