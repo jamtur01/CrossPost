@@ -116,7 +116,7 @@ private struct NetworkCounts: View {
             .accessibilityValue(countsDescription(post))
         case .loading:
             marked {
-                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                RoundedRectangle(cornerRadius: Theme.skeletonCorner, style: .continuous)
                     .fill(Color.primary.opacity(0.06))
                     .frame(width: 92, height: 9)
                     .loadingSheen()
