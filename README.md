@@ -36,6 +36,11 @@ posts without leaving the window.
   them to that person too.
 - **Reading controls** — Standard, Larger, and Largest text in Settings; persistent network
   names in navigation headers; Retry and Open original actions for failed images.
+- **Recent posts** — while the composer is empty it lists your last 50 CrossPost sends
+  with each network's reply, repost, and like counts (read from your own recent posts
+  when the list appears and on Refresh All). Click a network's counts to open that copy's
+  thread in its column. The history is plain JSON (`sent-history.json`) in the app's
+  Application Support folder.
 - **Active draft recovery** — text, images, alt text, audiences, destinations, and partial
   thread progress are saved locally across quits.
 - **Automatic updates** via [Sparkle](https://sparkle-project.org), from this repo's

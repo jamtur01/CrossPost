@@ -263,6 +263,9 @@ Native button styles throughout; CrossPost does not draw its own button chrome.
 ### Timeline Row (signature)
 The core of the app. Content runs top to bottom: an optional context line (boost attribution, then a tappable accent "In reply to"), the avatar + name + handle header with the visibility glyph and relative timestamp trailing, the selectable body, media at 10px corners, then the link card, the quoted post, and the action bar. Hover adds the 4% fill over 0.12s. A plain click opens the thread; dragging selects text. A Mastodon content warning stands in for the body, media, link card, and quote as a 4%-fill row with the warning in the reading font and a "Show post" toggle in the network accent. Sensitive media is blurred under a material "Sensitive content" label until clicked, independently of the warning. A 50%-opacity divider sits at the bottom edge. Loading shows static skeleton rows with a fixed sheen, never a perpetual animation.
 
+### Recent Posts
+The composer's idle state: a `sectionHeader` "Recent Posts" over one composer card of rows split by inset hairlines. Each row shows the post's first text (reading font, 14px, two lines), a meta line (`Thread · N posts ·` and the relative time), and one group per network: the network glyph in its accent, then reply, repost, and like counts in secondary gray. A group is a plain button with a hover fill that opens that copy's thread in its own column. Groups with nothing to open show secondary text instead: "Deleted", "Older than your recent posts", "Just posted", or "—" with the error as a tooltip. Loading shows a static skeleton bar per group. Networks without an account are omitted. The section fades out when the user starts writing (no animation under Reduce Motion).
+
 ### Unread Badge
 The system red capsule: 10px bold white tabular digits, 16px minimum, circular for one digit, capped at "99+". The dock badge mirrors the combined unread count from both networks.
 
