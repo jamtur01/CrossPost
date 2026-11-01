@@ -78,12 +78,10 @@ struct RecentPostsSection: View {
             ForEach(Array(history.visiblePosts.enumerated()), id: \.element.id) { index, post in
                 if index > 0 {
                     Rectangle().fill(Theme.hairline).frame(height: 0.75)
-                        .padding(.horizontal, 12)
                 }
                 RecentPostRow(post: post, history: history)
             }
         }
-        .cardSurface()
     }
 }
 
@@ -129,7 +127,7 @@ private struct RecentPostRow: View {
                 .padding(.leading, -NetworkCounts.inset)
             }
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, 4)
         .padding(.vertical, Theme.timelineRowPaddingV)
         .accessibilityElement(children: .contain)
     }
