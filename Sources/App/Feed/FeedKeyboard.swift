@@ -215,7 +215,9 @@ struct FeedListContext {
 
 /// The focused list's commands, for the Post menu.
 struct FeedListCommands {
-    let hasSelection: Bool
+    /// Whether Open does something: a row is selected, or the list has an action for
+    /// Return without one (an empty conversation focuses its message field).
+    let canOpen: Bool
     /// The post the focused row is about; nil for a row without one (a follow, a person,
     /// a conversation).
     let selectedPost: FeedPost?

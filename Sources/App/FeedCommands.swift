@@ -19,7 +19,7 @@ struct FeedCommands: Commands {
             command("Page Up", .pageUp)
             Divider()
             command("Open", .open)
-                .disabled(list?.hasSelection != true)
+                .disabled(list?.canOpen != true)
             command("Back", .back)
                 .disabled(list?.canGoBack != true)
             Divider()

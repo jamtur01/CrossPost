@@ -36,7 +36,8 @@ private struct KeyboardListNavigation: ViewModifier {
                 .focusEffectDisabled()
                 .focused($isFocused)
                 .focusedValue(\.feedListCommands, FeedListCommands(
-                    hasSelection: selectedID != nil, selectedPost: selectedPost, canGoBack: context?.pop != nil,
+                    canOpen: selectedID != nil || openWithoutSelection != nil, selectedPost: selectedPost,
+                    canGoBack: context?.pop != nil,
                     perform: { perform($0, proxy: proxy) }
                 ))
                 .onKeyPress { press in
