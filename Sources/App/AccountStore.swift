@@ -1,6 +1,13 @@
 import Foundation
 import SwiftUI
 
+/// The test host's defaults suite, one per build location (see `AccountStore.defaults`).
+/// A stable hash of the host's path, so each checkout reuses its own suite.
+private let testDefaultsSuite: String = {
+    let hash = Bundle.main.bundlePath.utf8.reduce(UInt64(5381)) { ($0 << 5) &+ $0 &+ UInt64($1) }
+    return "net.kartar.crosspost.tests.\(String(hash, radix: 16))"
+}()
+
 /// Observable account configuration. Prefs in UserDefaults; secrets in Keychain.
 @MainActor
 final class AccountStore: ObservableObject {
@@ -38,9 +45,11 @@ final class AccountStore: ObservableObject {
     /// UserDefaults for stored prefs. The standard suite in normal runs, but a
     /// throwaway suite under the unit-test host: tests share the app's bundle id and
     /// would otherwise overwrite the real app's instance URL and handle in `.standard`.
+    /// Each checkout's test host gets its own suite, so test runs in parallel worktrees
+    /// can't change each other's accounts mid-test.
     static let defaults: UserDefaults = {
         guard ProcessInfo.processInfo.isRunningTests,
-              let suite = UserDefaults(suiteName: "net.kartar.crosspost.tests") else {
+              let suite = UserDefaults(suiteName: testDefaultsSuite) else {
             return .standard
         }
         return suite
