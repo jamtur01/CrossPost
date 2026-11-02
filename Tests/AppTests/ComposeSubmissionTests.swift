@@ -164,6 +164,11 @@ final class ComposeSubmissionTests: XCTestCase {
         recorder.postersByTarget = [.bluesky: bluesky] // Mastodon defaults to success
         let model = model(with: recorder)
         model.thread[0].text = "hi"
+        let refresh = TestBox<Notification?>(nil)
+        let token = NotificationCenter.default.addObserver(
+            forName: .crossPostDidPost, object: nil, queue: nil
+        ) { refresh.value = $0 }
+        defer { NotificationCenter.default.removeObserver(token) }
 
         await model.submit()
 
@@ -171,6 +176,10 @@ final class ComposeSubmissionTests: XCTestCase {
         XCTAssertEqual(model.thread.count, 1)
         XCTAssertFalse(model.thread[0].isEmpty) // draft kept
         XCTAssertEqual(model.selectedTargets, [.bluesky]) // only landed Mastodon de-selected
+        // Only the landed platform's panel refreshes; a payload-less note concerns none.
+        XCTAssertEqual(refresh.value?.concerns(.mastodon), true)
+        XCTAssertEqual(refresh.value?.concerns(.bluesky), false)
+        XCTAssertFalse(Notification(name: .crossPostDidPost).concerns(.mastodon))
     }
 
     /// The landed signature keys on text + image identity, so editing only a post's

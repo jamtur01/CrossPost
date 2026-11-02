@@ -81,8 +81,7 @@ struct ReplySheet: View {
         .onReceive(
             NotificationCenter.default.publisher(for: .crossPostCredentialsChanged)
         ) { note in
-            guard let targets = note.userInfo?[crossPostTargetsKey] as? Set<PostTarget>,
-                  targets.contains(model.post.target) else { return }
+            guard note.concerns(model.post.target) else { return }
             close()
         }
         .onDisappear {

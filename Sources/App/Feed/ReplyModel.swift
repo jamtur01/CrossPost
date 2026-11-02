@@ -109,11 +109,7 @@ final class ReplyModel {
             guard !Task.isCancelled else { return false }
             didPost = true
             postedURL = item.url.flatMap(URL.init(string:))
-            NotificationCenter.default.post(
-                name: .crossPostDidPost,
-                object: nil,
-                userInfo: [crossPostTargetsKey: Set([post.target])]
-            )
+            NotificationCenter.default.post(.crossPostDidPost, targets: [post.target])
             return true
         } catch is CancellationError {
             return false

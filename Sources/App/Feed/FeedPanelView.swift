@@ -67,16 +67,14 @@ struct FeedPanelView: View {
         .onReceive(
             NotificationCenter.default.publisher(for: .crossPostCredentialsChanged)
         ) { note in
-            if let targets = note.userInfo?[crossPostTargetsKey] as? Set<PostTarget>,
-               targets.contains(model.target) {
+            if note.concerns(model.target) {
                 replyTarget = nil
                 clearRoutes()
                 model.restartAfterCredentialsChange()
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .crossPostDidPost)) { note in
-            if let targets = note.userInfo?[crossPostTargetsKey] as? Set<PostTarget>,
-               targets.contains(model.target) {
+            if note.concerns(model.target) {
                 model.refresh()
             }
         }

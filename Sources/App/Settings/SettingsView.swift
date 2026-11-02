@@ -181,7 +181,6 @@ struct SettingsView: View {
     }
 
     private func credentialsChanged(_ target: PostTarget) {
-        NotificationCenter.default.post(name: .crossPostCredentialsChanged, object: nil,
-                                        userInfo: [crossPostTargetsKey: Set([target])])
+        NotificationCenter.default.post(.crossPostCredentialsChanged, targets: [target])
     }
 }

@@ -52,8 +52,7 @@ extension FeedPanelModel {
                visibility: PostVisibility) async throws -> PostedItem {
         let item = try await resolveService().quote(post: post, text: text, visibility: visibility)
         // Refresh this platform's feed so the new quote shows up.
-        NotificationCenter.default.post(name: .crossPostDidPost, object: nil,
-                                        userInfo: [crossPostTargetsKey: Set([post.target])])
+        NotificationCenter.default.post(.crossPostDidPost, targets: [post.target])
         return item
     }
 

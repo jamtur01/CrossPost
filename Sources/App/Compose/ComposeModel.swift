@@ -378,8 +378,7 @@ final class ComposeModel {
 
         if !anyLanded.isEmpty {
             recordSentPost(published)
-            NotificationCenter.default.post(name: .crossPostDidPost, object: nil,
-                                            userInfo: [crossPostTargetsKey: Set(anyLanded)])
+            NotificationCenter.default.post(.crossPostDidPost, targets: Set(anyLanded))
         }
 
         let failures = results.compactMap(failureMessage)
@@ -461,4 +460,19 @@ extension Notification.Name {
 }
 
 /// userInfo key carrying a `Set<PostTarget>` of affected platforms.
-let crossPostTargetsKey = "targets"
+private let crossPostTargetsKey = "targets"
+
+extension Notification {
+    /// Whether `target` is among the platforms this notification lists. A notification
+    /// without the targets payload concerns no platform.
+    func concerns(_ target: PostTarget) -> Bool {
+        (userInfo?[crossPostTargetsKey] as? Set<PostTarget>)?.contains(target) ?? false
+    }
+}
+
+extension NotificationCenter {
+    /// Posts `name` with `targets` as the payload `Notification.concerns(_:)` reads.
+    func post(_ name: Notification.Name, targets: Set<PostTarget>) {
+        post(name: name, object: nil, userInfo: [crossPostTargetsKey: targets])
+    }
+}
