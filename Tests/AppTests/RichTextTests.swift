@@ -5,13 +5,6 @@ import XCTest
 final class RichTextTests: XCTestCase {
     private let accent = Color.red
 
-    private func links(_ styled: AttributedString) -> [(text: String, url: URL)] {
-        styled.runs.compactMap { run in
-            guard let url = run.link else { return nil }
-            return (String(styled[run.range].characters), url)
-        }
-    }
-
     private func colored(_ styled: AttributedString) -> [String] {
         styled.runs.compactMap { run in
             run.foregroundColor == accent ? String(styled[run.range].characters) : nil
@@ -22,7 +15,7 @@ final class RichTextTests: XCTestCase {
         // A plain "@bob" with no link must not look tappable (e.g. "@cat" in a bio).
         let styled = RichText.styled(AttributedString("hi @bob there"), accent: accent)
         XCTAssertTrue(colored(styled).isEmpty)
-        XCTAssertTrue(links(styled).isEmpty)
+        XCTAssertTrue(styled.linkRuns.isEmpty)
     }
 
     func testPlainHashtagIsNotColored() {
@@ -32,7 +25,7 @@ final class RichTextTests: XCTestCase {
 
     func testDetectsBareURLAsColoredLink() {
         let styled = RichText.styled(AttributedString("see https://x.com now"), accent: accent)
-        let found = links(styled)
+        let found = styled.linkRuns
         XCTAssertEqual(found.count, 1)
         XCTAssertEqual(found.first?.text, "https://x.com")
         XCTAssertEqual(found.first?.url, URL(string: "https://x.com"))
@@ -46,7 +39,7 @@ final class RichTextTests: XCTestCase {
         input.append(anchor)
 
         let styled = RichText.styled(input, accent: accent)
-        let found = links(styled)
+        let found = styled.linkRuns
         XCTAssertEqual(found.count, 1)
         XCTAssertEqual(found.first?.text, "example.com")
         XCTAssertEqual(found.first?.url, URL(string: "https://example.com"))
@@ -60,7 +53,7 @@ final class RichTextTests: XCTestCase {
         let styled = RichText.styled(HTMLRenderer.renderAttributed(html), accent: accent)
 
         XCTAssertEqual(String(styled.characters), "@kartar")
-        let found = links(styled)
+        let found = styled.linkRuns
         XCTAssertEqual(found.count, 1)
         XCTAssertEqual(found.first?.text, "@kartar")
         XCTAssertEqual(found.first?.url, URL(string: "https://hachyderm.io/@kartar"))
@@ -68,7 +61,7 @@ final class RichTextTests: XCTestCase {
 
     func testPlainTextGetsNoLinksOrColor() {
         let styled = RichText.styled(AttributedString("just some words"), accent: accent)
-        XCTAssertTrue(links(styled).isEmpty)
+        XCTAssertTrue(styled.linkRuns.isEmpty)
         XCTAssertTrue(colored(styled).isEmpty)
     }
 
@@ -86,11 +79,11 @@ final class RichTextTests: XCTestCase {
         var first = AttributedString("profile")
         first.link = URL(string: "https://x.com/a")
         let firstStyled = RichText.styled(first, accent: accent, cacheKey: "bluesky:1")
-        XCTAssertEqual(links(firstStyled).first?.url, URL(string: "https://x.com/a"))
+        XCTAssertEqual(firstStyled.linkRuns.first?.url, URL(string: "https://x.com/a"))
 
         var second = AttributedString("profile")
         second.link = URL(string: "https://x.com/b")
         let secondStyled = RichText.styled(second, accent: accent, cacheKey: "bluesky:1")
-        XCTAssertEqual(links(secondStyled).first?.url, URL(string: "https://x.com/b"))
+        XCTAssertEqual(secondStyled.linkRuns.first?.url, URL(string: "https://x.com/b"))
     }
 }

@@ -41,14 +41,6 @@ final class BlueskyMappingTests: XCTestCase {
         try XCTUnwrap(BlueskyFeedService.feedPost(from: feedItem(name)), "feedPost(from:) returned nil")
     }
 
-    /// The (text, url) pairs of every linked run in an attributed string.
-    private func links(_ text: AttributedString) -> [(text: String, url: URL)] {
-        text.runs.compactMap { run in
-            guard let url = run.link else { return nil }
-            return (String(text[run.range].characters), url)
-        }
-    }
-
     // MARK: - Bookmarks
 
     func testBookmarkMapsItsPostAndSkipsDeletedOnes() throws {
@@ -101,8 +93,8 @@ final class BlueskyMappingTests: XCTestCase {
     func testPlainPostResolvesMentionFacetToProfileLink() throws {
         let post = try mapped("bluesky_post")
         // The mention facet (bytes [6,24)) must become a link to the DID profile.
-        XCTAssertEqual(links(post.text).map(\.text), ["@alice.bsky.social"])
-        XCTAssertEqual(links(post.text).first?.url,
+        XCTAssertEqual(post.text.linkRuns.map(\.text), ["@alice.bsky.social"])
+        XCTAssertEqual(post.text.linkRuns.first?.url,
                        URL(string: "https://bsky.app/profile/did:plc:alice"))
     }
 

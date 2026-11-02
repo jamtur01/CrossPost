@@ -77,6 +77,16 @@ enum TestFactory {
     }
 }
 
+extension AttributedString {
+    /// The (text, url) pairs of every linked run, in order.
+    var linkRuns: [(text: String, url: URL)] {
+        runs.compactMap { run in
+            guard let url = run.link else { return nil }
+            return (String(self[run.range].characters), url)
+        }
+    }
+}
+
 /// A mutable value a test shares with `@Sendable` closures (notification
 /// observers, fake service factories) that it reads back after awaiting them.
 final class TestBox<Value>: @unchecked Sendable { // one test touches it at a time, never concurrently
