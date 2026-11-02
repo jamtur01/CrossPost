@@ -213,16 +213,17 @@ struct FeedPostView: View {
 
     private func actionRow(spacing: CGFloat) -> some View {
         HStack(spacing: spacing) {
-            postActionButton("bubble", count: post.replyCount, active: false,
+            postActionButton("bubble", count: post.replyCount,
                              tint: accent, help: "Reply", action: onReply)
-            postActionButton("arrow.2.squarepath", count: post.repostCount, active: post.isReposted,
-                             tint: Theme.repostTint, help: "Repost", action: onRepost)
+            postActionButton("arrow.2.squarepath", count: post.repostCount,
+                             toggle: (post.repostVerb, post.isReposted),
+                             tint: Theme.repostTint, help: post.repostTitle, action: onRepost)
             postActionButton(post.isLiked ? "heart.fill" : "heart", count: post.likeCount,
-                             active: post.isLiked, tint: Theme.likeTint, help: "Like", action: onLike)
+                             toggle: ("Like", post.isLiked), tint: Theme.likeTint, help: post.likeTitle, action: onLike)
             Spacer(minLength: 0)
-            postActionButton(post.isBookmarked ? "bookmark.fill" : "bookmark", active: post.isBookmarked,
-                             tint: .primary, help: post.isBookmarked ? "Remove Bookmark" : "Bookmark",
-                             action: onBookmark)
+            postActionButton(post.isBookmarked ? "bookmark.fill" : "bookmark",
+                             toggle: ("Bookmark", post.isBookmarked),
+                             tint: .primary, help: post.bookmarkTitle, action: onBookmark)
             moreMenu
         }
     }

@@ -6,30 +6,28 @@ import SwiftUI
 /// - Parameters:
 ///   - symbol: SF Symbol name.
 ///   - count: When provided, shows a compact count beside the icon (timeline style).
-///   - active: Whether the action is currently engaged (e.g. liked, reposted, bookmarked).
-///   - tint: Colour applied when `active` is true.
-///   - help: Accessibility tooltip.
+///   - toggle: For a toggle (like, repost, bookmark), the stable name VoiceOver reads
+///     with an On or Off value, and whether it is engaged; nil for a plain action
+///     such as Reply.
+///   - tint: Colour applied when the toggle is engaged.
+///   - help: Tooltip naming what a click does next, and the VoiceOver label of a
+///     plain action.
 ///   - compact: When true, uses the notification-row font and hides counts.
 ///   - action: Callback invoked on tap.
 @MainActor
 func postActionButton(
     _ symbol: String,
     count: Int? = nil,
-    active: Bool = false,
+    toggle: (name: String, isOn: Bool)? = nil,
     tint: Color,
     help: String,
     compact: Bool = false,
     action: @escaping () -> Void
 ) -> some View {
-    let isToggle = ["heart", "heart.fill", "arrow.2.squarepath"].contains(symbol)
-    let isBookmark = symbol.hasPrefix("bookmark")
-    let state = if isBookmark {
-        active ? "Bookmarked" : ""
-    } else {
-        isToggle ? (active ? "On" : "Off") : ""
-    }
-    let value = [state, count.map { $0.formatted() } ?? ""]
-        .filter { !$0.isEmpty }.joined(separator: ", ")
+    let active = toggle?.isOn ?? false
+    let state = toggle.map { $0.isOn ? "On" : "Off" }
+    let value = [state, count.map { $0.formatted() }]
+        .compactMap(\.self).joined(separator: ", ")
     return Button(action: action) {
         HStack(spacing: 5) {
             // Engaged actions also get a heavier stroke so the state doesn't rest on
@@ -49,8 +47,29 @@ func postActionButton(
         .contentShape(Rectangle())
     }
     .buttonStyle(.plain)
-    .accessibilityLabel(help)
+    .accessibilityLabel(toggle?.name ?? help)
     .accessibilityValue(value)
     .accessibilityAddTraits(active ? .isSelected : [])
     .help(help)
+}
+
+/// The like, repost, and bookmark titles, shared by the action bars' tooltips and,
+/// for like and repost, the Post menu. Each names what a click does next.
+extension FeedPost {
+    /// The network's word for reposting, which is also the toggle's VoiceOver name.
+    var repostVerb: String {
+        target == .mastodon ? "Boost" : "Repost"
+    }
+
+    var likeTitle: String {
+        isLiked ? "Unlike" : "Like"
+    }
+
+    var repostTitle: String {
+        isReposted ? "Undo \(repostVerb)" : repostVerb
+    }
+
+    var bookmarkTitle: String {
+        isBookmarked ? "Remove Bookmark" : "Bookmark"
+    }
 }

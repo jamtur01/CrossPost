@@ -238,6 +238,7 @@ final class PostListTests: XCTestCase {
 
         list.setBookmarked(true, on: post)
         XCTAssertTrue(list.posts[0].isBookmarked) // optimistic, synchronous
+        XCTAssertNotEqual(list.posts[0].bookmarkTitle, post.bookmarkTitle, "the title names the next action")
 
         await waitUntil { fake.bookmarkSetCalls == [true] } // reconcile ran
         XCTAssertTrue(list.posts[0].isBookmarked) // not rolled back

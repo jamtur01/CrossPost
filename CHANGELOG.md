@@ -104,6 +104,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the system colors were hard to read on white.
 - Liking or reposting from a notification row gives the same trackpad haptic
   tick as in a post row.
+- The Like, Repost, and Bookmark buttons' tooltips name what a click does next,
+  in post and notification rows: Like / Unlike, Boost / Undo Boost on Mastodon,
+  Repost / Undo Repost on Bluesky, Bookmark / Remove Bookmark. The Post menu uses
+  the same Like and Repost titles. VoiceOver reads a stable name (Like, Boost or
+  Repost, Bookmark) with an On or Off value in both kinds of row.
 
 ### Fixed
 

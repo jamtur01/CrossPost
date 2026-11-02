@@ -24,8 +24,8 @@ struct FeedCommands: Commands {
                 .disabled(list?.canGoBack != true)
             Divider()
             command("Reply", .reply)
-            command(likeTitle, .like)
-            command(repostTitle, .repost)
+            command(list?.selectedPost?.likeTitle ?? "Like", .like)
+            command(list?.selectedPost?.repostTitle ?? "Repost", .repost)
             Divider()
             focusButton(.mastodon)
             focusButton(.bluesky)
@@ -42,14 +42,5 @@ struct FeedCommands: Commands {
             keyboardFocus?.request(target)
         }
         .disabled(keyboardFocus == nil)
-    }
-
-    private var likeTitle: String {
-        list?.selectedPost?.isLiked == true ? "Unlike" : "Like"
-    }
-
-    private var repostTitle: String {
-        let verb = list?.selectedPost?.target == .mastodon ? "Boost" : "Repost"
-        return list?.selectedPost?.isReposted == true ? "Undo \(verb)" : verb
     }
 }

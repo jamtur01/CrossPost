@@ -255,6 +255,7 @@ final class FeedPanelInteractionTests: FeedPanelTestCase {
         model.toggleLike(post)
         XCTAssertTrue(model.posts[0].isLiked) // optimistic, synchronous
         XCTAssertEqual(model.posts[0].likeCount, post.likeCount + 1)
+        XCTAssertNotEqual(model.posts[0].likeTitle, post.likeTitle, "the title names the next action")
 
         await waitUntil { model.posts[0].likeRecordURI != nil }
         XCTAssertEqual(model.posts[0].likeRecordURI, "at://like/\(post.id)")
@@ -284,6 +285,12 @@ final class FeedPanelInteractionTests: FeedPanelTestCase {
         model.toggleRepost(post)
         XCTAssertTrue(model.posts[0].isReposted)
         XCTAssertEqual(model.posts[0].repostCount, post.repostCount + 1)
+        XCTAssertNotEqual(model.posts[0].repostTitle, post.repostTitle, "the title names the next action")
+        XCTAssertNotEqual(
+            post.repostTitle,
+            TestFactory.feedPost(target: .mastodon).repostTitle,
+            "each network uses its own verb"
+        )
 
         await waitUntil { model.posts[0].repostRecordURI != nil }
         XCTAssertEqual(model.posts[0].repostRecordURI, "at://repost/\(post.id)")

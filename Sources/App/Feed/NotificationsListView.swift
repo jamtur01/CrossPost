@@ -199,19 +199,15 @@ private struct NotificationRow: View {
             if let post = livePost {
                 postActionButton("arrowshape.turn.up.left", tint: accent, help: "Reply",
                                  compact: true) { onReply(post) }
-                postActionButton(
-                    "arrow.2.squarepath",
-                    active: post.isReposted,
-                    tint: Theme.repostTint,
-                    help: post.isReposted ? "Undo repost" : "Repost",
-                    compact: true,
-                    action: toggleRepost
-                )
-                postActionButton(post.isLiked ? "heart.fill" : "heart", active: post.isLiked,
-                                 tint: Theme.likeTint, help: post.isLiked ? "Unlike" : "Like",
+                postActionButton("arrow.2.squarepath", toggle: (post.repostVerb, post.isReposted),
+                                 tint: Theme.repostTint,
+                                 help: post.repostTitle, compact: true, action: toggleRepost)
+                postActionButton(post.isLiked ? "heart.fill" : "heart", toggle: ("Like", post.isLiked),
+                                 tint: Theme.likeTint, help: post.likeTitle,
                                  compact: true, action: toggleLike)
-                postActionButton(post.isBookmarked ? "bookmark.fill" : "bookmark", active: post.isBookmarked,
-                                 tint: .primary, help: post.isBookmarked ? "Remove Bookmark" : "Bookmark",
+                postActionButton(post.isBookmarked ? "bookmark.fill" : "bookmark",
+                                 toggle: ("Bookmark", post.isBookmarked),
+                                 tint: .primary, help: post.bookmarkTitle,
                                  compact: true, action: toggleBookmark)
             }
             if !isOwnActor {
