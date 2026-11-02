@@ -291,8 +291,8 @@ final class ComposeModelTests: XCTestCase {
         let model = makeModel()
         model.addPost()
         let destinationID = model.thread[1].id
-        let first = Attachment(imageData: TestFactory.pngData())
-        let second = Attachment(imageData: TestFactory.pngData())
+        let first = Attachment(imageData: TestFactory.imageData())
+        let second = Attachment(imageData: TestFactory.imageData())
         model.removePost(at: 0)
 
         let applied = model.applyPreparedAttachments(
@@ -331,8 +331,8 @@ final class ComposeModelTests: XCTestCase {
             Attachment(imageData: Data([UInt8($0)]))
         }
         model.thread[0].attachments = existing
-        let first = Attachment(imageData: TestFactory.pngData())
-        let second = Attachment(imageData: TestFactory.pngData())
+        let first = Attachment(imageData: TestFactory.imageData())
+        let second = Attachment(imageData: TestFactory.imageData())
 
         let applied = model.applyPreparedAttachments(
             ImageAttaching.PreparedResult(

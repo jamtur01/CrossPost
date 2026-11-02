@@ -28,7 +28,7 @@ final class ComposeDraftRecoveryTests: XCTestCase {
     func testDraftRestoresTextImagesAltTextTargetsAndAudience() {
         let model = ComposeModel(store: AccountStore(), draftStore: draftStore)
         model.thread = [DraftPost(text: "Draft", attachments: [
-            Attachment(imageData: TestFactory.pngData(), altText: "A picture")
+            Attachment(imageData: TestFactory.imageData(), altText: "A picture")
         ])]
         model.selectedTargets = [.mastodon]
         model.visibility = .private

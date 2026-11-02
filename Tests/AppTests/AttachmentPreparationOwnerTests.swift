@@ -50,7 +50,7 @@ final class AttachmentPreparationOwnerTests: XCTestCase {
             post: TestFactory.feedPost(target: .bluesky),
             store: AccountStore()
         )
-        let attachment = Attachment(imageData: TestFactory.pngData())
+        let attachment = Attachment(imageData: TestFactory.imageData())
 
         let task = owner.start(
             operation: {
@@ -81,7 +81,7 @@ final class AttachmentPreparationOwnerTests: XCTestCase {
         let gate = TestGate()
         let observedCancellation = PreparationFlag()
         let firstDraftID = model.thread[0].id
-        let attachment = Attachment(imageData: TestFactory.pngData())
+        let attachment = Attachment(imageData: TestFactory.imageData())
 
         let task = owner.start(
             operation: {
@@ -200,7 +200,7 @@ final class AttachmentPreparationOwnerTests: XCTestCase {
             forTypeIdentifier: UTType.png.identifier,
             visibility: .all
         ) { completion in
-            completion(TestFactory.pngData(), nil)
+            completion(TestFactory.imageData(), nil)
             return Progress(totalUnitCount: 1)
         }
         let selection = ImageAttaching.selectProviders(
@@ -229,7 +229,7 @@ final class AttachmentPreparationOwnerTests: XCTestCase {
         }
         let imageFile = URL.temporaryDirectory.appending(path: "drop-\(UUID()).png")
         let textFile = URL.temporaryDirectory.appending(path: "drop-\(UUID()).txt")
-        try TestFactory.pngData().write(to: imageFile)
+        try TestFactory.imageData().write(to: imageFile)
         try Data("hi".utf8).write(to: textFile)
         defer {
             try? FileManager.default.removeItem(at: imageFile)
@@ -238,13 +238,13 @@ final class AttachmentPreparationOwnerTests: XCTestCase {
 
         let fromFile = await attachments { pasteboard.writeObjects([imageFile as NSURL]) }
         XCTAssertEqual(fromFile, 1, "a dropped image file")
-        let fromData = await attachments { pasteboard.setData(TestFactory.pngData(), forType: .png) }
+        let fromData = await attachments { pasteboard.setData(TestFactory.imageData(), forType: .png) }
         XCTAssertEqual(fromData, 1, "copied image data")
         let fromText = await attachments { pasteboard.setString("hello", forType: .string) }
         XCTAssertNil(fromText, "plain text")
         let fromRichText = await attachments {
             pasteboard.setString("hello", forType: .string)
-            pasteboard.setData(TestFactory.pngData(), forType: .png)
+            pasteboard.setData(TestFactory.imageData(), forType: .png)
         }
         XCTAssertNil(fromRichText, "text that carries a picture")
         let fromOtherFile = await attachments { pasteboard.writeObjects([textFile as NSURL]) }

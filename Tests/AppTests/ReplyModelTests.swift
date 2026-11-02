@@ -117,7 +117,7 @@ final class ReplyModelTests: XCTestCase {
             makeService: { _, _ in fake }
         )
         model.text = "sure"
-        model.attachments = [Attachment(imageData: TestFactory.pngData())]
+        model.attachments = [Attachment(imageData: TestFactory.imageData())]
 
         let posted = await model.send()
 
@@ -205,7 +205,7 @@ final class ReplyModelTests: XCTestCase {
             makeService: { _, _ in fake }
         )
         model.text = "" // no text…
-        model.attachments = [Attachment(imageData: TestFactory.pngData(), altText: "alt")] // …just an image
+        model.attachments = [Attachment(imageData: TestFactory.imageData(), altText: "alt")] // …just an image
 
         let refreshCount = TestBox(0)
         let token = NotificationCenter.default.addObserver(

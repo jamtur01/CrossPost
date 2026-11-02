@@ -8,11 +8,11 @@ import XCTest
 final class BoundedImageLoaderTests: XCTestCase {
     func testConcurrentIdenticalRequestsCoalesce() async throws {
         let url = uniqueURL()
-        try ImageURLProtocolStub.configure(
+        ImageURLProtocolStub.configure(
             url: url,
             statusCode: 200,
             mimeType: "image/png",
-            data: pngData(width: 64, height: 32),
+            data: TestFactory.imageData(width: 64, height: 32),
             options: .init(delay: 0.05)
         )
         let loader = makeLoader()
@@ -31,11 +31,11 @@ final class BoundedImageLoaderTests: XCTestCase {
 
     func testCacheKeySeparatesTargetSizes() async throws {
         let url = uniqueURL()
-        try ImageURLProtocolStub.configure(
+        ImageURLProtocolStub.configure(
             url: url,
             statusCode: 200,
             mimeType: "image/png",
-            data: pngData(width: 128, height: 128)
+            data: TestFactory.imageData(width: 128, height: 128)
         )
         let loader = makeLoader()
         let small = ImageRequest(
@@ -60,7 +60,7 @@ final class BoundedImageLoaderTests: XCTestCase {
 
     func testStaticCacheCostUsesDecodedRasterBytes() async throws {
         let url = uniqueURL()
-        let data = try pngData(width: 64, height: 32)
+        let data = TestFactory.imageData(width: 64, height: 32)
         ImageURLProtocolStub.configure(
             url: url,
             statusCode: 200,
@@ -181,11 +181,11 @@ final class BoundedImageLoaderTests: XCTestCase {
 
     func testAnimatedRequestsCoalesceAndEnforceByteLimit() async throws {
         let url = uniqueURL()
-        try ImageURLProtocolStub.configure(
+        ImageURLProtocolStub.configure(
             url: url,
             statusCode: 200,
             mimeType: "image/gif",
-            data: gifData(width: 16, height: 16),
+            data: TestFactory.imageData(width: 16, height: 16, type: .gif),
             options: .init(delay: 0.05)
         )
         let loader = makeLoader()
@@ -227,13 +227,13 @@ final class BoundedImageLoaderTests: XCTestCase {
         )
     }
 
-    func testRejectsAnimatedSourceLargerThanRequestedTarget() async throws {
+    func testRejectsAnimatedSourceLargerThanRequestedTarget() async {
         let url = uniqueURL()
-        try ImageURLProtocolStub.configure(
+        ImageURLProtocolStub.configure(
             url: url,
             statusCode: 200,
             mimeType: "image/gif",
-            data: gifData(width: 64, height: 64)
+            data: TestFactory.imageData(width: 64, height: 64, type: .gif)
         )
         let loader = makeLoader()
         let request = ImageRequest(
@@ -268,11 +268,11 @@ final class BoundedImageLoaderTests: XCTestCase {
 
     func testAcceptsPortraitAnimationWithinMaximumTargetDimension() async throws {
         let url = uniqueURL()
-        try ImageURLProtocolStub.configure(
+        ImageURLProtocolStub.configure(
             url: url,
             statusCode: 200,
             mimeType: "image/gif",
-            data: gifData(width: 12, height: 16)
+            data: TestFactory.imageData(width: 12, height: 16, type: .gif)
         )
         let loader = makeLoader()
         let request = ImageRequest(
@@ -288,7 +288,8 @@ final class BoundedImageLoaderTests: XCTestCase {
     }
 }
 
-private extension BoundedImageLoaderTests {
+/// Loader-test helpers shared with `BoundedImageLoaderCancellationTests`.
+extension XCTestCase {
     func makeLoader() -> BoundedImageLoader {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [ImageURLProtocolStub.self]
@@ -306,7 +307,9 @@ private extension BoundedImageLoaderTests {
             targetSize: CGSize(width: 64, height: 64)
         )
     }
+}
 
+private extension BoundedImageLoaderTests {
     func assertLoadError(
         _ expected: ImageLoadingError,
         loader: BoundedImageLoader,
@@ -322,46 +325,17 @@ private extension BoundedImageLoaderTests {
         }
     }
 
-    func pngData(width: Int, height: Int) throws -> Data {
-        try bitmapData(width: width, height: height, type: .png)
-    }
-
     func animatedGIFData(width: Int, height: Int, frames: Int) throws -> Data {
         let data = NSMutableData()
         let destination = try XCTUnwrap(
             CGImageDestinationCreateWithData(data, UTType.gif.identifier as CFString, frames, nil)
         )
-        let frame = try XCTUnwrap(NSBitmapImageRep(data: gifData(width: width, height: height))?.cgImage)
+        let gif = TestFactory.imageData(width: width, height: height, type: .gif)
+        let frame = try XCTUnwrap(NSBitmapImageRep(data: gif)?.cgImage)
         for _ in 0 ..< frames {
             CGImageDestinationAddImage(destination, frame, nil)
         }
         XCTAssertTrue(CGImageDestinationFinalize(destination))
         return data as Data
-    }
-
-    func gifData(width: Int, height: Int) throws -> Data {
-        try bitmapData(width: width, height: height, type: .gif)
-    }
-
-    func bitmapData(
-        width: Int,
-        height: Int,
-        type: NSBitmapImageRep.FileType
-    ) throws -> Data {
-        let bitmap = try XCTUnwrap(
-            NSBitmapImageRep(
-                bitmapDataPlanes: nil,
-                pixelsWide: width,
-                pixelsHigh: height,
-                bitsPerSample: 8,
-                samplesPerPixel: 4,
-                hasAlpha: true,
-                isPlanar: false,
-                colorSpaceName: .deviceRGB,
-                bytesPerRow: 0,
-                bitsPerPixel: 0
-            )
-        )
-        return try XCTUnwrap(bitmap.representation(using: type, properties: [:]))
     }
 }

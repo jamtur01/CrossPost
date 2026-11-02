@@ -98,7 +98,7 @@ final class ComposeSubmissionTests: XCTestCase {
         let model = model(with: recorder) { probe.validate($0) }
         model.thread[0].text = "hi"
         model.thread[0].attachments = [
-            Attachment(imageData: TestFactory.pngData())
+            Attachment(imageData: TestFactory.imageData())
         ]
 
         await model.submit()

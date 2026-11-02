@@ -1,4 +1,3 @@
-import AppKit
 @testable import CrossPost
 import Foundation
 import XCTest
@@ -6,11 +5,11 @@ import XCTest
 final class BoundedImageLoaderCancellationTests: XCTestCase {
     func testCancellingOneWaiterDoesNotCancelSharedLoad() async throws {
         let url = uniqueURL()
-        try ImageURLProtocolStub.configure(
+        ImageURLProtocolStub.configure(
             url: url,
             statusCode: 200,
             mimeType: "image/png",
-            data: pngData(width: 64, height: 64),
+            data: TestFactory.imageData(width: 64, height: 64),
             options: .init(delay: 0.08)
         )
         let loader = makeLoader()
@@ -35,11 +34,11 @@ final class BoundedImageLoaderCancellationTests: XCTestCase {
 
     func testCancellingLastWaiterCancelsSourceRequest() async throws {
         let url = uniqueURL()
-        try ImageURLProtocolStub.configure(
+        ImageURLProtocolStub.configure(
             url: url,
             statusCode: 200,
             mimeType: "image/png",
-            data: pngData(width: 64, height: 64),
+            data: TestFactory.imageData(width: 64, height: 64),
             options: .init(delay: 0.5)
         )
         let loader = makeLoader()
@@ -92,26 +91,8 @@ final class BoundedImageLoaderCancellationTests: XCTestCase {
 
         let replacementWaiterCount = await loader.waiterCount(for: request)
         XCTAssertEqual(replacementWaiterCount, 1)
-        try await dataClient.succeedRequest(at: 1, with: pngData(width: 64, height: 64))
+        await dataClient.succeedRequest(at: 1, with: TestFactory.imageData(width: 64, height: 64))
         _ = try await replacement.value
-    }
-
-    private func makeLoader() -> BoundedImageLoader {
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.protocolClasses = [ImageURLProtocolStub.self]
-        return BoundedImageLoader(configuration: configuration)
-    }
-
-    private func uniqueURL() -> URL {
-        URL(string: "https://example.test/\(UUID().uuidString)")!
-    }
-
-    private func thumbnailRequest(url: URL) -> ImageRequest {
-        ImageRequest(
-            url: url,
-            representation: .thumbnail,
-            targetSize: CGSize(width: 64, height: 64)
-        )
     }
 
     private func waitForCondition(
@@ -124,24 +105,6 @@ final class BoundedImageLoaderCancellationTests: XCTestCase {
             try await Task.sleep(nanoseconds: 1_000_000)
         }
         XCTFail("Condition was not met before timeout")
-    }
-
-    private func pngData(width: Int, height: Int) throws -> Data {
-        let bitmap = try XCTUnwrap(
-            NSBitmapImageRep(
-                bitmapDataPlanes: nil,
-                pixelsWide: width,
-                pixelsHigh: height,
-                bitsPerSample: 8,
-                samplesPerPixel: 4,
-                hasAlpha: true,
-                isPlanar: false,
-                colorSpaceName: .deviceRGB,
-                bytesPerRow: 0,
-                bitsPerPixel: 0
-            )
-        )
-        return try XCTUnwrap(bitmap.representation(using: .png, properties: [:]))
     }
 }
 

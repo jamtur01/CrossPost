@@ -5,14 +5,19 @@ import XCTest
 
 /// Builds a `FeedPost` with sensible defaults so tests only specify what they care about.
 enum TestFactory {
-    /// A small, genuinely decodable PNG, for attachment tests that need real image data.
-    static func pngData(side: Int = 4) -> Data {
+    /// A blank, genuinely decodable image (PNG unless `type` says otherwise), for tests
+    /// that need real image data.
+    static func imageData(width: Int = 4, height: Int = 4, type: NSBitmapImageRep.FileType = .png) -> Data {
         let rep = NSBitmapImageRep(
-            bitmapDataPlanes: nil, pixelsWide: side, pixelsHigh: side,
+            bitmapDataPlanes: nil, pixelsWide: width, pixelsHigh: height,
             bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
             colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0
         )
-        return rep?.representation(using: .png, properties: [:]) ?? Data()
+        guard let data = rep?.representation(using: type, properties: [:]) else {
+            XCTFail("Couldn't encode a \(width)x\(height) test image")
+            return Data()
+        }
+        return data
     }
 
     static func feedPost(
