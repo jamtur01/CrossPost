@@ -23,7 +23,7 @@
       "column-title": { "displayName": "Column Title", "purpose": "Network name in column headers, New Post, sheet titles." },
       "column-subtitle": { "displayName": "Column Subtitle", "purpose": "Feed menu or route title under a column header's network name, secondary label color." },
       "name-large": { "displayName": "Name Large", "purpose": "Author name in the expanded post detail." },
-      "name": { "displayName": "Name", "purpose": "Author display names in timeline rows (14.5px in sheets)." },
+      "name": { "displayName": "Name", "purpose": "Author display names in timeline rows (14.5px in notification, people, and message rows)." },
       "body": { "displayName": "Body", "purpose": "Timeline post text; +0/+2/+4px with the Reading text size setting." },
       "body-detail": { "displayName": "Body (Detail)", "purpose": "Post text in sheets and the composer." },
       "body-expanded": { "displayName": "Body (Expanded)", "purpose": "Post text in the expanded detail view." },
@@ -33,14 +33,19 @@
       "label": { "displayName": "Label", "purpose": "Link-card provider, section headers." }
     },
     "shadows": [
-      { "name": "toast", "value": "0 3px 10px rgba(0,0,0,0.18)", "purpose": "Transient action-error capsule on regular material over a feed." },
+      { "name": "toast", "value": "0 3px 10px rgba(0,0,0,0.18)", "purpose": "Transient action-error capsule and new-posts pill on regular material over a feed." },
       { "name": "lightbox", "value": "0 0 30px rgba(0,0,0,0.4)", "purpose": "Full-window image viewer over its dimmed backdrop." }
     ],
     "motion": [
       { "name": "hover", "value": "0.12s ease-out", "purpose": "Row hover fill and composer drop-target highlight." },
       { "name": "pill-toggle", "value": "snappy 0.15s", "purpose": "Target pill selection; removed under Reduce Motion." },
       { "name": "toast", "value": "spring(response 0.35, damping 0.8), move from bottom + opacity", "purpose": "Action-error toast entry; removed under Reduce Motion." },
-      { "name": "lightbox", "value": "scale 0.88 + opacity", "purpose": "Image lightbox open and close." }
+      { "name": "lightbox", "value": "scale 0.88 + opacity", "purpose": "Image lightbox open and close." },
+      { "name": "new-posts-pill", "value": "spring(response 0.35, damping 0.8)", "purpose": "New-posts pill entry and exit; removed under Reduce Motion." },
+      { "name": "scroll-to-top", "value": "0.25s ease-out", "purpose": "New-posts pill scroll to the top; jumps under Reduce Motion." },
+      { "name": "reveal", "value": "0.2s ease-out", "purpose": "Showing or hiding a content warning or sensitive media; removed under Reduce Motion." },
+      { "name": "reply-link-hover", "value": "0.12s ease-out", "purpose": "In reply to turning the network accent on hover; instant under Reduce Motion." },
+      { "name": "recent-posts-fade", "value": "0.2s ease-out", "purpose": "Recent Posts fading out when writing starts; removed under Reduce Motion." }
     ],
     "breakpoints": [
       { "name": "window-min-with-composer", "value": "920px" },
@@ -54,8 +59,8 @@
       "kind": "custom",
       "refersTo": "timeline-row",
       "description": "Edge-to-edge post row with hairline divider and 4% hover fill.",
-      "html": "<article class=\"ds-row\"><div class=\"ds-row-ctx\"><svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M17 2l4 4-4 4\"/><path d=\"M3 11V9a3 3 0 0 1 3-3h15\"/><path d=\"M7 22l-4-4 4-4\"/><path d=\"M21 13v2a3 3 0 0 1-3 3H3\"/></svg>Ana reposted</div><header class=\"ds-row-head\"><span class=\"ds-avatar\"></span><span class=\"ds-names\"><strong>Jo Example</strong><span>@jo.bsky.social</span></span><time title=\"November 1, 2026 at 9:12 AM\" aria-label=\"12 minutes ago\">12m</time></header><p class=\"ds-row-body\">Post text is the largest type in the row. Links like <a href=\"#\">#swiftui</a> take the network accent.</p><footer class=\"ds-actions\"><span>💬 4</span><span>🔁 12</span><span class=\"ds-liked\">♥ 31</span></footer></article>",
-      "css": ".ds-row { font-family: -apple-system, system-ui, sans-serif; padding: 10px 14px; border-bottom: 1px solid rgba(0,0,0,0.05); background: transparent; transition: background 0.12s ease-out; color: rgba(0,0,0,0.85); max-width: 420px; } .ds-row:hover { background: rgba(0,0,0,0.04); } .ds-row-ctx { display: flex; gap: 5px; align-items: center; font-size: 12px; font-weight: 500; color: rgba(0,0,0,0.5); margin-bottom: 6px; } .ds-row-head { display: flex; gap: 10px; align-items: flex-start; } .ds-avatar { width: 40px; height: 40px; border-radius: 50%; background: rgba(0,0,0,0.06); box-shadow: inset 0 0 0 0.5px rgba(0,0,0,0.08); flex: none; } .ds-names { display: flex; flex-direction: column; gap: 2px; flex: 1; font-size: 14px; } .ds-names span { font-size: 12.5px; color: rgba(0,0,0,0.5); } .ds-row-head time { font-size: 12.5px; color: rgba(0,0,0,0.5); } .ds-row-body { font-size: 14px; line-height: 1.4; margin: 6px 0; } .ds-row-body a { color: #0066D6; text-decoration: none; } .ds-actions { display: flex; gap: 20px; font-size: 12.5px; font-variant-numeric: tabular-nums; color: rgba(0,0,0,0.5); padding-top: 4px; } .ds-liked { color: #D1194A; }"
+      "html": "<article class=\"ds-row\"><div class=\"ds-row-ctx\"><svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M17 2l4 4-4 4\"/><path d=\"M3 11V9a3 3 0 0 1 3-3h15\"/><path d=\"M7 22l-4-4 4-4\"/><path d=\"M21 13v2a3 3 0 0 1-3 3H3\"/></svg>Ana reposted</div><header class=\"ds-row-head\"><span class=\"ds-avatar\"></span><span class=\"ds-names\"><strong>Jo Example</strong><span>@jo.bsky.social</span></span><time title=\"November 1, 2026 at 9:12 AM\" aria-label=\"12 minutes ago\">12m</time></header><p class=\"ds-row-body\">Post text is the largest type in the row. Links like <a href=\"#\">#swiftui</a> take the network accent.</p><footer class=\"ds-actions\"><span>💬 4</span><span>🔁 12</span><span class=\"ds-liked\">♥ 31</span><span class=\"ds-trail\">🔖</span><span>…</span></footer></article>",
+      "css": ".ds-row { font-family: -apple-system, system-ui, sans-serif; padding: 10px 14px; border-bottom: 1px solid rgba(0,0,0,0.05); background: transparent; transition: background 0.12s ease-out; color: rgba(0,0,0,0.85); max-width: 420px; } .ds-row:hover { background: rgba(0,0,0,0.04); } .ds-row-ctx { display: flex; gap: 5px; align-items: center; font-size: 12px; font-weight: 500; color: rgba(0,0,0,0.5); margin-bottom: 6px; } .ds-row-head { display: flex; gap: 10px; align-items: flex-start; } .ds-avatar { width: 40px; height: 40px; border-radius: 50%; background: rgba(0,0,0,0.06); box-shadow: inset 0 0 0 0.5px rgba(0,0,0,0.08); flex: none; } .ds-names { display: flex; flex-direction: column; gap: 2px; flex: 1; font-size: 14px; } .ds-names span { font-size: 12.5px; color: rgba(0,0,0,0.5); } .ds-row-head time { font-size: 12.5px; color: rgba(0,0,0,0.5); } .ds-row-body { font-size: 14px; line-height: 1.4; margin: 6px 0; } .ds-row-body a { color: #0066D6; text-decoration: none; } .ds-actions { display: flex; gap: 20px; font-size: 12.5px; font-variant-numeric: tabular-nums; color: rgba(0,0,0,0.5); padding-top: 4px; } .ds-trail { margin-left: auto; } .ds-liked { color: #D1194A; }"
     },
     {
       "name": "Column Header",
@@ -69,24 +74,24 @@
       "name": "Post Button",
       "kind": "button",
       "refersTo": "button-post",
-      "description": "Composer's full-width large bordered-prominent button in the system accent (⌘↩).",
+      "description": "Composer's regular-size bordered-prominent button in the system accent, trailing in the destinations footer (⌘↩).",
       "html": "<button class=\"ds-btn-post\">Post</button>",
-      "css": ".ds-btn-post { font: 500 13px -apple-system, system-ui, sans-serif; width: 100%; max-width: 320px; height: 28px; border: 0; border-radius: 7px; background: AccentColor; color: #fff; box-shadow: inset 0 0.5px 0 rgba(255,255,255,0.25); cursor: pointer; } .ds-btn-post:hover { filter: brightness(1.05); } .ds-btn-post:active { filter: brightness(0.9); } .ds-btn-post:focus-visible { outline: 3px solid color-mix(in srgb, AccentColor 50%, transparent); outline-offset: 1px; } .ds-btn-post:disabled { background: rgba(0,0,0,0.05); color: rgba(0,0,0,0.25); }"
+      "css": ".ds-btn-post { font: 500 13px -apple-system, system-ui, sans-serif; padding: 0 12px; height: 22px; border-radius: 6px; border: 0; background: AccentColor; color: #fff; box-shadow: inset 0 0.5px 0 rgba(255,255,255,0.25); cursor: pointer; } .ds-btn-post:hover { filter: brightness(1.05); } .ds-btn-post:active { filter: brightness(0.9); } .ds-btn-post:focus-visible { outline: 3px solid color-mix(in srgb, AccentColor 50%, transparent); outline-offset: 1px; } .ds-btn-post:disabled { background: rgba(0,0,0,0.05); color: rgba(0,0,0,0.25); }"
     },
     {
       "name": "Target Pills",
       "kind": "chip",
       "refersTo": "target-pill-mastodon-selected",
-      "description": "Composer destination toggles: 10% accent fill + 30% stroke when selected.",
+      "description": "Composer destination toggles, one per footer row with that network's audience beside it: 10% accent fill + 30% stroke when selected.",
       "html": "<div class=\"ds-pills\"><button class=\"ds-pill ds-pill-on\" aria-pressed=\"true\">● Mastodon</button><button class=\"ds-pill\" aria-pressed=\"false\">○ Bluesky</button></div>",
-      "css": ".ds-pills { display: flex; gap: 8px; } .ds-pill { font: 500 12px -apple-system, system-ui, sans-serif; padding: 6px 8px; border-radius: 999px; border: 0.75px solid rgba(0,0,0,0.07); background: rgba(0,0,0,0.04); color: rgba(0,0,0,0.85); cursor: pointer; transition: background 0.15s, border-color 0.15s; } .ds-pill-on { background: rgba(99,100,255,0.10); border-color: rgba(99,100,255,0.30); } .ds-pill:focus-visible { outline: 3px solid color-mix(in srgb, AccentColor 50%, transparent); }"
+      "css": ".ds-pills { display: grid; grid-template-columns: max-content; row-gap: 6px; } .ds-pill { font: 500 12px -apple-system, system-ui, sans-serif; padding: 6px 8px; border-radius: 999px; border: 0.75px solid rgba(0,0,0,0.07); background: rgba(0,0,0,0.04); color: rgba(0,0,0,0.85); cursor: pointer; transition: background 0.15s, border-color 0.15s; } .ds-pill-on { background: rgba(99,100,255,0.10); border-color: rgba(99,100,255,0.30); } .ds-pill:focus-visible { outline: 3px solid color-mix(in srgb, AccentColor 50%, transparent); }"
     },
     {
       "name": "Compose Card",
       "kind": "card",
       "refersTo": "compose-card",
       "description": "Composer post card: text background, 12px continuous corner, 0.75px hairline.",
-      "html": "<div class=\"ds-compose\"><div class=\"ds-compose-ph\">What's on your mind?</div><div class=\"ds-compose-foot\"><span>🖼</span><span class=\"ds-counter\">0/300 · Bluesky</span></div></div>",
+      "html": "<div class=\"ds-compose\"><div class=\"ds-compose-ph\">Write once for Mastodon and Bluesky</div><div class=\"ds-compose-foot\"><span>🖼</span><span class=\"ds-counter\">0/500 Mastodon · 0/300 Bluesky</span></div></div>",
       "css": ".ds-compose { font-family: -apple-system, system-ui, sans-serif; background: #fff; border: 0.75px solid rgba(0,0,0,0.07); border-radius: 12px; padding: 14px; max-width: 340px; } .ds-compose-ph { font-size: 15px; color: rgba(0,0,0,0.5); min-height: 90px; } .ds-compose-foot { display: flex; justify-content: space-between; color: rgba(0,0,0,0.5); } .ds-counter { font-size: 11px; font-variant-numeric: tabular-nums; }"
     },
     {
@@ -108,7 +113,7 @@
   ],
   "narrative": {
     "northStar": "The Quiet Switchboard",
-    "overview": "CrossPost is one desk wired to two networks. The window is three columns (composer, Mastodon, Bluesky) and the posts are the content; the app itself is system chrome and stays out of their way. Color does one job: it tells you which network a thing belongs to, or which action you took. Everything else is neutral system surface, hairline dividers, and secondary-label gray.\n\nThe system is restrained, dense but calm, Mac-native, and readable first. Many posts fit on screen at once, separated by hairlines rather than boxes. Post text is the largest type in a column, and names, handles, timestamps, and chrome step down behind it. Where AppKit or SwiftUI already has an answer (toolbar, `.bar` material, menus, segmented pickers, sheets, SF Symbols, system font, light and dark appearances), CrossPost uses it unchanged.\n\nThe two networks behave differently, and the interface says so. Anything that exists on only one network looks like it exists on only one network.\n\nThe system rejects four things: timeline posts as bordered floating cards, web-app chrome, flooding headers or backgrounds with brand color, and visual parity that fakes behavior the networks don't share.",
+    "overview": "CrossPost is one desk wired to two networks. The window is three columns (composer, Mastodon, Bluesky) and the posts are the content; the app itself is system chrome and stays out of their way. Color does one job: it tells you which network a thing belongs to, or which action you took. Everything else is neutral system surface, hairline dividers, and secondary-label gray.\n\nThe system is restrained, dense but calm, Mac-native, and readable first. Many posts fit on screen at once, separated by hairlines rather than boxes. Post text is the largest type in a column, and names, handles, timestamps, and chrome step down behind it. Where AppKit or SwiftUI already has an answer (toolbar, `.bar` material, menus, inline pickers, sheets, SF Symbols, system font, light and dark appearances), CrossPost uses it unchanged.\n\nThe two networks behave differently, and the interface says so. Anything that exists on only one network looks like it exists on only one network.\n\nThe system rejects four things: timeline posts as bordered floating cards, web-app chrome, flooding headers or backgrounds with brand color, and visual parity that fakes behavior the networks don't share.",
     "keyCharacteristics": [
       "Edge-to-edge timeline rows divided by hairlines; hover is a 4% fill, never a border.",
       "Network color appears only as small marks: the header glyph, active states, links, mentions, the network's own prominent buttons, and your own DM bubbles.",
@@ -119,7 +124,7 @@
     "rules": [
       { "name": "The Network Ownership Rule", "body": "A network's accent appears only inside that network's column or on controls scoped to that network. The composer, which posts to both, uses the system accent.", "section": "colors" },
       { "name": "The Small Marks Rule", "body": "Brand color is never a background or header fill. It colors glyphs, text, 10% tints, and 30% strokes. A screen with a solid block of blurple or blue is wrong.", "section": "colors" },
-      { "name": "The Action Color Rule", "body": "Pink means liked, green means reposted, in every row type. At rest, action icons are secondary gray.", "section": "colors" },
+      { "name": "The Action Color Rule", "body": "Pink means liked, green means reposted, in every row type. An engaged Bookmark draws its filled glyph in primary label color. At rest, action icons are secondary gray.", "section": "colors" },
       { "name": "The Content Leads Rule", "body": "In a timeline row, post body text is the largest type and the only type in full primary contrast at regular weight. Chrome never outsizes content.", "section": "typography" },
       { "name": "The Reading Size Rule", "body": "Anything a person reads (post bodies, quotes, bios, DMs) goes through `readingFont` so the Reading text size setting reaches it. Metadata and chrome stay fixed.", "section": "typography" },
       { "name": "The Flat-At-Rest Rule", "body": "Shadows belong only to transient overlays that sit above the window's content plane. If a persistent surface needs separation, use a hairline or the `.bar` material.", "section": "elevation" }
