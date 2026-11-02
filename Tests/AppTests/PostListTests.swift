@@ -5,21 +5,9 @@ import XCTest
 /// like/repost must adjust the visible counts, and bookmark/pin must update its own
 /// rows (not the panel's separate timeline array).
 @MainActor
-final class PostListTests: XCTestCase {
-    override func tearDown() async throws {
-        let store = AccountStore()
-        store.mastodonInstanceURL = ""
-        store.blueskyHandle = ""
-        try await super.tearDown()
-    }
-
+final class PostListTests: FeedPanelTestCase {
     private func makeModel(_ fake: FakeFeedService) -> FeedPanelModel {
-        let store = AccountStore()
-        store.mastodonInstanceURL = "https://h.io"
-        store.mastodonToken = "tok"
-        store.blueskyHandle = "me.bsky.social"
-        store.blueskyAppPassword = "pw"
-        return FeedPanelModel(target: .bluesky, store: store) { _, _ in fake }
+        super.makeModel(fake, target: .bluesky)
     }
 
     func testToggleLikeAdjustsCountOptimisticallyAndKeepsItAfterReconcile() async {

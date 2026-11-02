@@ -4,7 +4,7 @@ import XCTest
 @MainActor
 final class ReplyModelTests: XCTestCase {
     override func tearDown() async throws {
-        AccountStore().mastodonUsername = "" // don't leak the self-handle into other tests
+        TestFactory.resetAccountDefaults()
         try await super.tearDown()
     }
 

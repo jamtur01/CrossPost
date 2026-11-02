@@ -52,6 +52,16 @@ enum TestFactory {
         )
     }
 
+    /// Clears the instance URL, username, and handle `AccountStore` keeps in user
+    /// defaults, so one test's accounts and self-handle don't leak into the next.
+    @MainActor
+    static func resetAccountDefaults() {
+        let store = AccountStore()
+        store.mastodonInstanceURL = ""
+        store.mastodonUsername = ""
+        store.blueskyHandle = ""
+    }
+
     /// A timeline row for someone's boost of `post`: its own id, the same status.
     static func boost(of post: FeedPost, id: String, by booster: String = "Bob") -> FeedPost {
         FeedPost(id: id, target: post.target, authorName: post.authorName, authorHandle: post.authorHandle,

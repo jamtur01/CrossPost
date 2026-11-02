@@ -4,10 +4,7 @@ import XCTest
 @MainActor
 class FeedPanelTestCase: XCTestCase {
     override func tearDown() async throws {
-        let store = AccountStore()
-        store.mastodonInstanceURL = ""
-        store.mastodonUsername = ""
-        store.blueskyHandle = ""
+        TestFactory.resetAccountDefaults()
         try await super.tearDown()
     }
 

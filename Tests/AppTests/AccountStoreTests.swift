@@ -48,10 +48,7 @@ final class AccountStoreTests: XCTestCase {
 @MainActor
 final class AccountStoreCredentialTests: XCTestCase {
     override func tearDown() async throws {
-        let store = AccountStore(credentials: EphemeralSecretStore())
-        store.mastodonInstanceURL = ""
-        store.mastodonUsername = ""
-        store.blueskyHandle = ""
+        TestFactory.resetAccountDefaults()
         try await super.tearDown()
     }
 
