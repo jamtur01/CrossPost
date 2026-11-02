@@ -92,7 +92,7 @@ struct MastodonFeedService: FeedService {
         let mediaIds = try await client.uploadJPEGImages(images, maxBytes: maxBytes)
         // Carry the parent's content warning forward; the caller seeds visibility
         // from the parent so a reply never widens its audience.
-        let spoiler = (post.spoilerText?.isEmpty == false) ? post.spoilerText : nil
+        let spoiler = post.spoilerText?.nilIfBlank
         var params = PostParams(post: text, visibility: visibility.tootVisibility, spoilerText: spoiler)
         if !mediaIds.isEmpty {
             params.mediaIds = mediaIds

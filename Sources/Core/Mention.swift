@@ -38,11 +38,8 @@ struct MentionPerson: Codable, Hashable, Sendable {
         if let own {
             return "@" + own
         }
-        let name = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !name.isEmpty {
-            return name
-        }
-        return (target == .mastodon ? blueskyHandle : mastodonAcct) ?? ""
+        return displayName.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank
+            ?? (target == .mastodon ? blueskyHandle : mastodonAcct) ?? ""
     }
 }
 
