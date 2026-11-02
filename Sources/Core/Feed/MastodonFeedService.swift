@@ -63,22 +63,25 @@ struct MastodonFeedService: FeedService {
     }
 
     func setLiked(_ liked: Bool, on post: FeedPost) async throws -> FeedPost {
-        guard case let .mastodon(id) = post.nativeRef else { throw FeedError.wrongPlatform }
-        let updated = liked
-            ? try await client.favouritePost(id: id)
-            : try await client.unfavouritePost(id: id)
-        var copy = post
-        copy.isLiked = updated.favourited ?? liked
-        return copy
+        try await toggle(liked, post, \.isLiked, \.favourited,
+                         enable: client.favouritePost(id:), disable: client.unfavouritePost(id:))
     }
 
     func setReposted(_ reposted: Bool, on post: FeedPost) async throws -> FeedPost {
+        try await toggle(reposted, post, \.isReposted, \.reposted,
+                         enable: client.boostPost(id:), disable: client.unboostPost(id:))
+    }
+
+    /// Turns a per-status flag on or off, then takes the server's resulting state, or
+    /// the requested one when the response leaves it out.
+    private func toggle(
+        _ value: Bool, _ post: FeedPost, _ flag: WritableKeyPath<FeedPost, Bool>, _ state: KeyPath<Post, Bool?>,
+        enable: (String) async throws -> Post, disable: (String) async throws -> Post
+    ) async throws -> FeedPost {
         guard case let .mastodon(id) = post.nativeRef else { throw FeedError.wrongPlatform }
-        let updated = reposted
-            ? try await client.boostPost(id: id)
-            : try await client.unboostPost(id: id)
+        let updated = value ? try await enable(id) : try await disable(id)
         var copy = post
-        copy.isReposted = updated.reposted ?? reposted
+        copy[keyPath: flag] = updated[keyPath: state] ?? value
         return copy
     }
 
@@ -255,21 +258,13 @@ struct MastodonFeedService: FeedService {
     }
 
     func setBookmarked(_ bookmarked: Bool, on post: FeedPost) async throws -> FeedPost {
-        guard case let .mastodon(id) = post.nativeRef else { throw FeedError.wrongPlatform }
-        let updated = bookmarked
-            ? try await client.bookmarkPost(id: id)
-            : try await client.unbookmarkPost(id: id)
-        var copy = post
-        copy.isBookmarked = updated.bookmarked ?? bookmarked
-        return copy
+        try await toggle(bookmarked, post, \.isBookmarked, \.bookmarked,
+                         enable: client.bookmarkPost(id:), disable: client.unbookmarkPost(id:))
     }
 
     func setPinned(_ pinned: Bool, on post: FeedPost) async throws -> FeedPost {
-        guard case let .mastodon(id) = post.nativeRef else { throw FeedError.wrongPlatform }
-        let updated = pinned ? try await client.pinPost(id: id) : try await client.unpinPost(id: id)
-        var copy = post
-        copy.isPinned = updated.pinned ?? pinned
-        return copy
+        try await toggle(pinned, post, \.isPinned, \.pinned,
+                         enable: client.pinPost(id:), disable: client.unpinPost(id:))
     }
 
     func likedBy(_ post: FeedPost) async throws -> [Profile] {
