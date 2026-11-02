@@ -18,12 +18,29 @@ struct BlueskyPoster: Poster, ThreadPublisher {
         try await runThread(thread, using: self, continuingFrom: ref)
     }
 
-    /// Rebuild the StrongReferences to resume a thread: parent is the landed post,
-    /// root is its stored thread root, so the next post threads under the same root.
     func resumeRefs(from ref: NativeRef) -> (root: Ref, parent: Ref)? {
+        Self.resumeRefs(from: ref)
+    }
+
+    /// Rebuild the StrongReferences to reply under a post: parent is that post, root is
+    /// its stored thread root, so the next post threads under the same root.
+    static func resumeRefs(from ref: NativeRef) -> (root: Ref, parent: Ref)? {
         guard case let .bluesky(uri, cid, rootURI, rootCID) = ref else { return nil }
-        return (root: .init(recordURI: rootURI, cidHash: rootCID),
-                parent: .init(recordURI: uri, cidHash: cid))
+        return (root: strongRef(rootURI, rootCID), parent: strongRef(uri, cid))
+    }
+
+    /// Build a StrongReference (the uri+cid pair the write APIs take) tersely.
+    static func strongRef(_ uri: String, _ cid: String) -> Ref {
+        .init(recordURI: uri, cidHash: cid)
+    }
+
+    /// The result of creating a post record. `root` is the thread it replied into; without
+    /// one the post is its own root. Stored so a later post can resume under the same root.
+    static func postedItem(_ ref: Ref, root: Ref?, handle: String) -> PostedItem {
+        let rootRef = root ?? ref
+        let nativeRef = NativeRef.bluesky(uri: ref.recordURI, cid: ref.recordCID,
+                                          rootURI: rootRef.recordURI, rootCID: rootRef.recordCID)
+        return PostedItem(url: BlueskyURL.post(recordURI: ref.recordURI, handle: handle), ref: nativeRef)
     }
 
     func publishOne(
@@ -39,13 +56,7 @@ struct BlueskyPoster: Poster, ThreadPublisher {
         let embed = try Self.imagesEmbed(from: draft.attachments)
 
         let ref = try await bluesky.createPostRecord(text: draft.text, replyTo: replyRef, embed: embed)
-        // The thread root is the existing root (replies) or this post itself (top-level),
-        // captured so a later post can resume the thread under the same root.
-        let rootRef = root ?? ref
-        let nativeRef = NativeRef.bluesky(uri: ref.recordURI, cid: ref.recordCID,
-                                          rootURI: rootRef.recordURI, rootCID: rootRef.recordCID)
-        return (ref: ref, item: PostedItem(url: BlueskyURL.post(recordURI: ref.recordURI, handle: handle),
-                                           ref: nativeRef))
+        return (ref: ref, item: Self.postedItem(ref, root: root, handle: handle))
     }
 
     /// Build the images embed for a Bluesky post from attachments: enforce the

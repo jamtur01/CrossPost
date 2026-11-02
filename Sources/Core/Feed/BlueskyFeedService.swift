@@ -108,12 +108,6 @@ struct BlueskyFeedService: FeedService {
         return result
     }
 
-    /// Build a StrongReference (the uri+cid pair the write APIs take) tersely.
-    private static func strongRef(_ uri: String, _ cid: String)
-        -> ComAtprotoLexicon.Repository.StrongReference {
-        .init(recordURI: uri, cidHash: cid)
-    }
-
     func setLiked(_ liked: Bool, on post: FeedPost) async throws -> FeedPost {
         try await toggleRecord(liked, on: post, flag: \.isLiked, record: \.likeRecordURI) {
             try await bluesky.createLikeRecord($0).recordURI
@@ -144,7 +138,7 @@ struct BlueskyFeedService: FeedService {
                 copy[keyPath: flag] = true
                 return copy
             }
-            copy[keyPath: record] = try await create(Self.strongRef(uri, cid))
+            copy[keyPath: record] = try await create(BlueskyPoster.strongRef(uri, cid))
             copy[keyPath: flag] = true
         } else if let existing = post[keyPath: record] {
             try await bluesky.deleteRecord(.recordURI(atURI: existing))
@@ -157,31 +151,21 @@ struct BlueskyFeedService: FeedService {
 
     func reply(to post: FeedPost, text: String, images: [Attachment],
                visibility _: PostVisibility) async throws -> PostedItem {
-        guard case let .bluesky(uri, cid, rootURI, rootCID) = post.nativeRef else {
-            throw FeedError.wrongPlatform
-        }
-        let parent = Self.strongRef(uri, cid)
-        let root = Self.strongRef(rootURI, rootCID)
-        let replyRef = AppBskyLexicon.Feed.PostRecord.ReplyReference(root: root, parent: parent)
-
+        guard let refs = BlueskyPoster.resumeRefs(from: post.nativeRef) else { throw FeedError.wrongPlatform }
+        let replyRef = AppBskyLexicon.Feed.PostRecord.ReplyReference(root: refs.root, parent: refs.parent)
         let embed = try BlueskyPoster.imagesEmbed(from: images)
         let ref = try await bluesky.createPostRecord(text: text, replyTo: replyRef, embed: embed)
-        // The reply keeps the parent's thread root, so a continuation threads correctly.
-        let nativeRef = NativeRef.bluesky(uri: ref.recordURI, cid: ref.recordCID,
-                                          rootURI: rootURI, rootCID: rootCID)
-        return PostedItem(url: BlueskyURL.post(recordURI: ref.recordURI, handle: handle), ref: nativeRef)
+        return BlueskyPoster.postedItem(ref, root: refs.root, handle: handle)
     }
 
     func quote(post: FeedPost, text: String, visibility _: PostVisibility) async throws -> PostedItem {
         guard case let .bluesky(uri, cid, _, _) = post.nativeRef else { throw FeedError.wrongPlatform }
         let ref = try await bluesky.createPostRecord(
             text: text,
-            embed: .record(strongReference: .init(recordURI: uri, cidHash: cid))
+            embed: .record(strongReference: BlueskyPoster.strongRef(uri, cid))
         )
         // A quote is a fresh top-level post, so it is its own thread root.
-        let nativeRef = NativeRef.bluesky(uri: ref.recordURI, cid: ref.recordCID,
-                                          rootURI: ref.recordURI, rootCID: ref.recordCID)
-        return PostedItem(url: BlueskyURL.post(recordURI: ref.recordURI, handle: handle), ref: nativeRef)
+        return BlueskyPoster.postedItem(ref, root: nil, handle: handle)
     }
 
     func thread(of post: FeedPost) async throws -> PostThread {
@@ -407,7 +391,7 @@ struct BlueskyFeedService: FeedService {
     func report(post: FeedPost, reason: ReportReason, comment: String) async throws {
         guard case let .bluesky(uri, cid, _, _) = post.nativeRef else { throw FeedError.wrongPlatform }
         let subject = ComAtprotoLexicon.Moderation.CreateReportRequestBody.SubjectUnion
-            .strongReference(.init(recordURI: uri, cidHash: cid))
+            .strongReference(BlueskyPoster.strongRef(uri, cid))
         _ = try await kit.createReport(with: reason.blueskyReason,
                                        andContextof: comment.nilIfBlank,
                                        subject: subject)

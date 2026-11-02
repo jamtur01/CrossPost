@@ -14,6 +14,28 @@ final class BlueskyPosterTests: XCTestCase {
         XCTAssertNil(BlueskyURL.post(recordURI: "", handle: "alice.bsky.social"))
     }
 
+    /// A later post threads from the stored ref, so a reply must keep its thread's root
+    /// and a top-level post or quote must be its own.
+    func testPostedItemKeepsTheThreadRootForResuming() throws {
+        let uri = "at://did:plc:me/app.bsky.feed.post/3new"
+        let created = BlueskyPoster.strongRef(uri, "cid-new")
+        let threadRoot = BlueskyPoster.strongRef("at://root", "cid-root")
+
+        let reply = BlueskyPoster.postedItem(created, root: threadRoot, handle: "me.test")
+        XCTAssertEqual(reply.ref, .bluesky(uri: uri, cid: "cid-new", rootURI: "at://root", rootCID: "cid-root"))
+        XCTAssertEqual(reply.url, "https://bsky.app/profile/me.test/post/3new")
+
+        let topLevel = BlueskyPoster.postedItem(created, root: nil, handle: "me.test")
+        XCTAssertEqual(topLevel.ref, .bluesky(uri: uri, cid: "cid-new", rootURI: uri, rootCID: "cid-new"))
+
+        let resumed = try XCTUnwrap(BlueskyPoster.resumeRefs(from: XCTUnwrap(reply.ref)))
+        XCTAssertEqual(resumed.root.recordURI, "at://root")
+        XCTAssertEqual(resumed.root.recordCID, "cid-root")
+        XCTAssertEqual(resumed.parent.recordURI, uri)
+        XCTAssertEqual(resumed.parent.recordCID, "cid-new")
+        XCTAssertNil(BlueskyPoster.resumeRefs(from: .mastodon(statusID: "1")))
+    }
+
     func testImagesEmbedIsNilWithoutAttachments() throws {
         XCTAssertNil(try BlueskyPoster.imagesEmbed(from: []))
     }
