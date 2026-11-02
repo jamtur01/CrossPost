@@ -123,9 +123,7 @@ struct ProfileView: View {
                 onClose: { reportingAccount = false }
             )
         }
-        .sheet(item: $replyTarget) { target in
-            ReplySheet(model: ReplyModel(post: target, store: store)) { replyTarget = nil }
-        }
+        .replySheet($replyTarget, store: store)
     }
 
     private var headerCard: some View {

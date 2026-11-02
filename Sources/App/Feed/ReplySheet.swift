@@ -135,3 +135,12 @@ struct ReplySheet: View {
         onClose()
     }
 }
+
+extension View {
+    /// Presents the reply sheet for `target` while it is set, clearing it on close.
+    func replySheet(_ target: Binding<FeedPost?>, store: AccountStore) -> some View {
+        sheet(item: target) { post in
+            ReplySheet(model: ReplyModel(post: post, store: store)) { target.wrappedValue = nil }
+        }
+    }
+}

@@ -101,8 +101,6 @@ struct SavedPostsView: View {
                                 open: { push(.thread($0)) })
         .background(Color(nsColor: .textBackgroundColor))
         .onDisappear { list.invalidateOptimisticMutations() }
-        .sheet(item: $replyTarget) { target in
-            ReplySheet(model: ReplyModel(post: target, store: store)) { replyTarget = nil }
-        }
+        .replySheet($replyTarget, store: store)
     }
 }

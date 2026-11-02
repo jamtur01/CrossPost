@@ -59,9 +59,7 @@ struct ThreadView: View {
         .background(Color(nsColor: .textBackgroundColor))
         .task(id: loadToken) { await load() }
         .onDisappear { list.invalidateOptimisticMutations() }
-        .sheet(item: $replyTarget) { target in
-            ReplySheet(model: ReplyModel(post: target, store: store)) { replyTarget = nil }
-        }
+        .replySheet($replyTarget, store: store)
     }
 
     /// Return opens other posts in the thread, as a click does; this post is already open.

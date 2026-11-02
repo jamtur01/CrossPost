@@ -50,9 +50,7 @@ struct FeedPanelView: View {
             value: model.actionError
         )
         .background(Color(nsColor: .textBackgroundColor))
-        .sheet(item: $replyTarget) { post in
-            ReplySheet(model: ReplyModel(post: post, store: store)) { replyTarget = nil }
-        }
+        .replySheet($replyTarget, store: store)
         .sheet(isPresented: $composingMessage) {
             NewMessageSheet(panel: model) { convo in
                 composingMessage = false

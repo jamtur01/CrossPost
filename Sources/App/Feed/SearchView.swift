@@ -43,9 +43,7 @@ struct SearchView: View {
         // Coming back from a result leaves the keyboard on the results.
         .onAppear { fieldFocused = results.isEmpty }
         .onDisappear { stop() }
-        .sheet(item: $replyTarget) { target in
-            ReplySheet(model: ReplyModel(post: target, store: store)) { replyTarget = nil }
-        }
+        .replySheet($replyTarget, store: store)
     }
 
     private var searchField: some View {
