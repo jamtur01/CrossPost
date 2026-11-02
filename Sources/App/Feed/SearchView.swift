@@ -75,7 +75,7 @@ struct SearchView: View {
             message(errorMessage, systemImage: "exclamationmark.triangle")
         } else if results.isEmpty {
             let trimmed = query.trimmingCharacters(in: .whitespaces)
-            if trimmed.count >= 2, !isSearching {
+            if trimmed.count >= AccountQuery.minLength, !isSearching {
                 message("No results for “\(trimmed)”", systemImage: "magnifyingglass")
             } else {
                 message("Search for people and posts", systemImage: "magnifyingglass")
@@ -159,7 +159,7 @@ struct SearchView: View {
         postList.invalidateOptimisticMutations()
     }
 
-    /// Debounce: cancel any pending search and run a new one ~300ms after typing stops.
+    /// Debounce: cancel any pending search and run a new one once typing pauses.
     private func scheduleSearch(_ text: String) {
         searchTask?.cancel()
         searchGeneration += 1
@@ -168,14 +168,14 @@ struct SearchView: View {
         postList.posts = []
         errorMessage = nil
         let trimmed = text.trimmingCharacters(in: .whitespaces)
-        guard trimmed.count >= 2 else {
+        guard trimmed.count >= AccountQuery.minLength else {
             isSearching = false
             return
         }
         isSearching = true
         let generation = searchGeneration
         searchTask = Task {
-            try? await Task.sleep(nanoseconds: 300_000_000)
+            try? await Task.sleep(for: AccountQuery.debounce)
             if Task.isCancelled {
                 return
             }

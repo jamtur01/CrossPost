@@ -37,40 +37,22 @@ struct NewMessageSheet: View {
         .onDisappear { openTask?.cancel() }
     }
 
-    @ViewBuilder
     private var results: some View {
-        if searchFailed {
-            Text("Couldn't search \(panel.target.displayName). Check the account in Settings.")
-                .font(.callout).foregroundStyle(.secondary)
-        } else if candidates.isEmpty {
-            if searching {
-                ProgressView().controlSize(.small)
-            } else if trimmedQuery.count >= 2 {
-                Text("No accounts found.").font(.callout).foregroundStyle(.secondary)
-            }
-        } else {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 1) {
-                    ForEach(candidates, id: \.handle) { candidate in
-                        Button { open(candidate) } label: {
-                            HStack {
-                                MentionPersonRow(person: person(for: candidate))
-                                if opening == candidate.handle {
-                                    ProgressView().controlSize(.small)
-                                }
-                            }
+        AccountSearchResults(network: panel.target, failed: searchFailed, searching: searching,
+                             isEmpty: candidates.isEmpty, query: query) {
+            ForEach(candidates, id: \.handle) { candidate in
+                Button { open(candidate) } label: {
+                    HStack {
+                        MentionPersonRow(person: person(for: candidate))
+                        if opening == candidate.handle {
+                            ProgressView().controlSize(.small)
                         }
-                        .buttonStyle(.plain)
-                        .disabled(opening != nil)
                     }
                 }
+                .buttonStyle(.plain)
+                .disabled(opening != nil)
             }
         }
-    }
-
-    private var trimmedQuery: String {
-        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.hasPrefix("@") ? String(trimmed.dropFirst()) : trimmed
     }
 
     private func person(for candidate: MentionCandidate) -> MentionPerson {
@@ -83,14 +65,14 @@ struct NewMessageSheet: View {
     }
 
     private func search() async {
-        let query = trimmedQuery
-        guard query.count >= 2 else {
+        let query = AccountQuery.normalized(query)
+        guard query.count >= AccountQuery.minLength else {
             candidates = []
             searchFailed = false
             return
         }
         do {
-            try await Task.sleep(for: .milliseconds(250))
+            try await Task.sleep(for: AccountQuery.debounce)
         } catch {
             return // A newer query replaced this one.
         }

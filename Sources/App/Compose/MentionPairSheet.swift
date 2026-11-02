@@ -39,27 +39,14 @@ struct MentionPairSheet: View {
         .task(id: query) { await search() }
     }
 
-    @ViewBuilder
     private var results: some View {
-        if failed {
-            Text("Couldn't search \(request.target.displayName). Check the account in Settings.")
-                .font(.callout).foregroundStyle(.secondary)
-        } else if people.isEmpty {
-            if searching {
-                ProgressView().controlSize(.small)
-            } else if trimmedQuery.count >= 2 {
-                Text("No accounts found.").font(.callout).foregroundStyle(.secondary)
-            }
-        } else {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 1) {
-                    ForEach(Array(people.enumerated()), id: \.offset) { _, person in
-                        Button { model.completePairing(with: person) } label: {
-                            MentionPersonRow(person: person)
-                        }
-                        .buttonStyle(.plain)
-                    }
+        AccountSearchResults(network: request.target, failed: failed, searching: searching,
+                             isEmpty: people.isEmpty, query: query) {
+            ForEach(Array(people.enumerated()), id: \.offset) { _, person in
+                Button { model.completePairing(with: person) } label: {
+                    MentionPersonRow(person: person)
                 }
+                .buttonStyle(.plain)
             }
         }
     }
@@ -69,20 +56,15 @@ struct MentionPairSheet: View {
         return person.displayName.isEmpty ? person.visibleText : "\(person.displayName) (\(person.visibleText))"
     }
 
-    private var trimmedQuery: String {
-        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.hasPrefix("@") ? String(trimmed.dropFirst()) : trimmed
-    }
-
     private func search() async {
-        let query = trimmedQuery
-        guard query.count >= 2 else {
+        let query = AccountQuery.normalized(query)
+        guard query.count >= AccountQuery.minLength else {
             people = []
             failed = false
             return
         }
         do {
-            try await Task.sleep(for: .milliseconds(250))
+            try await Task.sleep(for: AccountQuery.debounce)
         } catch {
             return // A newer query replaced this one.
         }
