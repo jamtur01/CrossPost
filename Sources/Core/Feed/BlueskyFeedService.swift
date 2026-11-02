@@ -227,6 +227,7 @@ struct BlueskyFeedService: FeedService {
 
     func setBookmarked(_ bookmarked: Bool, on post: FeedPost) async throws -> FeedPost {
         guard case let .bluesky(uri, cid, _, _) = post.nativeRef else { throw FeedError.wrongPlatform }
+        await notificationPostCache.invalidate(uri)
         if bookmarked {
             try await kit.createBookmark(uri: uri, cid: cid)
         } else {
@@ -235,7 +236,6 @@ struct BlueskyFeedService: FeedService {
         await notificationPostCache.invalidate(uri)
         var copy = post
         copy.isBookmarked = bookmarked
-        await notificationPostCache.invalidate(uri)
         return copy
     }
 
