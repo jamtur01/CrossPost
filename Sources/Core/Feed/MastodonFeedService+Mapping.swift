@@ -126,7 +126,7 @@ extension MastodonFeedService {
         let quoted = quotedStatus.displayPost
         let image = quoted.mediaAttachments.first { $0.type.value == .image }
         return QuotedPost(
-            id: "mastodon:\(quoted.id)",
+            id: NativeRef.mastodon(statusID: quoted.id).postKey,
             authorName: displayOrHandle(quoted.account.displayName, quoted.account.acct),
             authorHandle: "@\(quoted.account.acct)",
             avatarURL: URL(string: quoted.account.avatar),

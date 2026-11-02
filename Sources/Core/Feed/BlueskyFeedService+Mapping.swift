@@ -38,7 +38,7 @@ extension BlueskyFeedService {
             avatarURL: notification.author.avatarImageURL, post: uri.flatMap { hydrated[$0] },
             date: notification.indexedAt
         )
-        note.postID = uri.map { "bluesky:\($0)" } // the id feedPost(fromPostView:) gives it
+        note.postID = uri.map { postID(uri: $0) }
         return note
     }
 
@@ -243,6 +243,13 @@ extension BlueskyFeedService {
         return saved
     }
 
+    /// The `FeedPost.id` of a Bluesky post. A timeline repost adds its `boostKey` so the
+    /// same post reposted by several people stays distinct; a notification names its
+    /// post by the plain form.
+    static func postID(uri: String, boostKey: String? = nil) -> String {
+        boostKey.map { "bluesky:\($0):\(uri)" } ?? "bluesky:\(uri)"
+    }
+
     /// Map a bare post view (timeline item, reply parent, etc.) to a FeedPost.
     static func feedPost(
         fromPostView post: AppBskyLexicon.Feed.PostViewDefinition,
@@ -260,7 +267,7 @@ extension BlueskyFeedService {
         let root = BlueskyThreadRef.root(postURI: post.uri, postCID: post.cid, replyRoot: resolvedReplyRoot)
         let cover = labelCover(post.labels, record: record, authorDID: post.author.actorDID)
         return FeedPost(
-            id: boostKey.map { "bluesky:\($0):\(post.uri)" } ?? "bluesky:\(post.uri)",
+            id: postID(uri: post.uri, boostKey: boostKey),
             target: .bluesky,
             authorName: displayOrHandle(post.author.displayName, post.author.actorHandle),
             authorHandle: "@\(post.author.actorHandle)",

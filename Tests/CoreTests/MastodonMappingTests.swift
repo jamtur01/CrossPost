@@ -330,6 +330,8 @@ final class MastodonMappingTests: XCTestCase {
         guard case let .post(post)? = quote.quotedPost else {
             return XCTFail("expected quoted post")
         }
+        XCTAssertEqual(preview.revealKey, MastodonFeedService.feedPost(from: post).revealKey,
+                       "opening the quoted post opens the quote too")
         post.mediaAttachments[0].previewUrl = nil
         post.spoilerText = "Finale spoilers"
         let fallback = try XCTUnwrap(MastodonFeedService.quotedPost(from: quote))
