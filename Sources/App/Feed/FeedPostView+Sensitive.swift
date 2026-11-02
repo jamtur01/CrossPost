@@ -128,11 +128,7 @@ struct ContentWarningRow: View {
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
-            .background(Theme.hoverFill, in: RoundedRectangle(cornerRadius: Theme.insetCorner, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: Theme.insetCorner, style: .continuous)
-                    .strokeBorder(Theme.hairline, lineWidth: 0.75)
-            )
+            .cardSurface(corner: Theme.insetCorner, fill: Theme.hoverFill)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

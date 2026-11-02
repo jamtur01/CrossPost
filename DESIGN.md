@@ -173,8 +173,8 @@ All neutrals are AppKit semantic colors (`textBackgroundColor`, `windowBackgroun
 - **Surface** (`surface`): window and text backgrounds. On current macOS both render white in light appearance.
 - **Primary Label** (`label-primary`): names, post bodies, titles.
 - **Secondary Label** (`label-secondary`): handles, timestamps, counts at rest, context lines, header icons, empty-state text. The most-used foreground in the app.
-- **Hairline** (`hairline`): card strokes, pill strokes, and toast outlines.
-- **Hover Fill** (`hover-fill`): row hover, unselected pill fill, link-card background.
+- **Hairline** (`hairline`): card and inset strokes (composer cards, embeds, content warnings, sheet editors), pill strokes, and toast outlines.
+- **Hover Fill** (`hover-fill`): row hover, unselected pill fill, and the link card, quote card, and content-warning backgrounds.
 - **Placeholder Fill** (`placeholder-fill`): avatar, image, embed, and skeleton placeholders, and covered sensitive media.
 - **Avatar Ring** (`avatar-ring`): the 0.5px ring around avatars.
 
@@ -231,7 +231,7 @@ Flat at rest. Hierarchy comes from subtle fills (4–6% primary), 0.75px hairlin
 
 ## Shapes
 
-Rounded rectangles use the continuous (squircle) corner style; sheet editors and the reply/quote preview block are the current exceptions. Avatars are circles with a 0.5px ring, except the small notification, quote-card, and conversation-header avatars. Media and embeds clip to 10px corners, composer cards to 12px, small editors and suggestion lists to 6–8px, skeleton bars to 4px, and DM bubbles to 15px. Toggles and notices that aren't rows use capsules: target pills, the unread badge, the error toast, the new-posts pill. Quoted posts carry a 3px capsule rule on the leading edge in the network accent at 55% opacity.
+Rounded rectangles use the continuous (squircle) corner style. Avatars are circles with a 0.5px ring, except the small notification, quote-card, and conversation-header avatars. Media and embeds clip to 10px corners, composer cards to 12px, small editors and suggestion lists to 6–8px, skeleton bars to 4px, and DM bubbles to 15px. Toggles and notices that aren't rows use capsules: target pills, the unread badge, the error toast, the new-posts pill. Quoted posts carry a 3px capsule rule on the leading edge in the network accent at 55% opacity.
 
 ## Components
 
@@ -249,14 +249,14 @@ Native button styles throughout; CrossPost does not draw its own button chrome.
 
 ### Cards / Containers
 - **Corner Style:** 12px continuous for composer post cards; 10px for link and quote embeds. The compose footer and Recent Posts have no card.
-- **Background:** text background for composer cards; 3.5–4% primary fill for embeds.
+- **Background:** text background for composer cards; the 4% hover fill for embeds.
 - **Shadow Strategy:** none (see Elevation & Depth).
-- **Border:** 0.75px hairline for composer cards; 8% primary stroke for embeds.
+- **Border:** 0.75px hairline for composer cards and embeds.
 - **Internal Padding:** 14px for composer post cards, 10px for embeds.
 - **Compose footer:** flat on the window background under Add post to thread, inset 4px. One row per network (its target pill, then its audience while selected: the Mastodon visibility menu, or Bluesky's fixed "Public"), with the Post button trailing on the last text baseline. When the row doesn't fit, the Post button drops below it, still trailing. Per-network send status, validation errors, and draft errors sit above the rows; the audience warning sits below. The targets, audiences, and Post button apply to the whole thread, so they appear once.
 
 ### Inputs / Fields
-- **Style:** the composer editor sits borderless inside its card with a 15px secondary placeholder that names the selected networks ("Write once for Mastodon and Bluesky", "Write for Mastodon"). Sheet editors use an 8px-radius text-background field with 8px padding and a quaternary stroke.
+- **Style:** the composer editor sits borderless inside its card with a 15px secondary placeholder that names the selected networks ("Write once for Mastodon and Bluesky", "Write for Mastodon"). Sheet editors use an 8px-radius text-background field with 8px padding and a 0.75px hairline stroke.
 - **Focus:** system focus behavior.
 - **Error / Disabled:** each post card's counter lists every selected network against its own limit ("0/500 Mastodon · 0/300 Bluesky"; only the previewed network while previewing). Each network's count goes from secondary to orange within 20 of its limit and red over it, independently. Validation messages are red caption text that names the post and network.
 

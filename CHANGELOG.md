@@ -52,6 +52,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Link and quote cards, content warnings, and the text fields in the reply,
+  quote, edit, and report sheets share one surface style: a rounded fill with
+  the same thin border as the composer's post cards.
 - Each column's header leads with the network's glyph and name, with the
   Home / Notifications / Messages menu beneath it, so the two columns no longer
   both read "Home".

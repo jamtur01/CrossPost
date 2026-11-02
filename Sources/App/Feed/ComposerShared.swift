@@ -18,8 +18,8 @@ func counterColor(count: Int, limit: Int) -> Color {
     return .secondary
 }
 
-/// The bordered text editor used by the action sheets: rounded text-background
-/// fill, quaternary stroke, and an optional placeholder shown while empty.
+/// The bordered text editor used by the action sheets: a text-background card
+/// surface and an optional placeholder shown while empty.
 struct SheetTextEditor: View {
     @Binding var text: String
     let minHeight: CGFloat
@@ -30,7 +30,7 @@ struct SheetTextEditor: View {
         PlainTextEditor(text: $text, onImages: onImages)
             .frame(minHeight: minHeight)
             .padding(8)
-            .background(RoundedRectangle(cornerRadius: Theme.insetCorner).fill(Color(nsColor: .textBackgroundColor)))
+            .cardSurface(corner: Theme.insetCorner)
             .overlay(alignment: .topLeading) {
                 if let placeholder, text.isEmpty {
                     Text(placeholder)
@@ -39,7 +39,6 @@ struct SheetTextEditor: View {
                         .allowsHitTesting(false)
                 }
             }
-            .overlay(RoundedRectangle(cornerRadius: Theme.insetCorner).stroke(.quaternary))
     }
 }
 

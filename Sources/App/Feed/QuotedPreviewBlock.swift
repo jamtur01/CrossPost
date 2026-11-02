@@ -18,6 +18,9 @@ struct QuotedPreviewBlock: View {
         }
         .padding(8)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: Theme.insetCorner).fill(.quaternary.opacity(0.35)))
+        .background(
+            RoundedRectangle(cornerRadius: Theme.insetCorner, style: .continuous)
+                .fill(.quaternary.opacity(0.35))
+        )
     }
 }

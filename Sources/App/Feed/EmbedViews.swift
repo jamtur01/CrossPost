@@ -43,12 +43,8 @@ struct LinkCardView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Theme.hoverFill)
             .clipShape(RoundedRectangle(cornerRadius: Theme.mediaCorner, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: Theme.mediaCorner, style: .continuous)
-                    .strokeBorder(Color.primary.opacity(0.08))
-            )
+            .cardSurface(corner: Theme.mediaCorner, fill: Theme.hoverFill)
         }
         .buttonStyle(.plain)
         .pointerStyle(.link)
@@ -145,12 +141,8 @@ struct QuoteCardView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.primary.opacity(0.035))
         .clipShape(RoundedRectangle(cornerRadius: Theme.mediaCorner, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: Theme.mediaCorner, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.08))
-        )
+        .cardSurface(corner: Theme.mediaCorner, fill: Theme.hoverFill)
     }
 
     /// The quoted image, or a plain cover while it is sensitive and not yet shown;

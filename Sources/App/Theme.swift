@@ -121,15 +121,17 @@ private extension NSColor {
     }
 }
 
-/// A softly bordered semantic surface used for the compose card and previews.
-private struct CardSurface: ViewModifier {
-    var corner: CGFloat = Theme.cardCorner
+/// A softly bordered inset surface: a continuous rounded fill with a hairline
+/// stroke. Used by the compose card, embeds, content warnings, and sheet editors.
+private struct CardSurface<Fill: ShapeStyle>: ViewModifier {
+    let corner: CGFloat
+    let fill: Fill
 
     func body(content: Content) -> some View {
         content
             .background(
                 RoundedRectangle(cornerRadius: corner, style: .continuous)
-                    .fill(Color(nsColor: .textBackgroundColor))
+                    .fill(fill)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: corner, style: .continuous)
@@ -139,8 +141,11 @@ private struct CardSurface: ViewModifier {
 }
 
 extension View {
-    func cardSurface(corner: CGFloat = Theme.cardCorner) -> some View {
-        modifier(CardSurface(corner: corner))
+    func cardSurface(
+        corner: CGFloat = Theme.cardCorner,
+        fill: some ShapeStyle = Color(nsColor: .textBackgroundColor)
+    ) -> some View {
+        modifier(CardSurface(corner: corner, fill: fill))
     }
 }
 

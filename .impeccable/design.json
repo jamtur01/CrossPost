@@ -98,9 +98,9 @@
       "name": "Quote Card",
       "kind": "card",
       "refersTo": "embed-card",
-      "description": "Quoted post: 3.5% fill, 8% stroke, 10px corner, leading accent rule at 55%.",
+      "description": "Quoted post: 4% fill, 0.75px hairline, 10px corner, leading accent rule at 55%.",
       "html": "<div class=\"ds-quote\"><span class=\"ds-quote-rule\"></span><div class=\"ds-quote-body\"><div class=\"ds-quote-head\"><span class=\"ds-quote-av\"></span><strong>Pop Crave</strong><span>@popcrave.com</span></div><p>Quoted text sits at 13px with up to six lines.</p></div></div>",
-      "css": ".ds-quote { font-family: -apple-system, system-ui, sans-serif; display: flex; background: rgba(0,0,0,0.035); border: 1px solid rgba(0,0,0,0.08); border-radius: 10px; overflow: hidden; max-width: 380px; } .ds-quote-rule { width: 3px; border-radius: 2px; background: rgba(10,122,255,0.55); flex: none; } .ds-quote-body { padding: 10px; } .ds-quote-head { display: flex; gap: 6px; align-items: center; font-size: 12.5px; } .ds-quote-head span:last-child { font-size: 11px; color: rgba(0,0,0,0.5); } .ds-quote-av { width: 20px; height: 20px; border-radius: 50%; background: rgba(0,0,0,0.06); } .ds-quote p { font-size: 13px; margin: 6px 0 0; color: rgba(0,0,0,0.85); }"
+      "css": ".ds-quote { font-family: -apple-system, system-ui, sans-serif; display: flex; background: rgba(0,0,0,0.04); border: 0.75px solid rgba(0,0,0,0.07); border-radius: 10px; overflow: hidden; max-width: 380px; } .ds-quote-rule { width: 3px; border-radius: 2px; background: rgba(10,122,255,0.55); flex: none; } .ds-quote-body { padding: 10px; } .ds-quote-head { display: flex; gap: 6px; align-items: center; font-size: 12.5px; } .ds-quote-head span:last-child { font-size: 11px; color: rgba(0,0,0,0.5); } .ds-quote-av { width: 20px; height: 20px; border-radius: 50%; background: rgba(0,0,0,0.06); } .ds-quote p { font-size: 13px; margin: 6px 0 0; color: rgba(0,0,0,0.85); }"
     },
     {
       "name": "Message Bubbles",
