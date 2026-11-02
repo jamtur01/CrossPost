@@ -36,9 +36,7 @@ struct QuoteSheet: View {
                     VisibilityMenu(visibility: $visibility, accent: accent)
                 }
                 Spacer()
-                Text("\(count)/\(limit)")
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(counterColor(count: count, limit: limit))
+                CharacterCounter(count: count, limit: limit)
             }
 
             if let errorMessage {

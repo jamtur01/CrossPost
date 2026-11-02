@@ -18,6 +18,20 @@ func counterColor(count: Int, limit: Int) -> Color {
     return .secondary
 }
 
+/// The action sheets' "count/limit" caption, colored by `counterColor` and read by
+/// VoiceOver the way the composer's counter is ("12 of 500 characters").
+struct CharacterCounter: View {
+    let count: Int
+    let limit: Int
+
+    var body: some View {
+        Text("\(count)/\(limit)")
+            .font(.caption.monospacedDigit())
+            .foregroundStyle(counterColor(count: count, limit: limit))
+            .accessibilityLabel("\(count) of \(limit) characters")
+    }
+}
+
 /// The bordered text editor used by the action sheets: a text-background card
 /// surface and an optional placeholder shown while empty.
 struct SheetTextEditor: View {

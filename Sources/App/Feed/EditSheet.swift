@@ -119,9 +119,7 @@ struct EditSheet: View {
             .foregroundStyle(.secondary)
 
             Spacer()
-            Text("\(count)/\(limit)")
-                .font(.caption.monospacedDigit())
-                .foregroundStyle(counterColor(count: count, limit: limit))
+            CharacterCounter(count: count, limit: limit)
         }
     }
 

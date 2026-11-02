@@ -46,9 +46,7 @@ struct ReplySheet: View {
 
                 Spacer()
 
-                Text("\(model.count)/\(model.limit)")
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(counterColor(count: model.count, limit: model.limit))
+                CharacterCounter(count: model.count, limit: model.limit)
             }
 
             if let issues = model.blockedIssues, !issues.isEmpty {
