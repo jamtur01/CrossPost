@@ -193,6 +193,7 @@ final class SentHistoryModel {
             let profile = try await service.myProfile()
             if target == .bluesky, accounts[.bluesky] != profile.id {
                 accounts[.bluesky] = profile.id // the DID that Bluesky copies are matched by
+                scheduleFollowUp() // its copies may be newer than any that were visible
             }
             return try await .loaded(service.authorPosts(id: profile.id))
         } catch {

@@ -53,7 +53,8 @@ final class SentHistoryModelTests: XCTestCase {
     }
 
     /// Before any session has stored the Bluesky DID, the history can't tell which
-    /// Bluesky copies are yours; fetching your own profile learns it.
+    /// Bluesky copies are yours; fetching your own profile learns it, and a copy still
+    /// in its grace gets its follow-up refresh.
     func testBlueskyCopiesAppearOnceTheirDIDIsLearned() async throws {
         let store = SentHistoryStore(url: URL.temporaryDirectory
             .appending(path: "history-\(UUID())/sent-history.json"))
@@ -65,10 +66,15 @@ final class SentHistoryModelTests: XCTestCase {
         ]))
         fake.myProfileID = "did:plc:me"
         let model = SentHistoryModel(store: store, account: { $0 == .bluesky ? "" : nil },
-                                     makeService: { [unowned self] _ in fake })
+                                     makeService: { [unowned self] _ in fake },
+                                     now: { [unowned self] in clock },
+                                     sleep: { [unowned self] duration in
+                                         sleeps.append(duration)
+                                         try await Task.sleep(for: .seconds(3600))
+                                     })
         XCTAssertTrue(model.visiblePosts.isEmpty, "unknown DID: nothing is matched yet")
         model.refresh()
-        await waitUntil { model.visiblePosts.count == 1 }
+        await waitUntil { model.visiblePosts.count == 1 && self.sleeps == [.seconds(15)] }
     }
 
     private var copy: SentCopy {
