@@ -15,9 +15,10 @@ posts without leaving the window.
   images (and alt text). Posts are validated first: if anything is empty or over a
   network's limit (Bluesky 300, Mastodon from your instance), nothing is sent and
   the offending post/network is named.
-- **Feeds** per network with **Home**, **Notifications**, and **Messages**
-  tabs. Mastodon refreshes live over its streaming socket; both poll (~60s) and
-  refresh manually. The notification tab carries an unread badge. Posts that
+- **Feeds** per network with **Home**, **Notifications**, and **Messages**.
+  Mastodon updates live over its streaming socket; Bluesky, and Mastodon while its
+  stream is down, refresh every 30 seconds while the app is active, and both refresh
+  on demand. The bell in each column header shows unread notifications. Posts that
   arrive while you're scrolled down Home don't move what you're reading; a
   "3 new posts" pill under the column header takes you back to the top.
 - **Per-post actions** — reply (scoped to that one network), like/favourite,
@@ -28,6 +29,11 @@ posts without leaving the window.
 - **Rich rendering** — inline images, animated GIFs and video, link preview cards,
   quoted posts, and clickable links and mentions. Boosts/reposts show a "boosted by"
   attribution.
+- **Content warnings and sensitive media** — a post with a content warning shows
+  only the warning until you click **Show post**, and sensitive images, videos, and
+  link preview images stay blurred or covered until clicked. On Bluesky, moderation
+  and media labels are covered the same way, using Bluesky's default label settings.
+  What you reveal stays revealed until you quit.
 - **In-app profiles & threads** — tap an avatar, mention, or profile link to open a
   profile or expand a thread in place, with followers/following lists.
 - **Social graph** — follow/unfollow, mute, and block other accounts from a profile.
@@ -44,12 +50,13 @@ posts without leaving the window.
   every key.
 - **Reading controls** — Standard, Larger, and Largest text in Settings; persistent network
   names in navigation headers; Retry and Open original actions for failed images.
-- **Recent posts** — while the composer is empty it lists your last 50 CrossPost sends
-  from the signed-in accounts, with each network's reply, repost, and like counts (read from your own recent posts
-  when the list appears, on Refresh All, and twice in the two minutes after a send). Click a network's counts to open that copy's
+- **Recent posts** — while the composer is empty it lists your last 50 CrossPost
+  sends from the signed-in accounts, with each network's reply, repost, and like
+  counts, read from your own recent posts when the list appears, on Refresh All, and
+  twice in the two minutes after a send. Click a network's counts to open that copy's
   thread in its column. The history is plain JSON (`sent-history.json`) in the app's
-  Application Support folder. If that file can't be read, **Start New History** keeps it under a new name
-  and starts a fresh one.
+  Application Support folder. If that file can't be read, **Start New History** keeps
+  it under a new name and starts a fresh one.
 - **Active draft recovery** — text, images, alt text, audiences, destinations, and partial
   thread progress are saved locally across quits.
 - **Automatic updates** via [Sparkle](https://sparkle-project.org), from this repo's
@@ -107,11 +114,12 @@ a feed.
   Under the last post, toggle **Mastodon** / **Bluesky** (both on by default), review
   each network's audience beside it, and press **Post** (⌘↩). Bluesky posts are
   public; the visibility menu applies only to Mastodon. The **Editing** menu under
-  the composer title shows the text each network will receive. On success the submitted
-  draft clears; edits made during posting remain. Per-network outcomes show inline.
-  **Retry** sends only unsent posts. An already-published prefix cannot be edited
-  and resent; add a post to continue that thread, or choose **New Draft…** from the composer's **…** menu.
-  Interrupted sends require checking your profiles before starting a new draft.
+  the composer title shows the text each network will receive. On success the
+  submitted draft clears; edits made during posting remain. Per-network outcomes
+  show inline. **Retry** sends only unsent posts. An already-published prefix cannot
+  be edited and resent; add a post to continue that thread, or choose **New Draft…**
+  from the composer's **…** menu. Interrupted sends require checking your profiles
+  before starting a new draft.
 - **Feeds** (middle/right): switch **Home** / **Notifications** / **Messages**,
   refresh, and on any post use **reply**, **like**, **repost**, **bookmark**, or the
   overflow menu (**delete**/**pin** your own, **open in browser**, who liked or
@@ -122,7 +130,8 @@ a feed.
 
 Click a row, or press Esc in the composer, to give a list the keyboard. The
 focused row carries the system focus ring; each column keeps its own while you work
-in the other. **Help › Keyboard Shortcuts** (⌘/) shows every shortcut.
+in the other. **Help › Keyboard Shortcuts** (⌘/) shows every shortcut, and the
+**Post** menu lists the feed keys.
 
 | Key | Action |
 | --- | --- |
@@ -146,8 +155,9 @@ Single keys never act while you type. No key deletes a post.
   modeled, so the check is slightly stricter than Mastodon requires.
 - Threads link automatically (each post replies to the previous).
 - Networks are independent — if a post fails on one, the other still goes through.
-- Bluesky images are re-encoded to JPEG under the 2 MB per-image limit (max 4);
-  Mastodon allows up to 10 MB.
+- Images are re-encoded to JPEG under each network's per-image limit (max 4 per
+  post): 1 MB on Bluesky, and on Mastodon the size your instance reports (10 MB if
+  it reports none).
 - Feeds, profiles, and notifications are fetched several pages deep at each
   platform's maximum page size.
 - Only `http`/`https` links are tappable; other schemes from remote content are
@@ -173,16 +183,19 @@ The app runs in the App Sandbox (`CrossPost.entitlements`). Built on
 [ATProtoKit](https://github.com/MasterJ93/ATProtoKit) (Bluesky). The app icon is
 generated by `scripts/make_app_icon.swift`.
 
-## Tests
+## Tests and lint
 
 ```bash
 xcodebuild test -project CrossPost.xcodeproj -scheme CrossPost -destination 'platform=macOS'
+./lint.sh            # SwiftFormat check + swiftlint --strict
 ```
+
+`git config core.hooksPath .githooks` runs `./lint.sh` before each commit.
 
 ## Continuous integration & releases
 
-**CI** (`.github/workflows/ci.yml`) builds and runs the tests on every push to
-`main` and on pull requests.
+**CI** (`.github/workflows/ci.yml`, which calls `test.yml`) lints, builds, and runs
+the tests on every push to `main` and on pull requests.
 
 **Releases** (`.github/workflows/release.yml`) trigger on `v*` tags: they build an
 Apple Silicon Release bundle, stamp its version from the tag, **code-sign it with a
