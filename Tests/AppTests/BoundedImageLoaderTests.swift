@@ -322,16 +322,6 @@ private extension BoundedImageLoaderTests {
         }
     }
 
-    func waitUntil(_ predicate: @escaping @Sendable () async -> Bool) async throws {
-        for _ in 0 ..< 200 {
-            if await predicate() {
-                return
-            }
-            try await Task.sleep(nanoseconds: 1_000_000)
-        }
-        XCTFail("Condition was not met before timeout")
-    }
-
     func pngData(width: Int, height: Int) throws -> Data {
         try bitmapData(width: width, height: height, type: .png)
     }
