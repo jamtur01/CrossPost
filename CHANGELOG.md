@@ -102,6 +102,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   under their white text.
 - Liked and reposted counts use a deeper pink and green in light mode, where
   the system colors were hard to read on white.
+- Liking or reposting from a notification row gives the same trackpad haptic
+  tick as in a post row.
 
 ### Fixed
 

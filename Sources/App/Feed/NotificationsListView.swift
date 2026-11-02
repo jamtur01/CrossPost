@@ -248,26 +248,23 @@ private struct NotificationRow: View {
     }
 
     private func toggleLike() {
-        mutatePost { optimistic in
-            optimistic.isLiked.toggle()
-            optimistic.likeCount = max(0, optimistic.likeCount + (optimistic.isLiked ? 1 : -1))
-        } remote: { post, generation in
+        Haptics.tap()
+        mutatePost { $0.toggleLiked() } remote: { post, generation in
             try await model.remoteSetLiked(post.isLiked, on: post, generation: generation)
         }
     }
 
     private func toggleRepost() {
-        mutatePost { optimistic in
-            optimistic.isReposted.toggle()
-            optimistic.repostCount = max(0, optimistic.repostCount + (optimistic.isReposted ? 1 : -1))
-        } remote: { post, generation in
+        Haptics.tap()
+        mutatePost { $0.toggleReposted() } remote: { post, generation in
             try await model.remoteSetReposted(post.isReposted, on: post, generation: generation)
         }
     }
 
     private func toggleBookmark() {
-        mutatePost { $0.isBookmarked.toggle() } remote: { post, generation in
-            try await model.remoteSetBookmarked(post.isBookmarked, on: post, generation: generation)
+        let bookmarked = livePost?.isBookmarked != true
+        mutatePost { $0.isBookmarked = bookmarked } remote: { post, generation in
+            try await model.remoteSetBookmarked(bookmarked, on: post, generation: generation)
         }
     }
 

@@ -45,6 +45,20 @@ protocol OptimisticPostHost: AnyObject {
     func mutationDidSettle(_ postID: String)
 }
 
+/// The optimistic like and repost rule, shared by post rows and notification rows:
+/// flip the state and move the count with it, never below zero.
+extension FeedPost {
+    mutating func toggleLiked() {
+        isLiked.toggle()
+        likeCount = max(0, likeCount + (isLiked ? 1 : -1))
+    }
+
+    mutating func toggleReposted() {
+        isReposted.toggle()
+        repostCount = max(0, repostCount + (isReposted ? 1 : -1))
+    }
+}
+
 extension OptimisticPostHost {
     var remoteMutationGeneration: UInt {
         mutationGeneration
@@ -56,10 +70,7 @@ extension OptimisticPostHost {
         Haptics.tap()
         mutate(
             post,
-            optimistic: {
-                $0.isLiked.toggle()
-                $0.likeCount = max(0, $0.likeCount + ($0.isLiked ? 1 : -1))
-            },
+            optimistic: { $0.toggleLiked() },
             action: {
                 try await self.remoteSetLiked($0.isLiked, on: $0, generation: $1)
             }
@@ -70,10 +81,7 @@ extension OptimisticPostHost {
         Haptics.tap()
         mutate(
             post,
-            optimistic: {
-                $0.isReposted.toggle()
-                $0.repostCount = max(0, $0.repostCount + ($0.isReposted ? 1 : -1))
-            },
+            optimistic: { $0.toggleReposted() },
             action: {
                 try await self.remoteSetReposted($0.isReposted, on: $0, generation: $1)
             }
