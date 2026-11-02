@@ -20,6 +20,11 @@ enum TestFactory {
         return data
     }
 
+    /// A path for `name` in its own new folder under the temp directory. Neither exists yet.
+    static func tempFile(_ name: String) -> URL {
+        URL.temporaryDirectory.appending(path: "\(UUID())/\(name)")
+    }
+
     static func feedPost(
         target: PostTarget = .mastodon,
         id: String? = nil,

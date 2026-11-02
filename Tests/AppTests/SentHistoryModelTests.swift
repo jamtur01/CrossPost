@@ -56,8 +56,7 @@ final class SentHistoryModelTests: XCTestCase {
     /// Bluesky copies are yours; fetching your own profile learns it, and a copy still
     /// in its grace gets its follow-up refresh.
     func testBlueskyCopiesAppearOnceTheirDIDIsLearned() async throws {
-        let store = SentHistoryStore(url: URL.temporaryDirectory
-            .appending(path: "history-\(UUID())/sent-history.json"))
+        let store = SentHistoryStore(url: TestFactory.tempFile("sent-history.json"))
         let uri = "at://did:plc:me/app.bsky.feed.post/a"
         try store.record(SentPost(id: UUID(), date: landed, text: "hello", postCount: 1, copies: [
             SentCopy(target: .bluesky, item: PostedItem(url: nil, ref: .bluesky(uri: uri, cid: "c", rootURI: uri,
@@ -87,8 +86,7 @@ final class SentHistoryModelTests: XCTestCase {
     }
 
     private func makeModel(sleep: @escaping SentHistoryModel.Sleep) -> SentHistoryModel {
-        let store = SentHistoryStore(url: URL.temporaryDirectory
-            .appending(path: "history-\(UUID())/sent-history.json"))
+        let store = SentHistoryStore(url: TestFactory.tempFile("sent-history.json"))
         return SentHistoryModel(
             store: store,
             account: { $0 == .mastodon ? "me" : nil },

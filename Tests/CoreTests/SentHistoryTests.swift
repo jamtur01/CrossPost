@@ -6,8 +6,7 @@ final class SentHistoryStoreTests: XCTestCase {
     private let start = Date(timeIntervalSince1970: 1_800_000_000)
 
     override func setUp() {
-        store = SentHistoryStore(url: URL.temporaryDirectory
-            .appending(path: "history-\(UUID())/sent-history.json"))
+        store = SentHistoryStore(url: TestFactory.tempFile("sent-history.json"))
     }
 
     func testMissingFileIsEmptyAndAnUnreadableOneIsNeverOverwritten() throws {

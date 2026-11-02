@@ -4,8 +4,7 @@ import XCTest
 @MainActor
 final class MentionCompletionTests: XCTestCase {
     private func directory(_ services: [PostTarget: FakeFeedService]) -> MentionDirectory {
-        MentionDirectory(pairStore: MentionPairStore(url: URL.temporaryDirectory
-                .appending(path: "pairs-\(UUID()).json"))) { target in
+        MentionDirectory(pairStore: MentionPairStore(url: TestFactory.tempFile("mention-pairs.json"))) { target in
             guard let service = services[target] else { throw FakeFeedService.FakeError.boom }
             return service
         }

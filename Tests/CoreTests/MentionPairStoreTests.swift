@@ -5,8 +5,7 @@ final class MentionPairStoreTests: XCTestCase {
     private var store: MentionPairStore!
 
     override func setUp() {
-        store = MentionPairStore(url: URL.temporaryDirectory
-            .appending(path: "pairs-\(UUID())/mention-pairs.json"))
+        store = MentionPairStore(url: TestFactory.tempFile("mention-pairs.json"))
     }
 
     func testMissingFileIsEmpty() {

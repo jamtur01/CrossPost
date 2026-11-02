@@ -105,7 +105,7 @@ final class ComposeModelTests: XCTestCase {
     }
 
     func testChoosingPairedAccountUpdatesMentionAndSavesPair() {
-        let url = URL.temporaryDirectory.appending(path: "pairs-\(UUID()).json")
+        let url = TestFactory.tempFile("mention-pairs.json")
         let model = ComposeModel(store: AccountStore(), mentionPairStore: MentionPairStore(url: url))
         let person = MentionPerson(mastodonAcct: "pup@hachyderm.io", displayName: "Pup")
         let span = MentionSpan(location: 0, length: 4, person: person)

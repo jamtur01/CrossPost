@@ -119,8 +119,7 @@ final class ComposeCompletionTests: XCTestCase {
     }
 
     func testSendsAreRecordedOncePerDraftAcrossARetry() throws {
-        let historyStore = SentHistoryStore(url: URL.temporaryDirectory
-            .appending(path: "history-\(UUID())/sent-history.json"))
+        let historyStore = SentHistoryStore(url: TestFactory.tempFile("sent-history.json"))
         let model = ComposeModel(store: AccountStore(), historyStore: historyStore)
         model.handleCompletion([PostResult(target: .bluesky, outcome: .failure(message: "Offline"))])
         XCTAssertEqual(try historyStore.load(), [], "a send that landed nowhere isn't history")
@@ -152,8 +151,7 @@ final class ComposeCompletionTests: XCTestCase {
     }
 
     func testUnreadableHistoryIsReportedAndLeftUntouchedBySends() throws {
-        let historyStore = SentHistoryStore(url: URL.temporaryDirectory
-            .appending(path: "history-\(UUID())/sent-history.json"))
+        let historyStore = SentHistoryStore(url: TestFactory.tempFile("sent-history.json"))
         try FileManager.default.createDirectory(at: historyStore.url.deletingLastPathComponent(),
                                                 withIntermediateDirectories: true)
         let unreadable = Data("{ newer format".utf8)
