@@ -16,10 +16,6 @@ enum ImageProcessor {
                 "Image is \(size) bytes; could not compress under \(budget) bytes"
             }
         }
-
-        var errorDescription: String? {
-            description
-        }
     }
 
     /// Whether `data` is a decodable image. Used to reject a corrupt attachment

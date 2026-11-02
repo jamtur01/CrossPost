@@ -42,10 +42,6 @@ struct CredentialStore: SecretStoring, Sendable {
             case .dataEncoding: "Could not encode/decode Keychain value"
             }
         }
-
-        var errorDescription: String? {
-            description
-        }
     }
 
     private let service: String

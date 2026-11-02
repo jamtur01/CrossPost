@@ -1,6 +1,13 @@
 import ATProtoKit
 import Foundation
 
+/// Our error types write their message once, as `description`, and show it as-is.
+extension LocalizedError where Self: CustomStringConvertible {
+    var errorDescription: String? {
+        description
+    }
+}
+
 extension Error {
     /// A message suitable to show a user. Prefers our `LocalizedError`/
     /// `CustomStringConvertible` text, then a readable mapping for ATProtoKit's

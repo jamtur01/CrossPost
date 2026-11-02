@@ -21,10 +21,6 @@ struct ThreadPostError: Error, CustomStringConvertible, LocalizedError {
     var description: String {
         underlying.userMessage
     }
-
-    var errorDescription: String? {
-        description
-    }
 }
 
 /// Publishes a whole thread to one target. Throws `ThreadPostError` on mid-thread failure.

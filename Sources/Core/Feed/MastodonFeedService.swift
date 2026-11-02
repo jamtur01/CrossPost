@@ -461,10 +461,6 @@ enum FeedError: Error, CustomStringConvertible, LocalizedError {
                 + ", because it mentions them. Remove the @ to name someone without adding them."
         }
     }
-
-    var errorDescription: String? {
-        description
-    }
 }
 
 /// Session-scoped cache of the instance's quote-post capability. A reference

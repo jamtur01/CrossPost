@@ -140,9 +140,5 @@ enum PosterFactory {
             case let .message(message): message
             }
         }
-
-        var errorDescription: String? {
-            description
-        }
     }
 }
