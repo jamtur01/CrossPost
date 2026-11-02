@@ -27,9 +27,8 @@ struct FeedPostView: View {
     var onEdit: PostEditActions?
     var onCopyLink: () -> Void = {}
     var showActions: Bool = true
-    /// Timeline rows get hover highlight + a separator; sheet/detail views don't.
-    var inTimeline: Bool = true
-    /// Detail (pop-out) view shows a bigger avatar and full-width media.
+    /// The focused post in a thread: larger type and avatar, full-width media, and no
+    /// row padding, hover highlight, or separator. Otherwise it is a timeline row.
     var expanded: Bool = false
 
     @State private var hovering = false
@@ -44,44 +43,24 @@ struct FeedPostView: View {
     @Environment(\.accessibilityReduceMotion) var reduceMotion
 
     var bodyFontSize: CGFloat {
-        if expanded {
-            return Theme.expandedContentSize
-        }
-        return inTimeline ? Theme.timelineContentSize : Theme.contentSize
+        expanded ? Theme.expandedContentSize : Theme.timelineContentSize
     }
 
     private var authorNameFont: Font {
-        if expanded {
-            return Theme.nameLarge
-        }
-        return inTimeline ? Theme.timelineName : Theme.name
+        expanded ? Theme.nameLarge : Theme.timelineName
     }
 
     /// Point size of `authorNameFont`, for sizing custom emoji in the name.
     private var authorNamePointSize: CGFloat {
-        if expanded {
-            return 16
-        }
-        return inTimeline ? 14 : 14.5
+        expanded ? 16 : 14
     }
 
     private var authorHandleFont: Font {
-        inTimeline ? Theme.timelineHandle : Theme.handle
-    }
-
-    private var metadataFont: Font {
-        inTimeline ? Theme.timelineMeta : Theme.meta
-    }
-
-    private var contextFont: Font {
-        inTimeline ? Theme.timelineContext : Theme.context
+        expanded ? Theme.handle : Theme.timelineHandle
     }
 
     private var avatarSize: CGFloat {
-        if expanded {
-            return Theme.avatarLarge
-        }
-        return inTimeline ? Theme.timelineAvatar : Theme.avatar
+        expanded ? Theme.avatarLarge : Theme.timelineAvatar
     }
 
     var body: some View {
@@ -105,11 +84,11 @@ struct FeedPostView: View {
                 actionBar
             }
         }
-        .padding(.horizontal, inTimeline ? Theme.timelineRowPaddingH : 0)
-        .padding(.vertical, inTimeline ? Theme.timelineRowPaddingV : 0)
+        .padding(.horizontal, expanded ? 0 : Theme.timelineRowPaddingH)
+        .padding(.vertical, expanded ? 0 : Theme.timelineRowPaddingV)
         .background(rowBackground)
         .overlay(alignment: .bottom) {
-            if inTimeline {
+            if !expanded {
                 Divider().opacity(0.5)
             }
         }
@@ -166,7 +145,7 @@ struct FeedPostView: View {
             } icon: {
                 Image(systemName: "arrow.2.squarepath")
             }
-            .font(contextFont)
+            .font(Theme.timelineContext)
             .foregroundStyle(.secondary)
         }
         // Both context lines are quiet secondary chrome; the reply link shows the
@@ -176,7 +155,7 @@ struct FeedPostView: View {
             Button(action: onShowParent) {
                 Label("In reply to \(post.replyToHandle ?? "a post")",
                       systemImage: "arrowshape.turn.up.left")
-                    .font(contextFont)
+                    .font(Theme.timelineContext)
                     .foregroundStyle(hoveringParentLink ? AnyShapeStyle(accent) : AnyShapeStyle(.secondary))
                     .lineLimit(1)
                     .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: hoveringParentLink)
@@ -213,12 +192,12 @@ struct FeedPostView: View {
             Spacer(minLength: 6)
             if let visibility = visibilityBadge {
                 Image(systemName: visibility.symbol)
-                    .font(metadataFont)
+                    .font(Theme.timelineMeta)
                     .foregroundStyle(.secondary)
                     .help(visibility.label)
                     .accessibilityLabel(visibility.label)
             }
-            relativeTimestamp(post.date, font: metadataFont)
+            relativeTimestamp(post.date, font: Theme.timelineMeta)
         }
     }
 
@@ -300,7 +279,7 @@ struct FeedPostView: View {
 
     private var rowBackground: some View {
         Rectangle()
-            .fill(hovering && inTimeline ? Theme.hoverFill : .clear)
+            .fill(hovering && !expanded ? Theme.hoverFill : .clear)
             .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: hovering)
     }
 }

@@ -51,7 +51,6 @@ struct FeedRow: View {
             },
             onEdit: postEditActions(for: post, panel, onUpdated: { host.replace($0) }),
             onCopyLink: { panel.copyLink(post) },
-            inTimeline: !focused,
             expanded: focused
         )
         .padding(focused ? 16 : 0)

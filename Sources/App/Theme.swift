@@ -52,7 +52,6 @@ enum Theme {
     static let nameLarge = Font.system(size: 16, weight: .semibold)
     static let handle = Font.system(size: 13) // @handle (secondary)
     static let meta = Font.system(size: 12.5) // timestamp (secondary)
-    static let context = Font.system(size: 12, weight: .medium) // "boosted" / "in reply"
     static let action = Font.system(size: 13.5)
     static let count = Font.system(size: 12.5).monospacedDigit()
     static let sectionHeader = Font.system(size: 11, weight: .semibold) // "People" / "Pinned"
@@ -61,14 +60,12 @@ enum Theme {
     static let timelineRowPaddingH: CGFloat = 14
     static let timelineRowPaddingV: CGFloat = 10
     static let rowPaddingH: CGFloat = 16
-    static let rowPaddingV: CGFloat = 12
     static let headerPaddingH: CGFloat = 14
     static let componentSpacing: CGFloat = 6
     static let gutter: CGFloat = 10 // avatar → content
     static let actionGap: CGFloat = 20 // between action buttons
     static let actionGapNarrow: CGFloat = 12 // when the standard gap would overflow a narrow column
     static let timelineAvatar: CGFloat = 40
-    static let avatar: CGFloat = 44
     static let avatarSmall: CGFloat = 42 // list rows (search/followers)
     static let avatarLarge: CGFloat = 54
     static let cardCorner: CGFloat = 12
