@@ -28,7 +28,7 @@ extension FeedPostView {
                         .scaledToFill()
                         .blur(radius: 12, opaque: true)
                 } placeholder: {
-                    Color.primary.opacity(0.06)
+                    Theme.placeholderFill
                 }
             }
             .clipped()

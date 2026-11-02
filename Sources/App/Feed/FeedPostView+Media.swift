@@ -210,11 +210,11 @@ extension FeedPostView {
     private func reservedMediaPlaceholder(_ media: FeedImage, fit: Bool) -> some View {
         if fit, let aspect = media.aspectRatio {
             RoundedRectangle(cornerRadius: Theme.mediaCorner, style: .continuous)
-                .fill(Color.primary.opacity(0.06))
+                .fill(Theme.placeholderFill)
                 .aspectRatio(aspect, contentMode: .fit)
         } else {
             RoundedRectangle(cornerRadius: Theme.mediaCorner, style: .continuous)
-                .fill(Color.primary.opacity(0.06))
+                .fill(Theme.placeholderFill)
                 .frame(height: 120)
         }
     }

@@ -75,7 +75,7 @@ struct MentionSuggestionList: View {
             .padding(4)
             .background(
                 RoundedRectangle(cornerRadius: Theme.insetCorner, style: .continuous)
-                    .fill(Color.primary.opacity(0.04))
+                    .fill(Theme.hoverFill)
             )
             .accessibilityElement(children: .contain)
             .accessibilityLabel("Mention suggestions")

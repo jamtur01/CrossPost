@@ -178,7 +178,7 @@ private struct NetworkCounts: View {
         case .loading:
             marked {
                 RoundedRectangle(cornerRadius: Theme.skeletonCorner, style: .continuous)
-                    .fill(Color.primary.opacity(0.06))
+                    .fill(Theme.placeholderFill)
                     .frame(width: 92, height: 9)
                     .loadingSheen()
             }

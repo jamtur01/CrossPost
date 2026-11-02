@@ -62,7 +62,7 @@ private struct LoadingSheen: ViewModifier {
         content
             .overlay(
                 LinearGradient(
-                    colors: [.clear, Color.primary.opacity(0.06), .clear],
+                    colors: [.clear, Theme.placeholderFill, .clear],
                     startPoint: .leading,
                     endPoint: .trailing
                 )
@@ -108,12 +108,12 @@ struct AvatarView: View {
         case let .success(image):
             image.resizable().scaledToFill()
         case .loading:
-            Circle().fill(Color.primary.opacity(0.06)).loadingSheen()
+            Circle().fill(Theme.placeholderFill).loadingSheen()
         case .failure:
-            Circle().fill(Color.primary.opacity(0.06))
+            Circle().fill(Theme.placeholderFill)
                 .overlay { Image(systemName: "person.crop.circle.badge.exclamationmark") }
         case .unavailable:
-            Circle().fill(Color.primary.opacity(0.06))
+            Circle().fill(Theme.placeholderFill)
         }
     }
 }
@@ -125,7 +125,7 @@ struct SkeletonRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: Theme.gutter) {
             Circle()
-                .fill(Color.primary.opacity(0.06))
+                .fill(Theme.placeholderFill)
                 .frame(width: Theme.timelineAvatar, height: Theme.timelineAvatar)
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 8) {
@@ -145,7 +145,7 @@ struct SkeletonRow: View {
 
     private func bar(width: CGFloat, height: CGFloat) -> some View {
         RoundedRectangle(cornerRadius: Theme.skeletonCorner, style: .continuous)
-            .fill(Color.primary.opacity(0.06))
+            .fill(Theme.placeholderFill)
             .frame(maxWidth: width == .infinity ? .infinity : nil)
             .frame(width: width == .infinity ? nil : width, height: height)
     }

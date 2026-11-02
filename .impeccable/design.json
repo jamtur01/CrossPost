@@ -130,7 +130,7 @@
       { "name": "The Flat-At-Rest Rule", "body": "Shadows belong only to transient overlays that sit above the window's content plane. If a persistent surface needs separation, use a hairline or the `.bar` material.", "section": "elevation" }
     ],
     "dos": [
-      "**Do** use the `Theme` tokens (fonts, metrics, `hairline`, `hoverFill`, `likeTint`, `repostTint`) instead of new literals.",
+      "**Do** use the `Theme` tokens (fonts, metrics, `hairline`, `hoverFill`, `placeholderFill`, `likeTint`, `repostTint`) instead of new literals.",
       "**Do** keep timeline rows edge to edge with a hairline divider and a 4% hover fill.",
       "**Do** use the network accent only inside its own column or on controls scoped to that network; use the system accent for cross-network actions.",
       "**Do** route readable text through `readingFont` so the Reading text size setting applies.",

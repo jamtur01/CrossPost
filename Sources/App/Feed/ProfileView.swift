@@ -152,7 +152,7 @@ struct ProfileView: View {
                     CachedAsyncImage(url: profile?.avatarURL ?? ref.avatar) { img in
                         img.resizable().scaledToFill()
                     } placeholder: {
-                        Circle().fill(.quaternary)
+                        Circle().fill(Theme.placeholderFill)
                     }
                     .frame(width: 74, height: 74)
                     .clipShape(Circle())

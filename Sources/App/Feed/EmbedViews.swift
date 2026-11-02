@@ -43,7 +43,7 @@ struct LinkCardView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.primary.opacity(0.04))
+            .background(Theme.hoverFill)
             .clipShape(RoundedRectangle(cornerRadius: Theme.mediaCorner, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: Theme.mediaCorner, style: .continuous)
@@ -63,7 +63,7 @@ struct LinkCardView: View {
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(.quaternary)
+                    .background(Theme.placeholderFill)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -168,7 +168,7 @@ struct QuoteCardView: View {
                 Button { changeReveal { reveals.toggleMedia(of: quote) } } label: {
                     SensitiveMediaLabel()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background(Color.primary.opacity(0.06))
+                        .background(Theme.placeholderFill)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -202,12 +202,12 @@ private struct EmbedImage: View {
             case let .success(image):
                 image.resizable().scaledToFill()
             case .loading:
-                Rectangle().fill(.quaternary).loadingSheen()
+                Rectangle().fill(Theme.placeholderFill).loadingSheen()
             case .failure:
-                Rectangle().fill(.quaternary)
+                Rectangle().fill(Theme.placeholderFill)
                     .overlay { Image(systemName: "photo.badge.exclamationmark") }
             case .unavailable:
-                Rectangle().fill(.quaternary)
+                Rectangle().fill(Theme.placeholderFill)
             }
         }
     }

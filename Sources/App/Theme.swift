@@ -80,6 +80,7 @@ enum Theme {
     // Surfaces — hierarchy through subtle fills + hairlines, never loud borders.
     static let hairline = Color.primary.opacity(0.07)
     static let hoverFill = Color.primary.opacity(0.04)
+    static let placeholderFill = Color.primary.opacity(0.06) // avatar, media, and skeleton placeholders
     static let avatarRing = Color.primary.opacity(0.08)
     /// The focused row's ring: the user's accent at full strength. The system focus
     /// colour is that accent at about half opacity, too faint on the white feed, so
