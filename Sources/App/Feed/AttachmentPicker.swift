@@ -405,3 +405,26 @@ struct AttachmentBar: View {
         }
     }
 }
+
+/// The "Add image" button for the composer card and the reply sheet: a 28pt target
+/// that disables itself once `attachedCount` reaches the per-post image limit.
+struct AttachImageButton: View {
+    let attachedCount: Int
+    let action: () -> Void
+
+    private var canAdd: Bool {
+        attachedCount < TargetLimits.imageMax
+    }
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "photo.badge.plus").font(.system(size: 15))
+                .frame(minWidth: 28, minHeight: 28)
+        }
+        .buttonStyle(.borderless)
+        .foregroundStyle(.secondary)
+        .disabled(!canAdd)
+        .accessibilityLabel("Add image")
+        .help(canAdd ? "Add image" : "Maximum \(TargetLimits.imageMax) images")
+    }
+}

@@ -30,15 +30,7 @@ struct ReplySheet: View {
             }
 
             HStack {
-                Button(action: chooseFiles) {
-                    Image(systemName: "photo.badge.plus").font(.system(size: 15))
-                }
-                .buttonStyle(.borderless)
-                .foregroundStyle(.secondary)
-                .disabled(model.attachments.count >= TargetLimits.imageMax)
-                .help(model.attachments.count >= TargetLimits.imageMax
-                    ? "Maximum \(TargetLimits.imageMax) images"
-                    : "Add image")
+                AttachImageButton(attachedCount: model.attachments.count, action: chooseFiles)
 
                 if model.post.target == .mastodon {
                     VisibilityMenu(visibility: $model.visibility, accent: accent)

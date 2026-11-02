@@ -20,10 +20,6 @@ struct PostCardView: View {
     @State private var attachmentPreparation = AttachmentPreparationOwner()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    private var canAddImages: Bool {
-        post.attachments.count < TargetLimits.imageMax
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             if showLabel {
@@ -57,15 +53,7 @@ struct PostCardView: View {
             }
 
             HStack(spacing: 12) {
-                Button(action: chooseFiles) {
-                    Image(systemName: "photo.badge.plus").font(.system(size: 15))
-                        .frame(minWidth: 28, minHeight: 28)
-                }
-                .buttonStyle(.borderless)
-                .foregroundStyle(.secondary)
-                .disabled(!canAddImages)
-                .accessibilityLabel("Add image")
-                .help(canAddImages ? "Add image" : "Maximum \(TargetLimits.imageMax) images")
+                AttachImageButton(attachedCount: post.attachments.count, action: chooseFiles)
 
                 Spacer()
 

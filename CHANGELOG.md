@@ -108,6 +108,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - VoiceOver read posts from two days ago as "yesterday".
 - VoiceOver read the reply, quote, and edit sheets' character counters as a bare
   "23/500". They now read "23 of 500 characters", like the composer's.
+- The reply sheet's Add image button had no VoiceOver label and a small click
+  target. It now matches the composer's: labeled "Add image", 28 × 28 points.
 - Your own short messages in a conversation sat at the leading edge instead of
   the trailing side.
 - The Bookmarks list on Bluesky was always empty. It now shows your Bluesky
