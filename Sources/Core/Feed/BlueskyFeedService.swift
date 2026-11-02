@@ -296,6 +296,11 @@ struct BlueskyFeedService: FeedService {
 
     func setFollowing(_ following: Bool, for id: String,
                       current: AccountRelationship) async throws -> AccountRelationship {
+        // Already following with a known record: a second one would outlive the undo,
+        // which deletes only the record it knows.
+        if following, current.isFollowing, current.followRecordURI != nil {
+            return current
+        }
         var rel = current
         if following {
             let ref = try await bluesky.createFollowRecord(actorDID: id)
@@ -323,6 +328,10 @@ struct BlueskyFeedService: FeedService {
 
     func setBlocked(_ blocked: Bool, for id: String,
                     current: AccountRelationship) async throws -> AccountRelationship {
+        // Same as setFollowing: never create a second block record.
+        if blocked, current.isBlocking, current.blockRecordURI != nil {
+            return current
+        }
         var rel = current
         if blocked {
             let ref = try await bluesky.createBlockRecord(ofType: .actorBlock(actorDID: id))

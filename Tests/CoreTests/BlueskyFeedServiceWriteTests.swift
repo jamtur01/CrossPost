@@ -27,4 +27,40 @@ final class BlueskyFeedServiceWriteTests: XCTestCase {
         let reposted = try await service.setReposted(true, on: post)
         XCTAssertEqual(reposted, post)
     }
+
+    /// Following or blocking again with the record already known keeps that record: a
+    /// second one would outlive the undo, which deletes only the record it knows.
+    func testRepeatedFollowOrBlockKeepsItsRecord() async throws {
+        let service = await makeService()
+        let current = AccountRelationship(isFollowing: true, isBlocking: true,
+                                          followRecordURI: "at://did:plc:me/app.bsky.graph.follow/1",
+                                          blockRecordURI: "at://did:plc:me/app.bsky.graph.block/1")
+
+        let followed = try await service.setFollowing(true, for: "did:plc:other", current: current)
+        XCTAssertEqual(followed, current)
+        let blocked = try await service.setBlocked(true, for: "did:plc:other", current: current)
+        XCTAssertEqual(blocked, current)
+    }
+
+    /// Without a known record, or with one that is being undone, the guard stands aside
+    /// so the follow or block is written.
+    func testFollowOrBlockWithoutALiveRecordAttemptsTheWrite() async {
+        let service = await makeService()
+        let noRecord = AccountRelationship(isFollowing: true, isBlocking: true)
+        let beingUndone = AccountRelationship(isFollowing: false, isBlocking: false,
+                                              followRecordURI: "at://did:plc:me/app.bsky.graph.follow/1",
+                                              blockRecordURI: "at://did:plc:me/app.bsky.graph.block/1")
+
+        for current in [noRecord, beingUndone] {
+            await assertThrows { _ = try await service.setFollowing(true, for: "did:plc:other", current: current) }
+            await assertThrows { _ = try await service.setBlocked(true, for: "did:plc:other", current: current) }
+        }
+    }
+
+    private func assertThrows(_ write: () async throws -> Void, line: UInt = #line) async {
+        do {
+            try await write()
+            XCTFail("expected the write to fail without a session", line: line)
+        } catch {}
+    }
 }
