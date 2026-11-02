@@ -115,48 +115,41 @@ struct BlueskyFeedService: FeedService {
     }
 
     func setLiked(_ liked: Bool, on post: FeedPost) async throws -> FeedPost {
-        guard case let .bluesky(uri, cid, _, _) = post.nativeRef else { throw FeedError.wrongPlatform }
-        await notificationPostCache.invalidate(uri)
-        var copy = post
-        if liked {
-            // Already liked with a known record: creating a second like would
-            // orphan the first server-side (only the newest URI would be kept
-            // for undo), so a repeated like is a no-op.
-            if let existing = post.likeRecordURI {
-                copy.isLiked = true
-                copy.likeRecordURI = existing
-                return copy
-            }
-            let likeRef = try await bluesky.createLikeRecord(Self.strongRef(uri, cid))
-            copy.isLiked = true
-            copy.likeRecordURI = likeRef.recordURI
-        } else if let likeURI = post.likeRecordURI {
-            try await bluesky.deleteRecord(.recordURI(atURI: likeURI))
-            copy.isLiked = false
-            copy.likeRecordURI = nil
+        try await toggleRecord(liked, on: post, flag: \.isLiked, record: \.likeRecordURI) {
+            try await bluesky.createLikeRecord($0).recordURI
         }
-        await notificationPostCache.invalidate(uri)
-        return copy
     }
 
     func setReposted(_ reposted: Bool, on post: FeedPost) async throws -> FeedPost {
+        try await toggleRecord(reposted, on: post, flag: \.isReposted, record: \.repostRecordURI) {
+            try await bluesky.createRepostRecord($0).recordURI
+        }
+    }
+
+    /// Creates or deletes the user's like or repost record for `post`, keeping its URI
+    /// for undo.
+    private func toggleRecord(
+        _ value: Bool, on post: FeedPost,
+        flag: WritableKeyPath<FeedPost, Bool>, record: WritableKeyPath<FeedPost, String?>,
+        create: (ComAtprotoLexicon.Repository.StrongReference) async throws -> String
+    ) async throws -> FeedPost {
         guard case let .bluesky(uri, cid, _, _) = post.nativeRef else { throw FeedError.wrongPlatform }
         await notificationPostCache.invalidate(uri)
         var copy = post
-        if reposted {
-            // Same idempotency guard as setLiked: never create a duplicate record.
-            if let existing = post.repostRecordURI {
-                copy.isReposted = true
-                copy.repostRecordURI = existing
+        if value {
+            // Already on with a known record: creating a second one would orphan the
+            // first server-side (only the newest URI would be kept for undo), so a
+            // repeat is a no-op.
+            if post[keyPath: record] != nil {
+                copy[keyPath: flag] = true
                 return copy
             }
-            let repostRef = try await bluesky.createRepostRecord(Self.strongRef(uri, cid))
-            copy.isReposted = true
-            copy.repostRecordURI = repostRef.recordURI
-        } else if let repostURI = post.repostRecordURI {
-            try await bluesky.deleteRecord(.recordURI(atURI: repostURI))
-            copy.isReposted = false
-            copy.repostRecordURI = nil
+            copy[keyPath: record] = try await create(Self.strongRef(uri, cid))
+            copy[keyPath: flag] = true
+        } else if let existing = post[keyPath: record] {
+            try await bluesky.deleteRecord(.recordURI(atURI: existing))
+            copy[keyPath: flag] = false
+            copy[keyPath: record] = nil
         }
         await notificationPostCache.invalidate(uri)
         return copy
