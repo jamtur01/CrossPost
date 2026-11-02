@@ -18,7 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   you click **Show post**. Sensitive images and videos are blurred until
   clicked, and can be covered again. What you reveal stays revealed while the
   app is open, across scrolling and threads, and is never saved. A quoted post
-  keeps its own warning and sensitive media covers inside the quote.
+  keeps its own warning and sensitive media covers inside the quote, a
+  notification's post preview stays behind its warning, and a sensitive post's
+  link preview image is covered with its media.
 - Bluesky posts and quotes with labels are covered the same way. A moderator's
   warning label collapses the post behind "Content warning", a hide label behind
   "Hidden by moderators" (CrossPost shows these posts rather than dropping
