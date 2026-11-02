@@ -25,12 +25,17 @@ enum TestFactory {
         visibility: String? = nil,
         spoilerText: String? = nil,
         isSensitive: Bool = false,
-        text: AttributedString = AttributedString("hello")
+        text: AttributedString = AttributedString("hello"),
+        date: Date = Date(timeIntervalSince1970: 0),
+        webURL: URL? = nil,
+        isLiked: Bool = false,
+        isPinned: Bool = false,
+        nativeRef: NativeRef? = nil
     ) -> FeedPost {
         let key = id ?? "\(target.rawValue):1"
-        let nativeRef: NativeRef = target == .mastodon
+        let nativeRef = nativeRef ?? (target == .mastodon
             ? .mastodon(statusID: key)
-            : .bluesky(uri: "at://\(key)", cid: "cid", rootURI: "at://\(key)", rootCID: "cid")
+            : .bluesky(uri: "at://\(key)", cid: "cid", rootURI: "at://\(key)", rootCID: "cid"))
         return FeedPost(
             id: key,
             target: target,
@@ -38,12 +43,13 @@ enum TestFactory {
             authorHandle: authorHandle,
             authorID: authorID,
             avatarURL: nil,
-            date: Date(timeIntervalSince1970: 0),
+            date: date,
             text: text,
             images: [],
-            webURL: nil,
-            isLiked: false,
+            webURL: webURL,
+            isLiked: isLiked,
             isReposted: false,
+            isPinned: isPinned,
             mentionHandles: mentionHandles,
             visibility: visibility,
             spoilerText: spoilerText,

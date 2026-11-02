@@ -3,9 +3,8 @@ import XCTest
 
 final class FeedMergeTests: XCTestCase {
     private func post(_ id: String, liked: Bool = false) -> FeedPost {
-        FeedPost(id: id, target: .bluesky, authorName: "a", authorHandle: "@a", avatarURL: nil,
-                 date: Date(timeIntervalSince1970: 0), text: AttributedString(""), images: [],
-                 webURL: nil, isLiked: liked, isReposted: false, nativeRef: .mastodon(statusID: id))
+        TestFactory.feedPost(target: .bluesky, id: id, authorName: "a", authorHandle: "@a", authorID: "",
+                             text: AttributedString(""), isLiked: liked, nativeRef: .mastodon(statusID: id))
     }
 
     func testEmptyExistingReturnsFetched() {

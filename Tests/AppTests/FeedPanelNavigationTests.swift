@@ -53,13 +53,9 @@ final class FeedPanelNavigationTests: FeedPanelTestCase {
 
     func testCopyLinkWritesWebURLToPasteboard() {
         let model = makeModel(FakeFeedService())
-        let post = TestFactory.feedPost(id: "https-test")
-        // TestFactory posts have no webURL, so build one that does.
-        let withURL = FeedPost(
-            id: post.id, target: .mastodon, authorName: "A", authorHandle: "@a", avatarURL: nil,
-            date: Date(timeIntervalSince1970: 0), text: AttributedString("hi"), images: [],
-            webURL: URL(string: "https://h.io/@a/1"), isLiked: false, isReposted: false,
-            nativeRef: .mastodon(statusID: "1")
+        let withURL = TestFactory.feedPost(
+            id: "https-test", authorName: "A", authorHandle: "@a", authorID: "", text: AttributedString("hi"),
+            webURL: URL(string: "https://h.io/@a/1"), nativeRef: .mastodon(statusID: "1")
         )
 
         NSPasteboard.general.clearContents()

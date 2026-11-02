@@ -166,8 +166,7 @@ final class SentCopyStatusTests: XCTestCase {
         } else {
             .bluesky
         }
-        return FeedPost(id: "\(target.rawValue):\(ref.postKey)", target: target, authorName: "Me",
-                        authorHandle: "@me", avatarURL: nil, date: date, text: "hello", images: [],
-                        webURL: nil, isLiked: false, isReposted: false, isPinned: pinned, nativeRef: ref)
+        return TestFactory.feedPost(target: target, id: "\(target.rawValue):\(ref.postKey)", authorName: "Me",
+                                    authorHandle: "@me", authorID: "", date: date, isPinned: pinned, nativeRef: ref)
     }
 }

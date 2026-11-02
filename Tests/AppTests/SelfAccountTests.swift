@@ -54,8 +54,8 @@ final class SelfAccountTests: FeedPanelTestCase {
         let fake = FakeFeedService()
         let store = makeStore()
         store.rememberOwnAccount("me", for: .mastodon)
-        let poll = FeedNotification(id: "poll", kind: .poll, actorName: "Me", actorHandle: "@me",
-                                    actorID: "me", avatarURL: nil, post: nil, date: Date())
+        let poll = FeedNotification.fixture(id: "poll", date: Date(), actorID: "me", kind: .poll,
+                                            actorName: "Me", actorHandle: "@me")
         fake.notificationsToReturn = [poll]
         let model = FeedPanelModel(target: .mastodon, store: store) { _, _ in fake }
         model.switchTo(.notifications)

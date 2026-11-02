@@ -429,8 +429,9 @@ extension FakeFeedService {
 
 extension FeedNotification {
     /// A minimal notification fixture for model tests.
-    static func fixture(id: String, date: Date, actorID: String = "a") -> FeedNotification {
-        FeedNotification(id: id, kind: .like, actorName: "A", actorHandle: "@a", actorID: actorID,
+    static func fixture(id: String, date: Date, actorID: String = "a", kind: Kind = .like,
+                        actorName: String = "A", actorHandle: String = "@a") -> FeedNotification {
+        FeedNotification(id: id, kind: kind, actorName: actorName, actorHandle: actorHandle, actorID: actorID,
                          avatarURL: nil, post: nil, date: date)
     }
 }
