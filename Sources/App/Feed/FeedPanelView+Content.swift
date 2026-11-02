@@ -44,7 +44,7 @@ extension FeedPanelView {
         } else if let error = model.errorMessage, model.posts.isEmpty {
             ErrorStateView(message: error) { model.refresh() }
         } else if model.posts.isEmpty {
-            emptyState("No posts yet.", systemImage: "text.bubble")
+            EmptyStateView(text: "No posts yet.", systemImage: "text.bubble")
         } else {
             homeList
         }
@@ -180,10 +180,6 @@ extension FeedPanelView {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding()
-    }
-
-    private func emptyState(_ text: String, systemImage: String) -> some View {
-        EmptyStateView(text: text, systemImage: systemImage)
     }
 
     var navTitle: String {

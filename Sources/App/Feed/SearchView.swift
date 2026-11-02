@@ -72,13 +72,13 @@ struct SearchView: View {
     @ViewBuilder
     private var content: some View {
         if let errorMessage {
-            message(errorMessage, systemImage: "exclamationmark.triangle")
+            EmptyStateView(text: errorMessage, systemImage: "exclamationmark.triangle")
         } else if results.isEmpty {
             let trimmed = query.trimmingCharacters(in: .whitespaces)
             if trimmed.count >= AccountQuery.minLength, !isSearching {
-                message("No results for “\(trimmed)”", systemImage: "magnifyingglass")
+                EmptyStateView(text: "No results for “\(trimmed)”", systemImage: "magnifyingglass")
             } else {
-                message("Search for people and posts", systemImage: "magnifyingglass")
+                EmptyStateView(text: "Search for people and posts", systemImage: "magnifyingglass")
             }
         } else {
             ScrollView {
@@ -145,10 +145,6 @@ struct SearchView: View {
     private func postRow(_ row: FeedPost) -> some View {
         FeedRow(post: row, host: postList, panel: panel, accent: accent,
                 push: push, onReply: { replyTarget = $0 })
-    }
-
-    private func message(_ text: String, systemImage: String) -> some View {
-        EmptyStateView(text: text, systemImage: systemImage)
     }
 
     private func stop() {

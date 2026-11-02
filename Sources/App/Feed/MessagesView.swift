@@ -30,7 +30,7 @@ struct MessagesListView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if model.conversations.isEmpty {
-            emptyState("bubble.left.and.bubble.right", "No conversations yet")
+            EmptyStateView(text: "No conversations yet", systemImage: "bubble.left.and.bubble.right")
         } else {
             ScrollView {
                 LazyVStack(spacing: 0) {
@@ -47,10 +47,6 @@ struct MessagesListView: View {
                 model.conversations.first { $0.id == id }.map { push(.conversation($0)) }
             }
         }
-    }
-
-    private func emptyState(_ symbol: String, _ text: String) -> some View {
-        EmptyStateView(text: text, systemImage: symbol)
     }
 }
 
