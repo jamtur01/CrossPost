@@ -62,6 +62,14 @@ extension FeedPostView {
         }
     }
 
+    /// The link card thumbnail's share of the post's media reveal; nil unless sensitive.
+    var cardSensitiveMedia: LinkCardView.SensitiveMedia? {
+        guard post.isSensitive else { return nil }
+        return LinkCardView.SensitiveMedia(isShown: reveals.showsMedia(of: post)) {
+            changeReveal { reveals.toggleMedia(of: post) }
+        }
+    }
+
     /// Covers shown sensitive media again; drawn on the first media item.
     @ViewBuilder
     func hideSensitiveMediaButton(on media: FeedImage) -> some View {

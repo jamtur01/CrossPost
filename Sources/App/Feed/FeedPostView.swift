@@ -95,7 +95,7 @@ struct FeedPostView: View {
                 bodyText
                 images
                 if let card = post.card {
-                    LinkCardView(card: card, accent: accent, onOpen: onOpenURL)
+                    LinkCardView(card: card, accent: accent, sensitive: cardSensitiveMedia, onOpen: onOpenURL)
                 }
                 if let quoted = post.quoted {
                     QuoteCardView(quote: quoted, accent: accent, reveals: reveals, onOpen: onOpenURL)

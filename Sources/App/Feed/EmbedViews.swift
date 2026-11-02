@@ -1,21 +1,27 @@
 import SwiftUI
 
 /// A link preview card — thumbnail, title, description, and domain. Opens the URL.
+/// On a sensitive post the thumbnail is covered, and never loaded, until the reader
+/// shows the post's media.
 struct LinkCardView: View {
+    /// A sensitive post's media reveal, which the thumbnail shares.
+    struct SensitiveMedia {
+        let isShown: Bool
+        let toggle: () -> Void
+    }
+
     let card: LinkCard
     var accent: Color = .accentColor
+    var sensitive: SensitiveMedia?
     let onOpen: (URL) -> Void
 
     var body: some View {
         Button { onOpen(card.url) } label: {
             HStack(spacing: 0) {
                 if let imageURL = card.imageURL {
-                    EmbedImage(
-                        url: imageURL,
-                        targetSize: CGSize(width: 184, height: 184)
-                    )
-                    .frame(width: 92, height: 92)
-                    .clipped()
+                    thumbnail(imageURL)
+                        .frame(width: 92, height: 92)
+                        .clipped()
                 }
                 VStack(alignment: .leading, spacing: 3) {
                     Text(card.providerName)
@@ -47,6 +53,32 @@ struct LinkCardView: View {
         .buttonStyle(.plain)
         .pointerStyle(.link)
         .help(card.url.absoluteString)
+    }
+
+    @ViewBuilder
+    private func thumbnail(_ url: URL) -> some View {
+        if let sensitive, !sensitive.isShown {
+            Button(action: sensitive.toggle) {
+                Image(systemName: "eye.slash.fill")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(.quaternary)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .pointerStyle(.link)
+            .help("Show sensitive media")
+            .accessibilityLabel("Sensitive link image, hidden")
+            .accessibilityHint("Shows the image")
+        } else {
+            EmbedImage(url: url, targetSize: CGSize(width: 184, height: 184))
+                .overlay(alignment: .topLeading) {
+                    if let sensitive {
+                        HideSensitiveMediaButton(action: sensitive.toggle)
+                    }
+                }
+        }
     }
 }
 
