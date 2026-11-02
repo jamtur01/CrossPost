@@ -1,5 +1,10 @@
 # @-mention autocomplete across Mastodon and Bluesky
 
+> **Historical (2026-10-16).** Shipped in v0.5.0. Since then the composer shows one
+> counter per network instead of a single "Both networks" counter, and the
+> Edit / Mastodon / Bluesky preview is the **Editing** menu under the composer
+> title, not a segmented control.
+
 ## Problem
 
 The compose box sends identical text to both networks. Mention syntax does not

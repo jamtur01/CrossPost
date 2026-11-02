@@ -1,5 +1,10 @@
 # Mention Autocomplete Implementation Plan
 
+> **Historical (2026-10-16).** Shipped in v0.5.0. Since then the composer shows one
+> counter per network instead of a single "Both networks" counter, and the
+> Edit / Mastodon / Bluesky preview is the **Editing** menu under the composer
+> title, not a segmented control.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Typing `@` in the compose editor searches Mastodon and Bluesky; a picked

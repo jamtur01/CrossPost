@@ -6,7 +6,8 @@ A native macOS app for reading and posting to Mastodon and Bluesky side by side.
 
 Requires Xcode 27.1+ (Swift 6.4). CI pins Xcode 27.1 on GitHub's `xcode-27`
 runner image (a preview image; `macos-26` stops at Xcode 26.6) via `DEVELOPER_DIR`
-in `.github/workflows/test.yml` and `release.yml`. Keep local and CI on the same
+in `.github/workflows/test.yml` (the build-and-test job that `ci.yml` and
+`release.yml` call) and `release.yml`'s release job. Keep local and CI on the same
 Xcode: Xcode 26's Swift 6.2 rejects code that 6.4 accepts (it made
 `FeedNotification`'s memberwise initializer private, which broke the v0.5.1 CI build).
 
@@ -33,5 +34,6 @@ xcodegen generate
   `FeedService` adapters over TootSDK (Mastodon) and ATProtoKit (Bluesky).
   Core never imports SwiftUI.
 - `Sources/App` — SwiftUI views and `@Observable` models (`FeedPanelModel`,
-  `ComposeModel`, `PostList`).
-- `Tests/` — `CoreTests` and `AppTests`, both in the `CrossPostTests` target.
+  `ComposeModel`, `PostList`), in `Compose/`, `Feed/`, and `Settings/`.
+- `Tests/` — `CoreTests`, `AppTests`, and `Fixtures/`, all in the `CrossPostTests`
+  target.
