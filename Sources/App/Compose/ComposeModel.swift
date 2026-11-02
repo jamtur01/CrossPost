@@ -238,7 +238,7 @@ final class ComposeModel {
         guard let outgoing = validatedOutgoing(for: targets) else { return }
         guard await attachmentsAreReadable(in: outgoing) else { return }
         guard credentials == credentialSnapshot(for: targets) else {
-            errorMessage = "Accounts changed while preparing the post. Review the destinations and try again."
+            errorMessage = Self.accountsChangedMessage
             return
         }
         await publish(outgoing, to: targets, credentials: credentials)
@@ -278,12 +278,15 @@ final class ComposeModel {
         }
     }
 
+    private static let accountsChangedMessage =
+        "Accounts changed while preparing the post. Review the destinations and try again."
+
     private func preparePublication(to targets: [PostTarget], credentials: [PostTarget: [String]]) -> Bool {
         guard credentials == credentialSnapshot(for: targets),
               targets.allSatisfy({ target in
                   landedByTarget[target].map { $0.account == store.accountKey(for: target) } ?? true
               }) else {
-            errorMessage = "Accounts changed while preparing the post. Review the destinations and try again."
+            errorMessage = Self.accountsChangedMessage
             return false
         }
         publishingAccounts = Dictionary(uniqueKeysWithValues: targets.map { ($0, store.accountKey(for: $0)) })
