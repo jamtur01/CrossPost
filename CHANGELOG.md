@@ -35,18 +35,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (for example "1 of 4 posts"). If the history file can't be read (such as one
   saved by an earlier build), the composer says so and leaves the file as it is;
   **Start New History** keeps it under a new name and starts recording again.
+- Keyboard navigation in Home, notifications, threads, profiles, saved posts,
+  search results, and messages. Click a row or press Esc in the composer to give
+  a list the keyboard; ↓/J and ↑/K move between items, Space and ⇧Space page,
+  Return opens the thread, profile, or conversation, and Esc goes back. R, L,
+  and B reply to, like, and boost or repost the focused post. ← and → move to
+  the Mastodon and Bluesky columns, each keeping its place, and **File › New
+  Post** (⌘N) shows the composer with the caret in it. On a notification,
+  Return opens its post (or the profile, for a follow). In Search, Esc in the
+  field moves to the results; in a conversation, Return moves to the message
+  field and Esc moves back. The **Post** menu lists the keys.
 - **Help › Keyboard Shortcuts** (⌘/) opens a window listing every shortcut,
   grouped by where it works. Esc or ⌘W closes it.
-- Keyboard navigation now works in Notifications, Search results, and Messages.
-  On a notification, Return opens its post (or the profile, for a follow) and
-  R/L/B act on its post. In Search, Esc in the field moves to the results. In a
-  conversation, Return moves to the message field and Esc moves back. ←/→ into
-  a column showing Notifications or Messages now lands on that list.
 - Notification rows that show a post have a **Bookmark** button after Like,
   drawn like the one in the post action bar.
 
 ### Changed
 
+- Each column's header leads with the network's glyph and name, with the
+  Home / Notifications / Messages menu beneath it, so the two columns no longer
+  both read "Home".
+- Feed timestamps are compact ("now", "5m", "13h", "3d", then a short date).
+  The full date and time is in the tooltip, and VoiceOver reads the elapsed
+  time.
+- **New Draft…** moved into a **…** menu in the composer header, which keeps
+  the header on one line in a narrow composer.
 - The keyboard focus ring on the focused post uses your accent color at full
   strength (a little deeper in light mode), so it stands out on the white feed.
 - The Bookmarks and Likes lists load older posts as you scroll to the end,
@@ -89,6 +102,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- VoiceOver read posts from two days ago as "yesterday".
+- Your own short messages in a conversation sat at the leading edge instead of
+  the trailing side.
 - The Bookmarks list on Bluesky was always empty. It now shows your Bluesky
   bookmarks; bookmarks of deleted posts are left out.
 - Bluesky gallery embeds show their images.
