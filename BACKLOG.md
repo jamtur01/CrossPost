@@ -11,13 +11,20 @@ This file is the remaining work — to pick up later.
       on compose and replies (replies seed from the parent).
 - [x] **Pinned posts** — surfaced on Mastodon profiles.
 - [x] **Moderation reporting** — report posts and accounts on both networks.
-- [x] **Bookmarks & likes feeds** — saved-posts menu in each feed header.
+- [x] **Bookmarks & likes feeds** — saved-posts menu in each feed header, on both
+      networks, loading older posts as you scroll.
 - [x] **Quote posting** — embed a post on its own network.
 - [x] **Post editing** — edit your own Mastodon posts (text + content warning).
 - [x] **Search** — people and posts on both networks, from a header search field.
 - [x] **Copy link to post** — on the post menu.
 - [x] **Active draft recovery** — one draft and its safe retry progress survive a quit.
 - [x] **Reading text size** — Standard, Larger, and Largest in Settings.
+- [x] **Mention autocomplete** — `@` searches both networks (v0.5.0).
+- [x] **Keyboard navigation** — every feed list, the composer, and messages, with
+      Help › Keyboard Shortcuts.
+- [x] **New-posts pill** — Home keeps your place when posts arrive above you.
+- [x] **Recent Posts** — CrossPost sends with per-network counts in the composer.
+- [x] **Delete confirmation** and **Try Again** on failed loads.
 
 ## Deferred — larger efforts
 
@@ -25,15 +32,21 @@ Consciously scoped out for size; pick up next.
 
 - [ ] **Polls** — render polls in the feed, vote, and create one when composing.
       Three sub-features; Bluesky has no polls.
-- [ ] **Emoji / mention / hashtag autocomplete** — a completion UI over the text
-      editor, custom server-emoji fetching, and mention lookup (the search service
-      now exists to back it).
+- [ ] **Emoji / hashtag autocomplete** — custom server-emoji fetching and hashtag
+      completion over the text editor; mention autocomplete has shipped.
+- [ ] **Own cross-posts shown once** — a send's two network copies as one timeline
+      entry with both networks' counts. Deferred 2026-11-01; Recent Posts in the
+      composer covers the counts for now.
+- [ ] **Unified notifications** — one place for both networks' notifications
+      instead of a bell per column.
 
 ## Tier 1 — table stakes
 
-- [x] **Content warnings — read** — reveal row for CW'd Mastodon posts.
+- [x] **Content warnings — read** — reveal row for CW'd Mastodon posts, Bluesky
+      `!warn` / `!hide` labels, quoted posts, and notification previews.
 - [ ] **Content warnings — write** — add a CW when composing.
-- [x] **Sensitive media blur** — blur-until-clicked gate for sensitive media.
+- [x] **Sensitive media blur** — blur-until-clicked gate for sensitive media,
+      Bluesky adult and graphic media labels, and link card thumbnails.
 
 ## Tier 2 — significant, platform-defining
 

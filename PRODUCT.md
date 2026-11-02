@@ -37,10 +37,13 @@ audiences, editing, DMs, live vs. polled refresh) rather than pretending they ma
 - Three-column window: Compose · Mastodon · Bluesky; the composer can be hidden (⇧⌘C)
   without losing the draft.
 - Each feed has Home, Notifications, and Messages tabs, with in-place navigation to
-  threads and profiles. Mastodon updates live over streaming; both poll about every 60s.
+  threads and profiles. Mastodon updates live over streaming; Bluesky, and Mastodon
+  while its stream is down, refresh every 30s while the app is active.
 - Replies, quotes, edits, and reports open as sheets scoped to one network.
 - Accounts are configured in Settings (⌘,): Mastodon instance + access token, Bluesky
   handle + app password. Credentials live in the Keychain.
+- Fully keyboard-drivable: move between the feeds and the composer, focus posts, and
+  reply, like, or repost from the keyboard. Help › Keyboard Shortcuts lists the keys.
 - Long-lived window: the app stays open all day alongside other work.
 
 ## Capabilities and Constraints
@@ -57,9 +60,13 @@ audiences, editing, DMs, live vs. polled refresh) rather than pretending they ma
   format; accounts merge into one person row only by explicit cross-link rules.
 - Per-post actions: reply, like, repost/boost, bookmark, delete/pin own posts, who
   liked/reposted, open original. Follow, mute, block from profiles. DMs on both.
+- The empty composer lists Recent Posts sent from CrossPost with each network's
+  counts. Home keeps the reader's place when posts arrive and offers a new-posts pill.
+  Deleting a post asks first; failed loads offer Try Again.
 - Only http/https links are tappable.
 - Mastodon content warnings collapse a post until opened, and sensitive media stays
-  blurred until clicked; each reveal lasts for the session and is never saved.
+  blurred or covered (link card thumbnails too) until clicked; each reveal lasts for
+  the session and is never saved.
   Bluesky labels use the same covers with Bluesky's default settings: `!warn` and
   `!hide` collapse the post, and adult or graphic media labels blur its media.
 - Sandboxed, Developer ID-signed, notarized; Core never imports SwiftUI.
@@ -94,4 +101,7 @@ audiences, editing, DMs, live vs. polled refresh) rather than pretending they ma
   bios, and DMs.
 - Image alt text is supported when composing.
 - Light and dark appearances are both first-class.
+- Every feed list, the composer, and messages work from the keyboard.
+- Reduce Motion is honored; network and action text meets 4.5:1 contrast, and an
+  engaged like or repost is not shown by color alone.
 - No formal conformance standard has been set.
