@@ -100,16 +100,4 @@ final class SentHistoryModelTests: XCTestCase {
             sleep: sleep
         )
     }
-
-    private func waitUntil(_ predicate: @MainActor () -> Bool, file: StaticString = #filePath,
-                           line: UInt = #line) async {
-        let deadline = Date().addingTimeInterval(2)
-        while !predicate() {
-            if Date() >= deadline {
-                XCTFail("condition not met within timeout", file: file, line: line)
-                return
-            }
-            try? await Task.sleep(nanoseconds: 1_000_000)
-        }
-    }
 }

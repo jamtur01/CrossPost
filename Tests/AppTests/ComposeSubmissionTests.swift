@@ -295,22 +295,6 @@ final class ComposeSubmissionTests: XCTestCase {
         XCTAssertEqual(bluesky.postedThreads.count, 1, "an edited published prefix must not be resent")
         XCTAssertNotNil(model.errorMessage)
     }
-
-    private func waitUntil(
-        _ predicate: @escaping @MainActor () -> Bool,
-        timeout: TimeInterval = 2,
-        file: StaticString = #filePath,
-        line: UInt = #line
-    ) async {
-        let deadline = Date().addingTimeInterval(timeout)
-        while !predicate() {
-            if Date() >= deadline {
-                XCTFail("Timed out waiting for condition", file: file, line: line)
-                return
-            }
-            await Task.yield()
-        }
-    }
 }
 
 private final class ComposeValidationProbe: @unchecked Sendable { // state behind `lock`

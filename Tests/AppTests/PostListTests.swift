@@ -22,18 +22,6 @@ final class PostListTests: XCTestCase {
         return FeedPanelModel(target: .bluesky, store: store) { _, _ in fake }
     }
 
-    private func waitUntil(_ predicate: @MainActor () -> Bool, timeout: TimeInterval = 2,
-                           file: StaticString = #filePath, line: UInt = #line) async {
-        let deadline = Date().addingTimeInterval(timeout)
-        while !predicate() {
-            if Date() >= deadline {
-                XCTFail("condition not met within timeout", file: file, line: line)
-                return
-            }
-            try? await Task.sleep(nanoseconds: 1_000_000)
-        }
-    }
-
     func testToggleLikeAdjustsCountOptimisticallyAndKeepsItAfterReconcile() async {
         let fake = FakeFeedService()
         let list = PostList(panel: makeModel(fake))

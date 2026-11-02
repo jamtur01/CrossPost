@@ -23,20 +23,6 @@ final class OverlayScrollersTests: XCTestCase {
         await waitUntil { scrollView.scrollerStyle == .overlay }
     }
 
-    private func waitUntil(
-        file: StaticString = #filePath,
-        line: UInt = #line,
-        _ condition: () -> Bool
-    ) async {
-        let deadline = Date().addingTimeInterval(2)
-        while !condition() {
-            guard Date() < deadline else {
-                return XCTFail("condition not met within timeout", file: file, line: line)
-            }
-            try? await Task.sleep(nanoseconds: 10_000_000)
-        }
-    }
-
     private static func scrollView(in view: NSView) -> NSScrollView? {
         if let scrollView = view as? NSScrollView {
             return scrollView

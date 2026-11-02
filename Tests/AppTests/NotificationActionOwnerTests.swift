@@ -244,22 +244,6 @@ final class NotificationActionOwnerTests: XCTestCase {
         post.likeCount = 1
         return post
     }
-
-    private func waitUntil(
-        _ predicate: @MainActor () -> Bool,
-        timeout: TimeInterval = 2,
-        file: StaticString = #filePath,
-        line: UInt = #line
-    ) async {
-        let deadline = Date().addingTimeInterval(timeout)
-        while !predicate() {
-            if Date() >= deadline {
-                XCTFail("Timed out waiting for condition", file: file, line: line)
-                return
-            }
-            await Task.yield()
-        }
-    }
 }
 
 private enum TestFailure: Error {

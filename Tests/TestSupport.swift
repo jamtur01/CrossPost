@@ -1,6 +1,7 @@
 import AppKit
 @testable import CrossPost
 import Foundation
+import XCTest
 
 /// Builds a `FeedPost` with sensible defaults so tests only specify what they care about.
 enum TestFactory {
@@ -67,5 +68,26 @@ final class TestBox<Value>: @unchecked Sendable { // one test touches it at a ti
 
     init(_ value: Value) {
         self.value = value
+    }
+}
+
+extension XCTestCase {
+    /// Polls `predicate` on the main actor every millisecond until it holds, failing
+    /// the test if it still doesn't after `timeout` seconds.
+    @MainActor
+    func waitUntil(
+        _ predicate: @MainActor () -> Bool,
+        timeout: TimeInterval = 2,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) async {
+        let deadline = Date().addingTimeInterval(timeout)
+        while !predicate() {
+            if Date() >= deadline {
+                XCTFail("condition not met within timeout", file: file, line: line)
+                return
+            }
+            try? await Task.sleep(for: .milliseconds(1))
+        }
     }
 }

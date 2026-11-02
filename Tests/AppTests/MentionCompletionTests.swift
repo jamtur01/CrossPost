@@ -88,16 +88,4 @@ final class MentionCompletionTests: XCTestCase {
         completion.moveSelection(by: 1)
         XCTAssertEqual(completion.selected?.displayName, "a")
     }
-
-    /// Waits for the search to land rather than sleeping a fixed time, which a
-    /// slow CI runner can outlast.
-    private func waitUntil(_ condition: () -> Bool, file: StaticString = #filePath, line: UInt = #line) async {
-        let deadline = ContinuousClock.now + .seconds(2)
-        while !condition() {
-            guard ContinuousClock.now < deadline else {
-                return XCTFail("condition not met within 2s", file: file, line: line)
-            }
-            try? await Task.sleep(for: .milliseconds(5))
-        }
-    }
 }

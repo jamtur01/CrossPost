@@ -239,22 +239,6 @@ final class ReplyModelTests: XCTestCase {
         XCTAssertFalse(posted)
         XCTAssertTrue(fake.replyVisibilities.isEmpty, "a reentrant send must not post again")
     }
-
-    private func waitUntil(
-        _ predicate: @escaping @MainActor () -> Bool,
-        timeout: TimeInterval = 2,
-        file: StaticString = #filePath,
-        line: UInt = #line
-    ) async {
-        let deadline = Date().addingTimeInterval(timeout)
-        while !predicate() {
-            if Date() >= deadline {
-                XCTFail("Timed out waiting for condition", file: file, line: line)
-                return
-            }
-            await Task.yield()
-        }
-    }
 }
 
 private final class ReplyValidationProbe: @unchecked Sendable { // state behind `lock`
