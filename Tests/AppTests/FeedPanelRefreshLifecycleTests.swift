@@ -107,8 +107,8 @@ final class FeedPanelRefreshLifecycleTests: FeedPanelTestCase {
     func testStaleLiveCleanupCannotDisconnectReplacementOrResumeFeedPolling() async {
         let stale = FakeFeedService()
         let replacement = FakeFeedService()
-        let staleStreamGate = FeedPanelGate()
-        let pollGate = FeedPanelGate()
+        let staleStreamGate = TestGate()
+        let pollGate = TestGate()
         var replacementContinuation: AsyncStream<FeedUpdate>.Continuation?
         let sentConnection = TestBox(false)
         stale.liveStream = AsyncStream(unfolding: {
