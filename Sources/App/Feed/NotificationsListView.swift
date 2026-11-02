@@ -73,7 +73,6 @@ private struct NotificationRow: View {
 
     @Environment(\.selectKeyboardRow) private var selectKeyboardRow
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var hovering = false
     // Optimistic like/repost state for the referenced post (nil → use the
     // notification's snapshot). Held so repeated toggles keep the record URIs.
     @State private var post: FeedPost?
@@ -123,11 +122,10 @@ private struct NotificationRow: View {
             }
         }
         .padding(.horizontal, Theme.rowPaddingH).padding(.vertical, 10)
-        .background(hovering ? Theme.hoverFill : .clear)
-        .keyboardFocusIndicator(id: notification.id)
         .contentShape(Rectangle())
+        .hoverHighlight()
+        .keyboardFocusIndicator(id: notification.id)
         .onTapGesture(perform: openPost)
-        .onHover { hovering = $0 }
         .onChange(of: notification.post) {
             adoptSnapshot()
         }
