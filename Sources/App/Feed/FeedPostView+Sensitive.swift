@@ -1,16 +1,21 @@
 import SwiftUI
 
-extension FeedPostView {
-    /// Runs a reveal change, animated unless Reduce Motion is on.
-    func changeReveal(_ change: () -> Void) {
-        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2), change)
-    }
+/// Runs a content-warning or sensitive-media reveal change: eased out over 0.2s, or
+/// at once under Reduce Motion. Shared by posts, quotes, and notification previews.
+func withRevealAnimation(reduceMotion: Bool, _ change: () -> Void) {
+    withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2), change)
+}
 
+extension FeedPostView {
     func contentWarningRow(_ warning: String) -> some View {
         ContentWarningRow(warning: warning, emojis: post.emojis, fontSize: bodyFontSize,
                           accent: accent, isShown: reveals.showsContent(of: post)) {
-            changeReveal { reveals.toggleContent(of: post) }
+            withRevealAnimation(reduceMotion: reduceMotion) { reveals.toggleContent(of: post) }
         }
+    }
+
+    private func toggleMediaReveal() {
+        withRevealAnimation(reduceMotion: reduceMotion) { reveals.toggleMedia(of: post) }
     }
 
     /// Stand-in for a covered media item: a tiny preview scaled up and blurred, so
@@ -48,34 +53,48 @@ extension FeedPostView {
     @ViewBuilder
     var sensitiveMediaCover: some View {
         if !reveals.showsMedia(of: post) {
-            Button { changeReveal { reveals.toggleMedia(of: post) } } label: {
+            ShowSensitiveMediaButton(
+                accessibilityLabel: post.images.count == 1 ? "Sensitive media, hidden"
+                    : "\(post.images.count) sensitive media items, hidden",
+                action: toggleMediaReveal
+            ) {
                 SensitiveMediaLabel()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
-            .pointerStyle(.link)
-            .help("Show sensitive media")
-            .accessibilityLabel(post.images.count == 1 ? "Sensitive media, hidden"
-                : "\(post.images.count) sensitive media items, hidden")
-            .accessibilityHint("Shows the media")
         }
     }
 
     /// The link card thumbnail's share of the post's media reveal; nil unless sensitive.
     var cardSensitiveMedia: LinkCardView.SensitiveMedia? {
         guard post.isSensitive else { return nil }
-        return LinkCardView.SensitiveMedia(isShown: reveals.showsMedia(of: post)) {
-            changeReveal { reveals.toggleMedia(of: post) }
-        }
+        return LinkCardView.SensitiveMedia(isShown: reveals.showsMedia(of: post), toggle: toggleMediaReveal)
     }
 
     /// Covers shown sensitive media again; drawn on the first media item.
     @ViewBuilder
     func hideSensitiveMediaButton(on media: FeedImage) -> some View {
         if post.isSensitive, media.id == post.images.first?.id {
-            HideSensitiveMediaButton { changeReveal { reveals.toggleMedia(of: post) } }
+            HideSensitiveMediaButton(action: toggleMediaReveal)
         }
+    }
+}
+
+/// Shows covered sensitive media: the button shell around each cover's own look (the
+/// post's blurred media, the quote's placeholder, the link card's small square).
+struct ShowSensitiveMediaButton<Label: View>: View {
+    let accessibilityLabel: String
+    let action: () -> Void
+    @ViewBuilder let label: () -> Label
+
+    var body: some View {
+        Button(action: action) {
+            label().contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .pointerStyle(.link)
+        .help("Show sensitive media")
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityHint("Shows the media")
     }
 }
 

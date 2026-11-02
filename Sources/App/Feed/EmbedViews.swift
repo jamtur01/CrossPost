@@ -54,19 +54,13 @@ struct LinkCardView: View {
     @ViewBuilder
     private func thumbnail(_ url: URL) -> some View {
         if let sensitive, !sensitive.isShown {
-            Button(action: sensitive.toggle) {
+            ShowSensitiveMediaButton(accessibilityLabel: "Sensitive link image, hidden", action: sensitive.toggle) {
                 Image(systemName: "eye.slash.fill")
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Theme.placeholderFill)
-                    .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
-            .pointerStyle(.link)
-            .help("Show sensitive media")
-            .accessibilityLabel("Sensitive link image, hidden")
-            .accessibilityHint("Shows the image")
         } else {
             EmbedImage(url: url, targetSize: CGSize(width: 184, height: 184))
                 .overlay(alignment: .topLeading) {
@@ -122,7 +116,7 @@ struct QuoteCardView: View {
                 if let warning = quote.contentWarning {
                     ContentWarningRow(warning: warning, emojis: quote.emojis, fontSize: 13, accent: accent,
                                       isShown: reveals.showsContent(of: quote)) {
-                        changeReveal { reveals.toggleContent(of: quote) }
+                        withRevealAnimation(reduceMotion: reduceMotion) { reveals.toggleContent(of: quote) }
                     }
                 }
                 if reveals.showsContent(of: quote) {
@@ -153,21 +147,15 @@ struct QuoteCardView: View {
                 EmbedImage(url: url, targetSize: CGSize(width: 1000, height: 240))
                     .overlay(alignment: .topLeading) {
                         if quote.isSensitive {
-                            HideSensitiveMediaButton { changeReveal { reveals.toggleMedia(of: quote) } }
+                            HideSensitiveMediaButton(action: toggleMediaReveal)
                         }
                     }
             } else {
-                Button { changeReveal { reveals.toggleMedia(of: quote) } } label: {
+                ShowSensitiveMediaButton(accessibilityLabel: "Sensitive media, hidden", action: toggleMediaReveal) {
                     SensitiveMediaLabel()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .background(Theme.placeholderFill)
-                        .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
-                .pointerStyle(.link)
-                .help("Show sensitive media")
-                .accessibilityLabel("Sensitive media, hidden")
-                .accessibilityHint("Shows the media")
             }
         }
         .frame(height: 120)
@@ -175,8 +163,8 @@ struct QuoteCardView: View {
         .clipShape(RoundedRectangle(cornerRadius: Theme.mediaCorner, style: .continuous))
     }
 
-    private func changeReveal(_ change: () -> Void) {
-        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2), change)
+    private func toggleMediaReveal() {
+        withRevealAnimation(reduceMotion: reduceMotion) { reveals.toggleMedia(of: quote) }
     }
 }
 

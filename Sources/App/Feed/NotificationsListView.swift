@@ -145,9 +145,7 @@ private struct NotificationRow: View {
         if let warning = post.contentWarning {
             ContentWarningRow(warning: warning, emojis: post.emojis, fontSize: 15, accent: accent,
                               isShown: model.reveals.showsContent(of: post)) {
-                withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) {
-                    model.reveals.toggleContent(of: post)
-                }
+                withRevealAnimation(reduceMotion: reduceMotion) { model.reveals.toggleContent(of: post) }
             }
         }
         if model.reveals.showsContent(of: post), !post.text.characters.isEmpty {
