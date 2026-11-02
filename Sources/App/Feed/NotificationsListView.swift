@@ -72,6 +72,7 @@ private struct NotificationRow: View {
     let onReply: (FeedPost) -> Void
 
     @Environment(\.selectKeyboardRow) private var selectKeyboardRow
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var hovering = false
     // Optimistic like/repost state for the referenced post (nil → use the
     // notification's snapshot). Held so repeated toggles keep the record URIs.
@@ -114,13 +115,8 @@ private struct NotificationRow: View {
                     relativeTimestamp(notification.date)
                 }
 
-                if let post = livePost, !post.text.characters.isEmpty {
-                    PostBody(text: post.text, accent: accent, cacheKey: post.id, emojis: post.emojis,
-                             color: bodyIsPrimary ? AnyShapeStyle(.primary)
-                                 : AnyShapeStyle(.secondary),
-                             lineLimit: 3,
-                             onTap: openPost,
-                             onOpenURL: { model.openLink($0, push: push) })
+                if let post = livePost {
+                    preview(of: post)
                 }
 
                 actionBar
@@ -140,6 +136,28 @@ private struct NotificationRow: View {
             perform(keyPress.command)
         }
         .onDisappear(perform: endLifecycle)
+    }
+
+    /// The post's text, behind its content warning until the reader opens it here or
+    /// anywhere else the post appears.
+    @ViewBuilder
+    private func preview(of post: FeedPost) -> some View {
+        if let warning = post.contentWarning {
+            ContentWarningRow(warning: warning, emojis: post.emojis, fontSize: 15, accent: accent,
+                              isShown: model.reveals.showsContent(of: post)) {
+                withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) {
+                    model.reveals.toggleContent(of: post)
+                }
+            }
+        }
+        if model.reveals.showsContent(of: post), !post.text.characters.isEmpty {
+            PostBody(text: post.text, accent: accent, cacheKey: post.id, emojis: post.emojis,
+                     color: bodyIsPrimary ? AnyShapeStyle(.primary)
+                         : AnyShapeStyle(.secondary),
+                     lineLimit: 3,
+                     onTap: openPost,
+                     onOpenURL: { model.openLink($0, push: push) })
+        }
     }
 
     private var isOwnActor: Bool {
