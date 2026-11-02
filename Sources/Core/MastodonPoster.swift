@@ -25,13 +25,10 @@ struct MastodonPoster: Poster, ThreadPublisher {
 
     func publishOne(_ draft: DraftPost, root _: String?,
                     parent: String?) async throws -> (ref: String, item: PostedItem) {
-        let maxBytes = draft.attachments.isEmpty ? 0 : await imageLimit.get(client)
-        let mediaIds = try await client.uploadJPEGImages(draft.attachments, maxBytes: maxBytes)
+        let mediaIds = try await client.uploadJPEGImages(draft.attachments) { await imageLimit.get(client) }
 
         var params = PostParams(post: draft.text, visibility: draft.visibility.tootVisibility)
-        if !mediaIds.isEmpty {
-            params.mediaIds = mediaIds
-        }
+        params.mediaIds = mediaIds
         if let parent {
             params.inReplyToId = parent
         } // Mastodon threads by parent chain only
@@ -81,8 +78,12 @@ extension TootClient {
     /// media ids in attachment order so the post's gallery order is preserved.
     /// Transcoding to JPEG makes the bytes match the declared MIME type (the picker
     /// accepts PNG/HEIC/GIF/TIFF), scaling down only past the instance's image size
-    /// limit so a large photo can't fail mid-thread.
-    func uploadJPEGImages(_ images: [Attachment], maxBytes: Int) async throws -> [String] {
+    /// limit so a large photo can't fail mid-thread. `maxBytes` is asked only when there
+    /// are images to send, and can't throw: an unreadable limit mustn't fail the post.
+    func uploadJPEGImages(_ images: [Attachment], maxBytes: () async -> Int) async throws -> [String] {
+        guard !images.isEmpty else { return [] }
+        try TargetLimits().checkImageCount(images.count, for: .mastodon)
+        let maxBytes = await maxBytes()
         // Encode sequentially: the pipeline is pure ImageIO/CoreGraphics and
         // thread-safe (the coordinator already runs both posters' encodes
         // concurrently), but parallelising the CPU-bound encodes within one post

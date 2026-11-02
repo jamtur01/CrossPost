@@ -23,6 +23,7 @@ class ImageURLProtocolStub: URLProtocol, @unchecked Sendable { // state behind `
     private nonisolated(unsafe) static var requests: [URL: Int] = [:] // behind `lock`
     private nonisolated(unsafe) static var deliveredBytes: [URL: Int] = [:] // behind `lock`
     private nonisolated(unsafe) static var stops: [URL: Int] = [:] // behind `lock`
+    private nonisolated(unsafe) static var bodies: [URL: Data] = [:] // behind `lock`
 
     private let stateLock = NSLock()
     private var stopped = false
@@ -45,6 +46,13 @@ class ImageURLProtocolStub: URLProtocol, @unchecked Sendable { // state behind `
         return stops[url, default: 0]
     }
 
+    /// The body of the latest request to `url`, since it was last configured.
+    static func lastRequestBody(for url: URL) -> Data? {
+        lock.lock()
+        defer { lock.unlock() }
+        return bodies[url]
+    }
+
     static func configure(
         url: URL,
         statusCode: Int,
@@ -65,6 +73,7 @@ class ImageURLProtocolStub: URLProtocol, @unchecked Sendable { // state behind `
         requests[url] = 0
         deliveredBytes[url] = 0
         stops[url] = 0
+        bodies[url] = nil
         lock.unlock()
     }
 
@@ -77,7 +86,7 @@ class ImageURLProtocolStub: URLProtocol, @unchecked Sendable { // state behind `
     }
 
     override func startLoading() {
-        guard let url = request.url, let stub = Self.currentStub(for: url) else {
+        guard let url = request.url, let stub = Self.currentStub(for: url, body: requestBody) else {
             client?.urlProtocol(self, didFailWithError: URLError(.unsupportedURL))
             return
         }
@@ -97,11 +106,27 @@ class ImageURLProtocolStub: URLProtocol, @unchecked Sendable { // state behind `
         Self.recordStop(for: request.url)
     }
 
-    private static func currentStub(for url: URL) -> Stub? {
+    private static func currentStub(for url: URL, body: Data?) -> Stub? {
         lock.lock()
         defer { lock.unlock() }
         requests[url, default: 0] += 1
+        bodies[url] = body
         return stubs[url]
+    }
+
+    /// URLSession hands a protocol its body as a stream, not as `httpBody`.
+    private var requestBody: Data? {
+        guard let stream = request.httpBodyStream else { return request.httpBody }
+        stream.open()
+        defer { stream.close() }
+        var data = Data()
+        var buffer = [UInt8](repeating: 0, count: 4096)
+        while stream.hasBytesAvailable {
+            let count = stream.read(&buffer, maxLength: buffer.count)
+            guard count > 0 else { break }
+            data.append(contentsOf: buffer[..<count])
+        }
+        return data
     }
 
     private func deliver(_ stub: Stub) {

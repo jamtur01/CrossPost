@@ -90,16 +90,12 @@ struct MastodonFeedService: FeedService {
         guard case let .mastodon(id) = post.nativeRef else {
             throw FeedError.wrongPlatform
         }
-        try TargetLimits().checkImageCount(images.count, for: .mastodon)
-        let maxBytes = images.isEmpty ? 0 : await client.mastodonImageByteLimit()
-        let mediaIds = try await client.uploadJPEGImages(images, maxBytes: maxBytes)
+        let mediaIds = try await client.uploadJPEGImages(images, maxBytes: client.mastodonImageByteLimit)
         // Carry the parent's content warning forward; the caller seeds visibility
         // from the parent so a reply never widens its audience.
         let spoiler = post.spoilerText?.nilIfBlank
         var params = PostParams(post: text, visibility: visibility.tootVisibility, spoilerText: spoiler)
-        if !mediaIds.isEmpty {
-            params.mediaIds = mediaIds
-        }
+        params.mediaIds = mediaIds
         params.inReplyToId = id
         params.sensitive = post.isSensitive
         let posted = try await client.publishPost(params)
@@ -250,9 +246,7 @@ struct MastodonFeedService: FeedService {
         // the caller's post may be stale.
         params.sensitive = current.sensitive
         let mediaIds = current.mediaAttachments.map(\.id)
-        if !mediaIds.isEmpty {
-            params.mediaIds = mediaIds
-        }
+        params.mediaIds = mediaIds.isEmpty ? nil : mediaIds
         let updated = try await client.editPost(id: id, params)
         return Self.feedPost(from: updated)
     }
